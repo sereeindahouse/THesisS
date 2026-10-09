@@ -1,0 +1,1595 @@
+{
+  "protocol": {
+    "created_at": "2026-10-09T17:51:37.239965+00:00",
+    "client_date": "2026-10-10",
+    "code_sha256": "ac955b7bec117bd5cfbe84c263903746b122997ef884835c394b06bff448b823",
+    "content_sha256": "b5bbd92205bea1f0f315016983f1690a96c863e58549f8a2144ae152df832db6",
+    "cases_sha256": "0e9952cb2691af5a1ef91e17b5a9528f15127d96d4b10fb4fac628289ea242a7",
+    "faq_ids": [
+      "faq.contact",
+      "faq.sakura",
+      "faq.arc.courses",
+      "faq.cs.program",
+      "faq.cs.department"
+    ],
+    "draft_content_explicitly_allowed": true,
+    "label_status": "assistant_proposed_not_human_approved",
+    "approved_gold": false,
+    "final_test": false,
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75,
+      "idf": "log1p((N-df+0.5)/(df+0.5))",
+      "query_term_weight": "sorted unique query terms",
+      "tokenizer": "NFC/casefold Unicode word tokens; no morphology or alias expansion",
+      "batch_seconds": 0.006642899999860674
+    },
+    "answer_generation_performed": false,
+    "llm_calls": 0,
+    "router_implemented": false,
+    "private_audio_used": false,
+    "training_performed": false
+  },
+  "summary": {
+    "bm25": {
+      "label_status": "assistant_proposed_not_human_approved",
+      "positive_cases": 15,
+      "top1_hit_rate": 0.6666666666666666,
+      "top3_hit_rate": 0.8666666666666667,
+      "mean_reciprocal_rank": 0.7855555555555556,
+      "negative_cases": 5,
+      "negative_top_scores": [
+        {
+          "id": "rd16",
+          "faq_id": "faq.contact",
+          "score": 2.2195412471010343
+        },
+        {
+          "id": "rd17",
+          "faq_id": "faq.contact",
+          "score": 1.5981676203295558
+        },
+        {
+          "id": "rd18",
+          "faq_id": "faq.contact",
+          "score": 0.6213736267714784
+        },
+        {
+          "id": "rd19",
+          "faq_id": "faq.sakura",
+          "score": 3.2870347559158355
+        },
+        {
+          "id": "rd20",
+          "faq_id": "faq.contact",
+          "score": 1.5981676203295558
+        }
+      ],
+      "abstention_implemented": false,
+      "score_is_probability": false,
+      "production_quality_accepted": false
+    }
+  },
+  "rows": {
+    "bm25": [
+      {
+        "id": "rd01",
+        "question": "ШМТК-тэй утсаар эсвэл и-мэйлээр яаж холбогдох вэ?",
+        "proposed_relevant_faq_ids": [
+          "faq.contact"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.sakura",
+            "score": 2.24499549724952,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.8531660562162956,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd02",
+        "question": "Сургуультай холбоо барих ерөнхий дугаар, цахим шуудангийн хаяг хэрэгтэй.",
+        "proposed_relevant_faq_ids": [
+          "faq.contact"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 6.146105597827804,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.7558810397240475,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.6722637167891191,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd03",
+        "question": "Коллеж руу залгах эсвэл захиа явуулах мэдээлэл өгөөч.",
+        "proposed_relevant_faq_ids": [
+          "faq.contact"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 1.0092703453828744,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.8689784419369435,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd04",
+        "question": "Сакура компанитай хамтарсан ажлынхаа тухай танилцуулна уу.",
+        "proposed_relevant_faq_ids": [
+          "faq.sakura"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.cs.department",
+            "score": 1.350978330084487,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd05",
+        "question": "Sakura Internet-тэй хамтрах хүрээнд суралцагчдад ямар боломж, дэмжлэг өгсөн бэ?",
+        "proposed_relevant_faq_ids": [
+          "faq.sakura"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.sakura",
+            "score": 4.358006755827324,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 3.0963571921213497,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 2.559498168648887,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd06",
+        "question": "Япон түнш Сакурагийн хамтын ажиллагааны ерөнхий мэдээлэл хэрэгтэй.",
+        "proposed_relevant_faq_ids": [
+          "faq.sakura"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.sakura",
+            "score": 2.5038658265423868,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 2.1343125899823066,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 1.979021421729105,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.8321470639114514,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.6722637167891191,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd07",
+        "question": "2025–2026 оны намрын улиралд ARC-тай холбоотой ямар гурван хичээлийг дурдсан бэ?",
+        "proposed_relevant_faq_ids": [
+          "faq.arc.courses"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 11.880063413624333,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 5.040936409225647,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.5350006452906819,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd08",
+        "question": "ARC хамтарсан хичээлүүдийн нэрийг мэдмээр байна.",
+        "proposed_relevant_faq_ids": [
+          "faq.arc.courses"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.9777014166000458,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.8531660562162956,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd09",
+        "question": "Эй Ар Си компанитай хамт сайжруулсан сургалтын хичээлүүд юу вэ?",
+        "proposed_relevant_faq_ids": [
+          "faq.arc.courses"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 2.2195412471010343,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 1.5481785960606749,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.5252654940419635,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.4478474631152476,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd10",
+        "question": "Компьютерын ухааны хөтөлбөрийн албан ёсны холбоос болон суралцах сэдвүүдийг өгөөч.",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.program"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.cs.program",
+            "score": 8.702113618862974,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 2.807958174455251,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 1.511762079448095,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd11",
+        "question": "Программист болох чиглэлийнхээ хөтөлбөрийн албан ёсны хуудсыг зааж өгнө үү.",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.program"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.cs.program",
+            "score": 5.526105985475734,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 3.1419359711015122,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.6213736267714784,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd12",
+        "question": "Компьютерын ухааны чиглэлд практик, төсөл, дадлага багтдаг уу?",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.program"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.sakura",
+            "score": 3.314996787830884,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 2.862740409532582,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 2.7749740392530207,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd13",
+        "question": "Тэнхимийн хамтрагчид, сургалтын ерөнхий чиглэлийг хамтад нь танилцуулна уу.",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.department"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.cs.department",
+            "score": 4.826233345307947,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 2.2124983298891876,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 1.5679586430196142,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.9777014166000458,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd14",
+        "question": "Компьютерын ухааны тэнхимийн ерөнхий танилцуулга авах гэсэн юм.",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.department"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.cs.department",
+            "score": 4.559036617121839,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 2.525880012660721,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 2.295377935218511,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 1.0700012905813638,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.9697510763462306,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd15",
+        "question": "КУ тэнхим юу заадаг, ямар байгууллагуудтай ажилладаг вэ?",
+        "proposed_relevant_faq_ids": [
+          "faq.cs.department"
+        ],
+        "case_type": "positive_development_paraphrase",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 1.5481785960606749,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 1.3760170553125768,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd16",
+        "question": "2027 оны сургалтын төлбөр яг хэдэн төгрөг вэ?",
+        "proposed_relevant_faq_ids": [],
+        "case_type": "no_support_in_current_five_faq_corpus",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 2.2195412471010343,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 1.281146533766011,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.8321470639114514,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.5350006452906819,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.4478474631152476,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd17",
+        "question": "Маргааш миний багш хэдэн цагт ирэх вэ?",
+        "proposed_relevant_faq_ids": [],
+        "case_type": "no_support_in_current_five_faq_corpus",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd18",
+        "question": "Өнөөдрийн ангийн хуваарь өөрчлөгдсөн үү?",
+        "proposed_relevant_faq_ids": [],
+        "case_type": "no_support_in_current_five_faq_corpus",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 0.6213736267714784,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.5350006452906819,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.4478474631152476,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd19",
+        "question": "2026 оны элсэлтийн бүртгэл одоо нээлттэй байгаа юу?",
+        "proposed_relevant_faq_ids": [],
+        "case_type": "no_support_in_current_five_faq_corpus",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.sakura",
+            "score": 3.2870347559158355,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 2.3803256599721263,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 1.1518598208236293,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.7558810397240475,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.contact",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      },
+      {
+        "id": "rd20",
+        "question": "Би гадаад паспорт хаана захиалах вэ?",
+        "proposed_relevant_faq_ids": [],
+        "case_type": "no_support_in_current_five_faq_corpus",
+        "label_status": "assistant_proposed_not_human_approved",
+        "ranking": [
+          {
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558,
+            "source_refs": [
+              {
+                "document_id": "nmct-contact-web-20261007",
+                "version": 1,
+                "locator": "Хаяг мэдээлэл"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.arc.courses",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / ARC"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.department",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              },
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.cs.program",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-program-web-20261009",
+                "version": 1,
+                "locator": "Хөтөлбөрийн танилцуулга"
+              }
+            ],
+            "approval_status": "draft"
+          },
+          {
+            "faq_id": "faq.sakura",
+            "score": 0.0,
+            "source_refs": [
+              {
+                "document_id": "nmct-cs-web-20261007",
+                "version": 1,
+                "locator": "Хамтын ажиллагаа / Sakura Internet"
+              }
+            ],
+            "approval_status": "draft"
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Five FAQ candidates only; top5 is trivial and not reported.",
+    "Assistant-authored development paraphrases and labels, not observed user questions or approved gold.",
+    "FAQ and school sources remain drafts; corpus does not prove current factual correctness.",
+    "Negative controls always have a closest result; similarity does not prove answer support.",
+    "No deployed abstention threshold or router; no generated or served answer.",
+    "Timings are one batch, not controlled end-to-end latency benchmarks."
+  ]
+}

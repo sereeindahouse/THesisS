@@ -1,0 +1,22 @@
+{
+  "status": "provisional_development_candidate",
+  "development_model_path": "models/faster-whisper-small-mn-cafet",
+  "source_repo": "Cafet/whisper-small-mongolian",
+  "source_revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+  "model_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+  "license": "apache-2.0",
+  "decoding": {
+    "language": "mn",
+    "task": "transcribe",
+    "beam_size": 5,
+    "vad_filter": false,
+    "temperature": 0.0,
+    "without_timestamps": true,
+    "condition_on_previous_text": false
+  },
+  "device": "cpu",
+  "compute_type": "int8",
+  "production_accepted": false,
+  "fine_tuning_performed": false,
+  "note": "Public runtime profile only; private recordings and per-recording results are not distributed."
+}

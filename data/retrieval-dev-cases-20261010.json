@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "author": "assistant",
+  "client_date": "2026-10-10",
+  "purpose": "Development ranking controls, not real user observations, approved gold, router labels or final test.",
+  "private_audio_used": false,
+  "cases": [
+    {
+      "id": "rd01",
+      "question": "ШМТК-тэй утсаар эсвэл и-мэйлээр яаж холбогдох вэ?",
+      "proposed_relevant_faq_ids": [
+        "faq.contact"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd02",
+      "question": "Сургуультай холбоо барих ерөнхий дугаар, цахим шуудангийн хаяг хэрэгтэй.",
+      "proposed_relevant_faq_ids": [
+        "faq.contact"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd03",
+      "question": "Коллеж руу залгах эсвэл захиа явуулах мэдээлэл өгөөч.",
+      "proposed_relevant_faq_ids": [
+        "faq.contact"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd04",
+      "question": "Сакура компанитай хамтарсан ажлынхаа тухай танилцуулна уу.",
+      "proposed_relevant_faq_ids": [
+        "faq.sakura"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd05",
+      "question": "Sakura Internet-тэй хамтрах хүрээнд суралцагчдад ямар боломж, дэмжлэг өгсөн бэ?",
+      "proposed_relevant_faq_ids": [
+        "faq.sakura"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd06",
+      "question": "Япон түнш Сакурагийн хамтын ажиллагааны ерөнхий мэдээлэл хэрэгтэй.",
+      "proposed_relevant_faq_ids": [
+        "faq.sakura"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd07",
+      "question": "2025–2026 оны намрын улиралд ARC-тай холбоотой ямар гурван хичээлийг дурдсан бэ?",
+      "proposed_relevant_faq_ids": [
+        "faq.arc.courses"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd08",
+      "question": "ARC хамтарсан хичээлүүдийн нэрийг мэдмээр байна.",
+      "proposed_relevant_faq_ids": [
+        "faq.arc.courses"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd09",
+      "question": "Эй Ар Си компанитай хамт сайжруулсан сургалтын хичээлүүд юу вэ?",
+      "proposed_relevant_faq_ids": [
+        "faq.arc.courses"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd10",
+      "question": "Компьютерын ухааны хөтөлбөрийн албан ёсны холбоос болон суралцах сэдвүүдийг өгөөч.",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.program"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd11",
+      "question": "Программист болох чиглэлийнхээ хөтөлбөрийн албан ёсны хуудсыг зааж өгнө үү.",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.program"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd12",
+      "question": "Компьютерын ухааны чиглэлд практик, төсөл, дадлага багтдаг уу?",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.program"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd13",
+      "question": "Тэнхимийн хамтрагчид, сургалтын ерөнхий чиглэлийг хамтад нь танилцуулна уу.",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.department"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd14",
+      "question": "Компьютерын ухааны тэнхимийн ерөнхий танилцуулга авах гэсэн юм.",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.department"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd15",
+      "question": "КУ тэнхим юу заадаг, ямар байгууллагуудтай ажилладаг вэ?",
+      "proposed_relevant_faq_ids": [
+        "faq.cs.department"
+      ],
+      "case_type": "positive_development_paraphrase",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd16",
+      "question": "2027 оны сургалтын төлбөр яг хэдэн төгрөг вэ?",
+      "proposed_relevant_faq_ids": [],
+      "case_type": "no_support_in_current_five_faq_corpus",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd17",
+      "question": "Маргааш миний багш хэдэн цагт ирэх вэ?",
+      "proposed_relevant_faq_ids": [],
+      "case_type": "no_support_in_current_five_faq_corpus",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd18",
+      "question": "Өнөөдрийн ангийн хуваарь өөрчлөгдсөн үү?",
+      "proposed_relevant_faq_ids": [],
+      "case_type": "no_support_in_current_five_faq_corpus",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd19",
+      "question": "2026 оны элсэлтийн бүртгэл одоо нээлттэй байгаа юу?",
+      "proposed_relevant_faq_ids": [],
+      "case_type": "no_support_in_current_five_faq_corpus",
+      "label_status": "assistant_proposed_not_human_approved"
+    },
+    {
+      "id": "rd20",
+      "question": "Би гадаад паспорт хаана захиалах вэ?",
+      "proposed_relevant_faq_ids": [],
+      "case_type": "no_support_in_current_five_faq_corpus",
+      "label_status": "assistant_proposed_not_human_approved"
+    }
+  ]
+}

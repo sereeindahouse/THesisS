@@ -1,0 +1,93 @@
+{
+  "repo_id": "Cafet/whisper-small-mongolian",
+  "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+  "license": "apache-2.0",
+  "files": [
+    {
+      "rfilename": ".gitattributes",
+      "blobId": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+      "size": 1519
+    },
+    {
+      "rfilename": "README.md",
+      "blobId": "4f6f57b445b6b03e516105bf61711a7bfc277857",
+      "size": 1034
+    },
+    {
+      "rfilename": "added_tokens.json",
+      "blobId": "e3d256c988462aa153dcabe2aa38b8e9b436c06f",
+      "size": 34604
+    },
+    {
+      "rfilename": "config.json",
+      "blobId": "40a4736acf29a8411f29b67fe009bb545b01ea1f",
+      "size": 1327
+    },
+    {
+      "rfilename": "generation_config.json",
+      "blobId": "7c8d40b521aaa1721550cf1985d777fd34334a40",
+      "size": 270
+    },
+    {
+      "rfilename": "merges.txt",
+      "blobId": "6038932a2a1f09a66991b1c2adae0d14066fa29e",
+      "size": 493869
+    },
+    {
+      "rfilename": "model.safetensors",
+      "blobId": "b86e1d851385417b507507ebc81a3814e54ba7ff",
+      "size": 966995080,
+      "lfs": {
+        "sha256": "0a14a3074fcaca61409749bf7976942b1f1a7b8582261cfbb2cef166a6cc4ed2",
+        "size": 966995080,
+        "pointerSize": 134
+      }
+    },
+    {
+      "rfilename": "normalizer.json",
+      "blobId": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0",
+      "size": 52666
+    },
+    {
+      "rfilename": "preprocessor_config.json",
+      "blobId": "91876762a536a746d268353c5cba57286e76b058",
+      "size": 339
+    },
+    {
+      "rfilename": "runs/May05_02-57-11_e1c99b330597/events.out.tfevents.1714877845.e1c99b330597.180.0",
+      "blobId": "99acdf687b5b61e28b86ff550877b5f20733f4f6",
+      "size": 21446,
+      "lfs": {
+        "sha256": "11d0a8e67617459febd16ec82811c6b074251961ca2174339e19a3cb1c96b7b1",
+        "size": 21446,
+        "pointerSize": 130
+      }
+    },
+    {
+      "rfilename": "special_tokens_map.json",
+      "blobId": "bf69932dca4b3719b59fdd8f6cc1978109509f6c",
+      "size": 2194
+    },
+    {
+      "rfilename": "tokenizer_config.json",
+      "blobId": "d13b786c04765fb1a06492b53587752cd67665ea",
+      "size": 282683
+    },
+    {
+      "rfilename": "training_args.bin",
+      "blobId": "07186475f2b53376e1e0b4504ed65f83981efde7",
+      "size": 5176,
+      "lfs": {
+        "sha256": "822ceec4e59d207302aca2cf2685c87d0cb8d7300252e41ec43afa0c2cce10f0",
+        "size": 5176,
+        "pointerSize": 129
+      }
+    },
+    {
+      "rfilename": "vocab.json",
+      "blobId": "90e797dd4fd05d9dea443d702ca06be2463c5f2f",
+      "size": 1036584
+    }
+  ],
+  "source_url": "https://huggingface.co/Cafet/whisper-small-mongolian/tree/d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d"
+}
