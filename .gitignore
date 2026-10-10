@@ -16,9 +16,6 @@
 !/content_store.py
 !/import_content.py
 !/retrieval_probe.py
-!/RESEARCH-26-PAPERS.mn.md
-!/STUDENT-READING-GUIDE.mn.md
-!/THESIS-RESEARCH-SYNTHESIS-2026-10-10.mn.md
 !/ROADMAP-FINAL-2026-10-07.mn.md
 !/data/
 /data/*
@@ -88,10 +85,6 @@
 !/papers/research-cards-20261010/paper26.mn.md
 !/docs/
 /docs/*
-!/docs/PROGRESS.mn.md
-!/docs/CONTENT-STORE.mn.md
-!/docs/MODEL-SETUP.mn.md
-!/docs/RETRIEVAL-RESULTS.mn.md
 !/docs/experiments/
 /docs/experiments/*
 !/docs/experiments/retrieval-20261010.json
@@ -114,7 +107,6 @@ __pycache__/
 !/tests/test_demo_server.py
 !/tests/test_release_models.py
 !/tools/install_release_models.py
-!/docs/SQLITE-SEARCH.mn.md
 !/config/releases/
 /config/releases/*
 !/config/releases/models-20261010.json
@@ -127,3 +119,23 @@ __pycache__/
 !/demo/audio/q01.wav
 !/demo/audio/q02.wav
 !/demo/audio/q03.wav
+
+# Organized public reports; private status, STT reports and archives remain local.
+!/reports/
+/reports/*
+!/reports/current/
+/reports/current/*
+!/reports/research/
+/reports/research/*
+!/reports/system/
+/reports/system/*
+!/reports/current/PROGRESS.mn.md
+!/reports/research/RESEARCH-26-PAPERS.mn.md
+!/reports/research/STUDENT-READING-GUIDE.mn.md
+!/reports/research/THESIS-RESEARCH-SYNTHESIS-2026-10-10.mn.md
+!/reports/system/CONTENT-STORE.mn.md
+!/reports/system/MODEL-SETUP.mn.md
+!/reports/system/RETRIEVAL-RESULTS.mn.md
+!/reports/system/SQLITE-SEARCH.mn.md
+!/open_demo.py
+!/DEMO.cmd

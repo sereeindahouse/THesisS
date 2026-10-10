@@ -10,9 +10,9 @@
 
 ## Одоогийн нотолгоо
 
-STT: дөрвөн модель, ижил 13 speaker-confirmed хөгжүүлэлтийн бичлэг. Cafet WER36.0%, CER16.9%; тоо/он/нэрийн алдаа үлдсэн. Нэг хүн, model draft харсан reference тул ерөнхийлөх ба confirmation bias-ийн хязгаартай. WER=edit/reference word count; таних accuracy биш. [STT тайлан](docs/PROGRESS.mn.md).
+STT: дөрвөн модель, ижил 13 speaker-confirmed хөгжүүлэлтийн бичлэг. Cafet WER36.0%, CER16.9%; тоо/он/нэрийн алдаа үлдсэн. Нэг хүн, model draft харсан reference тул ерөнхийлөх ба confirmation bias-ийн хязгаартай. WER=edit/reference word count; таних accuracy биш. [STT тайлан](../current/PROGRESS.mn.md).
 
-Хайлт: таван source-linked FAQ draft дээр ассистентийн 15 paraphrase/таван эхгүй control. Lexical ба E5-ийг ижил content/query/labels-ээр шалгасан. Жижиг corpus, proposed labels; school-approved gold эсвэл final benchmark биш. Эхгүй control дээр similarity өндөр гарсан ч эхийн дэмжлэг гэж үзэхгүй. [Хайлтын тайлан](docs/RETRIEVAL-RESULTS.mn.md).
+Хайлт: таван source-linked FAQ draft дээр ассистентийн 15 paraphrase/таван эхгүй control. Lexical ба E5-ийг ижил content/query/labels-ээр шалгасан. Жижиг corpus, proposed labels; school-approved gold эсвэл final benchmark биш. Эхгүй control дээр similarity өндөр гарсан ч эхийн дэмжлэг гэж үзэхгүй. [Хайлтын тайлан](../system/RETRIEVAL-RESULTS.mn.md).
 
 Агуулга/зам: зургаан эх, 10 fact, таван FAQ draft; A8/B3/D6/E3 proposed, C шаардлагатай батлагдсан бодит жишээ одоогоор байхгүй. C-ийг хэрэгтэй мэт зохиож болохгүй. Сургуулийн draft approval/validity тусдаа хүний алхам.
 

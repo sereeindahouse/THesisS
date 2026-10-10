@@ -6,7 +6,18 @@
 
 Зорилтот бүтэн урсгал: **микрофон → STT → асуултын зам/хайлт → эхтэй хариулт → TTS**. 2026.12.15-ны хязгаарласан demo-г эцсийн roadmap-ийн дагуу бэлтгэнэ. Өөрийн STT/LLM сургах ажил одоогийн хүрээнд байхгүй.
 
-## Demo-г ажиллуулах
+## Demo-г нээх
+
+Windows дээр төслийн үндсэн хавтасны **DEMO.cmd** дээр хоёр дарна.
+Эхлүүлэгч серверийг шалгаж, хэрэгтэй үед асаагаад браузерыг нээнэ.
+Шинэ clone-д draft DB-г нэг удаа импортлоно. Python 3.11+ хэрэгтэй;
+байгаа `.venv`-ийг түрүүлж ашиглана.
+
+Тайлангууд **reports/** хавтаст төвлөрсөн. [Одоогийн ахиц](reports/current/PROGRESS.mn.md),
+[унших заавар](reports/research/STUDENT-READING-GUIDE.mn.md),
+[demo-ийн тайлбар](reports/system/SQLITE-SEARCH.mn.md)-аас эхэлнэ.
+
+## Терминалаас ажиллуулах
 
 Python 3.11 ашиглана. Одоогийн төсөлд `runtime/content.db` байгаа бол үндсэн хавтсаас:
 
@@ -21,7 +32,7 @@ py -3.11 import_content.py import data/content-draft-v1.json --allow-draft
 py -3.11 demo_server.py
 ```
 
-Demo, SQLite, BM25-д Python standard library хангалттай; модель татах шаардлагагүй. Агуулга **зургаан эх, 10 fact, таван FAQ бүхий draft**. «Холбоо барих утас хэд вэ?» гэж хайгаад draft горимыг илэрхий сонгож, candidate-ийн ноорог хариултыг үзэж болно. Ердийн горим батлагдаагүй хариултыг хаана. Ойролцоо FAQ олдох нь асуултад зөв хариулж чадсаны баталгаа биш. [Дэлгэрэнгүй demo/хайлтын заавар](docs/SQLITE-SEARCH.mn.md).
+Demo, SQLite, BM25-д Python standard library хангалттай; модель татах шаардлагагүй. Агуулга **зургаан эх, 10 fact, таван FAQ бүхий draft**. «Холбоо барих утас хэд вэ?» гэж хайгаад draft горимыг илэрхий сонгож, candidate-ийн ноорог хариултыг үзэж болно. Ердийн горим батлагдаагүй хариултыг хаана. Ойролцоо FAQ олдох нь асуултад зөв хариулж чадсаны баталгаа биш. [Дэлгэрэнгүй demo/хайлтын заавар](reports/system/SQLITE-SEARCH.mn.md).
 
 ## Ажиллаж буй хэсэг ба үр дүн
 
@@ -32,7 +43,7 @@ Demo, SQLite, BM25-д Python standard library хангалттай; модель
 - STT-ийн өмнөх 13 батлагдсан reference дээр **WER 36.0%, CER 16.9%**; таних accuracy биш.
 - 20 гол + 6 нэмэлт өгүүллийн бүртгэл, сонгосон аргын тэмдэглэл.
 
-Микрофон, шинэ STT, хариултын TTS энэ хуудсанд холбогдоогүй. Бүтэн A/B/C/D/E router, C-RAG болон эцсийн чанарын хүлээн авалт дуусаагүй. [Бодит үр дүн, үлдсэн ажил](docs/PROGRESS.mn.md).
+Микрофон, шинэ STT, хариултын TTS энэ хуудсанд холбогдоогүй. Бүтэн A/B/C/D/E router, C-RAG болон эцсийн чанарын хүлээн авалт дуусаагүй. [Бодит үр дүн, үлдсэн ажил](reports/current/PROGRESS.mn.md).
 
 ## CLI ба шалгалт
 
@@ -42,7 +53,7 @@ py -3.11 sqlite_retrieval.py "Холбоо барих утас хэд вэ?" --a
 py -3.11 -m unittest discover -s tests -v
 ```
 
-`--allow-draft` нь эхийг баталсан гэсэн үг биш. CLI-д хадгалсан асуулт/alias яг таарсан, бүрэн хариулт ба guard хангагдсан үед л хязгаарласан preview гарна; fuzzy matching үргэлж ranking төдий. [SQLite хадгалалтын заавар](docs/CONTENT-STORE.mn.md).
+`--allow-draft` нь эхийг баталсан гэсэн үг биш. CLI-д хадгалсан асуулт/alias яг таарсан, бүрэн хариулт ба guard хангагдсан үед л хязгаарласан preview гарна; fuzzy matching үргэлж ranking төдий. [SQLite хадгалалтын заавар](reports/system/CONTENT-STORE.mn.md).
 
 ## STT, TTS ба моделийн жин
 
@@ -62,13 +73,13 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe tts.py --text-file data/tts-text.txt --output results/my-tts.mp3
 ```
 
-`stt.py` нь анхны `small` baseline; сонгосон Монгол checkpoint ашиглах заавар [MODEL-SETUP.mn.md](docs/MODEL-SETUP.mn.md)-д бий. Туршсан Cafet STT ба E5 жинг [GitHub Release](https://github.com/sereeindahouse/THesisS/releases/tag/models-20261010)-д нийтэлсэн; серверийн хэмжээ/SHA256 нь локал архивтай таарсан. Шинэ clone-д `python tools/install_release_models.py all` нь архив/жин шалгаад суулгана; орчны шаардлага, pinned эхээс татах хувилбар нь моделийн зааварт бий. Одоогийн локал жинг дахин татах шаардлагагүй.
+`stt.py` нь анхны `small` baseline; сонгосон Монгол checkpoint ашиглах заавар [MODEL-SETUP.mn.md](reports/system/MODEL-SETUP.mn.md)-д бий. Туршсан Cafet STT ба E5 жинг [GitHub Release](https://github.com/sereeindahouse/THesisS/releases/tag/models-20261010)-д нийтэлсэн; серверийн хэмжээ/SHA256 нь локал архивтай таарсан. Шинэ clone-д `python tools/install_release_models.py all` нь архив/жин шалгаад суулгана; орчны шаардлага, pinned эхээс татах хувилбар нь моделийн зааварт бий. Одоогийн локал жинг дахин татах шаардлагагүй.
 
 TTS нь онлайн Edge үйлчилгээний community client-ийн туршилт; эцсийн үйлчилгээний сонголт хараахан биш. Өмнө хадгалсан файл дээр дууны командууд дарж бичихгүй.
 
 ## Уншлага ба судалгаа
 
-[Унших заавар](STUDENT-READING-GUIDE.mn.md) · [26 өгүүлэл](RESEARCH-26-PAPERS.mn.md) · [RQ/үнэлгээний ноорог](THESIS-RESEARCH-SYNTHESIS-2026-10-10.mn.md) · [Эцсийн roadmap](ROADMAP-FINAL-2026-10-07.mn.md)
+[Унших заавар](reports/research/STUDENT-READING-GUIDE.mn.md) · [26 өгүүлэл](reports/research/RESEARCH-26-PAPERS.mn.md) · [RQ/үнэлгээний ноорог](reports/research/THESIS-RESEARCH-SYNTHESIS-2026-10-10.mn.md) · [Эцсийн roadmap](ROADMAP-FINAL-2026-10-07.mn.md)
 
 26 өгүүллийг бүгдийг бүтнээр уншиж байж код эхлэх шаардлагагүй. Гол 20-ын асуудал/арга/үнэлгээ/хязгаар/төслийн шийдвэрийг тэмдэглэж, ашиглаж буй аргын эхийг гүн уншина. Зургаан нэмэлт эхийг хэрэгцээгээр сонгоно. Ассистентийн эхийн шалгалтыг суралцагчийн бүтэн уншлага гэж тооцохгүй.
 

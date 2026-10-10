@@ -11,3 +11,4 @@ data/content-draft-v1.json -text
 data/retrieval-dev-cases-20261010.json -text
 docs/experiments/*.json -text
 *.wav -text
+*.cmd text eol=crlf
