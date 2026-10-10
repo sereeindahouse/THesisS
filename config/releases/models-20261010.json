@@ -1,0 +1,63 @@
+{
+  "created_at": "2026-10-10T03:05:50.985175+00:00",
+  "tag": "models-20261010",
+  "records": [
+    {
+      "kind": "stt",
+      "name": "cafet-mongolian-stt-ct2-20261010.zip",
+      "size": 448607019,
+      "sha256": "0c636f050ce55ee6809e840e11a2c3cc15013d730c801b9b67f98b904586d2c2",
+      "model_directory": "faster-whisper-small-mn-cafet",
+      "repo_id": "Cafet/whisper-small-mongolian",
+      "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+      "license": "apache-2.0",
+      "members": [
+        "models/faster-whisper-small-mn-cafet/config.json",
+        "models/faster-whisper-small-mn-cafet/generation_config.json",
+        "models/faster-whisper-small-mn-cafet/model.bin",
+        "models/faster-whisper-small-mn-cafet/preprocessor_config.json",
+        "models/faster-whisper-small-mn-cafet/tokenizer.json",
+        "models/faster-whisper-small-mn-cafet/vocabulary.json",
+        "models/faster-whisper-small-mn-cafet/download-manifest.json",
+        "models/faster-whisper-small-mn-cafet/UPSTREAM-MODEL-CARD.md",
+        "models/faster-whisper-small-mn-cafet/LICENSE-APACHE-2.0.txt",
+        "models/faster-whisper-small-mn-cafet/LICENSE-OPENAI-MIT.txt",
+        "models/faster-whisper-small-mn-cafet/REDISTRIBUTION-NOTICE.txt"
+      ],
+      "url": "https://github.com/sereeindahouse/THesisS/releases/download/models-20261010/cafet-mongolian-stt-ct2-20261010.zip",
+      "weight_file": "model.bin",
+      "model_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843"
+    },
+    {
+      "kind": "retrieval",
+      "name": "multilingual-e5-small-20261010.zip",
+      "size": 299830262,
+      "sha256": "6f9cb20980e4d6ecc1daa29cf7dd7e56c95a024e1a91c3a1209cace24ee6044d",
+      "model_directory": "multilingual-e5-small",
+      "repo_id": "intfloat/multilingual-e5-small",
+      "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "license": "mit",
+      "members": [
+        "models/multilingual-e5-small/model.safetensors",
+        "models/multilingual-e5-small/README.md",
+        "models/multilingual-e5-small/config.json",
+        "models/multilingual-e5-small/modules.json",
+        "models/multilingual-e5-small/sentence_bert_config.json",
+        "models/multilingual-e5-small/special_tokens_map.json",
+        "models/multilingual-e5-small/tokenizer.json",
+        "models/multilingual-e5-small/tokenizer_config.json",
+        "models/multilingual-e5-small/source-manifest.json",
+        "models/multilingual-e5-small/LICENSE-MICROSOFT-MIT.txt",
+        "models/multilingual-e5-small/REDISTRIBUTION-NOTICE.txt"
+      ],
+      "url": "https://github.com/sereeindahouse/THesisS/releases/download/models-20261010/multilingual-e5-small-20261010.zip",
+      "weight_file": "model.safetensors",
+      "model_sha256": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477"
+    }
+  ],
+  "private_audio_or_transcripts_included": false,
+  "new_training_performed": false,
+  "release_url": "https://github.com/sereeindahouse/THesisS/releases/tag/models-20261010",
+  "server_digests_verified": true,
+  "prerelease": true
+}

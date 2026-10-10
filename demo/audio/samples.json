@@ -1,0 +1,59 @@
+{
+  "client_date": "2026-10-10",
+  "created_at": "2026-10-10T03:08:31.677567+00:00",
+  "scope": "Three initial speaker recordings q01-q03; user requested publishing three voice samples.",
+  "publication_authorized_by_user": true,
+  "audio_license": "No additional audio reuse license granted.",
+  "quality_claim": "Successful recording/inference examples, not perfect STT or final quality acceptance.",
+  "source_transcripts_school_facts": false,
+  "samples": [
+    {
+      "id": "q01",
+      "filename": "q01.wav",
+      "url": "/sample-audio/q01.wav",
+      "sample_rate_hz": 44100,
+      "duration_seconds": 8.0,
+      "channels": 1,
+      "sha256": "ca55741ab29a889517f823ce1fb3355d48b061ca7faa17ac22e3e67176b438fe",
+      "reference": "Hello Сайн байна уу Энэ сургуулийн талаарх мэдээлэл авах гэсэн юмаа",
+      "stt_text": "сайн байна уу энэ нь сургуулийн талаар их мэдээлэл авах гэсэн юм",
+      "wer": 0.45454545454545453,
+      "cer": 0.17543859649122806,
+      "model_repo": "Cafet/whisper-small-mongolian",
+      "source_revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+      "inference_repeated": false
+    },
+    {
+      "id": "q02",
+      "filename": "q02.wav",
+      "url": "/sample-audio/q02.wav",
+      "sample_rate_hz": 44100,
+      "duration_seconds": 8.0,
+      "channels": 1,
+      "sha256": "a3e1db8fa71763003e3adca5b14f27cb3bccce50489adf71f398a09d00bb308e",
+      "reference": "Шинэ Монгол Технологийн Коллежийн талаар мэдээлэл өгнө үү.",
+      "stt_text": "шинэмонгол технологийн коллежийн талаар мэдээлэл өгнө үү",
+      "wer": 0.25,
+      "cer": 0.0,
+      "model_repo": "Cafet/whisper-small-mongolian",
+      "source_revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+      "inference_repeated": false
+    },
+    {
+      "id": "q03",
+      "filename": "q03.wav",
+      "url": "/sample-audio/q03.wav",
+      "sample_rate_hz": 44100,
+      "duration_seconds": 8.0,
+      "channels": 1,
+      "sha256": "32d919fe2c8fbd6a979be21ed04b67c2434060e9289caffcc0f52b6a045153fd",
+      "reference": "Хоёр мянга хорин зургаан оны элсэлтийн мэдээллийг хаанаас авах вэ?",
+      "stt_text": "хоёр мянга хорин зургаан оны элсэлтийн мэдэглэлийг хаанаас авах вэ",
+      "wer": 0.1,
+      "cer": 0.03571428571428571,
+      "model_repo": "Cafet/whisper-small-mongolian",
+      "source_revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+      "inference_repeated": false
+    }
+  ]
+}

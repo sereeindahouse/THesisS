@@ -106,3 +106,24 @@ __pycache__/
 *.bin
 *.db
 .env*
+
+# 2026.10.10: explicit public demo and exactly three user-authorized voice samples.
+!/sqlite_retrieval.py
+!/demo_server.py
+!/tests/test_sqlite_retrieval.py
+!/tests/test_demo_server.py
+!/tests/test_release_models.py
+!/tools/install_release_models.py
+!/docs/SQLITE-SEARCH.mn.md
+!/config/releases/
+/config/releases/*
+!/config/releases/models-20261010.json
+!/demo/
+/demo/*
+!/demo/index.html
+!/demo/audio/
+/demo/audio/*
+!/demo/audio/samples.json
+!/demo/audio/q01.wav
+!/demo/audio/q02.wav
+!/demo/audio/q03.wav
