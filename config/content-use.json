@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "basis": "user_acceptance_of_official_website",
+  "accepted_on": "2026-10-10",
+  "official_hosts": [
+    "nmct.edu.mn"
+  ],
+  "school_staff_approval_claimed": false,
+  "manual_pilot_completion_required": false,
+  "operational_target": "2026-11-10",
+  "note": "User accepts official website publication for project use; preserve dates, conflicts and source attribution."
+}

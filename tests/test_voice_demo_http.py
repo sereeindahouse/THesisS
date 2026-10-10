@@ -73,6 +73,21 @@ class FakeReview:
         return dict(saved=True, mos_computed=False, final_voice_selected=False)
 
 
+class FakeLLM:
+    def __init__(self):
+        self.calls = []
+
+    def status(self):
+        return dict(configured=False, available=False, model=None)
+
+    def suggest_correction(self, text):
+        if not isinstance(text, str) or not text.strip() or len(text) > 1000:
+            raise ValueError('Test-only invalid text')
+        self.calls.append(text)
+        return dict(raw_text=text, suggested_text=text, changed=False, used=False,
+                    llm_calls=0, automatic_application=False, message='Test-only unavailable provider')
+
+
 class VoiceDemoHTTPTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -82,8 +97,9 @@ class VoiceDemoHTTPTests(unittest.TestCase):
             store.import_content(fixture(), allow_draft=True)
         self.before = hashlib.sha256(self.db.read_bytes()).hexdigest()
         self.voice, self.review = FakeVoice(), FakeReview()
+        self.llm = FakeLLM()
         self.server = make_server(self.db, port=0, project_root=self.root,
-                                  voice_service=self.voice, review_service=self.review)
+                                  voice_service=self.voice, review_service=self.review, llm_service=self.llm)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
 
@@ -111,6 +127,26 @@ class VoiceDemoHTTPTests(unittest.TestCase):
 
     def route(self, draft=False):
         return self.request('POST', '/api/route', dict(query='Тест үү?', allow_draft=draft))[1]
+
+    def test_correction_fallback_preserves_raw_and_does_not_confirm_or_route(self):
+        status, result, _ = self.request('POST', '/api/voice/correct', dict(text='Тест 2026 үү?'))
+        self.assertEqual(status, 200)
+        self.assertEqual(result['suggested_text'], 'Тест 2026 үү?')
+        self.assertFalse(result['automatic_application'])
+        self.assertEqual(result['llm_calls'], 0)
+        self.assertEqual(self.review.saved, [])
+        self.assertEqual(self.voice.spoken, [])
+
+    def test_correction_rejects_unknown_fields_or_invalid_text(self):
+        for body in ({'text': None}, {'text': ''}, {'text': 'x' * 1001},
+                     {'text': 'Тест', 'answer': 'Injected'}):
+            self.assertEqual(self.request('POST', '/api/voice/correct', body)[0], 400)
+
+    def test_correction_cross_site_rejected_before_provider(self):
+        status, _, _ = self.request('POST', '/api/voice/correct', dict(text='Тест'),
+                                   headers={'Origin': 'https://outside.example'})
+        self.assertEqual(status, 403)
+        self.assertEqual(self.llm.calls, [])
 
     def test_status_distinguishes_content_readonly_from_local_writes(self):
         status, result, _ = self.request('GET', '/api/status')
@@ -206,6 +242,101 @@ class VoiceDemoHTTPTests(unittest.TestCase):
         _, result, _ = self.request('POST', '/api/voice/reset', dict(ids=['b' * 32]))
         self.assertFalse(result['original_recordings_modified'])
         self.assertEqual(self.voice.deleted, ['b' * 32])
+
+
+class OfficialFAQSearchHTTPTests(unittest.TestCase):
+    """Policy-aware manual FAQ selection, using only invented fixtures."""
+
+    request = VoiceDemoHTTPTests.request
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        (self.root / 'config').mkdir()
+        (self.root / 'config/content-use.json').write_text(json.dumps(dict(
+            enabled=True, basis='user_acceptance_of_official_website',
+            accepted_on='2026-10-10', official_hosts=['nmct.edu.mn'])), encoding='utf-8')
+        self.data = fixture()
+        self.data['sources'][0]['source_url_or_filename'] = 'https://nmct.edu.mn/contact'
+        for item in [*self.data['sources'], *self.data['facts'], *self.data['faqs']]:
+            item.update(valid_from=None, valid_until=None)
+        self.serial = 0
+        self.server = None
+
+    def start_server(self, data=None):
+        if self.server is not None:
+            self.stop_server()
+        self.serial += 1
+        self.db = self.root / ('case-' + str(self.serial) + '.db')
+        with ContentStore(self.db) as store:
+            store.import_content(data or self.data, allow_draft=True)
+        self.before = hashlib.sha256(self.db.read_bytes()).hexdigest()
+        self.server = make_server(self.db, port=0, project_root=self.root,
+                                  voice_service=FakeVoice(), review_service=FakeReview(),
+                                  llm_service=FakeLLM())
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def stop_server(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2)
+        self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), self.before)
+        self.server = None
+
+    def tearDown(self):
+        if self.server is not None:
+            self.stop_server()
+        self.temp.cleanup()
+
+    def test_normal_official_search_is_selectable_and_separate_preview_works(self):
+        self.start_server()
+        status, result, _ = self.request('POST', '/api/search', dict(query='Тест үү?'))
+        self.assertEqual(status, 200)
+        self.assertEqual(result['mode'], 'official_website')
+        self.assertFalse(result['answer_served'])
+        self.assertTrue(result['preview_requires_selection'])
+        for key in ('answer', 'answer_faq_id', 'exact_match_preview'):
+            self.assertNotIn(key, result)
+        self.assertNotIn('Зөвхөн тестийн хариулт.', json.dumps(result, ensure_ascii=False))
+        candidate = result['candidates'][0]
+        self.assertTrue(candidate['eligible'])
+        self.assertTrue(candidate['source_accepted_for_project'])
+        self.assertFalse(candidate['answer_eligible'])
+        status, preview, _ = self.request('POST', '/api/preview', dict(faq_id=candidate['faq_id']))
+        self.assertEqual(status, 200)
+        self.assertEqual(preview['answer'], 'Зөвхөн тестийн хариулт.')
+        self.assertEqual(preview['preview_kind'], 'official_website_snapshot')
+        self.assertFalse(preview['is_answer_to_query'])
+        self.assertFalse(preview['school_staff_approval_claimed'])
+
+    def test_rejected_or_external_candidates_stay_ineligible(self):
+        for kind in ('rejected', 'external'):
+            with self.subTest(kind=kind):
+                data = fixture()
+                data['sources'][0]['source_url_or_filename'] = 'https://nmct.edu.mn/contact'
+                if kind == 'rejected':
+                    data['sources'][0]['approval_status'] = 'rejected'
+                else:
+                    data['sources'][0]['source_url_or_filename'] = 'https://outside.example/contact'
+                self.start_server(data)
+                status, result, _ = self.request('POST', '/api/search', dict(query='Тест'))
+                self.assertEqual(status, 200)
+                self.assertTrue(result['candidates'])
+                self.assertFalse(result['candidates'][0]['eligible'])
+                self.assertFalse(result['candidates'][0]['source_accepted_for_project'])
+
+    def test_absent_policy_keeps_strict_search_and_draft_remains_explicit(self):
+        (self.root / 'config/content-use.json').unlink()
+        self.start_server()
+        _, strict, _ = self.request('POST', '/api/search', dict(query='Тест'))
+        self.assertEqual(strict['mode'], 'approved_only')
+        self.assertFalse(strict['candidates'][0]['eligible'])
+        _, draft, _ = self.request('POST', '/api/search', dict(query='Тест', allow_draft=True))
+        self.assertEqual(draft['mode'], 'development_draft')
+        self.assertTrue(draft['candidates'][0]['eligible'])
+        self.assertNotIn('answer', draft)
+        self.assertNotIn('source_accepted_for_project', draft)
 
 
 if __name__ == '__main__':

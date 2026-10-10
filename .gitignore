@@ -169,3 +169,11 @@ __pycache__/
 !/tests/test_listening_review.py
 !/tests/test_voice_demo_http.py
 !/docs/experiments/voice-integration-20261010.json
+
+
+# Owner-accepted official sources and local, optional LLM correction; no credentials or new private voice.
+!/project_policy.py
+!/llm_runtime.py
+!/config/content-use.json
+!/tests/test_project_policy.py
+!/tests/test_llm_runtime.py

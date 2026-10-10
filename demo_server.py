@@ -13,18 +13,23 @@ from CORE.website_corpus import website_status, search_website
 from question_router import route_question
 from voice_runtime import VoiceRuntime, VoiceRuntimeError, MAX_AUDIO_BYTES
 from listening_review import ListeningReview
+from project_policy import ContentUsePolicy
+from llm_runtime import LLMRuntime
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
 
 
-def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None):
+def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
     database = Path(db_path or root / "runtime" / "content.db").resolve()
     voice = voice_service if voice_service is not None else VoiceRuntime(root)
     review = review_service if review_service is not None else ListeningReview(root)
+
+    content_policy = ContentUsePolicy(root)
+    llm = llm_service if llm_service is not None else LLMRuntime(root)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -131,7 +136,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                "message": "Албан сайтын мэдээллийг эхлээд цуглуулна."}
                 voice_state = voice.status()
                 return self.send_json(200, {
-                    "website": website,
+                    "website": website, "content_policy": content_policy.status(), "llm": llm.status(),
                     "routing": {"available": True, "c_enabled": False, "human_gold": False,
                                 "mode": "development_proposed_not_gold"},
                     "mode": "local_development", "demo_protocol_version": 2, "readonly": False,
@@ -194,7 +199,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             path = unquote(urlsplit(self.path).path)
             if path not in {"/api/search", "/api/preview", "/api/website-search", "/api/route",
-                            "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset",
+                            "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset", "/api/voice/correct",
                             "/api/review/stt-confirm", "/api/review/tts-confirm"}:
                 return self.error(404, "Энэ API нээлттэй биш.")
             try:
@@ -203,6 +208,13 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     result = voice.transcribe(audio, self.headers.get_content_type())
                     return self.send_json(200, result)
                 body = self.read_json(24576 if path.startswith("/api/review/") else MAX_BODY)
+                if path == "/api/voice/correct":
+                    if set(body) != {"text"}:
+                        raise ValueError("Зөвхөн text талбар өгнө.")
+                    text = body["text"]
+                    if not isinstance(text, str) or not text.strip() or len(text) > 1000:
+                        raise ValueError("STT текст 1–1000 тэмдэгттэй байна.")
+                    return self.send_json(200, llm.suggest_correction(text))
                 if path == "/api/voice/reset":
                     if set(body) != {"ids"}:
                         raise ValueError("Зөвхөн ids жагсаалт өгнө.")
@@ -226,7 +238,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     query, draft = body.get("query"), body.get("allow_draft", False)
                     if not isinstance(query, str) or not query.strip() or len(query) > 1000 or type(draft) is not bool:
                         raise ValueError("Асуулт болон draft горим буруу.")
-                    current = route_question(database, query.strip(), allow_draft=draft)
+                    current = content_policy.route(database, query.strip(), allow_draft=draft)
                     if body.get("package_id") != current["package_id"]:
                         return self.error(409, "Агуулгын хувилбар өөрчлөгдлөө. Асуултаа дахин шалгана уу.")
                     spoken = current["answer"]
@@ -258,23 +270,25 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     if type(limit) is not int or not 1 <= limit <= 5:
                         raise ValueError("limit нь 1–5 бүхэл тоо байна.")
                     if path == "/api/route":
-                        return self.send_json(200, route_question(database, query.strip(), allow_draft=allow_draft))
+                        return self.send_json(200, content_policy.route(database, query.strip(), allow_draft=allow_draft))
                     if path == "/api/website-search":
-                        return self.send_json(200, search_website(query.strip(), root / "CORE/database/website.db",
-                                                                 limit=limit, allow_draft=allow_draft))
-                    result = search_content(database, query.strip(), backend="bm25",
-                                            top_k=limit, allow_draft=allow_draft)
-                    result.pop("answer", None)
-                    result.pop("answer_faq_id", None)
-                    result.pop("exact_match_preview", None)
-                    result["answer_served"] = False
-                    result["preview_requires_selection"] = True
+                        result = search_website(query.strip(), root / "CORE/database/website.db",
+                                                limit=limit, allow_draft=allow_draft or content_policy.enabled)
+                        if content_policy.enabled and not allow_draft:
+                            result.update(mode="official_website", source_accepted_for_project=True,
+                                          acceptance_basis="user_acceptance_of_official_website",
+                                          school_staff_approval_claimed=False)
+                            for match in result["matches"]:
+                                match["source_accepted_for_project"] = True
+                        return self.send_json(200, result)
+                    result = content_policy.search(database, query.strip(), backend="bm25",
+                                                   top_k=limit, allow_draft=allow_draft)
                 else:
                     record_id = body.get("faq_id")
                     if not isinstance(record_id, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", record_id):
                         raise ValueError("faq_id буруу.")
                     with ReadOnlyContentStore(database) as store:
-                        result = guarded_preview(store, record_id, allow_draft=allow_draft)
+                        result = content_policy.preview(store, record_id, allow_draft=allow_draft)
                     result["is_answer_to_query"] = False
                     result["preview_notice"] = "Сонгосон FAQ-г харуулж байна; асуултад зөв таарсан нь батлагдаагүй."
                 return self.send_json(200, result)

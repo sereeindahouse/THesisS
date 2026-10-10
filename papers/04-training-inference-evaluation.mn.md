@@ -18,6 +18,29 @@ WER=(солигдсон+хасагдсан+нэмэгдсэн үг)/зөв те�
 
 Өөрийн сургалт хийхээр ирээдүйд scope шийдвэр өөрчилбөл data collection/эрх/аялга/олон хэлэгч/train-dev-test/compute тусдаа дизайн шаардлагатай. Fine-tuning-д pretrained model ашиглаж болдог тул заавал Whisper-ийн 680,000 цагийг давтах ёстой гэж хэлэхгүй. Одоо тэр төсөл нэмээгүй.
 
-Манай December зорилго: дуу → STT → асуултын зам/сургуулийн эх → эхтэй хариулт → TTS. STT model өөрөө сургуулийн асуултад хариу өгөх систем биш. 20 бичлэг бол development pilot, final test биш. Сонголтод ашигласан бичлэгийг хараагүй benchmark гэж тайлагнахгүй. Transcript-ийг ASR draft харж баталсан тул human confirmation bias байж болно; эцсийн үнэлгээнд model output харахаас өмнө бие даасан бүтэн transcript бэлтгэх шаардлагатай.
+Манай 2026.11.10-ны ажиллах хувилбарын зорилго: дуу → STT → асуултын зам/сургуулийн эх → эхтэй хариулт → TTS. STT model өөрөө сургуулийн асуултад хариу өгөх систем биш. 20 бичлэг бол development pilot, final test биш. Сонголтод ашигласан бичлэгийг хараагүй benchmark гэж тайлагнахгүй. Transcript-ийг ASR draft харж баталсан тул human confirmation bias байж болно; эцсийн үнэлгээнд model output харахаас өмнө бие даасан бүтэн transcript бэлтгэх шаардлагатай.
 
 Хэрэглэгчийн Whisper уншсан явц §3.5 хэвээр; эдгээр нь ассистентийн өнөөдрийн эхийн нягтлал ба төслийн тайлбар, хэрэглэгчийн уншлагыг хийсэн мэт нөхсөн бүртгэл биш.
+
+
+## 2026.10.10 — хэрэглэгчийн шинэ STT/LLM чиглэл
+
+Үлдсэн зургаан transcript/гурван TTS сонсголыг дахин шаардахгүй, хөгжүүлэлтийн нөхцөл болгохгүй.
+Түүхэн13reference-ийн дүнг хадгална. Бэлэн checkpoint ашиглах нь inference;
+өөрийн fine-tuning хийсэн гэж бичихгүй. Дипломын боломжит хувь нэмэр нь эхийн
+сан/хувилбар, guarded урсгал, Монгол нөхцөлийн харьцуулалт ба алдааны шинжилгээ.
+
+LLM postcorrection ба C-RAG хоёр тусдаа. Text-only засвар өөрөө аудионоос
+нотолгоо авч чадахгүй; missing name/date/phone-г answer/reference-ээс нөхөхгүй.
+Raw vs optional suggestion vs guarded suggestion-ийг ижил өгөгдөлд хэмжинэ.
+Нэр/тооны guard нь дүн шинжилгээтэй хамгаалалт болохоос төгс Монгол entity NLP биш.
+
+Анхдагч аргуудыг нэмэлтээр нягталсан:
+
+- [ASR Error Correction using Large Language Models](https://arxiv.org/html/2409.09554): zero/few-shot, N-best болон constrained аргууд; Whisper-ийн зөв үг хасагдах/өөрчлөгдөх эрсдэл. Манай beam5 нь N-best5 transcript экспортлосон гэсэн үг биш.
+- [Whispering LLaMA](https://aclanthology.org/2023.emnlp-main.618/): acoustic features/N-best/adapter сургалт. Манай text-only local adapter энэ аргыг хэрэгжүүлсэн гэсэн үг биш.
+- [West Frisian low-resource study](https://arxiv.org/html/2605.19711): model/ASR/өгөгдлөөс хамаарч сайжрах эсвэл муудах үр дүнтэй. Монгол checkpoint-ийн амжилтын хувь гэж дамжуулахгүй.
+
+`llm_runtime.py` холбоос бодит локал Ollama бэлэн үед л inference хийнэ;
+unconfigured/timeout/guardreject үед raw fallback. Провайдер суулгаагүй үед
+LLM actualcalls0; fixture тестийн амжилтыг бодит Монгол засварын амжилт гэж хэлэхгүй.
