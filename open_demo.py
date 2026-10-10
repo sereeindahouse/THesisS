@@ -38,7 +38,7 @@ def probe_demo(port=PORT, *, timeout=0.5):
         expected = (
             isinstance(status, dict)
             and status.get("mode") == "local_development"
-            and status.get("readonly") is True
+            and (status.get("content_database_readonly") is True or status.get("readonly") is True)
             and status.get("generated") is False
             and type(status.get("llm_calls")) is int and status["llm_calls"] == 0
             and isinstance(status.get("content"), dict)

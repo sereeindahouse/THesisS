@@ -2,7 +2,7 @@
 
 | Хэсэг | Үндсэн файл | Үүрэг |
 |---|---|---|
-| Demo | [demo_server.py](../demo_server.py), [интерфэйс](../demo/index.html) | Бичгэн хайлт, эхтэй preview, дууны жишээ |
+| Demo | [demo_server.py](../demo_server.py), [интерфэйс](../demo/index.html) | Микрофон/файл, текст засвар, чиглүүлэгч, TTS, сонсголын нэг дэлгэц |
 | Нэг даралтын нээлт | [open_demo.py](../open_demo.py), [DEMO.cmd](../DEMO.cmd) | Сервер асаах/ашиглах, браузер нээх |
 | Веб эхийн сан | [website_corpus.py](website_corpus.py) | Crawl, snapshot/hash, SQLite, draft эхийн хайлт |
 | Facts/FAQ сан | [content_store.py](../content_store.py), [import_content.py](../import_content.py) | Баталгаа/хугацаа/хувилбартай импорт |
@@ -11,6 +11,8 @@
 | Embedding туршилт | [retrieval_probe.py](../retrieval_probe.py) | BM25/E5-ийн ижил нөхцөлийн харьцуулалт |
 | Бичлэг | [record.py](../record.py) | Микрофоноор WAV бичих |
 | Монгол STT | [stt_mn.py](../stt_mn.py) | Cafet жин/hash/decoder шалгаж дуу таних |
+| Demo-ийн STT/TTS | [voice_runtime.py](../voice_runtime.py), [тест](../tests/test_voice_runtime.py) | Локал pinned STT, онлайн хоёр TTS хоолой, үе шатны хугацаа, түр cache/reset |
+| Хүний сонсгол | [listening_review.py](../listening_review.py), [тест](../tests/test_listening_review.py) | 6 STT/3 TTS-ийн илэрхий баталгаа, hash/backup/журнал, хуучин гаралтын rescore |
 | Алдааны тооцоо | [score.py](../score.py) | WER/CER |
 | TTS | [tts.py](../tts.py) | Текстээс дуу |
 | Агуулгын загвар | [content.schema.json](../schemas/content.schema.json), [draft data](../data/content-draft-v1.json) | Эх/fact/FAQ-ийн бүтэц |
@@ -24,3 +26,8 @@ SQLite файлуудын локал байрлал: `CORE/database/website.db` 
 Веб snapshot, HTML/text/documents: `CORE/website/snapshots/`.
 Үндсэн төсөл workspace-д **THesisS — код** нэрээр нээгдэнэ; concepts/data/report холбоосууд
 энэ CORE хавтаст байна. Runtime/module файлуудын эх байрлал дээр ажиллана.
+
+
+Шинэ дууны түр cache: `runtime/voice-demo/`; хувийн сонсголын backup/журнал
+нь локал runtime-д байна. Pilot-ийн дуу, бүх зөв текст, сонсголын хувийн хүснэгт
+GitHub-д орохгүй; нийтлэхийг зөвшөөрсөн q01–q03 жишээ тусдаа хэвээр.

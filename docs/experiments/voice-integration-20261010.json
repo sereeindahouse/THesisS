@@ -1,0 +1,92 @@
+{
+  "created_at": "2026-10-10T10:58:23.600326+00:00",
+  "scope": "bounded localhost voice integration; not model quality or final thesis acceptance",
+  "public_safe_aggregate": true,
+  "private_audio_or_transcript_text_included": false,
+  "protocol_version": 2,
+  "unit_tests_passed": 149,
+  "http_live_checks": {
+    "actual_pending_reviews_preserved": true,
+    "dedicated_six_stt_three_tts_media_match_originals": true,
+    "real_wav_pinned_local_stt_and_private_normalized_audio": true,
+    "real_guarded_draft_answer_online_tts_decodes": true,
+    "session_reset_removes_only_own_audio": true
+  },
+  "browser_checks": {
+    "review_six_stt_three_tts_explicit_actions_and_existing_samples": true,
+    "browser_file_upload_real_stt_edit_before_routing": true,
+    "edited_question_actual_guarded_router_and_citations": true,
+    "browser_actual_tts_metadata_and_audible_draft_prefix_no_autoplay": true,
+    "native_audio_play_control_progresses": true,
+    "query_edit_clears_old_answer_and_playback": true,
+    "browser_fake_sample_microphone_webm_real_stt_tracks_stop": true,
+    "late_route_response_does_not_restore_old_answer": true,
+    "reset_while_permission_pending_stops_late_stream": true,
+    "reset_keeps_human_reviews_and_excluded_recording": true,
+    "mobile_375px_no_horizontal_overflow": true
+  },
+  "browser_microphone_test": "fake browser input from user-authorized public q01.wav",
+  "actual_user_microphone_hardware_tested": false,
+  "human_auditory_quality_review": false,
+  "local_stt": {
+    "model": "Cafet/whisper-small-mongolian",
+    "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+    "weight_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+    "local_files_only": true,
+    "device": "cpu",
+    "requested_compute_type": "int8",
+    "actual_compute_type": "int8_float32",
+    "decoding": {
+      "language": "mn",
+      "task": "transcribe",
+      "beam_size": 5,
+      "vad_filter": false,
+      "temperature": 0.0,
+      "without_timestamps": true,
+      "condition_on_previous_text": false
+    },
+    "audio_seconds": 8.0,
+    "decode_seconds": 0.5398109999950975,
+    "model_load_and_verification_seconds": 2.438013000006322,
+    "transcription_seconds": 3.0898130999994464
+  },
+  "online_tts": {
+    "service": "online Edge TTS experiment",
+    "voice": "mn-MN-BataaNeural",
+    "synthesis_seconds": 4.785423900000751,
+    "decoded_audio_seconds": 12.57599999999984,
+    "package_id": "a1e9779b7da18d63edda23318c48d9e4828b695b9535e2ca976f7cff7e4b9ae5",
+    "audible_draft_notice": true,
+    "human_quality_accepted": false
+  },
+  "timing_scope": "One integration case; no full user end-to-end latency benchmark; decoding/weight verification/inference/synthesis are distinct stages.",
+  "original_wav_count": 20,
+  "protected_files_unchanged": 29,
+  "model_downloaded": false,
+  "training_performed": false,
+  "llm_calls": 0,
+  "new_model_quality_benchmark": false,
+  "human_reviews_submitted": false,
+  "eligible_stt_references": 13,
+  "pending_stt_references": 6,
+  "pending_controlled_tts_reviews": 3,
+  "excluded_recordings_count": 1,
+  "school_content_approved": 0,
+  "historical_pilot": {
+    "utterances": 13,
+    "wer_percent": 36.0,
+    "cer_percent": 16.9,
+    "accuracy_measured": false
+  },
+  "week02_complete": false,
+  "week03_complete": false,
+  "immutable_roadmap_unchanged": true,
+  "limitations": [
+    "Bounded A/B/D/E draft prototype; C disabled.",
+    "School facts/validity/query gold and real device acceptance pending.",
+    "Six full references and three controlled TTS listener ratings pending.",
+    "PDF/image text and client-side website tab coverage pending.",
+    "Started native STT calculation is not interrupted by UI reset; stale output is discarded.",
+    "Restarted server does not serve old private session IDs or automatically delete older session directories."
+  ]
+}
