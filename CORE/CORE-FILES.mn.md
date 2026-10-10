@@ -6,6 +6,7 @@
 | Нэг даралтын нээлт | [open_demo.py](../open_demo.py), [DEMO.cmd](../DEMO.cmd) | Сервер асаах/ашиглах, браузер нээх |
 | Веб эхийн сан | [website_corpus.py](website_corpus.py) | Crawl, snapshot/hash, SQLite, draft эхийн хайлт |
 | Facts/FAQ сан | [content_store.py](../content_store.py), [import_content.py](../import_content.py) | Баталгаа/хугацаа/хувилбартай импорт |
+| Асуултын зам | [question_router.py](../question_router.py), [тест](../tests/test_question_router.py) | Exact/он/нэр/баталгаа/тодруулга/эхгүй асуултын суурь |
 | FAQ хайлт | [sqlite_retrieval.py](../sqlite_retrieval.py) | DB-ээс BM25/E5 эрэмбэ, guarded exact preview |
 | Embedding туршилт | [retrieval_probe.py](../retrieval_probe.py) | BM25/E5-ийн ижил нөхцөлийн харьцуулалт |
 | Бичлэг | [record.py](../record.py) | Микрофоноор WAV бичих |
@@ -13,6 +14,7 @@
 | Алдааны тооцоо | [score.py](../score.py) | WER/CER |
 | TTS | [tts.py](../tts.py) | Текстээс дуу |
 | Агуулгын загвар | [content.schema.json](../schemas/content.schema.json), [draft data](../data/content-draft-v1.json) | Эх/fact/FAQ-ийн бүтэц |
+| 3-р долоо хоногийн шийдвэр | [WEEK03-DECISIONS](WEEK03-DECISIONS.mn.md), [aggregate нотолгоо](../docs/experiments/week03-evidence-20261010.json) | Ижил оролтын чанар/хугацаа, түр сонголт, үлдсэн шалгалт |
 | Моделийн багц | [release config](../config/releases/models-20261010.json), [installer](../tools/install_release_models.py) | Pinned жин ба SHA шалгаж суулгах |
 | Шалгалт | [веб сангийн тест](../tests/test_website_corpus.py), [HTTP тест](../tests/test_demo_server.py) | Хувилбар/эх/draft/HTTP хамгаалалт |
 | Судалгаа | [20+6 өгүүлэл](../reports/research/RESEARCH-26-PAPERS.mn.md) | Аргын сонголтын эх |

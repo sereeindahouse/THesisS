@@ -7,6 +7,7 @@
 | Бүх төслийг VS Code-д нээх | **OPEN-PROJECT.cmd** эсвэл **THesisS.code-workspace** |
 | Ажиллаж буй demo | **DEMO.cmd** хоёр дарна; http://127.0.0.1:8765 |
 | Бид roadmap-ийн аль үед байна вэ? | [ROADMAP-PROGRESS.mn.md](ROADMAP-PROGRESS.mn.md) |
+| 3-р долоо хоногийн модель/схемийн сонголт | [WEEK03-DECISIONS.mn.md](WEEK03-DECISIONS.mn.md) |
 | Системийн хэсгүүдийг ойлгох | [CONCEPTS.mn.md](CONCEPTS.mn.md) |
 | Сайтаас ямар мэдээлэл авсан бэ? | [WEBSITE-DATA.mn.md](WEBSITE-DATA.mn.md) |
 | Гол файлуудын жагсаалт | [CORE-FILES.mn.md](CORE-FILES.mn.md) |
@@ -26,3 +27,9 @@
 [Тайлангийн индекс](../reports/current/PROGRESS.mn.md) ·
 [Өгүүлэл унших заавар](../reports/research/STUDENT-READING-GUIDE.mn.md) ·
 [Өөрчлөхгүй эцсийн roadmap](../ROADMAP-FINAL-2026-10-07.mn.md)
+
+
+Demo-д **«Асуултын замыг шалгах»** хэсэг нэмсэн. Бүртгэлтэй exact асуулт/alias,
+бүтэцтэй fact, он дутуу асуулт, эх/баталгаа дутуу асуултыг ялгах хөгжүүлэлтийн
+чиглүүлэгчтэй. Баталгаагүй хариултыг default горимд хаана; илэрхий draft горимд
+эхтэй нооргийг үзнэ. Бүх асуултын router эсвэл хүний баталсан чанарын benchmark биш.

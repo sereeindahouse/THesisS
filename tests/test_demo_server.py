@@ -256,5 +256,40 @@ class DemoServerTests(unittest.TestCase):
             self.assertEqual(self.request("POST", "/api/website-search", payload)[0], 400)
 
 
+    def test_route_http_default_requires_approval_explicit_draft_only_previews(self):
+        before = hashlib.sha256(self.db.read_bytes()).hexdigest()
+        status, blocked = self.request("POST", "/api/route", {"query": "Тест үү?"})
+        self.assertEqual(status, 200)
+        self.assertEqual(blocked["route"], "E")
+        self.assertIsNone(blocked["answer"])
+        self.assertIn("approval_required", blocked["reason_codes"])
+        status, shown = self.request("POST", "/api/route", {"query": "Тест үү?", "allow_draft": True})
+        self.assertEqual(status, 200)
+        self.assertEqual(shown["route"], "B")
+        self.assertEqual(shown["answer"], "Зөвхөн тестийн хариулт.")
+        self.assertEqual(shown["answer_kind"], "development_draft_preview")
+        self.assertFalse(shown["generated"])
+        self.assertFalse(shown["human_gold"])
+        self.assertFalse(shown["c_enabled"])
+        self.assertEqual(shown["llm_calls"], 0)
+        self.assertTrue(shown["citations"])
+        self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before)
+
+    def test_route_http_unrelated_query_never_answers_or_calls_llm(self):
+        status, result = self.request("POST", "/api/route", {"query": "Паспорт сунгах журам", "allow_draft": True})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["route"], "E")
+        self.assertIsNone(result["answer"])
+        self.assertEqual(result["llm_calls"], 0)
+
+    def test_route_http_rejects_origin_and_control_fields(self):
+        self.assertEqual(self.request("POST", "/api/route", {"query": "Тест үү?"},
+                                     headers={"Origin": "https://outside.example"})[0], 403)
+        for payload in ({"query": ""}, {"query": "Тест", "allow_draft": "yes"},
+                        {"query": "Тест", "as_of": "2000-01-01"}, {"query": "Тест", "limit": 3},
+                        {"query": "Тест", "package_id": "private"}):
+            self.assertEqual(self.request("POST", "/api/route", payload)[0], 400)
+
+
 if __name__ == "__main__":
     unittest.main()

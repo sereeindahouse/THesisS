@@ -155,3 +155,9 @@ __pycache__/
 !/CORE/__init__.py
 !/CORE/website_corpus.py
 !/tests/test_website_corpus.py
+
+# Week-three decisions and bounded routing source; no private per-recording inputs.
+!/question_router.py
+!/tests/test_question_router.py
+!/CORE/WEEK03-DECISIONS.mn.md
+!/docs/experiments/week03-evidence-20261010.json

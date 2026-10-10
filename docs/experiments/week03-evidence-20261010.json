@@ -1,0 +1,734 @@
+{
+  "client_date": "2026-10-10",
+  "scope": "week-three decision audit using existing outputs; not new inference or training",
+  "public_safe_aggregate": true,
+  "private_audio_or_transcript_text_included": false,
+  "calendar_week": 1,
+  "week02_complete": false,
+  "week03_started_early": true,
+  "week03_complete": false,
+  "week03_status": "technical foundations and measured provisional choices present; human TTS and final acceptance pending",
+  "immutable_roadmap_sha256": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
+  "immutable_roadmap_modified": false,
+  "schema": {
+    "schema_version": 1,
+    "sources": 6,
+    "facts": 10,
+    "faqs": 5,
+    "validation": "validate_content.py development-draft passed",
+    "school_approved_records": 0,
+    "implementation": [
+      "schemas/content.schema.json",
+      "validate_content.py",
+      "content_store.py",
+      "import_content.py"
+    ]
+  },
+  "stt": {
+    "cohort_utterances": 13,
+    "cohort_speakers": 1,
+    "reference_words": 186,
+    "reference_characters_without_spaces": 1089,
+    "pending_complete_transcripts": 6,
+    "user_excluded_recordings": 1,
+    "production_accepted": false,
+    "runs": [
+      {
+        "run": "pilot-mn-cafet-text-20261009",
+        "repo": "Cafet/whisper-small-mongolian",
+        "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+        "model_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 5,
+          "vad_filter": false,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 44.668374699976994,
+        "transcription_seconds_mean": 3.4360288230751532,
+        "transcription_seconds_min": 2.757806499997969,
+        "transcription_seconds_max": 6.795107599988114,
+        "model_load_seconds_one_batch": 1.471133799990639,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 67,
+          "character_edit_errors": 184,
+          "corpus_wer": 0.3602150537634409,
+          "corpus_cer": 0.1689623507805326,
+          "normalized_sentence_exact_match": 0.15384615384615385
+        },
+        "decision": "provisional_development_selected",
+        "source_record_sha256s": [
+          "069db74908cc2514d6dbfe2d1671074bc67b6a8a484411cf4ae9f51c8ea2f358",
+          "0865976e5c7f1e711bae9b75a6ea83f8198258abf4b6dc4e5aff3620f0e08f87",
+          "3e09c5db69db878fab199f144859f001b863bde4a3f408d4bdc9629f91d3b48f",
+          "4dd973dc16b881cecc8cbc27eac7ab5b935bfdb74c391b24b2f69c69e947a92c",
+          "5793feff9823972238d38c6300633979ff537a88d9eed753fca23ffc8199002b",
+          "682ae66f081d7bea20f8ccc575fa715478c46a3f6ae11bfa6133b078837c2d68",
+          "85657f740996c3e324262ac15c163b95278281ba85ff03449c5dca9f1c4bc0f3",
+          "88ceb23fa075b94d91e07c5ba0a6fb64db9343575369d824de0731276518decd",
+          "8e5f7c70a7e872325c72552745228f99ab48aac617b28e2c7baa2e96fc4cd718",
+          "d600ec382c9fb556880d57359815629bdad041c4889d0cf8dee4bf1359a710af",
+          "db592e470c1459d343fb25a7f26bbd0e8a0d550f12c27e200a0faae1626e0212",
+          "fea6ad84eac70ccf5490658bc4d6d4df9967959c265ccaa4dde7da07d36e7cd2",
+          "ff49d00602ab3a576ce5680572cadb70f98b790410d7785eba71d102913edb29"
+        ],
+        "source_protocol_sha256": "65eb646fd8050e6c953bb8c1a6154df1cd31fe65285b0bcf7ead22dfeffb5fe8"
+      },
+      {
+        "run": "pilot-mn-blgn94-text-20261010",
+        "repo": "Blgn94/whisper-small-mn-v3",
+        "revision": "c428c628ae41d87711eb0b5486f063dc89f293e6",
+        "model_sha256": "1144eadc22a3f420aec546c04bcecf90cac39b558e24d26d74d2855e2cea991c",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 5,
+          "vad_filter": false,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 62.96660129998054,
+        "transcription_seconds_mean": 4.843584715383118,
+        "transcription_seconds_min": 3.3475189000018872,
+        "transcription_seconds_max": 11.250128699990455,
+        "model_load_seconds_one_batch": 1.3622450999973807,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 104,
+          "character_edit_errors": 306,
+          "corpus_wer": 0.5591397849462365,
+          "corpus_cer": 0.2809917355371901,
+          "normalized_sentence_exact_match": 0.07692307692307693
+        },
+        "decision": "not_selected_on_this_cohort",
+        "source_record_sha256s": [
+          "277296d01fededd315f5c99342a572860fd7a2c23d56f08e2e29ed1336dc14c7",
+          "4890e5fd6876de50cd0c7837938b3a4c0bd5d32053607fb8bfe1306bc1b80691",
+          "4ca6267dbbad0772b5c679c9593dcdc2af0749fe32b67d004454bf5ef5647425",
+          "5eac1ff1f1ec274f894d339d40ae12053cbfaf4ab649a9c266a0b73c8b75d10c",
+          "6cc7053a6f9b4b8af3b58a7efc5017503fe0482c4fe846913c8b97f7c1f1e49d",
+          "791921aca23cf8847eadffec33f8f6ccee45bac42fcdcc643919a3ec8cafa097",
+          "838aa8d53c3c292b83fff464aa5ed8fb5d65319442f66c7fb1b8b50e45d6935f",
+          "9667aaaf563ef554b98308ac1443f858379a4882c5502e86a09f787bc6eed478",
+          "ca2bd9948b96e0bc73d37cbf3c19e692d46a235175150ae0f34dc1eede7f15fe",
+          "e1f57c7123aaa8e30a5919470ea936b12db386c44cfd58e8960ff5ca269dd95c",
+          "e93c6a65033b2565c8ac1258c4b2db7f3de4b7b0f69aa016d9595916aaa54be5",
+          "fc1abf8c8259c4903b335163bfdd9ee8c3baaca2581b810c7bfd05b0ab84d851",
+          "fde21d5f87053f18453efa2db048f2a8b5fe41bb733b95a6fd6af53925d5ef04"
+        ],
+        "source_protocol_sha256": "173dd9d4e5bae39e6eb4fc5f7c3ba48d014343372a70f2ee3c406899e0fec0db"
+      },
+      {
+        "run": "pilot-mn-nrlt-text-20261010",
+        "repo": "nrlt/whisper-mn-small-full2",
+        "revision": "6d38c95be63e30cb9b794d42cd2df1a05d0e3f47",
+        "model_sha256": "fc3ff48b152ac0f3162be693cd23f586050043a8f5991ecc1b0e015177935fac",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 5,
+          "vad_filter": false,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 52.574391100002686,
+        "transcription_seconds_mean": 4.044183930769437,
+        "transcription_seconds_min": 2.8860047000052873,
+        "transcription_seconds_max": 7.411873299992294,
+        "model_load_seconds_one_batch": 1.2571861000033095,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 133,
+          "character_edit_errors": 339,
+          "corpus_wer": 0.7150537634408602,
+          "corpus_cer": 0.31129476584022037,
+          "normalized_sentence_exact_match": 0.0
+        },
+        "decision": "not_selected_on_this_cohort",
+        "source_record_sha256s": [
+          "11a5dc93a30ddf8be8130b4b2f3475db7c583061f84365d2fdf51dea48b8bc70",
+          "2805180daf97508a3cf02193f4b3c85743b809c5fd76e0f54d814b42d4092c90",
+          "785fac7127eee370583b65001f207db32402a54dd461c5bbd54014b2de9f3887",
+          "85aad347fc12ba3e9654da1db330b8ba285712590f2b88389eefff1cf574262f",
+          "9a746381ee099309717322ea6777898be9b3ed658341afae85d2f0f4092b6255",
+          "b29497d6bbe82093633a62235df1b403762438e34a50fc82d202a6f1998b4d9e",
+          "beedd8b215965cc61cb5e3c37717f864ecaebdd3a986046da1245e718bbe5c58",
+          "c08f47eb8bb02eb439c23ec6008f9bed5ee694ca98299b442cb5515db5f83f7a",
+          "cc4cdac9f57b995597792924402d9f1c8670780edff2294ef20b9b517fe7844a",
+          "d665dfc2dc2da4b3303d93e90e851940e2252b9da96235f73b8888d94d6e04f9",
+          "e9fc10d28ab4c2110b2550f36136a161a1fa387bd5b9f6b66321c4d318994a5d",
+          "ebe573d2351c4efc159f6ea421090c1fb489a10fb48a3e295e6c98f577e7e974",
+          "fe8d659843e75b2152fce3ede6f37e4148f10bdb6ffc244ff78ee5800475eb1f"
+        ],
+        "source_protocol_sha256": "d7716d1433541d7717d6630f3a333e3b7708b60a98b6b3607544cbcbe04385da"
+      },
+      {
+        "run": "pilot-mn-turbo-blgn94-text-20261010",
+        "repo": "Blgn94/whisper-large-v3-turbo-mn-lora",
+        "revision": "79518696aab72a416b0999c74a5060ede20e7dce",
+        "model_sha256": "c1a7a14befa64702adcd8833889633e10995ffcc774eebdef98c730927366b1e",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 5,
+          "vad_filter": false,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 137.0861080999748,
+        "transcription_seconds_mean": 10.5450852384596,
+        "transcription_seconds_min": 7.566722600007779,
+        "transcription_seconds_max": 13.919270600003074,
+        "model_load_seconds_one_batch": 5.190048099990236,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 102,
+          "character_edit_errors": 257,
+          "corpus_wer": 0.5483870967741935,
+          "corpus_cer": 0.2359963269054178,
+          "normalized_sentence_exact_match": 0.0
+        },
+        "decision": "not_selected_on_this_cohort",
+        "source_record_sha256s": [
+          "1b2677b88e3fcc42018bee5ed2a462d0408e89830aaf2e6fe4255adc31302568",
+          "2b466d99b734795a5040ab42682a63ecbcca7712ad2b64128c1345181672b9b8",
+          "50e1c5096ecc7e7954b94d6bbce587a9dcdaf37c28433fcb93eab08d33c8782a",
+          "6d415c9662dcdac822aca3d11f58eaebae37d3f1751bd175093a91db9b2b626a",
+          "873db9887a39ea218c040aab03f813aba92c401f5bc29828be5ac15c674f7d79",
+          "a10c4a6c9bdfbf1dff64ee65455f157e46b8995f32f6c291490e6f3c80389232",
+          "a52d51c409328d1c75343b996dd7aba467dedf385839a426858418e93db06d17",
+          "bb85df44187afd81ee52018ae19641b31f28236b238ae180e010fb4fbdd99bc6",
+          "cee6fb418b97b9c3dbd3d0c60db737cc39d54008250b4f8e4e1ed90bd6c25860",
+          "eb82e805a463be652bed5801498fc75aafa5df2d3b34de3740e14173afdbcae3",
+          "f21764a1461d6c6d138b808b0930e474907dea7eca7911799d79c51f687703bf",
+          "f2cc4ada9cc19bff4e0c439c7329616f25a71d622a31a02bb16c4f634d38f7a1",
+          "fb78ff92786aec3a7df874e3bf454c281da2d39386c0c0ee6760d2f4f7345753"
+        ],
+        "source_protocol_sha256": "5b31489c63efb9638d424922503bd2d3eb4376eb4a0bd3bf1e7fc7f4ec0ce24f"
+      },
+      {
+        "run": "pilot-mn-cafet-text-vad-20261010",
+        "repo": "Cafet/whisper-small-mongolian",
+        "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+        "model_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 5,
+          "vad_filter": true,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 50.59048189999885,
+        "transcription_seconds_mean": 3.8915755307691424,
+        "transcription_seconds_min": 3.1306806999928085,
+        "transcription_seconds_max": 6.783229199994821,
+        "model_load_seconds_one_batch": 1.0792034000041895,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 78,
+          "character_edit_errors": 206,
+          "corpus_wer": 0.41935483870967744,
+          "corpus_cer": 0.1891643709825528,
+          "normalized_sentence_exact_match": 0.0
+        },
+        "decision": "not_selected_on_this_cohort",
+        "source_record_sha256s": [
+          "1d3da34d02c5c366b88f0b685a516b3b7df7ac437da9da05359c2ca3ff7e3f81",
+          "31dcb9d267e6a576d84385c9c8523a07f1fd85723ddae66e07346e470a5865a3",
+          "47764555619d9b045300942a87736508517f0a9db44c6196ee5f4841e098d18b",
+          "4bcd4ab87594bdf4d7b5349bf1198ff3cd9092e8e37d335639f0f34c5f62f67d",
+          "4fd64701a5852ef4034204afd409cc70eb693132d7b7b7e5dd818310d12053d1",
+          "63b0a57dd15f310addf28f9a5b1a935c74b4fe2180041d92279a4fa4ecffd44e",
+          "8d1c96d2d7611d2e6056631283f3d26ee9f786eda0b0611715f54ead853e81e8",
+          "98328945e32fbcced62c498f73bde5015f6c87717ec50f717c53d38923a6896b",
+          "9d7596af6ea962209189b9a42382268fad77526e7a6da5c33e572924ce973ebf",
+          "9ff3333ab01982ba9d9d9825e7e5bfe3bf6d6adb3d94c346305a8db9bd0b27ae",
+          "bb8aa26ec7867295c29bb8009b7dbd9f345ff56d0ad434539c6f1d8f6177c5a0",
+          "be2cf2291a0dd98612264d219c1e3d21aa894e6dc1b044b37010efdc46e3228b",
+          "c5cb5713284e62ae8fbbd7411c1b70d1b1800d4711519e50de9d7addfd11b8e7"
+        ],
+        "source_protocol_sha256": "fbb919c76ba7b8f7df6ad14369f1e7584bc99c6745bc7d482d8206306e48c3a9"
+      },
+      {
+        "run": "pilot-mn-cafet-text-beam1-20261010",
+        "repo": "Cafet/whisper-small-mongolian",
+        "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+        "model_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+        "device": "cpu",
+        "compute_type": "int8",
+        "decoding": {
+          "language": "mn",
+          "task": "transcribe",
+          "beam_size": 1,
+          "vad_filter": false,
+          "temperature": 0.0,
+          "without_timestamps": true,
+          "condition_on_previous_text": false
+        },
+        "same_reference_cohort": true,
+        "utterances": 13,
+        "audio_seconds_sum": 152.0,
+        "transcription_seconds_sum": 32.45124019999639,
+        "transcription_seconds_mean": 2.4962492461535684,
+        "transcription_seconds_min": 2.081061899996712,
+        "transcription_seconds_max": 4.202661699993769,
+        "model_load_seconds_one_batch": 1.061321200002567,
+        "model_load_included_in_transcription_seconds": false,
+        "timing_scope": "model.transcribe plus consumption of segments; excludes model load, recording, router, answer and TTS",
+        "controlled_repeated_benchmark": false,
+        "metrics": {
+          "normalization": "NFC + casefold + punctuation to spaces; CER excludes spaces; numbers unchanged",
+          "utterances": 13,
+          "reference_words": 186,
+          "reference_characters": 1089,
+          "word_edit_errors": 86,
+          "character_edit_errors": 223,
+          "corpus_wer": 0.46236559139784944,
+          "corpus_cer": 0.20477502295684114,
+          "normalized_sentence_exact_match": 0.0
+        },
+        "decision": "not_selected_on_this_cohort",
+        "source_record_sha256s": [
+          "287e1e7a105ef218f5de91a679eb7127067f48b268e56052c629c81127578c0d",
+          "2c800d6a2381b2dc5d8855da3dff001b4d1ccd66d5b22258405271d839f9d317",
+          "2d3ac6ae3c747da9824d458f1beae2c6f0ca1940bd88dd39486f66628cea0755",
+          "47d80378c0f68b5272da40f1628330f2361d5ee81d472f4757280f4bac3ce3b3",
+          "5cea3fbe878397438a928328bb4ee2d4d78218eb39790f7139eac5f90f65c0f4",
+          "7e264bf69da5c6b47a47b5d447d614dcbd83aaf92e6b4d3766f706bf493b4fd7",
+          "c3391f40a574f48cbe6006cb89616d1572043ba2a889539a48f5187b5ac8026f",
+          "c553fd25b9f7558a47513db2557402cb249d03e3057bbf39b923514903c371c0",
+          "cc3b555d92a344ccb25146709ee1d067459547c78b64f8624b49a13b6d16c13d",
+          "d2c1639b18d17c4ffd9b9dca4b47c2d9a3d03a1abf67c19ae8437fe9718d6c32",
+          "d399e35b29eba85d7dad861b0bc2919a4c9af07025f151ef65a1921583d6da67",
+          "dad17a05250475e68887da4e461326245d78b0f47dc8a0dd7790a95d9f86a83e",
+          "ea9f76ec0373c769fb298e2019bfcc9d4d16f863c36be5925cb4a27de015394e"
+        ],
+        "source_protocol_sha256": "4a366fac2a288aa28b76748e6f0e86cee9feee6b393d53d325ca3f9522937f07"
+      }
+    ],
+    "limitations": [
+      "single-speaker development pilot",
+      "possible model-draft reference-review bias",
+      "names, dates and phone numbers need separate error review",
+      "1-WER is not semantic accuracy"
+    ]
+  },
+  "device": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "logical_cpu_count": 12,
+    "processor": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+    "sqlite": "3.45.1"
+  },
+  "device_constraints": {
+    "measured_cpu_execution": true,
+    "gpu_execution_tested": false,
+    "memory_peak_or_cpu_load_measured": false,
+    "tablet_execution_tested": false,
+    "cpu_brand_marketing_name_recorded": false
+  },
+  "models": [
+    {
+      "kind": "stt",
+      "repo": "Cafet/whisper-small-mongolian",
+      "revision": "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d",
+      "license_recorded": "apache-2.0",
+      "weight_sha256": "7a2a3f0a939addbd2ae9532dfb2b16590ecc3fbb145a214b784b05797e202843",
+      "weight_size_bytes": 483546977,
+      "weight_matches_tested_profile": true,
+      "release_archive_sha256": "0c636f050ce55ee6809e840e11a2c3cc15013d730c801b9b67f98b904586d2c2",
+      "release_archive_matches_manifest": true,
+      "release_license_members": [
+        "models/faster-whisper-small-mn-cafet/LICENSE-APACHE-2.0.txt",
+        "models/faster-whisper-small-mn-cafet/LICENSE-OPENAI-MIT.txt",
+        "models/faster-whisper-small-mn-cafet/REDISTRIBUTION-NOTICE.txt"
+      ],
+      "license_contents_nonempty": true,
+      "installed_runtime_license_files_present": false,
+      "note": "License and notices verified in the redistribution ZIP; preexisting runtime directories need not contain packaging notices."
+    },
+    {
+      "kind": "retrieval",
+      "repo": "intfloat/multilingual-e5-small",
+      "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "license_recorded": "mit",
+      "weight_sha256": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477",
+      "weight_size_bytes": 470641600,
+      "weight_matches_tested_profile": true,
+      "release_archive_sha256": "6f9cb20980e4d6ecc1daa29cf7dd7e56c95a024e1a91c3a1209cace24ee6044d",
+      "release_archive_matches_manifest": true,
+      "release_license_members": [
+        "models/multilingual-e5-small/LICENSE-MICROSOFT-MIT.txt",
+        "models/multilingual-e5-small/REDISTRIBUTION-NOTICE.txt"
+      ],
+      "license_contents_nonempty": true,
+      "installed_runtime_license_files_present": false,
+      "note": "License and notices verified in the redistribution ZIP; preexisting runtime directories need not contain packaging notices."
+    }
+  ],
+  "retrieval": {
+    "corpus_faqs": 5,
+    "assistant_proposed_positive_cases": 15,
+    "unsupported_controls": 5,
+    "human_approved_gold": false,
+    "final_test": false,
+    "protocol": {
+      "created_at": "2026-10-09T17:39:23.161375+00:00",
+      "client_date": "2026-10-10",
+      "content_sha256": "b5bbd92205bea1f0f315016983f1690a96c863e58549f8a2144ae152df832db6",
+      "cases_sha256": "0e9952cb2691af5a1ef91e17b5a9528f15127d96d4b10fb4fac628289ea242a7",
+      "faq_ids": [
+        "faq.contact",
+        "faq.sakura",
+        "faq.arc.courses",
+        "faq.cs.program",
+        "faq.cs.department"
+      ],
+      "draft_content_explicitly_allowed": true,
+      "label_status": "assistant_proposed_not_human_approved",
+      "approved_gold": false,
+      "final_test": false,
+      "bm25": {
+        "k1": 1.5,
+        "b": 0.75,
+        "idf": "log1p((N-df+0.5)/(df+0.5))",
+        "query_term_weight": "unique query terms",
+        "tokenizer": "NFC/casefold Unicode word tokens; no morphology or alias expansion",
+        "batch_seconds": 0.006128700013505295
+      },
+      "answer_generation_performed": false,
+      "llm_calls": 0,
+      "router_implemented": false,
+      "private_audio_used": false,
+      "training_performed": false,
+      "e5": {
+        "repo": "intfloat/multilingual-e5-small",
+        "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3",
+        "weight_sha256": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477",
+        "device": "cpu",
+        "model_loading_seconds": 1.8634975999884773,
+        "passage_embedding_seconds": 0.3915278000058606,
+        "query_batch_embedding_seconds": 0.2662679999775719,
+        "embedding_dimension": 384,
+        "max_tokens": 512,
+        "truncated_inputs": 0,
+        "pooling": "attention-masked mean + L2 normalization",
+        "query_prefix": "query: ",
+        "passage_prefix": "passage: ",
+        "training_performed": false,
+        "local_files_only": true,
+        "trust_remote_code": false,
+        "weight_hash_unchanged_after_inference": true,
+        "versions": {
+          "torch": "2.8.0+cpu",
+          "transformers": "4.57.6",
+          "safetensors": "0.8.0"
+        }
+      }
+    },
+    "summary": {
+      "bm25": {
+        "label_status": "assistant_proposed_not_human_approved",
+        "positive_cases": 15,
+        "top1_hit_rate": 0.6666666666666666,
+        "top3_hit_rate": 0.8666666666666667,
+        "mean_reciprocal_rank": 0.7855555555555556,
+        "negative_cases": 5,
+        "negative_top_scores": [
+          {
+            "id": "rd16",
+            "faq_id": "faq.contact",
+            "score": 2.2195412471010343
+          },
+          {
+            "id": "rd17",
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558
+          },
+          {
+            "id": "rd18",
+            "faq_id": "faq.contact",
+            "score": 0.6213736267714784
+          },
+          {
+            "id": "rd19",
+            "faq_id": "faq.sakura",
+            "score": 3.2870347559158355
+          },
+          {
+            "id": "rd20",
+            "faq_id": "faq.contact",
+            "score": 1.5981676203295558
+          }
+        ],
+        "abstention_implemented": false,
+        "score_is_probability": false,
+        "production_quality_accepted": false
+      },
+      "e5": {
+        "label_status": "assistant_proposed_not_human_approved",
+        "positive_cases": 15,
+        "top1_hit_rate": 0.9333333333333333,
+        "top3_hit_rate": 1.0,
+        "mean_reciprocal_rank": 0.9666666666666667,
+        "negative_cases": 5,
+        "negative_top_scores": [
+          {
+            "id": "rd16",
+            "faq_id": "faq.arc.courses",
+            "score": 0.8321298360824585
+          },
+          {
+            "id": "rd17",
+            "faq_id": "faq.contact",
+            "score": 0.7894458770751953
+          },
+          {
+            "id": "rd18",
+            "faq_id": "faq.arc.courses",
+            "score": 0.793300211429596
+          },
+          {
+            "id": "rd19",
+            "faq_id": "faq.sakura",
+            "score": 0.8026467561721802
+          },
+          {
+            "id": "rd20",
+            "faq_id": "faq.contact",
+            "score": 0.7903439998626709
+          }
+        ],
+        "abstention_implemented": false,
+        "score_is_probability": false,
+        "production_quality_accepted": false
+      }
+    },
+    "timing_scope": "one CPU batch: model load separate; five passage embeddings; twenty query embeddings; BM25 twenty queries",
+    "individual_query_latency_measured": false,
+    "new_72_page_corpus_quality_evaluated": false
+  },
+  "tts": {
+    "service": "online Edge TTS experiment",
+    "runtime_package_license_is_not_service_permission": true,
+    "production_service_terms_or_sla_confirmed": false,
+    "offline_execution": false,
+    "final_voice_accepted": false,
+    "numeric_mos_measured": false,
+    "relative_user_improvement_reports": 2,
+    "comparison_measurements": [
+      {
+        "id": "tts01-bataa",
+        "voice": "mn-MN-BataaNeural",
+        "change": "voice_only",
+        "synthesis_seconds": 1.0218020000029355,
+        "audio_seconds": 6.0960000000000045,
+        "quality": "user_reported_relative_improvement; detailed_pronunciation_review_pending"
+      },
+      {
+        "id": "tts03-yesui-spoken-date",
+        "voice": "mn-MN-YesuiNeural",
+        "change": "date_written_in_spoken_words",
+        "synthesis_seconds": 1.7469954999396577,
+        "audio_seconds": 6.864000000000005,
+        "quality": "user_reported_relative_improvement; detailed_pronunciation_review_pending"
+      }
+    ],
+    "pronunciation_measurements": [
+      {
+        "id": "bataa-raw",
+        "voice": "mn-MN-BataaNeural",
+        "variant": "raw_names_and_digits",
+        "synthesis_seconds": 3.9726528999890434,
+        "audio_seconds": 11.999999999999861,
+        "listening_status": "pending"
+      },
+      {
+        "id": "bataa-spoken",
+        "voice": "mn-MN-BataaNeural",
+        "variant": "spoken_names_and_numbers",
+        "synthesis_seconds": 2.0093588000017917,
+        "audio_seconds": 10.463999999999917,
+        "listening_status": "pending"
+      },
+      {
+        "id": "yesui-spoken",
+        "voice": "mn-MN-YesuiNeural",
+        "variant": "spoken_names_and_numbers",
+        "synthesis_seconds": 1.6464659000048414,
+        "audio_seconds": 10.487999999999916,
+        "listening_status": "pending"
+      }
+    ],
+    "timing_scope": "online synthesis request and save; not audio playback; voice-list time excluded in the two comparison trials",
+    "service_evidence": {
+      "checked_client_date": "2026-10-10",
+      "primary_sources": [
+        {
+          "url": "https://github.com/rany2/edge-tts",
+          "finding": "Python client for Edge online TTS; API key not required"
+        },
+        {
+          "url": "https://github.com/rany2/edge-tts#custom-ssml",
+          "finding": "Arbitrary custom SSML is not supported"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/MicrosoftDocs/azure-ai-docs/main/articles/ai-services/speech-service/includes/language-support/tts.md",
+          "finding": "mn-MN-YesuiNeural and mn-MN-BataaNeural are listed as Standard voices"
+        },
+        {
+          "url": "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/rest-text-to-speech",
+          "finding": "Official REST requires a resource key or Bearer authorization"
+        }
+      ],
+      "current_path": "Edge client experiment",
+      "official_api_candidate": "Azure Speech REST",
+      "azure_account_or_key_configured_in_project": false,
+      "azure_api_tested": false,
+      "migration_performed": false,
+      "service_terms_approved": false,
+      "production_sla_confirmed": false,
+      "cost_measured_or_claimed": false
+    }
+  },
+  "c_llm_trial": {
+    "approved_c_cases": 0,
+    "calls": 0,
+    "status": "conditional_trial_correctly_skipped_no_approved_c_case",
+    "reason": "Roadmap permits a small LLM trial only for confirmed C examples; do not invent C or treat missing LLM calls as a required unfinished trial."
+  },
+  "research": {
+    "core_papers": 20,
+    "additional_papers": 6,
+    "metadata_abstract_screened": 26,
+    "selected_method_section_checks": 8,
+    "full_read_complete": 0,
+    "student_whisper_last_section": "3.5",
+    "all_papers_full_read_is_implementation_gate": false
+  },
+  "week03_close_criteria": [
+    "Keep source/fact/FAQ/version/approval/validity/citation schema and successful draft validation.",
+    "Record same-input STT comparison, decoder and weight provenance, measured inference and model-load separately.",
+    "Complete human pronunciation review of the three existing TTS fixtures and record a provisional voice or explicit rejection; confirm service suitability before final acceptance.",
+    "Keep BM25/E5 same-corpus comparison and qualified batch timings; retain BM25 as lexical baseline and E5 as provisional dense candidate.",
+    "Keep C trial conditional: skip while no approved C example exists; run only on real approved C inputs if established.",
+    "Record human final acceptance or documented remaining constraints; do not claim all-user production quality."
+  ],
+  "independent_next_work": [
+    "year/entity clarification and unsupported routing",
+    "source versions and approval preparation",
+    "human development-case/qrel preparation",
+    "voice integration foundation without rerunning unchanged model experiments"
+  ],
+  "inputs": [
+    {
+      "path": "ROADMAP-FINAL-2026-10-07.mn.md",
+      "sha256": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f"
+    },
+    {
+      "path": "docs/experiments/retrieval-20261010.json",
+      "sha256": "06919de27a34f7cfffdf7cbe2f719ff8f434a70a980bbe08938e944a0bc77751"
+    },
+    {
+      "path": "config/stt-development.json",
+      "sha256": "aba0ecb48fa4869f659452f1afa541c56a8b10bb7577829265ddbe86131ce6f8"
+    },
+    {
+      "path": "config/releases/models-20261010.json",
+      "sha256": "bc26864fce7cffa96c1eb5c83ede50e7789072d92ace5c12f20d0892915ccc2e"
+    },
+    {
+      "path": "schemas/content.schema.json",
+      "sha256": "73e11784d97f98b680b679ee9fea1046a7ae56596bd481bd53bb830bcf98f1a2"
+    },
+    {
+      "path": "data/content-draft-v1.json",
+      "sha256": "b5bbd92205bea1f0f315016983f1690a96c863e58549f8a2144ae152df832db6"
+    }
+  ],
+  "private_input_digests": [
+    {
+      "role": "existing_stt_rescore_aggregate",
+      "sha256": "4139e1ab1f503f601304dfc4b551cc52a3c1d2cc3298dc56227340a0b67b3878"
+    },
+    {
+      "role": "existing_tts_relative_comparisons",
+      "sha256": "eaa7dfadecddc5673f23d18250f9f27a54ccbe021f78b664c26558f15317ad1d"
+    },
+    {
+      "role": "existing_tts_pronunciation_measurements",
+      "sha256": "5e2681afdd53ab590077451a125abc0f798a1eee30927ef22ae2eec30513d14d"
+    },
+    {
+      "role": "existing_environment_measurement",
+      "sha256": "f9b3eeea90d2a958493ca66d2638a2dd32208d14915b535421d3c13d9d8fd333"
+    }
+  ],
+  "new_inference_performed": false,
+  "new_training_performed": false,
+  "model_download_performed": false
+}

@@ -14,7 +14,7 @@
 <header>
 <div class="eyebrow">THesisS · локал хөгжүүлэлтийн demo</div>
 <h1>Асуултаа бичээд, мэдээллийн эхийг харъя.</h1>
-<p class="muted">Одоо ажиллаж буй урсгал: <strong>бичгэн асуулт → SQLite → FAQ хайлт → сонгосон эхийг үзэх</strong>.</p>
+<p class="muted">Одоо ажиллаж буй урсгал: <strong>бичгэн асуулт → замын шалгалт → хариулт / тодруулга / эхийг үзэх</strong>.</p>
 <p class="small muted">Микрофон болон хариултын TTS энэ хуудсанд хараахан холбогдоогүй. Дууны өмнөх туршилтын жишээг доор сонсож болно.</p>
 </header>
 <section class="metrics" aria-label="Төслийн бодит төлөв">
@@ -22,6 +22,23 @@
 <div class="metric"><span>SQLite · одоогийн өгөгдөл</span><strong id="counts">Уншиж байна…</strong><small id="contentState">Баталгааны төлөвийг шалгаж байна.</small></div>
 <div class="metric"><span>E5 · өмнөх хайлтын туршилт</span><strong>14 / 15</strong><small>Таван FAQ-ийн жижиг development багц.<br>Хүний баталсан gold биш.</small></div>
 <div class="metric"><span>Энэ хуудасны хайлт</span><strong>BM25</strong><small>SQLite-ийн FAQ-г бодитоор эрэмбэлнэ.<br>LLM дуудалт: 0 · шинэ training: 0</small></div>
+</section>
+<section class="panel" aria-labelledby="routeHeading">
+<h2 id="routeHeading">Асуултын замыг шалгах</h2>
+<p class="muted small">Бүртгэлтэй асуултад эхтэй хариулт, дутуу асуултад тодруулга, батлагдсан эхгүй үед тайлбартай татгалзал гаргана.</p>
+<form id="routeForm"><label for="routeQuery">Асуулт</label>
+<textarea id="routeQuery" maxlength="1000" required>Холбоо барих утас хэд вэ?</textarea>
+<label class="toggle"><input id="routeDraft" type="checkbox"><span>Ноорог хариултыг турших — сургуулиар баталгаажаагүй</span></label>
+<div class="actions"><button id="routeButton" type="submit">Замыг шалгах</button><span id="routeStatus" class="status" role="status" aria-live="polite"></span></div>
+<div class="actions" aria-label="Турших асуултууд">
+<button type="button" data-route-example="Холбоо барих утас хэд вэ?">Холбоо барих</button>
+<button type="button" data-route-example="ШМТК-ийн Sakura хамтын ажиллагааны талаар мэдээлэл өгнө үү.">Хадгалсан FAQ</button>
+<button type="button" data-route-example="ARC хамтын ажиллагаанд ямар хичээлүүд багтсан бэ?">Он дутуу</button>
+<button type="button" data-route-example="2027 оны ARC хамтын ажиллагаанд ямар хичээлүүд багтсан бэ?">Өөр он</button>
+<button type="button" data-route-example="Гадаад паспорт яаж сунгах вэ?">Эхгүй асуулт</button>
+</div></form>
+<div id="routeResult" style="margin-top:18px" aria-live="polite"></div>
+<p class="small muted" style="margin-top:14px">Энэ нь хөгжүүлэлтийн дүрэмтэй чиглүүлэлт. C генерацийн зам нээгдээгүй; LLM дуудалт 0. Замын чанарыг хүний баталсан асуултаар хараахан үнэлээгүй.</p>
 </section>
 <section class="panel">
 <h2>Албан сайтаас татсан мэдээлэл</h2>
@@ -67,6 +84,28 @@ function resetPreview(){$("preview").replaceChildren(node("div","FAQ-г илэр
 async function preview(faqId){const draft=$("allowDraft").checked;$("preview").replaceChildren(node("p","FAQ-г уншиж байна…","muted"));try{const r=await api("/api/preview",{faq_id:faqId,allow_draft:draft});const target=$("preview");target.replaceChildren(node("span",r.approval_status==="draft"?"DRAFT · батлагдаагүй":r.approval_status,"tag "+(r.approval_status==="draft"?"draft":"")),node("h3",r.question));target.append(node("div",r.preview_notice,"notice"));if(r.unknown_validity_records?.length)target.append(node("p","Хүчинтэй хугацаа бүрэн бүртгэгдээгүй. Одоогийн хүчинтэй мэдээлэл гэж батлахгүй.","small muted"));target.append(node("div",r.answer===null?"Энэ горимд хариултыг харуулах боломжгүй.":r.answer,"answer"));target.append(node("p",r.scope,"small muted"));if(r.answer_blocked_reasons?.length){target.append(node("p","Хаасан шалтгаан:","small"));const ul=node("ul");for(const reason of r.answer_blocked_reasons)ul.append(node("li",reason));target.append(ul)}target.append(node("h3","Эх сурвалж"),sourceList(r.citations))}catch(e){$("preview").replaceChildren(node("p",e.message,"error"))}}
 $("questionForm").addEventListener("submit",async e=>{e.preventDefault();resetPreview();$("searchButton").disabled=true;$("searchStatus").textContent="SQLite-ээс хайж байна…";try{const r=await api("/api/search",{query:$("query").value,allow_draft:$("allowDraft").checked,limit:5});const target=$("candidates");target.replaceChildren();const candidates=r.candidates||[];$("searchStatus").textContent=candidates.length+" боломжит FAQ · "+(r.mode==="development_draft"?"draft харах горим":"батлагдсан агуулгын горим");if(!candidates.length)target.append(node("div","Энэ хайлтаар тохирох FAQ олдсонгүй. Хариулт зохиохгүй.","placeholder"));for(const c of candidates){const card=node("article",undefined,"candidate");card.append(node("span",c.approval_status==="draft"?"DRAFT":c.approval_status,"tag "+(c.approval_status==="draft"?"draft":"")));if(c.exact_match)card.append(node("span","Бүртгэлтэй асуулт / alias","tag"));card.append(node("h3",c.question),node("div","BM25 оноо "+Number(c.score).toFixed(3)+" · "+c.faq_id,"meta"),node("p",c.scope,"small muted"),sourceList(c.citations));if(c.unknown_validity_records?.length)card.append(node("p","Хүчинтэй хугацаа дутуу.","small muted"));const button=node("button",c.eligible?(c.approval_status==="draft"?"Ноорог хариултыг харах":"FAQ-г үзэх"):"Баталгааны шалгалтаар хаасан");button.type="button";button.disabled=!c.eligible;button.addEventListener("click",()=>preview(c.faq_id));card.append(button);if(!c.eligible)card.append(node("p","Эх эсвэл FAQ-ийн баталгаа / огнооны шалгалтаар хаасан.","small muted"));target.append(card)}}catch(e){$("searchStatus").textContent=e.message;$("candidates").replaceChildren(node("p",e.message,"error"))}finally{$("searchButton").disabled=false}});
 $("allowDraft").addEventListener("change",()=>{$("searchStatus").textContent="Горим өөрчлөгдлөө. Дахин хайна уу.";$("candidates").replaceChildren(node("div","Горим өөрчлөгдлөө. Дахин хайж энэ горимын шалгалтыг авна.","placeholder"));resetPreview()});
+
+
+let routeGeneration=0;
+const routeLabels={A:"Бүтэцтэй мэдээлэл",B:"Бүртгэлтэй FAQ",D:"Тодруулах",E:"Хариулах боломжгүй"};
+$("routeForm").addEventListener("submit",async e=>{
+ e.preventDefault();const generation=++routeGeneration;$("routeButton").disabled=true;
+ $("routeResult").replaceChildren();$("routeStatus").textContent="Замыг шалгаж байна…";
+ try{const r=await api("/api/route",{query:$("routeQuery").value,allow_draft:$("routeDraft").checked});
+  if(generation!==routeGeneration)return;const target=$("routeResult");
+  target.append(node("span",r.route+" · "+(routeLabels[r.route]||r.route),"tag"),node("p",r.message));
+  $("routeStatus").textContent="Шалгасан хугацаа "+Number(r.latency_ms).toFixed(1)+" ms · LLM "+r.llm_calls;
+  if(r.answer!==null){if(r.answer_kind==="development_draft_preview")target.append(node("div","НООРОГ · сургуулиар баталгаажаагүй, хүчинтэй хугацааг нягтална.","notice"));target.append(node("div",r.answer,"answer"))}
+  if(r.clarification){target.append(node("p",r.clarification.question));
+   for(const option of r.clarification.options||[]){const button=node("button",option.question);button.type="button";
+    button.addEventListener("click",()=>{$("routeQuery").value=option.question;$("routeForm").requestSubmit()});
+    const row=node("div",undefined,"actions");row.append(button);target.append(row)}}
+  if(r.citations?.length)target.append(node("h3","Эх сурвалж"),sourceList(r.citations));
+ }catch(error){if(generation===routeGeneration)$("routeStatus").textContent=error.message}
+ finally{if(generation===routeGeneration)$("routeButton").disabled=false}
+});
+$("routeDraft").addEventListener("change",()=>{++routeGeneration;$("routeButton").disabled=false;$("routeResult").replaceChildren();$("routeStatus").textContent="Горим өөрчлөгдлөө. Дахин шалгана уу."});
+document.querySelectorAll("[data-route-example]").forEach(button=>button.addEventListener("click",()=>{$("routeQuery").value=button.dataset.routeExample;$("routeForm").requestSubmit()}));
 
 let websiteGeneration=0;
 $("websiteForm").addEventListener("submit",async e=>{
