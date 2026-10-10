@@ -1,0 +1,24 @@
+{
+  "folders": [
+    {
+      "name": "CORE — эхлэх төв",
+      "path": "."
+    },
+    {
+      "name": "THesisS — код",
+      "path": ".."
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.venv": true,
+      "**/.venv-modeltools": true,
+      "**/.git": true,
+      "**/__pycache__": true,
+      "**/reports/archive": true,
+      "**/runtime": true,
+      "**/models": true,
+      "**/CORE/website/snapshots": true
+    }
+  }
+}

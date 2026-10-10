@@ -139,3 +139,19 @@ __pycache__/
 !/reports/system/SQLITE-SEARCH.mn.md
 !/open_demo.py
 !/DEMO.cmd
+
+# Core navigation and collector only; website snapshots/database remain local.
+!/CORE/
+/CORE/*
+!/CORE/README.mn.md
+!/CORE/CONCEPTS.mn.md
+!/CORE/ROADMAP-PROGRESS.mn.md
+!/CORE/CORE-FILES.mn.md
+!/CORE/WEBSITE-DATA.mn.md
+!/CORE/THesisS.code-workspace
+!/CORE/DEMO.cmd
+!/CORE/OPEN-PROJECT.cmd
+!/CORE/OPEN-DATA.cmd
+!/CORE/__init__.py
+!/CORE/website_corpus.py
+!/tests/test_website_corpus.py

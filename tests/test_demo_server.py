@@ -198,5 +198,63 @@ class DemoServerTests(unittest.TestCase):
             self.server = current
 
 
+    def website_fixture(self):
+        from CORE.website_corpus import PageParser, import_snapshot
+        directory = self.root / "capture"
+        directory.mkdir()
+        html = "<main><h1>Тестийн эх</h1><p>Тестийн ажлын цаг 09:00</p></main>".encode("utf-8")
+        parser = PageParser()
+        parser.feed(html.decode("utf-8"))
+        extracted = parser.result()["text"]
+        (directory / "page.html").write_bytes(html)
+        (directory / "page.txt").write_text(extracted, encoding="utf-8", newline="")
+        manifest = {"run_id": "test-only", "retrieved_at": "2026-10-10", "inventory": [], "pages": [
+            {"url": "https://nmct.edu.mn/contact", "status": "ok", "html_file": "page.html",
+             "text_file": "page.txt", "html_sha256": hashlib.sha256(html).hexdigest(),
+             "text_sha256": hashlib.sha256(extracted.encode("utf-8")).hexdigest(),
+             "retrieved_at": "2026-10-10", "http": {"charset": "utf-8"}}]}
+        (directory / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+        database = self.root / "CORE/database/website.db"
+        import_snapshot(database, directory)
+        return database
+
+    def test_website_status_search_draft_guard_and_readonly_source(self):
+        database = self.website_fixture()
+        before = hashlib.sha256(database.read_bytes()).hexdigest()
+        _, status = self.request("GET", "/api/status")
+        self.assertEqual(status["website"]["pages"], 1)
+        self.assertEqual(status["website"]["approved_pages"], 0)
+        for draft in (False, True):
+            code, result = self.request("POST", "/api/website-search",
+                                        {"query": "ажлын цаг", "allow_draft": draft})
+            self.assertEqual(code, 200)
+            self.assertIsNone(result["answer"])
+            self.assertEqual(result["llm_calls"], 0)
+            match = result["matches"][0]
+            self.assertEqual(match["url"], "https://nmct.edu.mn/contact")
+            self.assertEqual(match["approval_status"], "draft")
+            self.assertTrue(match["validity_unknown"])
+            if draft:
+                self.assertIn("09:00", match["excerpt"])
+            else:
+                self.assertIsNone(match["excerpt"])
+        self.assertEqual(hashlib.sha256(database.read_bytes()).hexdigest(), before)
+        self.assertEqual(self.request("GET", "/CORE/database/website.db")[0], 404)
+
+    def test_missing_website_database_never_created_by_http(self):
+        database = self.root / "CORE/database/website.db"
+        _, status = self.request("GET", "/api/status")
+        self.assertFalse(status["website"]["available"])
+        self.assertEqual(self.request("POST", "/api/website-search", {"query": "ажлын цаг"})[0], 503)
+        self.assertFalse(database.exists())
+
+    def test_website_search_validates_origin_and_payload_before_reading(self):
+        self.assertEqual(self.request("POST", "/api/website-search", {"query": "ажлын цаг"},
+                                     headers={"Origin": "https://outside.example"})[0], 403)
+        for payload in ({"query": ""}, {"query": "test", "allow_draft": "yes"},
+                        {"query": "test", "limit": 6}, {"query": "test", "db": "private"}):
+            self.assertEqual(self.request("POST", "/api/website-search", payload)[0], 400)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,6 +9,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from sqlite_retrieval import ReadOnlyContentStore, guarded_preview, search_content
+from CORE.website_corpus import website_status, search_website
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
@@ -96,7 +97,13 @@ def make_server(db_path=None, *, port=8765, project_root=None):
                                        for kind in ("sources", "facts", "faqs")}}
                 except (OSError, sqlite3.Error, ValueError, KeyError):
                     content["message"] = "Эхлээд draft агуулгыг SQLite-д импортлоно."
+                try:
+                    website = website_status(root / "CORE/database/website.db")
+                except (OSError, sqlite3.Error, ValueError):
+                    website = {"available": False, "pages": 0, "chunks": 0, "documents": 0,
+                               "message": "Албан сайтын мэдээллийг эхлээд цуглуулна."}
                 return self.send_json(200, {
+                    "website": website,
                     "mode": "local_development", "readonly": True, "content": content,
                     "audio_samples": samples,
                     "stt": {"wer_percent": 36.0, "cer_percent": 16.9, "verified_recordings": 13,
@@ -141,24 +148,27 @@ def make_server(db_path=None, *, port=8765, project_root=None):
             if not self.valid_host():
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             path = unquote(urlsplit(self.path).path)
-            if path not in {"/api/search", "/api/preview"}:
+            if path not in {"/api/search", "/api/preview", "/api/website-search"}:
                 return self.error(404, "Энэ API нээлттэй биш.")
             try:
                 body = self.read_json()
-                allowed = {"query", "allow_draft", "limit"} if path == "/api/search" else {
+                allowed = {"query", "allow_draft", "limit"} if path in {"/api/search", "/api/website-search"} else {
                     "faq_id", "allow_draft"}
                 if set(body) - allowed:
                     raise ValueError("Зөвшөөрөөгүй талбар байна.")
                 allow_draft = body.get("allow_draft", False)
                 if type(allow_draft) is not bool:
                     raise ValueError("allow_draft нь true эсвэл false байна.")
-                if path == "/api/search":
+                if path in {"/api/search", "/api/website-search"}:
                     query = body.get("query")
                     limit = body.get("limit", 5)
                     if not isinstance(query, str) or not query.strip() or len(query) > 1000:
                         raise ValueError("Асуулт 1–1000 тэмдэгттэй байна.")
                     if type(limit) is not int or not 1 <= limit <= 5:
                         raise ValueError("limit нь 1–5 бүхэл тоо байна.")
+                    if path == "/api/website-search":
+                        return self.send_json(200, search_website(query.strip(), root / "CORE/database/website.db",
+                                                                 limit=limit, allow_draft=allow_draft))
                     result = search_content(database, query.strip(), backend="bm25",
                                             top_k=limit, allow_draft=allow_draft)
                     result.pop("answer", None)
