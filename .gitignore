@@ -188,3 +188,10 @@ __pycache__/
 !/tests/test_open_demo.py
 !/config/model-catalog/gemma3-4b-text.json
 !/docs/experiments/rag-integration-20261012.json
+
+# Document extraction code/tests and development queries only; raw captures/excerpts remain local.
+!/CORE/document_corpus.py
+!/tools/evaluate_source_retrieval.py
+!/data/rag-source-dev-20261012.json
+!/tests/test_document_corpus.py
+!/tests/test_document_answers.py

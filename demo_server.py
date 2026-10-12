@@ -62,6 +62,19 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
 
         def error(self, code, message):
             self.close_connection = True
+            # A close with unread incoming bytes can discard the JSON response
+            # through a TCP reset (observed on Windows). Discard only a small,
+            # explicitly framed remainder; never parse or execute rejected data.
+            lengths = self.headers.get_all("Content-Length", [])
+            if (self.command == "POST" and len(lengths) == 1 and lengths[0].isdigit()
+                    and not self.headers.get("Transfer-Encoding")):
+                remaining = int(lengths[0]) - getattr(self, "_body_bytes_read", 0)
+                if 0 < remaining <= 65536:
+                    try:
+                        self.connection.settimeout(0.25)
+                        self.rfile.read(remaining)
+                    except (OSError, TimeoutError):
+                        pass
             self.send_json(code, {"error": message})
 
         def valid_host(self):
@@ -182,6 +195,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 raise ValueError(f"Өгөгдлийн хэмжээ 1–{maximum} byte байна.")
             self.connection.settimeout(15)
             encoded = self.rfile.read(length)
+            self._body_bytes_read = len(encoded)
             if len(encoded) != length:
                 raise ValueError("Хүсэлтийн өгөгдөл дутуу ирлээ.")
             return encoded
@@ -199,6 +213,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             return body
 
         def do_POST(self):
+            self._body_bytes_read = 0
             if not self.valid_host():
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             path = unquote(urlsplit(self.path).path)

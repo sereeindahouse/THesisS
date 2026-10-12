@@ -142,6 +142,16 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.chat.recall(r['response_id'],r['query'],r['package_id'],False)['answer'],r['answer'])
         self.assertEqual(self.generator.calls,1)
 
+    def test_document_citation_keeps_locator_and_transcription_method(self):
+        self.retriever.sources[0].update(url='https://nmct.edu.mn/rule.png',
+            source_locator='х.2, IV.6', extraction_method='visual_transcription', reviewer_kind='assistant')
+        result=self.chat.route(None,'Төлбөр хэд вэ?')
+        citation=result['citations'][0]
+        self.assertEqual(citation['locator'],'х.2, IV.6')
+        self.assertEqual(citation['extraction_method'],'visual_transcription')
+        self.assertEqual(citation['reviewer_kind'],'assistant')
+        self.assertFalse(citation['school_staff_approval'])
+
     def test_provider_failure_does_not_claim_evidence_missing(self):
         self.generator.generate=lambda q,s: dict(generated=False,llm_calls=1,claims=[],reason='provider_or_format_failure')
         result=self.chat.route(None,'Төлбөр хэд вэ?')

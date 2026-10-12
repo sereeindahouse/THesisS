@@ -182,5 +182,221 @@
     "ROADMAP-FINAL-2026-10-07.mn.md": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
     "runtime/content.db": "9c3aa3e29ad430d055e75f4a30655a67dcf31bd6c4f1eaa40021ee164a988c72"
   },
-  "rag_runtime_py_sha256_lf": "1faf322d03bbc63c475be3f0e4ca7380d4c45022cec847b76864503f9ea184e1"
+  "rag_runtime_py_sha256_lf": "1faf322d03bbc63c475be3f0e4ca7380d4c45022cec847b76864503f9ea184e1",
+  "document_source_extension": {
+    "date": "2026-10-12",
+    "source_snapshot": "nmct-20261010T045245Z",
+    "original_html_and_capture_tables_unchanged": true,
+    "documents": 5,
+    "selected_document_passages": 21,
+    "combined_indexed_passages": 160,
+    "method": "Assistant visual transcription of selected clauses after inspecting four original PNGs and two rendered PDF pages; not complete OCR or human gold.",
+    "inspection_tools": {
+      "pypdf": "6.20.0",
+      "pypdfium2": "5.14.0",
+      "Pillow": "12.3.0"
+    },
+    "retrieval_before_documents": {
+      "cases": 36,
+      "source_support_cases": 30,
+      "support_at_1": 6,
+      "support_at_3": 6,
+      "support_at_5": 6,
+      "no_evidence_controls": 3,
+      "no_evidence_controls_passed": 3,
+      "router_controls_not_scored_here": 3
+    },
+    "retrieval_after_documents": {
+      "cases": 36,
+      "source_support_cases": 30,
+      "support_at_1": 20,
+      "support_at_3": 25,
+      "support_at_5": 25,
+      "no_evidence_controls": 3,
+      "no_evidence_controls_passed": 3,
+      "router_controls_not_scored_here": 3
+    },
+    "retrieval_after_ranking_fix": {
+      "cases": 36,
+      "source_support_cases": 30,
+      "support_at_1": 22,
+      "support_at_3": 29,
+      "support_at_5": 30,
+      "no_evidence_controls": 3,
+      "no_evidence_controls_passed": 3,
+      "router_controls_not_scored_here": 3
+    },
+    "evaluation_limitations": [
+      "30 assistant-authored target-URL-and-phrase checks plus 6 controls; cases were used for development, not held out.",
+      "Some HTML pages also answer selected questions; target-document rank is not overall answerability.",
+      "30/30 support@5 is not end-to-end answer accuracy; source-02 is rank5 and factual lookup inspects five candidates.",
+      "Initial live generation had wrong-slot or incomplete answers for photo format, interview duration, olympiad restrictions and programming language names, and missed the transfer prohibition.",
+      "Final narrow direct lookups address observed issues; arbitrary Mongolian question and generated answer quality remain unproven.",
+      "Hidden client tabs, full image/PDF transcription, human gold and device/HTTPS delivery remain incomplete."
+    ],
+    "live_http": {
+      "cases": [
+        {
+          "id": "source-01",
+          "query": "Элсэлтийн цээж зураг хэдэн сарын дотор авахуулсан байх вэ?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-02",
+          "query": "Бүртгэлд зургаа ямар форматтай оруулах вэ?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-03",
+          "query": "Ярилцлагын шалгалтад эцэг эхтэйгээ орох уу?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-04",
+          "query": "Ярилцлага хэдэн минут үргэлжлэх вэ?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-05",
+          "query": "Мэргэжлийн хоёр дахь сонголт заавал хийх үү?",
+          "route": "C",
+          "reason": "source_grounded_generation",
+          "llm_calls": 1
+        },
+        {
+          "id": "source-09",
+          "query": "Голомт банкаар бүртгэлийн хураамж төлж болох уу?",
+          "route": "C",
+          "reason": "source_grounded_generation",
+          "llm_calls": 1
+        },
+        {
+          "id": "source-11",
+          "query": "Элсэх эрхээ өөр хүнд шилжүүлж болох уу?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-12",
+          "query": "Суралцах гэрээгээ хугацаанд нь байгуулаагүй бол яах вэ?",
+          "route": "C",
+          "reason": "source_grounded_generation",
+          "llm_calls": 1
+        },
+        {
+          "id": "source-15",
+          "query": "Гадаадад ерөнхий боловсрол эзэмшсэн бол ямар баримт бүрдүүлэх вэ?",
+          "route": "C",
+          "reason": "source_grounded_generation",
+          "llm_calls": 1
+        },
+        {
+          "id": "source-23",
+          "query": "Олимпиадын математик физикийн хоёрдугаар байр хэдэн хувийн хөнгөлөлттэй вэ?",
+          "route": "C",
+          "reason": "source_grounded_generation",
+          "llm_calls": 1
+        },
+        {
+          "id": "source-24",
+          "query": "Хими биологийн олимпиадын эрхийн бичгээр өөр ангид элсэж болох уу?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-28",
+          "query": "Компьютерын хөтөлбөрт ямар программчлалын хэл үзэх вэ?",
+          "route": "A",
+          "reason": "source_text_lookup",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-31",
+          "query": "Ангараг дээр муур байдаг уу?",
+          "route": "E",
+          "reason": "website_no_evidence",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-32",
+          "query": "Номын сангийн номыг хэдэн хоног авч болох вэ?",
+          "route": "E",
+          "reason": "website_no_evidence",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-33",
+          "query": "Дотуур байрны төлбөр хэд вэ?",
+          "route": "E",
+          "reason": "website_no_evidence",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-34",
+          "query": "2028 оны сургалтын төлбөр хэд вэ?",
+          "route": "E",
+          "reason": "unsupported_year",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-35",
+          "query": "Одоо элсэлтийн бүртгэл нээлттэй юу?",
+          "route": "E",
+          "reason": "live_status_not_supported",
+          "llm_calls": 0
+        },
+        {
+          "id": "source-36",
+          "query": "Коосэн гэж юу вэ?",
+          "route": "E",
+          "reason": "concept_overview_not_supported",
+          "llm_calls": 0
+        }
+      ],
+      "routes": {
+        "A": 7,
+        "C": 5,
+        "E": 6
+      },
+      "llm_calls": 5,
+      "reviewer": "assistant",
+      "review": "Compared all 12 final answer cases against displayed source excerpts; six unsupported/live/year/concept controls returned no fabricated answer."
+    },
+    "validation": {
+      "unit_tests": 259,
+      "unit_tests_passed": true,
+      "pip_check_passed": true,
+      "browser_checks": 6,
+      "browser_passed": true,
+      "desktop_and_mobile_screenshots_inspected": true,
+      "no_new_stt_or_tts_inference": true
+    },
+    "http_regression": "Two runs exposed Windows reset on unread rejected bodies. Bounded 64KiB/250ms discard added; final 259 tests passed. HTTP/1.1 close/reset context: https://www.rfc-editor.org/rfc/rfc9112.html#section-9.6",
+    "code_sha256_lf": {
+      "CORE/document_corpus.py": "794130ee1b151311ba846f4f114aab91c6cdae83031ed54b8248a76ebbd1c21b",
+      "website_retrieval.py": "ef1a69322a8c8bbe7d9cbcef4d159d713745fae1115c62de3a6bd85961939ead",
+      "rag_runtime.py": "8d2b261ce43266831d02c56059020c3af93ad2b05e838ef6e6d6baa0ebba7a34",
+      "demo_server.py": "b95462d24a507b8de275d24180cb048d822311b84ecd777591ca1744f7543ac7"
+    },
+    "corpus_id": "3e5fb13c79b18f86d1aefd49bd07f13e367e98bc6a6f24cf4b15e03dd5e267cb",
+    "training_performed": false,
+    "raw_evidence_local": [
+      "runtime/source-retrieval-before-docs.json",
+      "runtime/source-retrieval-with-docs.json",
+      "runtime/source-retrieval-final.json",
+      "runtime/source-chat-live-20261012.json",
+      "runtime/source-chat-final-20261012.json",
+      "runtime/document-chat-browser-qa.json"
+    ]
+  }
 }

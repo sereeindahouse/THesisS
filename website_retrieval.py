@@ -20,10 +20,11 @@ import unicodedata
 from urllib.parse import urlsplit
 
 from CORE.website_corpus import readonly
+from CORE.document_corpus import read_document_rows
 from retrieval_probe import bm25_scores, sha256
 
 ROOT = Path(__file__).resolve().parent
-INDEX_VERSION = 'website-hybrid-v1'
+INDEX_VERSION = 'website-hybrid-v3-anchor-coverage'
 STOPWORDS = set('би миний бид манай танай та надад талаар талаарх тухай юу вэ бэ уу үү юм байна байдаг болох бол ямар хэд хэрхэн яаж хаана хэзээ нь ын ийн ы ий н р болон буюу эсвэл бас мөн энэ тэр тэгээд гэж гэсэн сайн уу мэдээлэл авах өгөөч тайлбарла тайлбарлаж болно болох уу'.split())
 STOPWORDS.update('боломж боломжтой бий дээр доор хэдэн бүх одоо оны онд жил жилийн сонирхож мэдэх мэдмээр хүсэж суралц суралцах'.split())
 # Transparent domain search aliases, not a Mongolian morphological model.
@@ -42,6 +43,7 @@ STEMS = {
     'дадлаг': 'дадлага', 'утас': 'утас', 'холбогд': 'холбоо',
     'хаяг': 'хаяг', 'байрш': 'байршил', 'имэйл': 'имэйл', 'мэйл': 'имэйл',
     'email': 'имэйл', 'коосэн': 'коосэн', 'kosen': 'коосэн',
+    'ярилцлаг': 'ярилцлага', 'эссэ': 'эссэ',
     'сакура': 'sakura', 'сакүра': 'sakura', 'арк': 'arc',
     'номын': 'ном', 'номынсан': 'ном', 'дотуур': 'дотуур',
 }
@@ -58,6 +60,7 @@ def search_terms(text):
     for token in tokens:
         if token in STOPWORDS or (len(token) == 1 and not token.isdigit()):
             continue
+        token = {'зургаа':'зураг', 'зургийг':'зураг', 'зургийн':'зураг', 'зурагтай':'зураг', 'зурганд':'зураг'}.get(token, token)
         normalized = next((value for prefix, value in STEMS.items() if token.startswith(prefix)), token)
         if normalized == token:
             for suffix in SUFFIXES:
@@ -158,6 +161,7 @@ class WebsiteRetriever:
             pages = db.execute('SELECT p.* FROM pages p JOIN captures x ON p.url=x.url AND p.version=x.version WHERE x.run_id=? ORDER BY p.url', (run['run_id'],)).fetchall()
             chunks = db.execute('SELECT c.* FROM chunks c JOIN captures x ON c.url=x.url AND c.version=x.version WHERE x.run_id=? ORDER BY c.url,c.ordinal', (run['run_id'],)).fetchall()
             document_count = db.execute('SELECT COUNT(*) FROM assets WHERE run_id=?', (run['run_id'],)).fetchone()[0]
+            document_rows, document_warnings = read_document_rows(db, run)
         page_map = {(p['url'], p['version']): dict(p) for p in pages}
         rows, seen = [], set()
         for chunk in chunks:
@@ -191,12 +195,17 @@ class WebsiteRetriever:
                 page_years=sorted(set(re.findall(r'\b20\d{2}\b', page['text']))),
                 page_header=page['text'][:300], snapshot_only=True, validity_unknown=not bool(page['valid_from'] and page['valid_until']))
             rows.append(row)
+        rows.extend(document_rows)
+        self._document_warnings = document_warnings
         self._run = dict(run)
         self._rows = rows
         self._passages = [row['title'] + '\n' + _rank_text(row['text']) for row in rows]
         self._lexical_passages = [' '.join(search_terms(p)) for p in self._passages]
-        self._body_terms = [set(search_terms(_rank_text(row['text']))) for row in rows]
-        self._counts = dict(pages=len(pages), chunks=len(chunks), documents=document_count, indexed_chunks=len(rows))
+        self._body_terms = [set(search_terms(_rank_text(row['text']) + '\n' + row.get('source_locator', ''))) for row in rows]
+        frequencies = Counter(term for terms in self._body_terms for term in terms)
+        self._term_weights = {term: math.log(1 + (len(rows) + 1) / (count + 1)) for term, count in frequencies.items()}
+        self._counts = dict(pages=len(pages), chunks=len(chunks), documents=document_count, indexed_chunks=len(rows),
+            indexed_document_passages=len(document_rows), indexed_documents=len({r['url'] for r in document_rows}))
         fingerprint = INDEX_VERSION + run['manifest_sha256'] + '|'.join(row['source_id'] for row in rows)
         self._corpus_id = hashlib.sha256(fingerprint.encode()).hexdigest()
         self._embeddings = None
@@ -271,6 +280,12 @@ class WebsiteRetriever:
                     if ranking is lexical_rank and lexical[index] <= 0:
                         continue
                     fused[index] += weight / (30 + rank)
+            # Reward coverage of informative query anchors. A dense neighbour with
+            # only a generic registration term must not hide a specific rule clause.
+            anchor_weight = sum(self._term_weights.get(t, 0) for t in anchors)
+            if anchor_weight:
+                for index, terms in enumerate(self._body_terms):
+                    fused[index] += .035 * sum(self._term_weights.get(t, 0) for t in anchors & terms) / anchor_weight
             # Explicit phrase/category matches improve ranking only, never certify an answer.
             query_lower = query.casefold()
             for index, row in enumerate(self._rows):
@@ -296,7 +311,7 @@ class WebsiteRetriever:
                     continue
                 # Two distinct parts per page are allowed; overlapping repeats are not.
                 same = [r for r in used if r['url'] == row['url']]
-                if len(same) >= 2 or any(max(0, min(r['end_offset'], row['end_offset']) - max(r['start_offset'], row['start_offset'])) > .55 * min(len(r['text']), len(row['text'])) for r in same):
+                if len(same) >= 2 or any(r.get('text_scope') != 'document_visual_excerpt' and max(0, min(r['end_offset'], row['end_offset']) - max(r['start_offset'], row['start_offset'])) > .55 * min(len(r['text']), len(row['text'])) for r in same):
                     continue
                 # News listings mostly duplicate article teasers; use article bodies instead.
                 if urlsplit(row['url']).path == '/news':
@@ -312,7 +327,8 @@ class WebsiteRetriever:
                 if len(candidates) == limit:
                     break
             warnings = ['Search rankings do not prove answer support or current validity.',
-                        'Binary PDF/image documents and hidden client-side tabs are not included.']
+                        'Document passages are selected visual transcriptions, not complete OCR or human gold. Hidden client-side tabs are not fully included.']
+            warnings.extend(getattr(self, '_document_warnings', []))
             if self._dense_status == 'unavailable':
                 warnings.append('Local E5 unavailable; lexical retrieval remains active (' + str(self._error) + ').')
             return dict(query=query.strip(), status='ranked_candidates_only' if candidates else 'no_candidates',

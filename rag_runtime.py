@@ -56,6 +56,46 @@ def official(url):
         return False
 
 
+def focused_extract(query, sources):
+    """Bounded factual lookups preserve the entire relevant rule condition.
+
+    These transparent development rules do not certify arbitrary questions.
+    They address observed wrong-slot summaries (format vs fee, minutes vs points).
+    """
+    from website_retrieval import search_terms
+    q = query.casefold()
+    terms = set(search_terms(query))
+    for source in sources:
+        text = source['text']
+        visual = source.get('text_scope') == 'document_visual_excerpt'
+        if visual:
+            if ('зураг' in terms and re.search(r'формат|өргөтгөл|сарын|сар |хадгал', q)
+                    and not re.search(r'өнгөт|хэмжээ|пиксел|дэвсгэр|үнэ|төлбөр', q)
+                    and 'цээж зургийг' in text and 'jpeg, png, jpg' in text):
+                return source, text
+            if ('ярилцлага' in terms and re.search(r'минут|хугацаа|эцэг|асран|хамт|хэнтэй|оноо', q)
+                    and not re.search(r'босго|тэнцэх|хамгийн бага|эхлэх|хэзээ', q)
+                    and 'Ярилцлагын шалгалт 15 минут' in text):
+                return source, text
+            if (re.search(r'элс', q) and 'эрх' in q and re.search(r'шилжүүл', q)
+                    and 'Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.' == text):
+                return source, text
+            if ('олимпиад' in q and re.search(r'хими|биолог', q)
+                    and re.search(r'өөр анг|бусад анг|эрхийн бич', q)
+                    and 'Химийн инженерээс бусад' in text):
+                # Retain qualifying ranks, course restriction AND the exception.
+                start = text.find('Амжилттай оролцсон 10 сурагчдад')
+                if start >= 0:
+                    return source, text[start:]
+        if (source['url'] == 'https://nmct.edu.mn/programs/computer-science-program'
+                and 'програм' in terms and 'хэл' in terms
+                and not re.search(r'заадаггүй|үздэггүй|хэдэн цаг|хэдэн кредит', q)):
+            match = re.search(r'[^\n]*C/C\+\+, Java, Python[^\n]*', text)
+            if match:
+                return source, match.group()
+    return None
+
+
 def source_extract(query, sources):
     """Narrow direct lookups copy source text; all other questions use generation.
 
@@ -63,6 +103,9 @@ def source_extract(query, sources):
     Never copy a number from a neighbouring article or relabel its year.
     """
     from website_retrieval import search_terms
+    focused = focused_extract(query, sources)
+    if focused:
+        return focused
     terms = set(search_terms(query)) - {'сургууль','шинэ','монгол','сургалт','nmct','шмтк'}
     for source in sources:
         if source['url'] != 'https://nmct.edu.mn/elselt':
@@ -256,7 +299,7 @@ class ChatRAG:
                           suggestions=self.SUGGESTIONS, reason_code='clarify_topic', clarification=None)
             return self._remember(result, allow_draft)
         try:
-            found = self.retriever.search(query, limit=4)
+            found = self.retriever.search(query, limit=5)
         except Exception:
             result.update(message="Мэдээллийн хайлт түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоорой.",
                           reason_code="website_search_unavailable", suggestions=self.SUGGESTIONS)
@@ -301,7 +344,9 @@ class ChatRAG:
                 result.update(route='A', answer=dated_heading + ' — эхийн мэдээлэл:\n\n' + excerpt,
                     answer_kind='official_website_extract', reason_code='source_text_lookup',
                     related_sources=[], suggestions=[], citations=[dict(document_id=source['source_id'],
-                        version=source['version'], title=source['title'], locator=str(source['chunk_id']),
+                        version=source['version'], title=source['title'], locator=source.get('source_locator', str(source['chunk_id'])),
+                        extraction_method=source.get('extraction_method', 'html_exact_span'),
+                        reviewer_kind=source.get('reviewer_kind'),
                         source_url_or_filename=source['url'], retrieved_at=source['retrieved_at'],
                         source_accepted_for_project=True, school_staff_approval=False)],
                     message='Албан эхийн хэсгийг үг өөрчлөхгүй үзүүлэв. Эхийн он, огноог хадгалсан.')
@@ -326,7 +371,9 @@ class ChatRAG:
                     lines.append(f'{claim["text"]} [{cited.index(sid) + 1}]')
                 citations = [{"document_id": sid, "version": sources[sid]["version"],
                               "title": sources[sid]["title"], "source_url_or_filename": sources[sid]["url"],
-                              "locator": sources[sid]["chunk_id"], "retrieved_at": sources[sid]["retrieved_at"],
+                              "locator": sources[sid].get("source_locator", sources[sid]["chunk_id"]),
+                              "extraction_method": sources[sid].get("extraction_method", "html_exact_span"),
+                              "reviewer_kind": sources[sid].get("reviewer_kind"), "retrieved_at": sources[sid]["retrieved_at"],
                               "source_accepted_for_project": True, "approval_status": "draft",
                               "school_staff_approval": False} for sid in cited]
                 result.update(route="C", answer="\n\n".join(lines), citations=citations, generated=True,

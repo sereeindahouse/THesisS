@@ -1,0 +1,246 @@
+{
+  "label_scope": "Assistant-authored development cases; not human gold or held-out final evaluation. Source support is not generated answer accuracy.",
+  "created": "2026-10-12",
+  "cases": [
+    {
+      "id": "source-01",
+      "query": "Элсэлтийн цээж зураг хэдэн сарын дотор авахуулсан байх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "Сүүлийн 6 сарын"
+    },
+    {
+      "id": "source-02",
+      "query": "Бүртгэлд зургаа ямар форматтай оруулах вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "jpeg, png, jpg"
+    },
+    {
+      "id": "source-03",
+      "query": "Ярилцлагын шалгалтад эцэг эхтэйгээ орох уу?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "эцэг эх, асран хамгаалагчтай хамт"
+    },
+    {
+      "id": "source-04",
+      "query": "Ярилцлага хэдэн минут үргэлжлэх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "15 минут"
+    },
+    {
+      "id": "source-05",
+      "query": "Мэргэжлийн хоёр дахь сонголт заавал хийх үү?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "2-р сонголт заавал"
+    },
+    {
+      "id": "source-06",
+      "query": "Бүртгэл дээр нэмэлт хөтөлбөрийн сонголт хэрэгтэй юу?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "2-р сонголт заавал"
+    },
+    {
+      "id": "source-07",
+      "query": "Элсэлтийн эссэ хэдэн үгтэй байх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "500-700"
+    },
+    {
+      "id": "source-08",
+      "query": "Эссэд ямар сэдвээр бичих вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "Өөрийн сонирхол ур чадварын тухай"
+    },
+    {
+      "id": "source-09",
+      "query": "Голомт банкаар бүртгэлийн хураамж төлж болох уу?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "Голомт банкаар төлөх боломжгүй"
+    },
+    {
+      "id": "source-10",
+      "query": "Элсэлтийн бүртгэлийн хураамж төлөх банкууд?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "Хас банк"
+    },
+    {
+      "id": "source-11",
+      "query": "Элсэх эрхээ өөр хүнд шилжүүлж болох уу?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "expected_phrase": "бусдад шилжүүлэхийг хориглоно"
+    },
+    {
+      "id": "source-12",
+      "query": "Суралцах гэрээгээ хугацаанд нь байгуулаагүй бол яах вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "expected_phrase": "хүчингүйд тооцно"
+    },
+    {
+      "id": "source-13",
+      "query": "Улсын олимпиадын эхний 10 байрт орвол ярилцлага өгөх үү?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "expected_phrase": "ярилцлагын шалгалтад орж тэнцсэн"
+    },
+    {
+      "id": "source-14",
+      "query": "Сургуулийн олимпиадын эрхийн бичигтэй бол яаж бүртгүүлэх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "expected_phrase": "батламжийг хавсарган бүртгүүлнэ"
+    },
+    {
+      "id": "source-15",
+      "query": "Гадаадад ерөнхий боловсрол эзэмшсэн бол ямар баримт бүрдүүлэх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "expected_phrase": "БШУЯ-наас баталгаажуулсан"
+    },
+    {
+      "id": "source-16",
+      "query": "ШМТК ямар зэрэг олгодог вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "expected_phrase": "дэд бакалаврын зэрэг"
+    },
+    {
+      "id": "source-17",
+      "query": "Хоёрдугаар курст элсэхэд хэддүгээр анги төгссөн байх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "expected_phrase": "10-р ангийг төгссөн"
+    },
+    {
+      "id": "source-18",
+      "query": "2026 оны наймдугаар сарын бичгийн шалгалтад хэдэн цагт ирэх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "expected_phrase": "09:30"
+    },
+    {
+      "id": "source-19",
+      "query": "2026 оны элсэлтийн батламжийг яаж гардуулах вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "expected_phrase": "цахим шуудангаар"
+    },
+    {
+      "id": "source-20",
+      "query": "Байгалийн ухааны олимпиадын ангилал юу вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": "Математик, хими, биологи"
+    },
+    {
+      "id": "source-21",
+      "query": "Олимпиадын математик физикийн төрлийн хичээлийн хувь?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": "Математик 60%, Физик 40%"
+    },
+    {
+      "id": "source-22",
+      "query": "2026 оны олимпиадын бүртгэлийн хураамж хэд байсан бэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": "5000 төгрөг"
+    },
+    {
+      "id": "source-23",
+      "query": "Олимпиадын математик физикийн хоёрдугаар байр хэдэн хувийн хөнгөлөлттэй вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": "II байр - 2 сурагч"
+    },
+    {
+      "id": "source-24",
+      "query": "Хими биологийн олимпиадын эрхийн бичгээр өөр ангид элсэж болох уу?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": "Химийн инженерээс бусад"
+    },
+    {
+      "id": "source-25",
+      "query": "Сургуулийн ажлын цагийн хуваарь?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/contact",
+      "expected_phrase": "09:00 - 18:00"
+    },
+    {
+      "id": "source-26",
+      "query": "Бямба гарагт сургууль хэд хүртэл ажилладаг вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/contact",
+      "expected_phrase": "Бямба: 10:00 - 14:00"
+    },
+    {
+      "id": "source-27",
+      "query": "Сургуулийн имэйл хаяг?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/contact",
+      "expected_phrase": "info@nmct.edu.mn"
+    },
+    {
+      "id": "source-28",
+      "query": "Компьютерын хөтөлбөрт ямар программчлалын хэл үзэх вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/programs/computer-science-program",
+      "expected_phrase": "C/C++, Java, Python"
+    },
+    {
+      "id": "source-29",
+      "query": "Сургалтын төлбөр хэд вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "expected_phrase": "8,280,000"
+    },
+    {
+      "id": "source-30",
+      "query": "Механикийн хөтөлбөр ямар дадлагад тулгуурладаг вэ?",
+      "kind": "source_support",
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "expected_phrase": "CAD, симуляци, туршилт"
+    },
+    {
+      "id": "source-31",
+      "query": "Ангараг дээр муур байдаг уу?",
+      "kind": "no_candidates"
+    },
+    {
+      "id": "source-32",
+      "query": "Номын сангийн номыг хэдэн хоног авч болох вэ?",
+      "kind": "no_candidates"
+    },
+    {
+      "id": "source-33",
+      "query": "Дотуур байрны төлбөр хэд вэ?",
+      "kind": "no_candidates"
+    },
+    {
+      "id": "source-34",
+      "query": "2028 оны сургалтын төлбөр хэд вэ?",
+      "kind": "year_guard"
+    },
+    {
+      "id": "source-35",
+      "query": "Одоо элсэлтийн бүртгэл нээлттэй юу?",
+      "kind": "live_status_guard"
+    },
+    {
+      "id": "source-36",
+      "query": "Коосэн гэж юу вэ?",
+      "kind": "concept_guard"
+    }
+  ]
+}
