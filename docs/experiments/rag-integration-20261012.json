@@ -398,5 +398,421 @@
       "runtime/source-chat-final-20261012.json",
       "runtime/document-chat-browser-qa.json"
     ]
+  },
+  "independent_audit_response": {
+    "date": "2026-10-12",
+    "base_commit": "147e6cf8bab040d1378818919dc3843665f60203",
+    "scope": "Assistant audit-derived development regressions; not independent human answer evaluation.",
+    "local_tests": {
+      "total": 274,
+      "passed": 274,
+      "seconds": 31.23
+    },
+    "browser_checks": {
+      "result_not_duration": true,
+      "ambiguous_fee_has_two_choices": true,
+      "oversize_full_text_and_speech_notice": true,
+      "mobile_layout": true,
+      "no_browser_runtime_errors": true
+    },
+    "actual_http_cases": 14,
+    "route_counts": {
+      "A": 5,
+      "E": 5,
+      "D": 1,
+      "C": 3
+    },
+    "actual_llm_calls": 3,
+    "new_stt_inference": false,
+    "new_tts_synthesis": false,
+    "own_training": false,
+    "initial_regression_run": {
+      "tests": 12,
+      "failures": 11,
+      "errors": 1,
+      "note": "Includes subtest failures; latency fake omitted old latency field. Separate real HTTP logs demonstrate total timing."
+    },
+    "known_semantic_counterexample": {
+      "kind": "synthetic transport; not an actual Gemma output",
+      "source": "Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.",
+      "accepted_claim": "Элсэх эрхийг бусдад шилжүүлж болно.",
+      "still_accepted": true
+    },
+    "raw_runs": {
+      "runtime/answer-audit-live-20261012.json": "ba7708c54b1b6f300d40ceb977b97865d020e19cb61ed3b4b0c512859b71db3e",
+      "runtime/answer-audit-final-20261012.json": "f8d86fae91571164042d71e6e9b4fcc01408898fdd2c5d849bd0c1690dc9b538",
+      "runtime/answer-audit-final-v2-20261012.json": "beb84b26a78cc3862b8834a84df916ed05ae54567b8c910cbd9f1545cb57de82",
+      "runtime/audit-browser-qa.json": "2e7dd2c0d8be25f7f6743b56f2125c0205f835038aae0049d7fc0c34b286e2d6"
+    },
+    "source_artifact_sha256": {
+      "rag_runtime.py": "8e5f70ec4efc3db793166ac36d75e0729fcc0fe76b5c4e607f2a454be793cc99",
+      "answer_contract.py": "c9e00467b0843dd09dedd8722a886287d199cd77967c368f441649e0c99d1505",
+      "website_retrieval.py": "ac15f3792efeb0bf353d89ec6be215d109010076898973710ff4da301c7ff19f",
+      "demo_server.py": "098cdb0d14279ede3d7f0f016cfe001b2b494b7129b8a32d7d063e50e35554dd",
+      "voice_runtime.py": "7a2637077bc5c843386257d47239c17d2e013fc347106b7629a0fafcce64fe93",
+      "CORE/document_corpus.py": "794130ee1b151311ba846f4f114aab91c6cdae83031ed54b8248a76ebbd1c21b",
+      "CORE/database/website.db": "7d85a12731746ff8963359090adfc403dce26be2ef4c549981b0b0c4fdf66d1e",
+      "runtime/content.db": "9c3aa3e29ad430d055e75f4a30655a67dcf31bd6c4f1eaa40021ee164a988c72",
+      "CORE/website/document-excerpts-20261012.json": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "config/model-catalog/gemma3-4b-text.json": "58278a9cbea885b7911fcd544e92a53dddd4458c54007f0c2db20c3357fe86eb",
+      "runtime/rag-model.json": "c3dc98363ccbd19fe536d3f5a9f4a62b65749133d252f1dbcf5322d6a1e53507"
+    },
+    "cases": [
+      {
+        "id": "audit-01",
+        "query": "Ярилцлага хэдэн минут үргэлжлэх вэ?",
+        "requested_attribute": "interview.duration",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 13747.83,
+        "route_latency_ms": 13737.22,
+        "timings_ms": {
+          "policy": 7.83,
+          "retrieval": 13727.16,
+          "generation": 0.0
+        },
+        "answer_sha256": "a76de96c47703d1ce2ee3959a9eb8f0b24ed9d35a70d6062bf83d0fab4ab6b61",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-02",
+        "query": "Ярилцлагын шалгалтын дүн хэдэн минутын дараа гарах вэ?",
+        "requested_attribute": "interview.result_delay_minutes",
+        "route": "E",
+        "reason": "requested_attribute_not_supported",
+        "http_wall_ms": 75.21,
+        "route_latency_ms": 61.28,
+        "timings_ms": {
+          "policy": 6.81,
+          "retrieval": 51.96,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-03",
+        "query": "Ярилцлагад тэнцэх доод оноо хэд вэ?",
+        "requested_attribute": "interview.passing_threshold",
+        "route": "E",
+        "reason": "requested_attribute_not_supported",
+        "http_wall_ms": 66.76,
+        "route_latency_ms": 51.81,
+        "timings_ms": {
+          "policy": 6.54,
+          "retrieval": 43.72,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-04",
+        "query": "Ярилцлагын шалгалт нийт хэдэн оноотой вэ?",
+        "requested_attribute": "interview.maximum_score",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 80.27,
+        "route_latency_ms": 55.37,
+        "timings_ms": {
+          "policy": 7.0,
+          "retrieval": 47.47,
+          "generation": 0.0
+        },
+        "answer_sha256": "a76de96c47703d1ce2ee3959a9eb8f0b24ed9d35a70d6062bf83d0fab4ab6b61",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-05",
+        "query": "Коосэн сургалтын онцлог юу вэ?",
+        "requested_attribute": "kosen.definition",
+        "route": "E",
+        "reason": "concept_overview_not_supported",
+        "http_wall_ms": 60.7,
+        "route_latency_ms": 57.73,
+        "timings_ms": {
+          "policy": 8.57,
+          "retrieval": 48.15,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-06",
+        "query": "Kosen сургалтын онцлог юу вэ?",
+        "requested_attribute": "kosen.definition",
+        "route": "E",
+        "reason": "concept_overview_not_supported",
+        "http_wall_ms": 74.54,
+        "route_latency_ms": 55.49,
+        "timings_ms": {
+          "policy": 7.41,
+          "retrieval": 47.54,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-07",
+        "query": "Сургалтын төлбөр хэд вэ?",
+        "requested_attribute": "tuition.annual_amount",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 55.42,
+        "route_latency_ms": 52.38,
+        "timings_ms": {
+          "policy": 7.42,
+          "retrieval": 44.31,
+          "generation": 0.0
+        },
+        "answer_sha256": "b997cb238417798389d5ce154030bc89af2fe27f5d644655745aca929e40ef8c",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-08",
+        "query": "Сургалтын төлбөр сард 8,280,000 төгрөг үү?",
+        "requested_attribute": "tuition.monthly_vs_yearly",
+        "route": "E",
+        "reason": "unmatched_numeric_constraints",
+        "http_wall_ms": 28.82,
+        "route_latency_ms": 7.03,
+        "timings_ms": {
+          "policy": 7.0,
+          "retrieval": 0.0,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-09",
+        "query": "Бүртгэлийн хураамж хэдэн төгрөг вэ?",
+        "requested_attribute": "registration.amount",
+        "route": "D",
+        "reason": "registration_scope_ambiguous",
+        "http_wall_ms": 58.54,
+        "route_latency_ms": 55.68,
+        "timings_ms": {
+          "policy": 7.05,
+          "retrieval": 47.62,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-10",
+        "query": "Элсэх эрхээ өөр хүнд шилжүүлж болох уу?",
+        "requested_attribute": "admission.transfer_permission",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 74.97,
+        "route_latency_ms": 55.61,
+        "timings_ms": {
+          "policy": 8.03,
+          "retrieval": 47.12,
+          "generation": 0.0
+        },
+        "answer_sha256": "2ef072d3697f1750050672666e957103d64f2c433b4991c02546a0870a1dcb96",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-11",
+        "query": "Бүртгэлд зургаа ямар форматтай оруулах вэ?",
+        "requested_attribute": "photo.format",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 67.1,
+        "route_latency_ms": 51.47,
+        "timings_ms": {
+          "policy": 6.87,
+          "retrieval": 43.64,
+          "generation": 0.0
+        },
+        "answer_sha256": "560b97f64797e5f1d94f02fc2ae2962876068938e708d5eec78455f8ae9b344c",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-12",
+        "query": "Мэргэжлийн хоёр дахь сонголт заавал хийх үү?",
+        "requested_attribute": "admission.second_choice",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 2130.41,
+        "route_latency_ms": 2109.2,
+        "timings_ms": {
+          "policy": 6.84,
+          "retrieval": 47.0,
+          "generation": 2054.88
+        },
+        "answer_sha256": "1be950fe20eccdf0641796b9fac6aaba3e26b63e233194fe85226934938ea33e",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-13",
+        "query": "Элсэлтийн бүртгэлийн хураамж хэд вэ?",
+        "requested_attribute": "registration.admission_amount",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 2362.33,
+        "route_latency_ms": 2359.5,
+        "timings_ms": {
+          "policy": 7.5,
+          "retrieval": 49.24,
+          "generation": 2302.34
+        },
+        "answer_sha256": "748ee763e778def05942144b49d642f344bda17caf3ad2dc9fe083313fccfa83",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-14",
+        "query": "Олимпиадын бүртгэлийн хураамж хэд вэ?",
+        "requested_attribute": "registration.olympiad_amount",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 1636.63,
+        "route_latency_ms": 1633.74,
+        "timings_ms": {
+          "policy": 7.17,
+          "retrieval": 48.97,
+          "generation": 1577.03
+        },
+        "answer_sha256": "5411e969058c8dee7380b145ba5679ad09ebad1eca208f8cb4e92bac1bbf8f16",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      }
+    ],
+    "interpretation": "No correctness percentage calculated. audit-08 remains an unnecessary/insufficient abstention candidate. Initial audit-09 had ambiguous intent and an assistant label wrongly assumed admission; corrected label and clarification, preserving earlier raw run.",
+    "limitations": [
+      "Negation and general semantic entailment not verified",
+      "Final holdout/human evaluation not performed",
+      "Full frozen corpus remains private; clone cannot reproduce these live results from hashes alone",
+      "Latency is one sequential diagnostic run, not a stability benchmark",
+      "Asset-only changes are not rehashed per request",
+      "No new ASR/TTS quality or device/usability measurement"
+    ],
+    "final_code_sha256_lf": {
+      "answer_contract.py": "c9e00467b0843dd09dedd8722a886287d199cd77967c368f441649e0c99d1505",
+      "rag_runtime.py": "0938f434e8ffdb675b86ceb1285964eeab5df2b66804e3b69310d9516e0685f6",
+      "demo_server.py": "098cdb0d14279ede3d7f0f016cfe001b2b494b7129b8a32d7d063e50e35554dd",
+      "voice_runtime.py": "7a2637077bc5c843386257d47239c17d2e013fc347106b7629a0fafcce64fe93",
+      "demo/index.html": "331ff23642e59d0584a455d6efbc629c37e568dbc151d82044d5c774865fdad3",
+      "tests/test_audit_contracts.py": "7f4d23f9ff89b453e97cc434d4c5049540d5c8e94cc4de6c6678d0cdd3ea9809",
+      "tools/evaluate_answer_quality.py": "f4653396aa7d79eb0288246ea1cd37c671273feaad7ecb2e676b046bb3996696"
+    },
+    "hash_note": "Raw measurement retains exact artifact hashes; final_code_sha256_lf uses normalized line endings and removes one trailing space in rag_runtime after measurement. No executable behavior changed."
   }
 }

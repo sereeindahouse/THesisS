@@ -195,3 +195,9 @@ __pycache__/
 !/data/rag-source-dev-20261012.json
 !/tests/test_document_corpus.py
 !/tests/test_document_answers.py
+
+# Audit regression contracts and reproducible answer-review collector.
+!/answer_contract.py
+!/tests/test_audit_contracts.py
+!/tools/evaluate_answer_quality.py
+!/data/answer-audit-dev-20261012.json

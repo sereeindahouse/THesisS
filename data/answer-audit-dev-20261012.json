@@ -1,0 +1,144 @@
+{
+  "label_scope": "Audit-derived assistant development diagnostics; overlaps known tuning cases; NOT independent held-out or human gold.",
+  "cases": [
+    {
+      "id": "audit-01",
+      "query": "Ярилцлага хэдэн минут үргэлжлэх вэ?",
+      "requested_attribute": "interview.duration",
+      "expected_behavior": "15 минут; нөхцөл ба эхийн оныг хадгална.",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "15 минут",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-02",
+      "query": "Ярилцлагын шалгалтын дүн хэдэн минутын дараа гарах вэ?",
+      "requested_attribute": "interview.result_delay_minutes",
+      "expected_behavior": "Хадгалсан эх яг минутыг заагаагүй бол тодорхойгүйг хэлнэ; 15 минутын үргэлжлэх хугацаагаар орлуулахгүй.",
+      "expected_url": null,
+      "expected_phrase": null,
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-03",
+      "query": "Ярилцлагад тэнцэх доод оноо хэд вэ?",
+      "requested_attribute": "interview.passing_threshold",
+      "expected_behavior": "Нийт авах 20 оноог тэнцэх босго гэж өгөхгүй; яг босгын эх шаардана.",
+      "expected_url": null,
+      "expected_phrase": null,
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-04",
+      "query": "Ярилцлагын шалгалт нийт хэдэн оноотой вэ?",
+      "requested_attribute": "interview.maximum_score",
+      "expected_behavior": "Нийт 20 оноо; тэнцэх босго гэж нэрлэхгүй.",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "20 оноо",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-05",
+      "query": "Коосэн сургалтын онцлог юу вэ?",
+      "requested_attribute": "kosen.definition",
+      "expected_behavior": "Зөвхөн KIS уулзалтын мэдээг сургалтын тайлбар болгохгүй.",
+      "expected_url": null,
+      "expected_phrase": null,
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-06",
+      "query": "Kosen сургалтын онцлог юу вэ?",
+      "requested_attribute": "kosen.definition",
+      "expected_behavior": "Кирилл ижил асуулттай ижил эхийн шаардлага үйлчилнэ.",
+      "expected_url": null,
+      "expected_phrase": null,
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-07",
+      "query": "Сургалтын төлбөр хэд вэ?",
+      "requested_attribute": "tuition.annual_amount",
+      "expected_behavior": "Жилд 8,280,000 төгрөг; эхийн оныг хадгална.",
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "expected_phrase": "8,280,000",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-08",
+      "query": "Сургалтын төлбөр сард 8,280,000 төгрөг үү?",
+      "requested_attribute": "tuition.monthly_vs_yearly",
+      "expected_behavior": "Жилийн дүнг сарын дүн гэж батлахгүй; эхийн жилийн хүрээг тайлбарлана.",
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "expected_phrase": "жил",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-09",
+      "query": "Бүртгэлийн хураамж хэдэн төгрөг вэ?",
+      "requested_attribute": "registration.amount",
+      "expected_behavior": "Элсэлт эсвэл олимпиадын аль бүртгэлийг асуусныг тодруулах; нэг дүнг хамрах хүрээгүй өгөхгүй.",
+      "expected_url": null,
+      "expected_phrase": null,
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-10",
+      "query": "Элсэх эрхээ өөр хүнд шилжүүлж болох уу?",
+      "requested_attribute": "admission.transfer_permission",
+      "expected_behavior": "Бусдад шилжүүлэхийг хориглоно.",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "expected_phrase": "хориглоно",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-11",
+      "query": "Бүртгэлд зургаа ямар форматтай оруулах вэ?",
+      "requested_attribute": "photo.format",
+      "expected_behavior": "jpeg, png, jpg; бүртгэлийн хураамжийг хариу болгохгүй.",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "jpeg, png, jpg",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-12",
+      "query": "Мэргэжлийн хоёр дахь сонголт заавал хийх үү?",
+      "requested_attribute": "admission.second_choice",
+      "expected_behavior": "Хоёр дахь сонголт заавал; нэг мэргэжил сурахтай андуурахгүй.",
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "expected_phrase": "2-р сонголт заавал",
+      "label_author": "assistant",
+      "answerability_scope": "selected frozen source / retrieved evidence; no universal site-absence claim"
+    },
+    {
+      "id": "audit-13",
+      "query": "Элсэлтийн бүртгэлийн хураамж хэд вэ?",
+      "requested_attribute": "registration.admission_amount",
+      "expected_behavior": "Элсэлтийн бүртгэл 20,000 төгрөг; сургалтын/олимпиадын төлбөртэй ялгана.",
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "expected_phrase": null,
+      "label_author": "assistant"
+    },
+    {
+      "id": "audit-14",
+      "query": "Олимпиадын бүртгэлийн хураамж хэд вэ?",
+      "requested_attribute": "registration.olympiad_amount",
+      "expected_behavior": "Олимпиадын бүртгэл 5,000 төгрөг; эхийн он ба төрлийг хадгална.",
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "expected_phrase": null,
+      "label_author": "assistant"
+    }
+  ],
+  "label_revision_note": "audit-09 originally assumed admission without query evidence; corrected after the first diagnostic run. Both the first run and its original expectations remain in private raw evidence."
+}

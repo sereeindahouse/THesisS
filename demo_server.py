@@ -12,6 +12,7 @@ from sqlite_retrieval import ReadOnlyContentStore, guarded_preview, search_conte
 from CORE.website_corpus import website_status, search_website
 from question_router import route_question
 from voice_runtime import VoiceRuntime, VoiceRuntimeError, MAX_AUDIO_BYTES
+from answer_contract import spoken_text
 from listening_review import ListeningReview
 from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
@@ -268,13 +269,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             current = rag.recall(response_id, query.strip(), current["package_id"], draft)
                         except ValueError as error:
                             return self.error(409, str(error))
-                    spoken = current["answer"]
-                    if spoken is None:
-                        spoken = current["message"]
-                        if current.get("clarification"):
-                            spoken += " " + current["clarification"]["question"]
-                    elif current.get("answer_kind") == "development_draft_preview":
-                        spoken = "Ноорог, сургуулиар баталгаажаагүй. " + spoken
+                    spoken = spoken_text(current)
                     result = voice.synthesize(spoken, body.get("voice"))
                     result.update(route=current["route"], package_id=current["package_id"],
                                   spoken_text=spoken, citations=current["citations"],

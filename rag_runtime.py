@@ -16,10 +16,16 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from llm_runtime import LLMRuntime, _json_object
+from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
+    interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
+    quantity_context_supported)
 
 SYSTEM = '''Answer the QUESTION directly in Mongolian using only the supplied SOURCES.
 Find the passage answering the requested information, not merely the first related passage.
-Use one or two concise statements. Each claim must answer the question, not ask a question.
+Use one or two concise statements, at most 1800 characters in total.
+Interview duration, start time and result announcement time are distinct fields.
+Never change a fee period (year/month), fee type, unit, condition or negation.
+ Each claim must answer the question, not ask a question.
 Every fact in a claim must be supported by the text of the source_id you choose.
 Keep the source's names, numbers, dates and conditions. Never substitute an old year for
 the requested year or infer current enrollment status from a historical capture.
@@ -73,7 +79,7 @@ def focused_extract(query, sources):
                     and not re.search(r'өнгөт|хэмжээ|пиксел|дэвсгэр|үнэ|төлбөр', q)
                     and 'цээж зургийг' in text and 'jpeg, png, jpg' in text):
                 return source, text
-            if ('ярилцлага' in terms and re.search(r'минут|хугацаа|эцэг|асран|хамт|хэнтэй|оноо', q)
+            if ('ярилцлага' in terms and interview_attribute(query) in {'duration', 'companion', 'maximum_score'}
                     and not re.search(r'босго|тэнцэх|хамгийн бага|эхлэх|хэзээ', q)
                     and 'Ярилцлагын шалгалт 15 минут' in text):
                 return source, text
@@ -207,13 +213,17 @@ class GroundedGenerator(LLMRuntime):
                         return finish("unverified_quote")
                     if not numbers(statement) <= numbers(quote):
                         return finish("unsupported_number")
+                    if not quantity_context_supported(statement, quote):
+                        return finish("unsupported_quantity_context")
                     if "?" in statement:
                         return finish("question_instead_of_answer")
                     if re.search(r"https?://|<[^>]+>", statement):
                         return finish("unexpected_markup")
                     claim.update(text=statement, quote=quote)
+                if len(render_claims(claims)[0]) > MAX_SPEECH_CHARACTERS:
+                    return finish("answer_exceeds_speech_budget")
                 result.update(claims=claims, generated=True)
-                return finish("evidence_checked_generation")
+                return finish("structure_and_quantity_checked_generation")
             except Exception:
                 return finish("provider_or_format_failure")
         finally:
@@ -248,8 +258,12 @@ class ChatRAG:
 
     def _remember(self, result, draft):
         response_id = uuid4().hex
-        result.update(response_id=response_id, can_speak=True,
+        speech = spoken_text(result).strip()
+        result.update(response_id=response_id, can_speak=bool(speech) and len(speech) <= MAX_SPEECH_CHARACTERS,
                       reason_codes=[result['reason_code']])
+        if len(speech) > MAX_SPEECH_CHARACTERS:
+            result['speech_unavailable_reason'] = 'answer_exceeds_speech_budget'
+            result['speech_notice'] = 'Энэ урт эхийг бүрэн уншиж болно. Дуугаар сонсохын тулд асуултаа нэг зүйлээр тодруулна уу.'
         with self._lock:
             self._responses[response_id] = (time.monotonic(), draft, deepcopy(result))
             while len(self._responses) > 64:
@@ -271,16 +285,29 @@ class ChatRAG:
             return deepcopy(result)
 
     def route(self, database, query, *, allow_draft=False):
-        result = self._route(database, query, allow_draft=allow_draft)
+        started = time.perf_counter()
+        timings = {'policy': 0.0, 'retrieval': 0.0, 'generation': 0.0}
+        result = self._route(database, query, allow_draft=allow_draft, timings=timings)
+        result['latency_ms'] = round((time.perf_counter() - started) * 1000, 2)
+        result['timings_ms'] = {key: round(value, 2) for key, value in timings.items()}
+        result['latency_scope'] = 'chat_route_wall_including_policy_retrieval_generation; excludes_http_stt_tts_user_time'
+        speech = spoken_text(result).strip()
+        result['can_speak'] = bool(speech) and len(speech) <= MAX_SPEECH_CHARACTERS
         with self._lock:
+            if result.get('response_id') in self._responses:
+                stamp, draft, _ = self._responses[result['response_id']]
+                self._responses[result['response_id']] = (stamp, draft, deepcopy(result))
             self._totals['requests'] += 1
             self._totals['llm_calls'] += result.get('llm_calls', 0)
             self._totals['generated_answers'] += int(bool(result.get('generated')))
             self._totals['direct_extracts'] += int(result.get('answer_kind') == 'official_website_extract')
         return result
 
-    def _route(self, database, query, *, allow_draft=False):
+    def _route(self, database, query, *, allow_draft=False, timings=None):
+        timings = {} if timings is None else timings
+        phase_start = time.perf_counter()
         result = self.policy.route(database, query, allow_draft=allow_draft)
+        timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
         if result.get("answer"):
             return result
@@ -298,15 +325,22 @@ class ChatRAG:
             result.update(route='D', message='Сургуулийн ямар мэдээлэл хэрэгтэй вэ? Мэргэжил, элсэлт эсвэл холбоо барих мэдээллээс сонгож болно.',
                           suggestions=self.SUGGESTIONS, reason_code='clarify_topic', clarification=None)
             return self._remember(result, allow_draft)
+        phase_start = time.perf_counter()
         try:
             found = self.retriever.search(query, limit=5)
         except Exception:
             result.update(message="Мэдээллийн хайлт түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоорой.",
                           reason_code="website_search_unavailable", suggestions=self.SUGGESTIONS)
             return self._remember(result, allow_draft)
+        finally:
+            timings['retrieval'] = (time.perf_counter() - phase_start) * 1000
         candidates = [s for s in found.get("candidates", []) if official(s.get("url"))]
         result["rag"] = {"corpus_id": found.get("corpus_id"), "backend": found.get("backend"),
-                         "retrieved_count": len(candidates), "reason": "retrieved_only", "llm_calls": 0}
+                         "retrieved_count": len(candidates), "reason": "retrieved_only", "llm_calls": 0,
+                         "retrieved_sources": [{key: source.get(key) for key in (
+                             'source_id', 'url', 'title', 'text', 'version', 'source_locator',
+                             'retrieved_at', 'text_scope', 'extraction_method', 'reviewer_kind')}
+                             for source in candidates]}
         result["related_sources"] = [{"title": s["title"], "url": s["url"], "excerpt": s["excerpt"],
                                       "chunk_id": s["chunk_id"], "version": s["version"],
                                       "retrieved_at": s["retrieved_at"]} for s in candidates[:3]]
@@ -327,7 +361,7 @@ class ChatRAG:
             result.update(message="Хадгалсан эх нь өнөөдрийн бүртгэл, сул орон тооны төлөвийг батлахгүй. "
                           "Доорх албан эхийн огноог шалгах эсвэл сургуультай холбогдоорой.",
                           reason_code="live_status_not_supported")
-        elif ("коосэн" in query.casefold() and re.search(r"гэж юу|онцлог|ялгаа", query.casefold())
+        elif ("коосэн" in topic_terms and re.search(r"гэж юу|онцлог|ялгаа", query.casefold())
               and evidence and not any(re.search(r"коосэн\s+(?:гэж|гэдэг|сургалт нь)|коосэн[^\n]*боловсролын онцлог",
                   source["text"].casefold()) for source in evidence)):
             # Observed corpus gap: news of KIS meetings is not an explanation
@@ -336,6 +370,42 @@ class ChatRAG:
                 message="Коосэн сургалтын онцлогийг тайлбарлах ерөнхий эх энэ хайлтаар олдсонгүй. "
                         "Холбоотой албан мэдээнүүдийг доор харууллаа; хөтөлбөр, элсэлтийн талаар тодруулж асууж болно.")
         elif evidence:
+            # Registration is shared terminology for admission and olympiads.
+            # Keep these source scopes separate before any generative answer.
+            q = query.casefold()
+            if 'бүртгэ' in q and re.search(r'хураамж|төлбөр', q) and re.search(r'хэд|төгрөг|үнэ', q):
+                def fee_scope(source):
+                    path = urlsplit(source['url']).path
+                    if path == '/olympiad' or path.startswith('/olympiad/'):
+                        return 'olympiad'
+                    if path == '/elselt' or path.startswith('/elseltiin-juram/'):
+                        return 'admission'
+                    return None
+                scopes = {fee_scope(source) for source in evidence} - {None}
+                selected = 'olympiad' if 'олимпиад' in q else 'admission' if 'элс' in q else None
+                if selected is None and len(scopes) > 1:
+                    result.update(route='D', reason_code='registration_scope_ambiguous',
+                        message='Элсэлтийн болон олимпиадын бүртгэлийн хураамж өөр. Аль бүртгэлийн тухай асууж байна вэ?',
+                        suggestions=['Элсэлтийн бүртгэлийн хураамж хэд вэ?', 'Олимпиадын бүртгэлийн хураамж хэд вэ?'])
+                    result['rag']['reason'] = 'clarify_registration_scope'
+                    return self._remember(result, allow_draft)
+                if selected:
+                    evidence = [source for source in evidence if fee_scope(source) == selected]
+                    if not evidence:
+                        result.update(reason_code='requested_attribute_not_supported',
+                            message='Таны нэрлэсэн бүртгэлийн хураамжийг батлах эх энэ хайлтаар олдсонгүй. Өөр бүртгэлийн дүнгээр орлуулахгүй.')
+                        return self._remember(result, allow_draft)
+            attribute = interview_attribute(query)
+            if attribute in ATTRIBUTE_LABELS:
+                evidence = [source for source in evidence if supports_interview_attribute(query, source['text'])]
+                if not evidence:
+                    result.update(reason_code='requested_attribute_not_supported',
+                        message='Энэ хайлтаар олдсон эхүүдээс ' + ATTRIBUTE_LABELS[attribute] +
+                            (' яг минутаар ' if 'минут' in query.casefold() else ' ') +
+                            'батлах мэдээлэл олдсонгүй. Үргэлжлэх хугацаа, нийт оноо нь энэ асуултын хариу болохгүй. '
+                            'Доорх эхийг үзэх эсвэл сургуультай холбоо барьж тодруулж болно.')
+                    result['rag']['reason'] = 'requested_attribute_not_supported'
+                    return self._remember(result, allow_draft)
             direct = source_extract(query, evidence)
             if direct:
                 source, excerpt = direct
@@ -352,7 +422,10 @@ class ChatRAG:
                     message='Албан эхийн хэсгийг үг өөрчлөхгүй үзүүлэв. Эхийн он, огноог хадгалсан.')
                 result['rag']['reason'] = 'source_text_lookup_no_generation'
                 return self._remember(result, allow_draft)
+            phase_start = time.perf_counter()
+            result['rag']['generator_source_ids'] = [source['source_id'] for source in evidence[:3]]
             generated = self.generator.generate(query, evidence[:3])
+            timings['generation'] = (time.perf_counter() - phase_start) * 1000
             result["rag"].update(generated)
             result["llm_calls"] = generated["llm_calls"]
             if not generated["generated"] and generated["reason"] != "insufficient_evidence":
@@ -360,15 +433,15 @@ class ChatRAG:
                     message="Холбоотой эхүүд олдсон боловч хариултыг нэгтгэж бэлтгэхэд саатал гарлаа. "
                             "Эхийн хэсгүүдийг доороос унших эсвэл асуултаа дахин илгээж болно.",
                     suggestions=[query, *self.SUGGESTIONS[:2]])
+            if not generated['generated'] and generated['reason'] in {
+                    'unsupported_number', 'unsupported_quantity_context', 'answer_exceeds_speech_budget',
+                    'unknown_citation', 'unverified_quote', 'question_instead_of_answer'}:
+                result.update(reason_code='generation_not_verified',
+                    message='Бэлтгэсэн хариултыг эхтэй нь нийцүүлж баталгаажуулж чадсангүй. '
+                            'Доорх эхийг унших эсвэл асуултаа нэг зүйлээр тодруулж болно.')
             if generated["generated"]:
                 sources = {s["source_id"]: s for s in evidence}
-                cited = []
-                lines = []
-                for claim in generated["claims"]:
-                    sid = claim["source_id"]
-                    if sid not in cited:
-                        cited.append(sid)
-                    lines.append(f'{claim["text"]} [{cited.index(sid) + 1}]')
+                answer, cited = render_claims(generated['claims'])
                 citations = [{"document_id": sid, "version": sources[sid]["version"],
                               "title": sources[sid]["title"], "source_url_or_filename": sources[sid]["url"],
                               "locator": sources[sid].get("source_locator", sources[sid]["chunk_id"]),
@@ -376,7 +449,7 @@ class ChatRAG:
                               "reviewer_kind": sources[sid].get("reviewer_kind"), "retrieved_at": sources[sid]["retrieved_at"],
                               "source_accepted_for_project": True, "approval_status": "draft",
                               "school_staff_approval": False} for sid in cited]
-                result.update(route="C", answer="\n\n".join(lines), citations=citations, generated=True,
+                result.update(route="C", answer=answer, citations=citations, generated=True,
                               c_enabled=True, answer_kind="rag_generated", reason_code="source_grounded_generation",
                               message="Албан сайтаас хадгалсан эхэд тулгуурлан бэлтгэв. Эхийн огноог доороос харна уу.",
                               suggestions=[], related_sources=[])
