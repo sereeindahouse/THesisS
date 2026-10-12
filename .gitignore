@@ -177,3 +177,14 @@ __pycache__/
 !/config/content-use.json
 !/tests/test_project_policy.py
 !/tests/test_llm_runtime.py
+
+# Source-grounded web chat. Runtime, downloaded provider and model remain private.
+!/rag_runtime.py
+!/website_retrieval.py
+!/tools/start_local_llm.py
+!/tests/test_rag_runtime.py
+!/tests/test_rag_http.py
+!/tests/test_website_retrieval.py
+!/tests/test_open_demo.py
+!/config/model-catalog/gemma3-4b-text.json
+!/docs/experiments/rag-integration-20261012.json

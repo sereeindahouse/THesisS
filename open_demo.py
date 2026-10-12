@@ -17,7 +17,7 @@ PORT = 8765
 URL = f"http://127.0.0.1:{PORT}"
 
 
-def probe_demo(port=PORT, *, timeout=0.5):
+def probe_demo(port=PORT, *, timeout=2.5):
     """Return our status, None for an unused port; reject an unrelated service."""
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=timeout):
@@ -43,7 +43,7 @@ def probe_demo(port=PORT, *, timeout=0.5):
             and type(status.get("llm_calls")) is int and status["llm_calls"] == 0
             and isinstance(status.get("content"), dict)
             and isinstance(status.get("retrieval"), dict)
-            and status["retrieval"].get("live_backend") == "bm25"
+            and status["retrieval"].get("live_backend") in ("bm25", "bm25_mongolian", "bm25+e5_rrf")
         )
         if not expected:
             raise ValueError("unexpected demo identity")
@@ -101,12 +101,24 @@ def start_or_reuse(root=ROOT, *, port=PORT):
         if status is None or not status["content"].get("available"):
             raise RuntimeError("Demo ажиллаж байгаа ч SQLite агуулгыг уншиж чадсангүй. Байгаа санг өөрчлөөгүй.")
         return {"url": f"http://127.0.0.1:{port}", "reused_server": True, "database_created": created_database}
+    # Prefer the existing combined embedding/voice environment when complete.
+    python = sys.executable
+    candidate = root / ".venv-modeltools/Scripts/python.exe"
+    if candidate.is_file():
+        checked = subprocess.run([str(candidate), "-c",
+            "import importlib.util,sys; sys.exit(not all(importlib.util.find_spec(x) for x in ('torch','transformers','faster_whisper','edge_tts')))"] ,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        if checked.returncode == 0:
+            python = str(candidate)
+    from tools.start_local_llm import start_local_llm
+    start_local_llm(root)
     runtime = root / "runtime"
     runtime.mkdir(parents=True, exist_ok=True)
     with (runtime / "demo-server.stdout.log").open("ab") as output, \
             (runtime / "demo-server.stderr.log").open("ab") as errors:
         process = subprocess.Popen(
-            [sys.executable, "-X", "utf8", str(root / "demo_server.py"), "--port", str(port)],
+            [python, "-X", "utf8", str(root / "demo_server.py"), "--port", str(port)],
             cwd=root, stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
@@ -116,7 +128,7 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            status = probe_demo(port, timeout=min(0.3, remaining / 2))
+            status = probe_demo(port, timeout=min(2.5, remaining / 2))
             if status is not None:
                 if not status["content"].get("available"):
                     raise RuntimeError("Сервер эхэлсэн ч SQLite агуулга уншигдсангүй.")

@@ -15,13 +15,14 @@ from voice_runtime import VoiceRuntime, VoiceRuntimeError, MAX_AUDIO_BYTES
 from listening_review import ListeningReview
 from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
+from rag_runtime import ChatRAG
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
 
 
-def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None):
+def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
     database = Path(db_path or root / "runtime" / "content.db").resolve()
@@ -30,6 +31,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
 
     content_policy = ContentUsePolicy(root)
     llm = llm_service if llm_service is not None else LLMRuntime(root)
+    rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -135,9 +137,11 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     website = {"available": False, "pages": 0, "chunks": 0, "documents": 0,
                                "message": "Албан сайтын мэдээллийг эхлээд цуглуулна."}
                 voice_state = voice.status()
+                rag_state = rag.status()
                 return self.send_json(200, {
                     "website": website, "content_policy": content_policy.status(), "llm": llm.status(),
-                    "routing": {"available": True, "c_enabled": False, "human_gold": False,
+                    "rag": rag_state,
+                    "routing": {"available": True, "c_enabled": rag_state["provider"]["available"] and content_policy.enabled, "human_gold": False,
                                 "mode": "development_proposed_not_gold"},
                     "mode": "local_development", "demo_protocol_version": 2, "readonly": False,
                     "content_database_readonly": True, "local_review_writes_supported": True,
@@ -145,7 +149,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     "audio_samples": samples,
                     "stt": {"wer_percent": 36.0, "cer_percent": 16.9, "verified_recordings": 13,
                             "historical_development_result": True, "production_accepted": False},
-                    "retrieval": {"live_backend": "bm25", "historical_bm25_top1": "10/15",
+                    "retrieval": {"live_backend": rag_state.get("retrieval", {}).get("backend", "bm25"), "historical_bm25_top1": "10/15",
                                   "historical_e5_top1": "14/15", "human_gold_approved": False,
                                   "score_is_probability": False},
                     "microphone_connected": voice_state.get("stt_ready", False),
@@ -233,7 +237,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                         body["id"], body["listener"], body["overall"], body["intelligibility"],
                         body["pronunciation_errors"], body["confirmed"]))
                 if path == "/api/voice/speak":
-                    if set(body) - {"query", "allow_draft", "voice", "package_id"}:
+                    if set(body) - {"query", "allow_draft", "voice", "package_id", "response_id"}:
                         raise ValueError("Зөвшөөрөөгүй талбар байна.")
                     query, draft = body.get("query"), body.get("allow_draft", False)
                     if not isinstance(query, str) or not query.strip() or len(query) > 1000 or type(draft) is not bool:
@@ -241,6 +245,14 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     current = content_policy.route(database, query.strip(), allow_draft=draft)
                     if body.get("package_id") != current["package_id"]:
                         return self.error(409, "Агуулгын хувилбар өөрчлөгдлөө. Асуултаа дахин шалгана уу.")
+                    response_id = body.get("response_id")
+                    if response_id is not None:
+                        if not isinstance(response_id, str) or not re.fullmatch(r"[0-9a-f]{32}", response_id):
+                            raise ValueError("Хариултын ID буруу.")
+                        try:
+                            current = rag.recall(response_id, query.strip(), current["package_id"], draft)
+                        except ValueError as error:
+                            return self.error(409, str(error))
                     spoken = current["answer"]
                     if spoken is None:
                         spoken = current["message"]
@@ -251,7 +263,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     result = voice.synthesize(spoken, body.get("voice"))
                     result.update(route=current["route"], package_id=current["package_id"],
                                   spoken_text=spoken, citations=current["citations"],
-                                  text_generated=False, llm_calls=0,
+                                  text_generated=current.get("generated", False), llm_calls=0,
                                   answer_kind=current.get("answer_kind"))
                     return self.send_json(200, result)
                 allowed = ({"query", "allow_draft"} if path == "/api/route" else
@@ -270,7 +282,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     if type(limit) is not int or not 1 <= limit <= 5:
                         raise ValueError("limit нь 1–5 бүхэл тоо байна.")
                     if path == "/api/route":
-                        return self.send_json(200, content_policy.route(database, query.strip(), allow_draft=allow_draft))
+                        return self.send_json(200, rag.route(database, query.strip(), allow_draft=allow_draft))
                     if path == "/api/website-search":
                         result = search_website(query.strip(), root / "CORE/database/website.db",
                                                 limit=limit, allow_draft=allow_draft or content_policy.enabled)

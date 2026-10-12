@@ -77,7 +77,7 @@ def _http_json(method: str, url: str, payload: dict | None, timeout: float, max_
         headers={"Accept": "application/json", "Content-Type": "application/json"},
     )
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
-    with opener.open(request, timeout=min(timeout, CHAT_TIMEOUT_SECONDS)) as response:
+    with opener.open(request, timeout=min(timeout, 60.0)) as response:
         content_length = response.headers.get("Content-Length")
         if content_length is not None:
             if not content_length.isdigit() or int(content_length) > max_bytes:
@@ -148,9 +148,13 @@ class LLMRuntime:
     The injectable transport is (method, url, payload, timeout, max_bytes).
     """
 
-    def __init__(self, root: Path | str | None = None, transport: Callable | None = None):
+    def __init__(self, root: Path | str | None = None, transport: Callable | None = None, *,
+                 model: str | None = None, base_url: str | None = None):
         self.root = Path(root) if root is not None else Path(__file__).resolve().parent
-        self.model = os.environ.get("THESIS_LLM_MODEL", "").strip()
+        self.model = (os.environ.get("THESIS_LLM_MODEL", "") if model is None else model)
+        if not isinstance(self.model, str):
+            self.model = ""
+        self.model = self.model.strip()
         self._transport = transport or _http_json
         self._status_lock = threading.Lock()
         self._chat_lock = threading.Lock()
@@ -158,7 +162,8 @@ class LLMRuntime:
         self._cached_at = 0.0
         self._configuration_error = None
         try:
-            self.base_url = _validated_base_url(os.environ.get("THESIS_OLLAMA_URL", "http://127.0.0.1:11434"))
+            self.base_url = _validated_base_url(base_url if base_url is not None else
+                os.environ.get("THESIS_OLLAMA_URL", "http://127.0.0.1:11434"))
         except (ValueError, TypeError):
             self.base_url = None
             self._configuration_error = "invalid_local_url"

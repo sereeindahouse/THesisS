@@ -1,0 +1,40 @@
+{
+  "upstream": "https://ollama.com/library/gemma3:4b",
+  "registry_manifest": "https://registry.ollama.ai/v2/library/gemma3/manifests/4b",
+  "captured_at": "2026-10-12",
+  "local_model": "gemma3-4b-text:q4_k_m",
+  "runtime": "Ollama 0.40.2",
+  "quantization": "Q4_K_M",
+  "own_training": false,
+  "local_requantization": false,
+  "image_projector_included": false,
+  "model_card": "https://ai.google.dev/gemma/docs/core/model_card_3",
+  "license_url": "https://ai.google.dev/gemma/terms",
+  "layers": [
+    {
+      "mediaType": "application/vnd.ollama.image.model",
+      "digest": "sha256:f06e91e18fc74295d0c781bf91622508c75655e2c18ed869d52447ffe1e667e1",
+      "size": 2499012288,
+      "from": "dhiltgen/gemma3:4b-it-q4_K_M-llamacpp"
+    },
+    {
+      "mediaType": "application/vnd.ollama.image.template",
+      "digest": "sha256:e0a42594d802e5d31cdc786deb4823edb8adff66094d49de8fffe976d753e348",
+      "size": 358,
+      "from": "dhiltgen/gemma3:4b-it-q4_K_M-llamacpp"
+    },
+    {
+      "mediaType": "application/vnd.ollama.image.license",
+      "digest": "sha256:dd084c7d92a3c1c14cc09ae77153b903fd2024b64a100a0cc8ec9316063d2dbc",
+      "size": 8432,
+      "from": "dhiltgen/gemma3:4b-it-q4_K_M-llamacpp"
+    },
+    {
+      "mediaType": "application/vnd.ollama.image.params",
+      "digest": "sha256:3116c52250752e00dd06b16382e952bd33c34fd79fc4fe3a5d2c77cf7de1b14b",
+      "size": 77,
+      "from": "dhiltgen/gemma3:4b-it-q4_K_M-llamacpp"
+    }
+  ],
+  "verification": "Full SHA256 checks required before import; no school quality guarantee."
+}

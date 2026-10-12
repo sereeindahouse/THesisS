@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-12",
+  "model": "gemma3-4b-text:q4_k_m",
+  "own_training": false,
+  "human_gold": false,
+  "corpus": {
+    "pages": 72,
+    "original_chunks": 153,
+    "indexed_chunks": 139,
+    "binary_assets_not_extracted": 5
+  },
+  "unit_tests_passed": 239,
+  "browser_regression_checks_passed": 14,
+  "live_browser_checks_passed": 4,
+  "direct_generator_trials": {
+    "cases": 8,
+    "llm_calls": 6,
+    "structurally_accepted": 6,
+    "not_system_accuracy": true,
+    "scope": "Generator tested alone, bypassing direct lookup and concept-overview router guards; structurally accepted is not correct-answer count."
+  },
+  "live_http": {
+    "cases": 14,
+    "generated": 4,
+    "routes": [
+      {
+        "query": "Програм хангамжийн чиглэлээр юу судлах вэ?",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "llm_calls": 1,
+        "seconds": 16.052
+      },
+      {
+        "query": "Механикийн тэнхим ямар лабораторитой вэ?",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "llm_calls": 1,
+        "seconds": 1.902
+      },
+      {
+        "query": "Элсэлтийн бүртгэлд ямар алхмууд байдаг вэ?",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "llm_calls": 0,
+        "seconds": 0.053
+      },
+      {
+        "query": "Тэтгэлэгт хөтөлбөрийн талаар тайлбарлаач.",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "llm_calls": 1,
+        "seconds": 2.193
+      },
+      {
+        "query": "Компьютерын ухааны тэнхим ямар компаниудтай хамтран ажилладаг вэ?",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "llm_calls": 1,
+        "seconds": 2.39
+      },
+      {
+        "query": "Коосэн сургалтын онцлог юу вэ?",
+        "route": "E",
+        "reason": "concept_overview_not_supported",
+        "llm_calls": 0,
+        "seconds": 0.076
+      },
+      {
+        "query": "Холбоо барих утас хэд вэ?",
+        "route": "A",
+        "reason": "official_website_stored_answer",
+        "llm_calls": 0,
+        "seconds": 0.011
+      },
+      {
+        "query": "Сургалтын төлбөр хэд вэ?",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "llm_calls": 0,
+        "seconds": 0.111
+      },
+      {
+        "query": "Ямар мэргэжлээр суралцах боломжтой вэ?",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "llm_calls": 0,
+        "seconds": 0.052
+      },
+      {
+        "query": "Одоо бүртгэл нээлттэй юу?",
+        "route": "E",
+        "reason": "live_status_not_supported",
+        "llm_calls": 0,
+        "seconds": 0.071
+      },
+      {
+        "query": "2028 оны сургалтын төлбөр хэд вэ?",
+        "route": "E",
+        "reason": "unsupported_year",
+        "llm_calls": 0,
+        "seconds": 0.023
+      },
+      {
+        "query": "Дотуур байрны төлбөр хэд вэ?",
+        "route": "E",
+        "reason": "website_no_evidence",
+        "llm_calls": 0,
+        "seconds": 0.068
+      },
+      {
+        "query": "Ангараг дээр муур амьдардаг уу?",
+        "route": "E",
+        "reason": "website_no_evidence",
+        "llm_calls": 0,
+        "seconds": 0.073
+      },
+      {
+        "query": "Сайн байна уу?",
+        "route": "D",
+        "reason": "conversation_help",
+        "llm_calls": 0,
+        "seconds": 0.02
+      }
+    ]
+  },
+  "live_tts": {
+    "audio_bytes": 132768,
+    "same_displayed_and_spoken_text": true,
+    "second_llm_call": false,
+    "human_listened": false,
+    "decoded_seconds": 22.128
+  },
+  "qualitative_review": {
+    "assessor": "assistant source comparison; not independent human gold",
+    "system_cases": [
+      {
+        "topic": "Programming studies",
+        "finding": "Answer names subjects listed in the cited program description."
+      },
+      {
+        "topic": "Mechanical laboratories",
+        "finding": "Three named laboratories match the cited department text."
+      },
+      {
+        "topic": "Scholarship",
+        "finding": "Brief 2026–2027 chemistry-program announcement summary; not complete eligibility/application guidance. Original text addresses people interested in enrolling in years 1/2."
+      },
+      {
+        "topic": "Computer science cooperation",
+        "finding": "Sakura, March 2024, online study, internships and cloud support appear in the source."
+      },
+      {
+        "topic": "Enrollment steps",
+        "finding": "Raw generator confused exam subjects with registration; final router copies the three original registration steps without an LLM call."
+      },
+      {
+        "topic": "Kosen overview",
+        "finding": "Raw generator summarized a KIS meeting instead of explaining the education model; final router explains the evidence gap and shows related sources, with zero LLM calls."
+      },
+      {
+        "topic": "2028 tuition",
+        "finding": "A prior raw generation substituted an older fee. Final router and generator year checks reject absent 2028 evidence without an LLM call."
+      },
+      {
+        "topic": "Dormitory/current registration/unrelated topic",
+        "finding": "Final HTTP checks returned explanations rather than invented facts."
+      }
+    ],
+    "limits": [
+      "Development questions were reused while adjusting rules/prompt. No final-test accuracy is claimed.",
+      "Stored excerpts guarantee quote provenance, not semantic correctness of the generated interpretation.",
+      "Observed cold-start failure and one 314.8-second development request; a later complete run passed. Latency stability still needs controlled repeated measurements.",
+      "TTS bytes decoded successfully; pronunciation and user listening quality were not rated."
+    ]
+  },
+  "limits": [
+    "Development questions selected by assistant; not held-out final evaluation.",
+    "Quote/number checks do not prove semantic entailment.",
+    "No previous-turn context memory; no PDF/image OCR or live enrollment-state guarantee."
+  ],
+  "immutable_files_sha256": {
+    "ROADMAP-FINAL-2026-10-07.mn.md": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
+    "runtime/content.db": "9c3aa3e29ad430d055e75f4a30655a67dcf31bd6c4f1eaa40021ee164a988c72"
+  },
+  "rag_runtime_py_sha256_lf": "1faf322d03bbc63c475be3f0e4ca7380d4c45022cec847b76864503f9ea184e1"
+}

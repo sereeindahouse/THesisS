@@ -1,0 +1,325 @@
+"""Local source retrieval for NMCT RAG; rankings are not answer verification.
+
+Uses the most recent website snapshot read-only. Optional multilingual E5 is
+loaded once from checksum-pinned local assets, never downloaded or trained.
+Mongolian search aliases affect ranking only; returned evidence remains exact
+source text with offsets, snapshot dates and stable source identifiers.
+"""
+from collections import Counter
+from contextlib import closing
+from datetime import date
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import sqlite3
+import threading
+import time
+import unicodedata
+from urllib.parse import urlsplit
+
+from CORE.website_corpus import readonly
+from retrieval_probe import bm25_scores, sha256
+
+ROOT = Path(__file__).resolve().parent
+INDEX_VERSION = 'website-hybrid-v1'
+STOPWORDS = set('би миний бид манай танай та надад талаар талаарх тухай юу вэ бэ уу үү юм байна байдаг болох бол ямар хэд хэрхэн яаж хаана хэзээ нь ын ийн ы ий н р болон буюу эсвэл бас мөн энэ тэр тэгээд гэж гэсэн сайн уу мэдээлэл авах өгөөч тайлбарла тайлбарлаж болно болох уу'.split())
+STOPWORDS.update('боломж боломжтой бий дээр доор хэдэн бүх одоо оны онд жил жилийн сонирхож мэдэх мэдмээр хүсэж суралц суралцах'.split())
+# Transparent domain search aliases, not a Mongolian morphological model.
+STEMS = {
+    'компьютер': 'компьютер', 'computer': 'компьютер', 'программ': 'програм',
+    'програм': 'програм', 'software': 'програм', 'мэргэжл': 'мэргэжил',
+    'мэргэжил': 'мэргэжил', 'элс': 'элсэлт', 'admission': 'элсэлт',
+    'бүртгүүл': 'бүртгэл', 'бүртгэл': 'бүртгэл', 'төлбөр': 'төлбөр',
+    'tuition': 'төлбөр', 'хураамж': 'хураамж', 'тэтгэл': 'тэтгэлэг',
+    'scholarship': 'тэтгэлэг', 'тэнхим': 'тэнхим', 'department': 'тэнхим',
+    'хөтөлбөр': 'хөтөлбөр', 'program': 'хөтөлбөр', 'оюут': 'оюутан',
+    'суралц': 'суралц', 'сургуул': 'сургууль',
+    'сургалт': 'сургалт', 'шалгалт': 'шалгалт', 'шалгуу': 'шалгалт',
+    'лаборатор': 'лаборатори', 'механик': 'механик', 'химийн': 'хими',
+    'барилг': 'барилга', 'цахилгаан': 'цахилгаан', 'электроник': 'электроник',
+    'дадлаг': 'дадлага', 'утас': 'утас', 'холбогд': 'холбоо',
+    'хаяг': 'хаяг', 'байрш': 'байршил', 'имэйл': 'имэйл', 'мэйл': 'имэйл',
+    'email': 'имэйл', 'коосэн': 'коосэн', 'kosen': 'коосэн',
+    'сакура': 'sakura', 'сакүра': 'sakura', 'арк': 'arc',
+    'номын': 'ном', 'номынсан': 'ном', 'дотуур': 'дотуур',
+}
+SUFFIXES = ('уудаар', 'үүдээр', 'уудын', 'үүдийн', 'нууд', 'нүүд', 'уудаас',
+            'үүдээс', 'ийн', 'ын', 'аар', 'ээр', 'оор', 'өөр', 'аас', 'ээс',
+            'оос', 'өөс', 'тай', 'тэй', 'той', 'ууд', 'үүд')
+NAV_LINES = {'Тэнхимүүд', 'Буцах', 'Бүгдийг харах', 'Нэвтрэх', 'Холбоосууд',
+             'Удирдлага', 'MN MN', 'Нүүр', 'NM', 'CT', 'NMCT'}
+
+
+def search_terms(text):
+    tokens = re.findall(r'\w+', unicodedata.normalize('NFC', text).casefold())
+    result = []
+    for token in tokens:
+        if token in STOPWORDS or (len(token) == 1 and not token.isdigit()):
+            continue
+        normalized = next((value for prefix, value in STEMS.items() if token.startswith(prefix)), token)
+        if normalized == token:
+            for suffix in SUFFIXES:
+                if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+                    normalized = token[:-len(suffix)]
+                    break
+        if normalized not in STOPWORDS:
+            result.append(normalized)
+    return result
+
+
+def _official(url):
+    try:
+        parsed = urlsplit(url)
+        return (parsed.scheme == 'https' and parsed.hostname == 'nmct.edu.mn'
+                and parsed.port in (None, 443) and not parsed.username and not parsed.password)
+    except ValueError:
+        return False
+
+
+def _rank_text(text):
+    return '\n'.join(line for line in text.splitlines() if line.strip() not in NAV_LINES)
+
+
+class _LocalE5:
+    """Persistent CPU encoder, with the same mean-pooling protocol as the probe."""
+    def __init__(self, root):
+        self.root = root
+        self.model = self.tokenizer = None
+        self.revision = None
+        self.dimension = 384
+
+    def load(self):
+        if self.model is not None:
+            return
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+        path = self.root / 'models/multilingual-e5-small'
+        metadata = json.loads((self.root / 'config/model-catalog/intfloat--multilingual-e5-small.json').read_text(encoding='utf-8-sig'))
+        manifest = json.loads((path / 'source-manifest.json').read_text(encoding='utf-8-sig'))
+        expected = next(row for row in metadata['files'] if row['rfilename'] == 'model.safetensors')['lfs']['sha256']
+        if (manifest['repo_id'] != metadata['repo_id'] or manifest['revision'] != metadata['revision']
+                or sha256(path / 'model.safetensors') != expected):
+            raise ValueError('Local E5 checkpoint does not match pinned metadata.')
+        for name, item in manifest['files'].items():
+            asset = (path / name).resolve()
+            if not asset.is_relative_to(path.resolve()) or sha256(asset) != item['sha256']:
+                raise ValueError('Local E5 asset failed checksum validation.')
+        torch.set_num_threads(2)
+        self.tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True, trust_remote_code=False)
+        self.model = AutoModel.from_pretrained(str(path), local_files_only=True, trust_remote_code=False, use_safetensors=True).eval()
+        self.revision = metadata['revision']
+
+    def encode(self, texts, prefix):
+        import numpy as np
+        import torch
+        import torch.nn.functional as F
+        self.load()
+        values = []
+        for start in range(0, len(texts), 8):
+            batch = self.tokenizer([prefix + t for t in texts[start:start + 8]],
+                padding=True, truncation=True, max_length=512, return_tensors='pt')
+            with torch.inference_mode():
+                hidden = self.model(**batch).last_hidden_state
+                mask = batch['attention_mask'].unsqueeze(-1).bool()
+                pooled = hidden.masked_fill(~mask, 0.0).sum(1) / batch['attention_mask'].sum(1).unsqueeze(-1)
+                values.append(F.normalize(pooled, p=2, dim=1).numpy())
+        return np.concatenate(values)
+
+
+class WebsiteRetriever:
+    def __init__(self, root=None, database=None, use_dense=True):
+        self.root = Path(root or ROOT).resolve()
+        self.database = Path(database or self.root / 'CORE/database/website.db').resolve()
+        self.use_dense = bool(use_dense)
+        self._lock = threading.RLock()
+        self._stamp = None
+        self._rows = []
+        self._run = None
+        self._counts = {'pages': 0, 'chunks': 0, 'documents': 0, 'indexed_chunks': 0}
+        self._encoder = _LocalE5(self.root)
+        self._embeddings = None
+        self._dense_status = 'not_loaded' if self.use_dense else 'disabled'
+        self._corpus_id = None
+        self._error = None
+
+    def _refresh(self):
+        stat = self.database.stat()
+        stamp = (stat.st_mtime_ns, stat.st_size, date.today().isoformat())
+        if stamp == self._stamp:
+            return
+        with closing(readonly(self.database)) as db:
+            db.execute('BEGIN')
+            run = db.execute('SELECT * FROM crawl_runs ORDER BY retrieved_at DESC,run_id DESC LIMIT 1').fetchone()
+            if run is None:
+                self._rows, self._run, self._stamp = [], None, stamp
+                return
+            pages = db.execute('SELECT p.* FROM pages p JOIN captures x ON p.url=x.url AND p.version=x.version WHERE x.run_id=? ORDER BY p.url', (run['run_id'],)).fetchall()
+            chunks = db.execute('SELECT c.* FROM chunks c JOIN captures x ON c.url=x.url AND c.version=x.version WHERE x.run_id=? ORDER BY c.url,c.ordinal', (run['run_id'],)).fetchall()
+            document_count = db.execute('SELECT COUNT(*) FROM assets WHERE run_id=?', (run['run_id'],)).fetchone()[0]
+        page_map = {(p['url'], p['version']): dict(p) for p in pages}
+        rows, seen = [], set()
+        for chunk in chunks:
+            page = page_map[(chunk['url'], chunk['version'])]
+            # Never fall back to full_text: its repeated nav/banner/footer can be stale.
+            if not _official(page['url']) or page['text_scope'] != 'main_element':
+                continue
+            if page['valid_from'] and page['valid_from'] > date.today().isoformat():
+                continue
+            if page['valid_until'] and page['valid_until'] < date.today().isoformat():
+                continue
+            if page.get('approval_status') == 'rejected':
+                continue
+            start, end = chunk['start_offset'], chunk['end_offset']
+            if not 0 <= start < end <= len(page['text']) or page['text'][start:end] != chunk['text']:
+                continue
+            # Expand cut words to whole lines while retaining an exact contiguous slice.
+            left = page['text'].rfind('\n', max(0, start - 180), start)
+            start = left + 1 if left >= 0 else (0 if start < 180 else start)
+            right = page['text'].find('\n', end, min(len(page['text']), end + 250))
+            end = right if right >= 0 else min(len(page['text']), end)
+            text = page['text'][start:end]
+            dedup = hashlib.sha256(text.encode()).hexdigest()
+            if dedup in seen:
+                continue
+            seen.add(dedup)
+            identity = f"{page['url']}|{page['version']}|{start}|{end}|{dedup}"
+            row = {key: page[key] for key in ('url', 'version', 'title', 'retrieved_at', 'source_updated_at', 'text_scope', 'valid_from', 'valid_until')}
+            row.update(source_id='web-' + hashlib.sha256(identity.encode()).hexdigest()[:20],
+                chunk_id=chunk['ordinal'], start_offset=start, end_offset=end, text=text, excerpt=text,
+                page_years=sorted(set(re.findall(r'\b20\d{2}\b', page['text']))),
+                page_header=page['text'][:300], snapshot_only=True, validity_unknown=not bool(page['valid_from'] and page['valid_until']))
+            rows.append(row)
+        self._run = dict(run)
+        self._rows = rows
+        self._passages = [row['title'] + '\n' + _rank_text(row['text']) for row in rows]
+        self._lexical_passages = [' '.join(search_terms(p)) for p in self._passages]
+        self._body_terms = [set(search_terms(_rank_text(row['text']))) for row in rows]
+        self._counts = dict(pages=len(pages), chunks=len(chunks), documents=document_count, indexed_chunks=len(rows))
+        fingerprint = INDEX_VERSION + run['manifest_sha256'] + '|'.join(row['source_id'] for row in rows)
+        self._corpus_id = hashlib.sha256(fingerprint.encode()).hexdigest()
+        self._embeddings = None
+        self._stamp = stamp
+
+    def status(self):
+        with self._lock:
+            try:
+                self._refresh()
+            except (OSError, ValueError, sqlite3.Error, KeyError) as error:
+                return {'available': False, 'reason': type(error).__name__, 'dense_status': self._dense_status}
+            return dict(available=bool(self._rows), corpus_id=self._corpus_id,
+                counts=dict(self._counts), dense_status=self._dense_status,
+                backend='bm25+e5_rrf' if self._dense_status == 'ready' else 'bm25_mongolian',
+                retrieved_at=self._run['retrieved_at'] if self._run else None,
+                training_performed=False, database_modified=False, score_is_probability=False)
+
+    def _dense(self, query):
+        if not self.use_dense or self._dense_status == 'unavailable':
+            return None
+        try:
+            import numpy as np
+            self._encoder.load()
+            if self._embeddings is None:
+                key = hashlib.sha256((self._corpus_id + str(self._encoder.revision)).encode()).hexdigest()
+                path = self.root / 'runtime' / ('website-e5-' + key + '.npz')
+                if path.is_file():
+                    with np.load(path, allow_pickle=False) as archive:
+                        stored = archive['embeddings']
+                        if stored.shape != (len(self._rows), 384) or not np.isfinite(stored).all():
+                            raise ValueError('Invalid local embedding cache.')
+                        self._embeddings = stored
+                else:
+                    self._embeddings = self._encoder.encode(self._passages, 'passage: ')
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    temporary = path.with_suffix('.tmp')
+                    with temporary.open('wb') as handle:
+                        np.savez_compressed(handle, embeddings=self._embeddings)
+                    temporary.replace(path)
+            scores = (self._encoder.encode([query], 'query: ') @ self._embeddings.T)[0]
+            if not np.isfinite(scores).all():
+                raise ValueError('Nonfinite dense scores.')
+            self._dense_status = 'ready'
+            return [float(value) for value in scores]
+        except (ImportError, OSError, ValueError, RuntimeError, KeyError) as error:
+            self._dense_status = 'unavailable'
+            self._error = type(error).__name__
+            self._embeddings = None
+            return None
+
+    def search(self, query, limit=5):
+        if not isinstance(query, str) or not query.strip() or len(query) > 1000 or not re.search(r'\w', query):
+            raise ValueError('query must contain words and be at most 1000 characters.')
+        if type(limit) is not int or not 1 <= limit <= 10:
+            raise ValueError('limit must be an integer from 1 to 10.')
+        started = time.perf_counter()
+        with self._lock:
+            self._refresh()
+            query_terms = set(search_terms(query))
+            # Generic school words should not turn every unknown topic into a match.
+            anchors = query_terms - {'сургууль', 'шинэ', 'монгол', 'nmct', 'шмтк', 'оюутан', 'сургалт'}
+            anchors = {term for term in anchors if not re.fullmatch(r'(?:19|20)\d{2}', term)}
+            if 'мэргэжил' in anchors:
+                anchors.add('хөтөлбөр')
+            lexical = bm25_scores(self._lexical_passages, [' '.join(anchors or query_terms)])[0] if self._rows else []
+            dense = self._dense(query) if self._rows else None
+            lexical_rank = sorted(range(len(self._rows)), key=lambda i: (-lexical[i], self._rows[i]['source_id']))
+            dense_rank = sorted(range(len(self._rows)), key=lambda i: (-dense[i], self._rows[i]['source_id'])) if dense is not None else []
+            fused = [0.0] * len(self._rows)
+            for ranking, weight in ((lexical_rank, 1.0), (dense_rank, 1.0)):
+                for rank, index in enumerate(ranking, 1):
+                    if ranking is lexical_rank and lexical[index] <= 0:
+                        continue
+                    fused[index] += weight / (30 + rank)
+            # Explicit phrase/category matches improve ranking only, never certify an answer.
+            query_lower = query.casefold()
+            for index, row in enumerate(self._rows):
+                body = row['text'].casefold()
+                if 'төлбөр' in anchors and 'сургалт' in query_terms and 'сургалтын төлбөр' in body:
+                    fused[index] += .09
+                if anchors <= {'мэргэжил', 'хөтөлбөр'} and anchors and 'элсэлт авах хөтөлбөр' in body:
+                    fused[index] += .09
+                if 'элсэлт' in anchors and 'шаардлага' in anchors and 'элсэлтэд оролцох эрх' in body:
+                    fused[index] += .09
+                if 'дотуур' in anchors and 'дотуур' not in body:
+                    fused[index] = 0
+                if 'ном' in anchors and 'сан' in query_lower and 'номын сан' not in body:
+                    fused[index] = 0
+            candidates, used = [], []
+            for index in sorted(range(len(self._rows)), key=lambda i: (-fused[i], self._rows[i]['source_id'])):
+                if not fused[index]:
+                    continue
+                row = self._rows[index]
+                # Unknown topics must not acquire a nearest-neighbour answer merely
+                # because E5 always ranks something. At least one real anchor is required.
+                if anchors and not (anchors & self._body_terms[index]):
+                    continue
+                # Two distinct parts per page are allowed; overlapping repeats are not.
+                same = [r for r in used if r['url'] == row['url']]
+                if len(same) >= 2 or any(max(0, min(r['end_offset'], row['end_offset']) - max(r['start_offset'], row['start_offset'])) > .55 * min(len(r['text']), len(row['text'])) for r in same):
+                    continue
+                # News listings mostly duplicate article teasers; use article bodies instead.
+                if urlsplit(row['url']).path == '/news':
+                    continue
+                overlap = sorted(anchors & self._body_terms[index])
+                candidate = dict(row, lexical_score=float(lexical[index]),
+                    dense_score=dense[index] if dense is not None else None, score=fused[index],
+                    matched_terms=overlap, query_anchor_terms=sorted(anchors),
+                    lexical_overlap_count=len(overlap), requested_years=sorted(set(re.findall(r'\b20\d{2}\b', query))),
+                    query_answer_support_established=False)
+                candidates.append(candidate)
+                used.append(row)
+                if len(candidates) == limit:
+                    break
+            warnings = ['Search rankings do not prove answer support or current validity.',
+                        'Binary PDF/image documents and hidden client-side tabs are not included.']
+            if self._dense_status == 'unavailable':
+                warnings.append('Local E5 unavailable; lexical retrieval remains active (' + str(self._error) + ').')
+            return dict(query=query.strip(), status='ranked_candidates_only' if candidates else 'no_candidates',
+                corpus_id=self._corpus_id, backend='bm25+e5_rrf' if dense is not None else 'bm25_mongolian',
+                candidates=candidates, counts=dict(self._counts), warnings=warnings,
+                query_terms=sorted(query_terms), query_anchor_terms=sorted(anchors),
+                has_lexical_evidence=any(row['lexical_overlap_count'] for row in candidates),
+                score_is_probability=False, query_answer_support_established=False,
+                generated=False, llm_calls=0, training_performed=False, database_modified=False,
+                latency_seconds=time.perf_counter() - started)

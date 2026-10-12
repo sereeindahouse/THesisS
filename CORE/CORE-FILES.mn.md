@@ -8,6 +8,8 @@
 | Facts/FAQ сан | [content_store.py](../content_store.py), [import_content.py](../import_content.py) | Баталгаа/хугацаа/хувилбартай импорт |
 | Асуултын зам | [question_router.py](../question_router.py), [тест](../tests/test_question_router.py) | Exact/он/нэр/баталгаа/тодруулга/эхгүй асуултын суурь |
 | FAQ хайлт | [sqlite_retrieval.py](../sqlite_retrieval.py) | DB-ээс BM25/E5 эрэмбэ, guarded exact preview |
+| Чатны RAG | [rag_runtime.py](../rag_runtime.py), [website_retrieval.py](../website_retrieval.py) | Hybrid хайлт, эхийн шууд хэсэг, локал генераци, TTS-д хариулт холбох |
+| Локал генератор эхлүүлэх | [start_local_llm.py](../tools/start_local_llm.py) | Өмнө суусан project-local Ollama-г нээх; таталт хийхгүй |
 | Embedding туршилт | [retrieval_probe.py](../retrieval_probe.py) | BM25/E5-ийн ижил нөхцөлийн харьцуулалт |
 | Бичлэг | [record.py](../record.py) | Микрофоноор WAV бичих |
 | Монгол STT | [stt_mn.py](../stt_mn.py) | Cafet жин/hash/decoder шалгаж дуу таних |

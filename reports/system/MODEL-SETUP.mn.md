@@ -59,3 +59,47 @@ Default нь intfloat/multilingual-e5-small. Public config/model-catalog дах�
 Local private data/stt-model-choice.json байгаа бол түүнийг ашиглана; шинэ clone-д минимал config/stt-development.json fallback байна. Тэнд хувийн transcript эсвэл нэг бүрийн оноо байхгүй.
 
 [Cafet эх](https://huggingface.co/Cafet/whisper-small-mongolian) · [E5 эх](https://huggingface.co/intfloat/multilingual-e5-small). Лиценз, шаардлагыг эх тус бүрээс харна. Downloader нь model output-г models дотор хязгаарлаж, ажиллаж буй таталтыг lock-оор тусгаарлана. Existing жинг дарж conversion хийхгүй.
+
+
+## Веб хайлт ба локал RAG генератор
+
+Одоогийн ажлын компьютерт `CORE/DEMO.cmd` хангалттай. Шинэ clone дээр:
+
+1. `CORE/WEBSITE-DATA.mn.md`-ийн командаар сургуулийн эхийн санг бүрдүүлнэ.
+   Raw snapshot/SQLite нь Git-д ороогүй; түүнийг татсан огноо шинэ байна.
+2. E5 хэрэглэх бол дээрх Release installer-аар жинг авч, нэг орчинд хоёр багцын
+   санг суулгана: `.\.venv-modeltools\Scripts\python.exe -m pip install -r requirements-modeltools.txt -r requirements.txt`.
+   Launcher энэ бүрэн орчныг танина. E5 байхгүй үед BM25 хайлт ажиллана.
+3. [Ollama-ийн албан Windows заавар](https://docs.ollama.com/windows)-аар
+   локал үйлчилгээг бэлтгэнэ. `ollama pull gemma3:4b` нь upstream багцыг авна;
+   энэ команд зураг боловсруулах нэмэлт жин мөн татаж болно.
+4. Төслийн `runtime/rag-model.json` файлыг дараах агуулгаар UTF-8 хадгална:
+
+```json
+{"model":"gemma3:4b","base_url":"http://127.0.0.1:11434"}
+```
+
+Үйлчилгээ зөвхөн локал хаягт ажиллана. RAG код cloud нэртэй модель болон
+гадаад provider URL-ийг зөвшөөрөхгүй. Серверээ шинээр асаагаад чатны тохиргоон дахь
+«Хариулт нэгтгэх LLM»-ийн бэлэн төлөвийг шалгана. Таталт/суулгалт амжилттай болсон
+нь Монгол хариултын чанарын үнэлгээ биш. LLM байхгүй үед бэлэн FAQ, шууд эхийн
+хариулт, вэб хайлт ажилласаар байна.
+
+Энэ ажлын компьютерт Ollama v0.40.2-г `runtime/llm/ollama` дотор тусгаарлаж,
+`gemma3:4b`-ийн Q4_K_M **текстийн жин**, template, license, parameters-ийг
+SHA256-аар шалган `/api/create`-аар `gemma3-4b-text:q4_k_m` нэрээр импортолсон
+хувилбарыг ашиглана. Зургийн projector энэ текстэн RAG-д ашиглагдахгүй.
+Энэ нь жинг дахин сургах буюу шинээр quantize хийх ажиллагаа биш.
+Тухайн хувилбарын эх, hash, хэмжээ: [моделийн бүртгэл](../../config/model-catalog/gemma3-4b-text.json).
+Шинэ upstream tag өөрчлөгдөж болох тул зөвхөн нэрээр нь ижил туршилт гэж үзэхгүй.
+
+Хувийн config, үйлчилгээ, жин Git-д орохгүй. `tools/start_local_llm.py` нь
+өмнө суусан project-local үйлчилгээг далд асаана; өөрөө модель татахгүй.
+STT текст засах optional LLM-ийн тохиргоо үүнээс тусдаа, одоогоор идэвхгүй.
+Эхийн текст, асуулт локал генераторт очно; «Сонсох» нь өмнөхтэй адил онлайн
+TTS үйлчилгээнд хариултын текстийг илгээнэ.
+
+Аргын заавар: [Gemma 3](https://ai.google.dev/gemma/docs/core/model_card_3),
+[GGUF импорт](https://docs.ollama.com/import),
+[Create API](https://docs.ollama.com/api/create),
+[Chat API](https://docs.ollama.com/api/chat).
