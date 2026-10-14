@@ -1917,5 +1917,221 @@
       "tests/test_explorer_http.py": "9cab107f66cc472fb523101fe42122a25adb2f24e424cd3ba9db0c61fa6fd1a4",
       "tests/test_voice_runtime.py": "5af9887032a54e2a02d665f56f1b6747062dec3d4b366420562e60524ed8dd40"
     }
+  },
+  "week04_development_and_synthetic_voice_20261014": {
+    "frozen_reference": {
+      "cases": 40,
+      "answerable": 26,
+      "clarification": 6,
+      "unsupported": 8,
+      "quotes": 61,
+      "unique_reference_passages": 24,
+      "known_attribute_paraphrases": 12,
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "held_out": false,
+      "source_sha256": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+      "public_cases_sha256": "beaa36520086b46f9a3deab9e307958d92891b7c31cbe3f6823a1b2f943f7cbc",
+      "validated_before_outputs": true,
+      "validation_sha256": "dcd95696657d9d3a8d125cbfa93e2d96400b3cf289ab0fef2a9666f7d2e3434b"
+    },
+    "live_http": {
+      "before_routes": {
+        "E": 22,
+        "A": 4,
+        "C": 13,
+        "D": 1
+      },
+      "final_routes": {
+        "A": 23,
+        "C": 3,
+        "D": 6,
+        "E": 8
+      },
+      "before_sha256": "804c989405c0503a8059b270c03ae6eeb8ddb49b97f26498d21675a23d44dfb9",
+      "final_sha256": "4e5b657f2287fab6f1c5cdd777d2573a246acb2c9de43f44bd8211caae3f1d0a",
+      "runtime_import_hash_matched": true,
+      "no_http_errors": true,
+      "human_review_fields_null": true,
+      "correctness_score": null,
+      "latency_note": "One development run with cold E5/first Gemma call; not a repeated latency benchmark."
+    },
+    "assistant_diagnostics": {
+      "before": {
+        "cases": 40,
+        "assistant_judgment_counts": {
+          "fail": 20,
+          "pass": 10,
+          "partial": 10,
+          "uncertain": 0
+        },
+        "by_reference_answerability": {
+          "answerable": {
+            "cases": 26,
+            "judgments": {
+              "fail": 16,
+              "pass": 7,
+              "partial": 3
+            }
+          },
+          "needs_clarification": {
+            "cases": 6,
+            "judgments": {
+              "pass": 1,
+              "partial": 3,
+              "fail": 2
+            }
+          },
+          "unsupported_in_verified_passages": {
+            "cases": 8,
+            "judgments": {
+              "pass": 2,
+              "partial": 4,
+              "fail": 2
+            }
+          }
+        },
+        "error_category_counts": {
+          "supported_answer_withheld": 14,
+          "wrong_requested_attribute": 5,
+          "unresponsive_answer": 3,
+          "missing_required_fact": 1,
+          "incomplete_required_facts": 3,
+          "wrong_abstention_reason": 7,
+          "irrelevant_citations": 8,
+          "missing_required_facts": 1,
+          "missing_targeted_clarification": 4,
+          "unresolved_scope_ambiguity": 2,
+          "unclear_language": 1,
+          "unsupported_claim": 2,
+          "quantity_attribute_context_mismatch": 1,
+          "incomplete_scope_explanation": 3,
+          "missing_appropriate_abstention": 1,
+          "incomplete_abstention_explanation": 1,
+          "unnecessary_clarification": 1,
+          "quantity_unit_context_mismatch": 1,
+          "citation_does_not_support_claim": 1
+        },
+        "counts_are_assistant_only": true,
+        "accuracy_percentage_reported": false
+      },
+      "final": {
+        "pass": 39,
+        "partial": 1
+      },
+      "final_diagnosis_sha256": "e8d790dd40c9ebd021f364871854c70d85502d3d39407ed2ca2a30e2f385acd5",
+      "warning": "Assistant references and judgments; this set was used for tuning. Not general or held-out accuracy."
+    },
+    "implemented": [
+      "query-to-evidence field screens",
+      "bounded literal clause lookups",
+      "year absence in FAQ can reach date-matching web evidence",
+      "fee-only candidate depth10, original ranking unchanged",
+      "scope clarification before fee amount validation",
+      "import-time code fingerprint preflight",
+      "synthetic voice loop / immutable WAV replay / private audio report / SELF-CHECK.cmd"
+    ],
+    "synthetic_voice": {
+      "questions": 6,
+      "voices": 2,
+      "clips": 12,
+      "decoded_before": 12,
+      "decoded_after": 12,
+      "input_wav_hashes_unchanged": true,
+      "raw_stt_unchanged": true,
+      "corpus_wer": 0.2777777777777778,
+      "corpus_cer": 0.07307692307692308,
+      "reference_words": 90,
+      "word_edit_errors": 25,
+      "reference_characters": 520,
+      "character_edit_errors": 38,
+      "raw_routes_before": {
+        "A": 6,
+        "C": 2,
+        "E": 4
+      },
+      "raw_routes_after": {
+        "A": 6,
+        "D": 2,
+        "E": 4
+      },
+      "typed_contract_smoke_matches": 12,
+      "contract_smoke_is_correctness": false,
+      "natural_speaker_benchmark": false,
+      "human_listening": false,
+      "training": false,
+      "before_sha256": "40ae6478e3da49bb04d356c6662da6a0e4a63990b5ab42d71711865639d1fd03",
+      "after_sha256": "406f43698a24a75fa9eaf81bef26210f91c5d0bc36a7f92e1f8c6995480effc0",
+      "final_route_revalidation_sha256": "608be64f7f654ba78af8a48216ea43114fdf3293a87e2a062e59516fad5ab7cd",
+      "defects_fixed": [
+        "lost SQL no longer substitutes programme summary for weekly hours",
+        "ambiguous fee spelling asks type clarification",
+        "document/location ambiguity asks clarification"
+      ],
+      "residuals": [
+        "raw STT words remain wrong",
+        "essay font/point terms lost in both voices",
+        "some direct responses take long to speak",
+        "human/task-success evaluation still pending"
+      ]
+    },
+    "local_tests": {
+      "passed": 347,
+      "seconds": 33.736
+    },
+    "private_viewer_browser": {
+      "checks": 7,
+      "desktop_mobile_checked": true,
+      "audio_metadata_loaded": true,
+      "human_listening": false,
+      "audio_metadata_count": 24
+    },
+    "video": {
+      "url": "https://www.youtube.com/watch?v=3_4BvqFznMQ",
+      "title": "AI агент маань жинхэнэ худалдагч руу залгалаа | Agentic Commerce Hackathon 2026",
+      "channel": "ByamB4",
+      "metadata_and_creator_description_checked": true,
+      "full_frames_audio_transcript_review": false,
+      "note": "Creator describes browser/buyer/phone agents. Our synthetic test is an application of the user idea, not a verified video implementation."
+    },
+    "source_audit": {
+      "new_crawl": false,
+      "new_import": false,
+      "hidden_client_tab_fields": true,
+      "unvisited_nav_paths": [
+        "/about/quality",
+        "/about/history",
+        "/about/environment"
+      ],
+      "placeholders_not_imported": true,
+      "department_stats_not_merged_without_dates": true,
+      "grade_news_conflict_confirmed": false,
+      "grade_note": "Course/current-equivalent grade in news is distinct from completed-grade admission eligibility."
+    },
+    "immutable_files_sha256": {
+      "ROADMAP-FINAL-2026-10-07.mn.md": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
+      "runtime/content.db": "9c3aa3e29ad430d055e75f4a30655a67dcf31bd6c4f1eaa40021ee164a988c72",
+      "CORE/database/website.db": "7d85a12731746ff8963359090adfc403dce26be2ef4c549981b0b0c4fdf66d1e",
+      "runtime/retrieval-ablation-20261013/indexed-passages.json": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+      "data/answer-week04-dev-20261014.json": "beaa36520086b46f9a3deab9e307958d92891b7c31cbe3f6823a1b2f943f7cbc"
+    },
+    "own_training": false,
+    "general_semantic_entailment_proof": false,
+    "retained_failed_runs": [
+      "runtime/week04-answers-final-20261014.json: invalid disk/runtime correspondence after failed restart",
+      "runtime/week04-stale-preflight-20261014.txt: real stale-runtime rejection before POST/output",
+      "runtime/week04-tests-local-20261014.txt: two regressions before fixes",
+      "runtime/week04-voice-tests-local-final-20261014.txt: scope-order regression before fixes"
+    ],
+    "code_sha256_lf": {
+      "rag_runtime.py": "44dff7ea1c87ddf37d9bc26756e3d67a34b143b717cab14cdffb8904e1c139c5",
+      "source_fields.py": "dda3b761672fae72230418b55e5a8ff59890f688f3591d86713cce4592deeb84",
+      "answer_contract.py": "498e5d76b160c8e8990656048269b839825d3ee8cf00e35dbc1c25fb42d90499",
+      "tools/evaluate_answer_quality.py": "80e1607a6007f803b94e42381e71877ec31cd03706fec38db0e929b609e7d555",
+      "tools/validate_answer_cases.py": "714e77df30212ef8672dbef47385f962a80455fcfe03e95d6647e7a1822416b1",
+      "tools/evaluate_voice_loop.py": "733405e6f99c62cd100bfeff05f08f8737f4c3100cabf79b9f26e24e6a925269",
+      "tools/voice_report.py": "47945eb4abe0bb4860c3a391f7d8bdd2f676052da900c92cd340ef24a596cbbb"
+    },
+    "code_byte_note": "Raw collection hashes identify local Windows runtime bytes; LF hashes identify Git text normalization."
   }
 }

@@ -65,12 +65,19 @@ class AuditContracts(unittest.TestCase):
                           ('Олимпиадын', 'https://nmct.edu.mn/olympiad/rules.pdf')]:
             with self.subTest(word=word):
                 chat, retriever, generator = self.chat()
-                retriever.sources = [dict(SOURCE), dict(SOURCE, source_id='other',
-                    url='https://nmct.edu.mn/olympiad/rules.pdf')]
+                retriever.sources = [dict(SOURCE, text='Бүртгэлийн хураамж 20,000 төгрөг.'), dict(SOURCE, source_id='other',
+                    text='Бүртгэлийн хураамж 5,000 төгрөг.', url='https://nmct.edu.mn/olympiad/rules.pdf')]
                 with patch.object(generator, 'generate', return_value=dict(generated=False, llm_calls=0,
                         claims=[], reason='insufficient_evidence')) as generate:
                     chat.route(None, word+' бүртгэлийн хураамж хэд вэ?')
                 self.assertEqual({s['url'] for s in generate.call_args.args[1]}, {url})
+
+    def test_registration_scope_does_not_make_tuition_an_amount_answer(self):
+        chat, _, generator = self.chat()
+        result = chat.route(None, 'Элсэлтийн бүртгэлийн хураамж хэд вэ?')
+        self.assertEqual(result['reason_code'], 'requested_attribute_not_supported')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(generator.calls, 0)
 
     def test_latency_contains_retrieval_and_generation(self):
         chat, retriever, generator = self.chat()

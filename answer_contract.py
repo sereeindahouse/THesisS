@@ -131,12 +131,12 @@ def tuition_amount_query(query):
     allowed = set('сургалтын төлбөр төлбөрийн төлбөрийг хэд хэдэн төгрөг төгрөгөөр ₮ mnt '
                   'жил жилийн жилд жилээр нэг сард сарын сараар сар бүр '
                   'оны онд он хичээлийн үү уу вэ бэ юм байна мөн зөв эсэхийг '
-                  'энэ тэр танай сургуулийн хэлээд өгөөч'.split())
+                  'энэ тэр танай сургуулийн хэлээд өгөөч элсэлтийн хуудсан хуудасны хуудсанд дахь дээр гэсэн үг нь'.split())
     return words <= allowed
 
 
 def tuition_period_notice(query, excerpt):
-    if (tuition_amount_query(query) and re.search(r'\b(?:сард|сарын|сараар|сар)\b', query.casefold())
+    if ('сургалтын төлбөр' in query.casefold() and re.search(r'\b(?:сард|сарын|сараар|сар)\b', query.casefold())
             and re.search(r'жилд|жилийн', excerpt.casefold())):
         return ('Энэ заалтад сургалтын төлбөрийг жилээр заасан. '
                 'Сарын төлбөрийн дүн, хуваарийг энд тодорхойлоогүй.')

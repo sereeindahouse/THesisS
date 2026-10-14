@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections import Counter, OrderedDict
 from copy import deepcopy
 import json
+import hashlib
 import re
 import threading
 import time
@@ -16,9 +17,17 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from llm_runtime import LLMRuntime, _json_object
+from source_fields import ambiguity, requested_detail, detail_supported, DETAIL_LABELS, field_extract, registration_amount_query
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_period_notice)
+
+# Capture import-time bytes, not files reread after a running server is edited.
+# The collector uses these three module fingerprints to reject a stale demo.
+RUNTIME_ARTIFACT_SHA256 = {
+    name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+    for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py')
+}
 
 SYSTEM = '''Answer the QUESTION directly in Mongolian using only the supplied SOURCES.
 Find the passage answering the requested information, not merely the first related passage.
@@ -80,7 +89,7 @@ def focused_extract(query, sources):
                     and 'цээж зургийг' in text and 'jpeg, png, jpg' in text):
                 return source, text
             if ('ярилцлага' in terms and interview_attribute(query) in {'duration', 'companion', 'maximum_score'}
-                    and not re.search(r'босго|тэнцэх|хамгийн бага|эхлэх|хэзээ', q)
+                    and not re.search(r'бичгийн|босго|тэнцэх|хамгийн бага|эхлэх|хэзээ', q)
                     and 'Ярилцлагын шалгалт 15 минут' in text):
                 return source, text
             if (re.search(r'элс', q) and 'эрх' in q and re.search(r'шилжүүл', q)
@@ -109,6 +118,9 @@ def source_extract(query, sources):
     Never copy a number from a neighbouring article or relabel its year.
     """
     from website_retrieval import search_terms
+    direct = field_extract(query, sources)
+    if direct:
+        return direct
     focused = focused_extract(query, sources)
     if focused:
         return focused
@@ -252,6 +264,7 @@ class ChatRAG:
         with self._lock:
             totals = dict(self._totals)
         return {"enabled": self.policy.enabled, "provider": provider,
+                "loaded_artifact_sha256": dict(RUNTIME_ARTIFACT_SHA256),
                 "retrieval": self.retriever.status(), "training_performed": False,
                 "session_totals": totals, "counters_reset_on_server_restart": True,
                 "semantic_support_automatically_proven": False}
@@ -311,13 +324,16 @@ class ChatRAG:
         result.update(related_sources=[], suggestions=[])
         if result.get("answer"):
             return result
-        # FAQ-only numeric/year absence may use a narrow direct tuition lookup.
-        # This does not bypass rejected/expired/exact FAQ guards or enable an LLM.
+        # A FAQ's year coverage is not the website's year coverage. Allow only
+        # absence (not rejected/expired/partial/exact matches) to reach web evidence.
+        # All requested years must still match the same candidate below.
         tuition_handoff = (result.get('reason_code') in {'unmatched_numeric_constraints', 'unsupported_year'}
                            and tuition_amount_query(query) and not result.get('exact_matches'))
-        if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff) or result.get("exact_matches"):
+        year_handoff = (result.get('reason_code') == 'unsupported_year' and not result.get('exact_matches')
+                        and bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query)))
+        if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff and not year_handoff) or result.get('exact_matches'):
             return result
-        if tuition_handoff:
+        if tuition_handoff or year_handoff:
             result['faq_scope_handoff'] = {'reason_code': result['reason_code']}
             if 'supported_years' in result:
                 # These years describe the FAQ scope, not the later web answer.
@@ -335,7 +351,10 @@ class ChatRAG:
             return self._remember(result, allow_draft)
         phase_start = time.perf_counter()
         try:
-            found = self.retriever.search(query, limit=5)
+            # A compound fee question can rank payment-confirmation clauses above
+            # the fee itself. Keep the original query/ranking, inspect up to ten
+            # candidates, then require an actual registration amount clause.
+            found = self.retriever.search(query, limit=10 if registration_amount_query(query) else 5)
         except Exception:
             result.update(message="Мэдээллийн хайлт түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоорой.",
                           reason_code="website_search_unavailable", suggestions=self.SUGGESTIONS)
@@ -382,6 +401,13 @@ class ChatRAG:
                 message="Коосэн сургалтын онцлогийг тайлбарлах ерөнхий эх энэ хайлтаар олдсонгүй. "
                         "Холбоотой албан мэдээнүүдийг доор харууллаа; хөтөлбөр, элсэлтийн талаар тодруулж асууж болно.")
         elif evidence:
+            clarification = ambiguity(query, evidence)
+            if clarification:
+                question, suggestions = clarification
+                result.update(route='D', reason_code='requested_scope_ambiguous',
+                    message=question, suggestions=suggestions)
+                result['rag']['reason'] = 'clarify_requested_scope'
+                return self._remember(result, allow_draft)
             # Registration is shared terminology for admission and olympiads.
             # Keep these source scopes separate before any generative answer.
             q = query.casefold()
@@ -407,6 +433,15 @@ class ChatRAG:
                         result.update(reason_code='requested_attribute_not_supported',
                             message='Таны нэрлэсэн бүртгэлийн хураамжийг батлах эх энэ хайлтаар олдсонгүй. Өөр бүртгэлийн дүнгээр орлуулахгүй.')
                         return self._remember(result, allow_draft)
+            detail = requested_detail(query)
+            if detail:
+                evidence = [source for source in evidence if detail_supported(detail, source['text'])]
+                if not evidence:
+                    result.update(reason_code='requested_attribute_not_supported',
+                        message='Энэ хайлтаар олдсон эхэд ' + DETAIL_LABELS[detail] +
+                            ' тодорхой заагаагүй байна. Холбоотой өөр тоо, хугацаагаар орлуулахгүй. Доорх эхийг шалгах эсвэл сургуультай холбогдож тодруулж болно.')
+                    result['rag']['reason'] = 'requested_attribute_not_supported'
+                    return self._remember(result, allow_draft)
             attribute = interview_attribute(query)
             if attribute in ATTRIBUTE_LABELS:
                 evidence = [source for source in evidence if supports_interview_attribute(query, source['text'])]

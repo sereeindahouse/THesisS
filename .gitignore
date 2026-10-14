@@ -215,3 +215,20 @@ __pycache__/
 !/tests/test_data_explorer.py
 !/tests/test_explorer_http.py
 !/config/project-progress.json
+
+# Frozen week-four development references and bounded field contracts.
+!/source_fields.py
+!/tools/validate_answer_cases.py
+!/data/answer-week04-dev-20261014.json
+!/tests/test_answer_case_validation.py
+!/tests/test_answer_collection.py
+!/tests/test_source_fields.py
+
+# Explicit synthetic voice regression; generated audio/transcripts remain private.
+!/tools/evaluate_voice_loop.py
+!/data/voice-loop-dev-20261014.json
+!/tests/test_voice_loop.py
+
+!/tools/voice_report.py
+!/tests/test_voice_report.py
+!/CORE/SELF-CHECK.cmd

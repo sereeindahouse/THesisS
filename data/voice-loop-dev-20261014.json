@@ -1,0 +1,13 @@
+{
+  "synthetic_voice": true,
+  "label_scope": "Assistant development smoke cases prepared before synthetic clips; not human or held-out gold.",
+  "source_snapshot_sha256": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+  "cases": [
+    {"id":"voice01","query":"Бичгийн шалгалтын нийт оноо хэд вэ?","requested_attribute":"written_exam.maximum_score","paraphrase_of":"week04-06","expected_routes":["A","C"],"required_patterns":["100"],"label_author":"assistant","human_reference_review":false},
+    {"id":"voice02","query":"Элсэлтийн бүртгэлийн хураамж хэдэн төгрөг вэ?","requested_attribute":"registration.admission_amount","paraphrase_of":"week04-11","expected_routes":["A","C"],"required_patterns":["20[,. ]?000"],"label_author":"assistant","human_reference_review":false},
+    {"id":"voice03","query":"Гадаадад ерөнхий боловсрол эзэмшсэн элсэгч ямар баримт бүрдүүлэх вэ?","requested_attribute":"admission.foreign_education_documents","paraphrase_of":"week04-14","expected_routes":["A","C"],"required_patterns":["гэрчилсэн баримт","БШУЯ"],"label_author":"assistant","human_reference_review":false},
+    {"id":"voice04","query":"Ярилцлагын шалгалт хэдэн минут үргэлжилдэг вэ?","requested_attribute":"interview.duration","paraphrase_of":"document-development-interview-duration","expected_routes":["A","C"],"required_patterns":["15 минут"],"label_author":"assistant","human_reference_review":false},
+    {"id":"voice05","query":"Эссэг ямар фонтын хэдэн пунктээр хэвлэх вэ?","requested_attribute":"essay.font_point_size","paraphrase_of":"week04-37","expected_routes":["E"],"required_patterns":["фонт","пункт"],"label_author":"assistant","human_reference_review":false},
+    {"id":"voice06","query":"Компьютерын ухааны хөтөлбөрт SQL-ийг долоо хоногт хэдэн цаг үзэх вэ?","requested_attribute":"programme.sql_weekly_hours","paraphrase_of":"week04-39","expected_routes":["E"],"required_patterns":["долоо хоног"],"label_author":"assistant","human_reference_review":false}
+  ]
+}

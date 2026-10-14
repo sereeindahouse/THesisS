@@ -3,7 +3,7 @@
   "updated_date": "2026-10-14",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах хувилбарын 8 инженерийн шалгуур. Ижил жинтэй тоолол; дипломын нийт хувь, ажлын цаг, чанарын оноо биш.",
-  "current_week": "Хуваариар 2-р долоо хоног; 3-р долоо хоногийн техникийн үеийг урьдчилан гүйцэтгэсэн.",
+  "current_week": "Хуваариар 2-р долоо хоног; week3 техникийн үе дууссан, week4-ийн 40 асуулт/автомат дууны хөгжүүлэлт хийсэн.",
   "status_basis": "Төслийн нотолгоонд тулгуурласан, 2026.10.14-нд шинэчилсэн бүртгэл; runtime-ийн бэлэн байдлыг тусад нь шалгана.",
   "milestones": [
     {
@@ -160,8 +160,12 @@
       "id": "rq",
       "label": "Судалгааны асуулт ба арга",
       "state": "in_progress",
-      "detail": "RQ/хэмжүүрийн ноорог байгаа; эцсийн protocol баталгаажуулалт үлдсэн.",
-      "evidence": []
+      "detail": "RQ, тусдаа correctness/support/completeness/тодруулгын rubric, frozen reference + код/эхийн hash, typed/raw/STT synthetic харьцуулалт бэлтгэсэн. Эцсийн хүний protocol үлдсэн.",
+      "evidence": [
+        "data/answer-week04-dev-20261014.json",
+        "tools/evaluate_answer_quality.py",
+        "tools/evaluate_voice_loop.py"
+      ]
     },
     {
       "id": "literature",
@@ -174,15 +178,18 @@
       "id": "unseen",
       "label": "Шинэ асуултын хараат бус үнэлгээ",
       "state": "todo",
-      "detail": "Reference-ийг гаралт харахаас өмнө тогтоож, correctness/эх/бүрэн байдал/тодруулгыг үнэлнэ.",
+      "detail": "40 assistant reference-г гаралтаас өмнө тогтоож засварт ашигласан development багц. Засварт ашиглаагүй хүний final багц, нягтлал үлдсэн.",
       "evidence": []
     },
     {
       "id": "voice-comparison",
       "label": "Бичсэн / түүхий STT / зассан STT",
       "state": "todo",
-      "detail": "Ижил даалгаврын амжилт, алдаа, хэрэглэгчийн засах хугацааг харьцуулна.",
-      "evidence": []
+      "detail": "6 асуулт × Батаа/Есүй, ижил 12 WAV-тай typed/raw synthetic харьцуулалт хийсэн. Хүний бодит яриа, edited-STT, засах хугацааны судалгаа үлдсэн.",
+      "evidence": [
+        "CORE/SELF-CHECK.cmd",
+        "tools/evaluate_voice_loop.py"
+      ]
     },
     {
       "id": "usability",
@@ -204,5 +211,12 @@
     "Моделиудын бэлэн жинг ашигласан; өөрийн ASR/LLM сургалт хийгээгүй.",
     "Автомат тест болон Support@k нь хариултын correctness хувь биш.",
     "Анхны roadmap болон өмнөх өдрийн түүхэн evidence өөрчлөгдөөгүй."
-  ]
+  ],
+  "evaluation_label": "40 development асуулт + 12 синтетик дуу. Хүний хараат бус чанарын үнэлгээ үлдсэн.",
+  "week04": {
+    "state": "in_progress",
+    "development_cases": 40,
+    "synthetic_clips": 12,
+    "scope": "Хөгжүүлэлтийн reference/protocol/алдааны засвар хийсэн; source/client-tab coverage ба final human QA үлдсэн."
+  }
 }

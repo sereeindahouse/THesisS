@@ -1,0 +1,1780 @@
+{
+  "schema_version": 1,
+  "label_scope": "assistant prepared development/reference diagnostics, not independent human gold/heldout",
+  "created": "2026-10-14",
+  "created_date": "2026-10-14",
+  "label_author": "assistant",
+  "human_reference_review": false,
+  "prepared_before_current_system_outputs": true,
+  "source_snapshot": "runtime/retrieval-ablation-20261013/indexed-passages.json",
+  "source_snapshot_sha256": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+  "corpus_fingerprint": {
+    "algorithm": "sha256",
+    "value": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+    "byte_scope": "exact frozen indexed-passages.json file",
+    "passage_count": 160
+  },
+  "overlap_comparison_files": [
+    "data/rag-source-dev-20261012.json",
+    "data/answer-audit-dev-20261012.json"
+  ],
+  "overlap_comparison_sha256": {
+    "data/rag-source-dev-20261012.json": "ce78e2e61972d95b9e1865d63eb3d5e653efba0167ba069f3e14f9865f852ed8",
+    "data/answer-audit-dev-20261012.json": "c267acabbbc4c83f04df6b276f5d067354f7cc3eeafa713f4555cf6e9ec8eb82"
+  },
+  "answerability_scope": "only the 160 frozen indexed passages; unsupported means not established within these passages, not universal website absence",
+  "counts": {
+    "cases": 40,
+    "reference_answerability": {
+      "answerable": 26,
+      "needs_clarification": 6,
+      "unsupported_in_verified_passages": 8
+    },
+    "novelty_kind": {
+      "new_ambiguity_diagnostic": 3,
+      "new_ambiguity_of_known_attribute": 2,
+      "new_attribute": 25,
+      "paraphrase_known_attribute": 10
+    },
+    "new_query_wordings_vs_old_files": 40,
+    "prior_task_or_attribute_overlap": 12
+  },
+  "novelty_counting_note": "40 wordings differ from both older diagnostic files. Only new_attribute cases are counted as newly requested attributes; clarification variants are separate. paraphrase_of marks prior task/attribute overlap even when a new ambiguity is introduced. Related old cases alone do not make a different requested attribute a new wording of the same attribute.",
+  "inspection_boundary": "Read only AGENTS.md, the frozen passage file, and two old development case files. Did not read router/rag_runtime.py, answer runtime logs, or current output files; did not run queries.",
+  "source_risk_notes": [
+    "All source refs are version 1 frozen snapshots with snapshot_only=true; current validity is unknown. Historical 2026 dates cannot establish today's open/closed status or future prices.",
+    "21 document passages are selected visual_transcription excerpts with reviewer_kind=assistant, not independently human verified full-document OCR/gold. Labels inherit this limitation.",
+    "The 2025–2026 olympiad document includes award rights for 2026–2027. Event year and benefit year must be kept separate.",
+    "Admission HTML says website/social channels for results, while the selected appendix explicitly names Facebook and registration number. Case week04-17 targets the appendix rather than claiming that Facebook is the only channel.",
+    "Admission HTML exemption summaries and rule-page VI.5/VI.6 differ in scope/detail. These cases avoid treating summaries as universal interview exemptions; clarification case week04-30 concerns the exact PDF voucher categories/ranks.",
+    "The essay sources give a 500–700 word limit for the submission but do not establish a separate 500–700 words per topic rule. No case labels that stronger reading.",
+    "Contact's business-24-hours statement is a published promise, not observed response performance. Case week04-26 must attribute it.",
+    "The award excerpt names 2026–2027 but does not establish all-five-year validity or a prohibition on renewal. Unsupported case week04-40 must not turn lack of evidence into a categorical denial."
+  ],
+  "cases": [
+    {
+      "id": "week04-01",
+      "query": "2026–2027 оны журмаар нэгдүгээр курст бүртгүүлэхийн тулд ямар анги төгссөн, ямар гэрчилгээтэй байх ёстой вэ?",
+      "requested_attribute": "admission.first_course_qualification",
+      "expected_behavior": "2026–2027 оны журмын I курсийн шаардлагыг хариулна: ЕБС-ийн 9-р анги төгссөн, суурь боловсролын гэрчилгээ авсан байна. II курсийн 10-р ангийн шаардлагыг орлуулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-c1608adc27d45cb2a309",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+          "version": 1,
+          "locator": "х.1, III.2, курсийн шаардлага",
+          "quote_start": 0,
+          "quote_end": 98,
+          "quote_sha256": "c47d12617fd3695182576aaa1693019b5e630f534e453807c06cb65ee2a7399e",
+          "passage_sha256": "e2df634b85064d1aaa5f28c11e47baaa170b9c7c7aa659305e1d1cc2e0b78df6"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "required_facts": [
+        "2026–2027 оны журам",
+        "I курс: ЕБС-ийн 9-р анги төгссөн",
+        "суурь боловсролын гэрчилгээ авсан"
+      ],
+      "forbidden_claims": [
+        "I курст заавал 10-р анги төгссөн байх",
+        "гэрчилгээ шаардахгүй"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "source-17"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-02",
+      "query": "2026–2027 оны элсэлтийн журамд инженерийн үндсэн хөтөлбөрийн үргэлжлэх хугацааг хэдэн жил гэжээ?",
+      "requested_attribute": "programme.engineering_duration_years",
+      "expected_behavior": "Хадгалсан 2026–2027 оны журамд инженерийн хөтөлбөрийг 5 жилийн гэж тодорхойлсныг эхтэй нь хэлнэ. Элсэлтийн II курсийн үлдэх 4 жилтэй хольж болохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-096fa070923b58083bed",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+          "version": 1,
+          "locator": "х.1, I.1",
+          "quote_start": 0,
+          "quote_end": 107,
+          "quote_sha256": "e1b35b94c144be1cb6ec9a41547bb9c7572e526f8a8720858fc4c535d5482c94",
+          "passage_sha256": "db2132b95d1a963fec58b6687c4cace1058aa29097385f63716610dd8fe17122"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "required_facts": [
+        "инженерийн үндсэн хөтөлбөр 5 жил",
+        "2026–2027 оны журмын хүрээ"
+      ],
+      "forbidden_claims": [
+        "5 сар",
+        "бүх элсэгчийн үлдэх сургалт 4 жил",
+        "бакалаврын зэрэг олгоно"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [
+        "source-16"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-03",
+      "query": "2026 оны элсэлтийн хуудсанд нэгдүгээр курсын таван мэргэжлийг индексийн кодтой нь юу гэж жагсаасан бэ?",
+      "requested_attribute": "admission.first_course_programme_names_and_codes",
+      "expected_behavior": "I курсийн 5 жилийн таван хөтөлбөрийг кодтой нь бүрэн жагсаана: 071309 Цахилгааны инженер, 071501 Механик инженер, 073204 Барилгын инженер, 071101 Химийн инженер, 061301 Компьютерийн ухаан. II курсийн хоёр шилжилтийг нэмэлт шинэ мэргэжил гэж тоолохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 446,
+          "quote_end": 583,
+          "quote_sha256": "2ba4b2ec8ea0fe39d0d79874e97aad18e7c073d893cbb4ab18e975b7cd8f5e34",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "2026 оны элсэлтийн snapshot",
+        "071309 Цахилгааны инженер",
+        "071501 Механик инженер",
+        "073204 Барилгын инженер",
+        "071101 Химийн инженер",
+        "061301 Компьютерийн ухаан"
+      ],
+      "forbidden_claims": [
+        "7 өөр шинэ мэргэжил",
+        "кодыг өөрчлөх",
+        "тавд ороогүй мэргэжил нэмж зохиох"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-04",
+      "query": "2026 оны элсэлтийн жагсаалтаар хоёрдугаар курст шилжин элсэх боломжтой мэргэжлүүд болон үлдэх хугацаа нь юу вэ?",
+      "requested_attribute": "admission.second_course_transfer_programmes_and_duration",
+      "expected_behavior": "II курсийн шилжилтийн хэсгээс Механик инженер 071501, Химийн инженер 071101; 4 жил гэж хариулна. I курсийн бүх таван мэргэжил II курст нээлттэй гэж дүгнэхгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 584,
+          "quote_end": 652,
+          "quote_sha256": "a7a744524443aa549035c4619fe5af60a5a3116ed5e7c242d53b3e1540f6644c",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "2026 оны элсэлтийн snapshot",
+        "II курс шилжин: 4 жил",
+        "071501 Механик инженер",
+        "071101 Химийн инженер"
+      ],
+      "forbidden_claims": [
+        "II курст компьютерын ухаан заавал элсэлттэй",
+        "II курс 5 жил",
+        "I курсийн бүх хөтөлбөр шилжилттэй"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-05",
+      "query": "2026 оны нэгдүгээр курсын бичгийн шалгалтад ажиллах хугацаа 15 минут уу, өөр хугацаатай юу?",
+      "requested_attribute": "written_exam.duration_minutes",
+      "expected_behavior": "I курсийн бичгийн шалгалт 120 минут гэж хариулна. 15 минут нь ярилцлагын хугацаа тул бичгийн шалгалтад хэрэглэхгүй; эхийн 2026 оны хүрээг хадгална.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 653,
+          "quote_end": 689,
+          "quote_sha256": "c773942f3562d6e0529d9e539aef488a24e64c93a6b295d67c6bde00638daaa7",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        },
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 331,
+          "quote_end": 370,
+          "quote_sha256": "cd0c777a7186b37c4e627809cf9e0741681ed8fdc3daf0e844241e0df0dd5f35",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "I курсийн бичгийн шалгалт 120 минут",
+        "2026 оны элсэлтийн snapshot"
+      ],
+      "forbidden_claims": [
+        "бичгийн шалгалт 15 минут",
+        "II курсийн хугацааг ижил гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-06",
+      "query": "2026 оны элсэлтийн бичгийн шалгалтын нийлбэр дээд оноо хэд вэ? Ярилцлагын онооноос нь ялгаж хэлээрэй.",
+      "requested_attribute": "written_exam.maximum_score",
+      "expected_behavior": "Бичгийн шалгалтыг нийт 100 оноотой гэж хариулж, ярилцлагын нийт 20 онооноос ялгана. Тэнцэх босго эсвэл хоёрыг нийлүүлсэн 120 оноог асуусан мэт хариулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 690,
+          "quote_end": 737,
+          "quote_sha256": "90d13900a8814f279769e0939df21159ba15b967a86db7743f5c971956d66107",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        },
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 305,
+          "quote_end": 330,
+          "quote_sha256": "f2afe4aa10fef49cbe4d986a76d33b6340f8e6aaed7af8ee83e9c850436803bc",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "бичгийн шалгалт нийт 100 оноо",
+        "ярилцлагын 20 оноо тусдаа",
+        "2026 оны элсэлтийн snapshot"
+      ],
+      "forbidden_claims": [
+        "бичгийн шалгалт 20 оноо",
+        "100 нь тэнцэх доод босго",
+        "бичгийн шалгалт 120 оноо"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "audit-04"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-07",
+      "query": "2026 оны элсэлтийн бичгийн шалгалтад математикийн хэсэг хэдэн оноо эзэлдэг вэ?",
+      "requested_attribute": "written_exam.mathematics_score",
+      "expected_behavior": "Хадгалсан элсэлтийн хуудсаас математикийн хэсэг 40 оноо гэж хариулна. Физик, химийн 20 оноо эсвэл олимпиадын 60 хувийг хариу болгон сольж болохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 738,
+          "quote_end": 782,
+          "quote_sha256": "ccccf3fa0af86c86a8cd6f1f43f6af352ea282d1ff3a3bd48c9221db736cf58c",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "2026 оны элсэлтийн бичгийн шалгалт",
+        "математик 40 оноо"
+      ],
+      "forbidden_claims": [
+        "математик 20 оноо",
+        "математикийн хэсэг 60%",
+        "40 нь тэнцэх босго"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-08",
+      "query": "2026–2027 оны журмын ярилцлагаар элсэгчийн ямар чадвар, хандлагыг шалгах вэ?",
+      "requested_attribute": "interview.assessed_criteria",
+      "expected_behavior": "Журмын V.4-ийн дөрвөн шалгах зүйлсийг бүрэн хэлнэ: инженер технологийн мэргэжлээр суралцах сонирхол, хүсэл эрмэлзэл, өөрийгөө илэрхийлэх чадвар, эцэг эхийн хамтын ажиллагаа. Хугацаа эсвэл нийт оноогоор хариуг орлуулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 0,
+          "quote_end": 166,
+          "quote_sha256": "56ad5cd43650e408783f1742d445ae77b745ca6c84076b9d25dd2334d135f3b1",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "2026–2027 оны журам V.4",
+        "инженер технологийн мэргэжлээр суралцах сонирхол",
+        "хүсэл эрмэлзэл",
+        "өөрийгөө илэрхийлэх чадвар",
+        "эцэг эхийн хамтын ажиллагаа"
+      ],
+      "forbidden_claims": [
+        "зөвхөн математик шалгана",
+        "шалгадаг зүйлсийн оронд 15 минут л хэлэх"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-09",
+      "query": "2026–2027 оны элсэлтийн ярилцлагад ганцаараа очих уу, асран хамгаалагч дагуулж орох шаардлагатай юу?",
+      "requested_attribute": "interview.accompaniment_requirement",
+      "expected_behavior": "Бүртгүүлэгч эцэг эх эсвэл асран хамгаалагчтай хамт ярилцлагын шалгалтад орохыг журамд зааснаар хариулна. Эцэг эх хоёул заавал ирнэ гэж өргөтгөхгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 230,
+          "quote_end": 301,
+          "quote_sha256": "8f6411f06ab31d946151d4d35f525be97492b633647fbf4a9dcbed17c6cdbda3",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "2026–2027 оны журам",
+        "эцэг эх, асран хамгаалагчтай хамт орно"
+      ],
+      "forbidden_claims": [
+        "ганцаараа орохыг журам зөвшөөрсөн",
+        "эцэг эх хоёул заавал",
+        "зөвхөн эхтэйгээ орно"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-03",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-10",
+      "query": "2026 оны элсэлтийн хуудсан дахь 8,280,000 төгрөг нь нэг сарын сургалтын төлбөр гэсэн үг үү?",
+      "requested_attribute": "tuition.monthly_vs_yearly",
+      "expected_behavior": "Үгүй: хадгалсан 2026 оны элсэлтийн эхэд жилд 8,280,000 ₮ гэжээ. Жилийн дүнг сарын дүн болгохгүй, 12-т хуваасан тоог албан ёсны сарын төлөлт гэж зарлахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-ae7f3e7025af1e557949",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1471:2479",
+          "quote_start": 608,
+          "quote_end": 684,
+          "quote_sha256": "25dba261035f9b013f6747f6ce57d61175e983b719fdb6528972aa7aff9723da",
+          "passage_sha256": "7e868ecdf8ee7826d5ecee5e73ab54e1b063365b8cc5b600b420062b054d97d5"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "2026 оны элсэлтийн snapshot",
+        "жилд 8,280,000 ₮",
+        "сарын төлбөр гэсэн баталгаа биш"
+      ],
+      "forbidden_claims": [
+        "сард 8,280,000 ₮",
+        "сарын албан төлөлт 690,000 ₮",
+        "2027–2028 оны үнийг батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-08",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-11",
+      "query": "2026–2027 оны элсэлтийн цахим бүртгэлээ баталгаажуулах хураамж нь сургалтын төлбөрөөс тусдаа хэдэн төгрөг вэ?",
+      "requested_attribute": "registration.admission_amount",
+      "expected_behavior": "Элсэлтийн бүртгэлийн хураамж 20,000 ₮ гэж хариулна; энэ нь жилд 8,280,000 ₮ сургалтын төлбөр эсвэл 5,000 ₮ олимпиадын хураамж биш. 2026–2027 оны журам/2026 оны хуудсын хүрээг хадгална.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-44db8d639b5958e8892b",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.11, бүртгэлийн хураамж төлөх",
+          "quote_start": 25,
+          "quote_end": 60,
+          "quote_sha256": "e79bb42e4fef79d1e74abb68f0c931d61f17cf0217cc2d84e7f28b2f31a00549",
+          "passage_sha256": "74417c3fd388a384ccedb9f0dd0f2f95b1e225e97f2397333de269ed89f335cb"
+        },
+        {
+          "source_id": "web-a397db96200d51561a39",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:904",
+          "quote_start": 263,
+          "quote_end": 291,
+          "quote_sha256": "10b32f3c984a6ad8010a27d4d2a0f67f7d7269f9d4a231f48d8a3105175eb158",
+          "passage_sha256": "ef9bbe7fdf26a811f3cc02a31f8c7e9e39519bbf22f9d4d641edd0d212b41240"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "элсэлтийн бүртгэлийн хураамж 20,000 ₮",
+        "2026–2027 оны элсэлтийн хүрээ"
+      ],
+      "forbidden_claims": [
+        "элсэлтийн хураамж 5,000 ₮",
+        "элсэлтийн хураамж 8,280,000 ₮"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-13",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-12",
+      "query": "2026–2027 оны журмаар Төрийн банкны апп ашиглаад элсэлтийн хураамжийн QR кодыг төлж болох уу?",
+      "requested_attribute": "registration.admission_bank_permission",
+      "expected_behavior": "Болно: журмын IV.11-д QR кодоор хураамж төлөх аппын жагсаалтад Төрийн банк орсон. Хураамж нь элсэлтийн 20,000 ₮ гэдгийг хадгална. Голомт банкны хоригийг Төрийн банкинд андуурч хэрэглэхгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-44db8d639b5958e8892b",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.11, бүртгэлийн хураамж төлөх",
+          "quote_start": 0,
+          "quote_end": 249,
+          "quote_sha256": "74417c3fd388a384ccedb9f0dd0f2f95b1e225e97f2397333de269ed89f335cb",
+          "passage_sha256": "74417c3fd388a384ccedb9f0dd0f2f95b1e225e97f2397333de269ed89f335cb"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "2026–2027 оны элсэлтийн журам IV.11",
+        "Төрийн банкны апп жагсаалтад байна",
+        "QR код ашиглан элсэлтийн 20,000 ₮ хураамж төлнө"
+      ],
+      "forbidden_claims": [
+        "Төрийн банк боломжгүй",
+        "Голомт банкаар боломжтой",
+        "энэ заалт сургалтын бүтэн төлбөрийн банкны нөхцөл"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-10",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-13",
+      "query": "2026–2027 оны бүртгэлд цээж зургийн файлаа өөрийн нэрээр үү, регистрийн дугаараар уу хадгалах вэ?",
+      "requested_attribute": "photo.filename_identifier",
+      "expected_behavior": "Журмын IV.6-д цээж зургийг өөрийн регистрийн дугаараар хадгалаад системд оруулна гэжээ. Зургийн 6 сарын нас эсвэл өргөтгөлийг файлын нэрийн хариу болгон орлуулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-563cea1c9110eb1ae011",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.6, цээж зураг",
+          "quote_start": 0,
+          "quote_end": 149,
+          "quote_sha256": "c0eab410b0585dcb5293877db1b1ecef391eeacc3f842eff3ca262264c9b58c1",
+          "passage_sha256": "c0eab410b0585dcb5293877db1b1ecef391eeacc3f842eff3ca262264c9b58c1"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "2026–2027 оны журам IV.6",
+        "өөрийн регистрийн дугаараар хадгална"
+      ],
+      "forbidden_claims": [
+        "өөрийн овог нэр заавал файлын нэр болно",
+        "регистрийн дугаарыг нийтэд нийтлэх",
+        "jpeg гэдэг нь файлын нэр"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "documents",
+      "related_known_case_ids": [
+        "source-01",
+        "source-02",
+        "audit-11"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-14",
+      "query": "Гадаадад ЕБС төгссөн элсэгч 2026–2027 оны журмын дагуу комисст ямар хоёр баримтыг хамт өгөх вэ?",
+      "requested_attribute": "admission.foreign_education_documents",
+      "expected_behavior": "ЕБС-тай дүйцүүлэх шалгалтыг гадаадад өгснийг гэрчилсэн баримт болон БШУЯ-наас баталгаажуулсан тодорхойлолтыг хамт бүрдүүлж Элсэлтийн комисст ирүүлэхийг хэлнэ. Зөвхөн нэг баримт хангалттай гэж орхигдуулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-607b4578a5134f3b7cfa",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+          "version": 1,
+          "locator": "х.1, III.2, гадаадад боловсрол эзэмшсэн суралцагч",
+          "quote_start": 0,
+          "quote_end": 242,
+          "quote_sha256": "fcedbd97c7042cc2072176ad56c695566e380b554db00047a50f8b58773aefc8",
+          "passage_sha256": "fcedbd97c7042cc2072176ad56c695566e380b554db00047a50f8b58773aefc8"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "required_facts": [
+        "2026–2027 оны журам",
+        "ЕБС-тай дүйцүүлэх шалгалтыг гадаадад өгсөн болохыг гэрчилсэн баримт",
+        "БШУЯ-наас баталгаажуулсан тодорхойлолт",
+        "Элсэлтийн комисст хамт ирүүлнэ"
+      ],
+      "forbidden_claims": [
+        "зөвхөн паспорт хангалттай",
+        "БШУЯ-ны тодорхойлолт шаардлагагүй",
+        "шалгалтаас автоматаар чөлөөлөгдөнө"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-15",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "documents",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-15",
+      "query": "2026 оны элсэлтийн эссэг гараар бичиж авчрах уу, ямар цаасан дээр ямар хэлбэрээр хураалгах вэ?",
+      "requested_attribute": "essay.delivery_format_and_medium",
+      "expected_behavior": "Хадгалсан элсэлтийн хуудсанд A4 цаасан дээр хэвлээд бичгийн шалгалтын өдөр өөрийн биеэр авч ирэх, гараар бичсэн эссэг хүлээн авахгүй гэж заасныг бүрэн хариулна. Фонт болон цахим файл илгээх нөхцөл зохиохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-28b0194fe58b446117be",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2215:3116",
+          "quote_start": 535,
+          "quote_end": 656,
+          "quote_sha256": "c83103cc3198d137fc32e79a35a6136999c7c910a7e1b9b90be9c4d34e495e12",
+          "passage_sha256": "0007c206c26c0bd99229aeeaa5bcb873020b141f4ac2ce9c54f2b87a11d9f717"
+        },
+        {
+          "source_id": "doc-ec1d94e99ea33af05f56",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.10, эссэ",
+          "quote_start": 0,
+          "quote_end": 100,
+          "quote_sha256": "aabcaf298e24ef53c0218fd43fdb469a7fc73f2bf65a1d57879d13b5c41db606",
+          "passage_sha256": "d08983673525f54135f44d51c216295709a70ca4cdfffd4ab991b9a1045ffe4f"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elselt",
+      "required_facts": [
+        "2026 оны элсэлтийн snapshot",
+        "A4 цаасан дээр хэвлэнэ",
+        "бичгийн шалгалтын өдөр өөрийн биеэр авч ирнэ",
+        "гараар бичсэн эссэ хүлээн авахгүй"
+      ],
+      "forbidden_claims": [
+        "гараар бичсэн эссэ зөвшөөрнө",
+        "имэйлээр илгээхэд хангалттай",
+        "заавал Times New Roman 12"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "essay",
+      "related_known_case_ids": [
+        "source-07",
+        "source-08"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-16",
+      "query": "2026–2027 оны элсэлтийн эссэд хариулах гурван сэдвийг бүтнээр нь хэлж өгнө үү.",
+      "requested_attribute": "essay.required_topics",
+      "expected_behavior": "Гурван сэдвийг бүрэн хариулна: Коосэнд суралцах болсон шалтгаан; таван мэргэжлээс энэ мэргэжлийг сонгох болсон шалтгаан; өөрийн сонирхол, ур чадвар. Нэгийг нь ганц заавал сэдэв гэж хязгаарлахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-ec1d94e99ea33af05f56",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.10, эссэ",
+          "quote_start": 126,
+          "quote_end": 250,
+          "quote_sha256": "14087f3d5777cf8dbc4799eaf46d897f8a03980d924a435777aa1d9e0ddee788",
+          "passage_sha256": "d08983673525f54135f44d51c216295709a70ca4cdfffd4ab991b9a1045ffe4f"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "required_facts": [
+        "2026–2027 оны элсэлтийн журам",
+        "Коосэнд суралцах болсон шалтгаан",
+        "энэ мэргэжлийг сонгох болсон шалтгаан",
+        "өөрийн сонирхол, ур чадвар"
+      ],
+      "forbidden_claims": [
+        "зөвхөн хоббигийн тухай бичнэ",
+        "гурван сэдвийн аль нэгийг сонгох ёстой гэж батлах",
+        "сэдэв бүр тус тусдаа 500–700 үг гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-08",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "essay",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-17",
+      "query": "2026 оны наймдугаар сарын элсэлтийн нэгдсэн дүнг хэдний өдөрт багтааж, ямар таних дугаараар хаана зарлах вэ?",
+      "requested_attribute": "admission.august_result_date_channel_identifier",
+      "expected_behavior": "Хавсралтын 5-д зааснаар 2026 оны 8-р сарын 15-ны өдөрт багтаан сургуулийн Facebook хуудсанд бүртгэлийн дугаараар нэгдсэн дүнг зарлана. 8-р сарын 17-ны имэйл батламжтай ялгана.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-63a5cb0920af3f23bdd7",
+          "url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+          "version": 1,
+          "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ",
+          "quote_start": 0,
+          "quote_end": 122,
+          "quote_sha256": "db06aeb945f68028a906f4e3bae75787942f51b4ac87bedc9481e80459f2d109",
+          "passage_sha256": "01198e4fba5ec84753b2743ab023f0ee56687f9c5e4c8f76f86758f0043703ac"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "required_facts": [
+        "2026 оны наймдугаар сарын хавсралт",
+        "8-р сарын 15-ны өдөрт багтаана",
+        "сургуулийн Facebook хуудас",
+        "бүртгэлийн дугаараар"
+      ],
+      "forbidden_claims": [
+        "нэгдсэн дүнг 8-р сарын 17-нд л имэйлээр",
+        "регистрийн дугаараар зарлана",
+        "яг ярилцлага дууссанаас 15 минутын дараа"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "source-19",
+        "audit-02"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-18",
+      "query": "2026.08.15-ны ярилцлагын хуваарийг оролцогч хаанаас, ямар байдлаар авах ёстой байсан бэ?",
+      "requested_attribute": "interview.schedule_publication_location_and_form",
+      "expected_behavior": "2026.08.15-ны хавсралтаар ярилцлагын хуваарийг бичгийн шалгалтад орох үед хэвлэснээр сургуулийн 1 давхарт байршуулсан байна гэж хариулна. Энэ нь хувийн цагийг асуултаас мэдэж байгаа мэт хэлэх эрх өгөхгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-cb20d942a0296ab33d77",
+          "url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+          "version": 1,
+          "locator": "хавсралт, 4. Шалгалтын хугацаа",
+          "quote_start": 159,
+          "quote_end": 281,
+          "quote_sha256": "fd2732409f5d75da0a62e63b3b6408296ad2ced9dc9b062f9d510af7d1830a0a",
+          "passage_sha256": "a165a9077f629e274ffa6ea8c7e4eb0d84aba1aa1c0bfa766aa5bb05c3268978"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "required_facts": [
+        "2026.08.15-ны хавсралт",
+        "бичгийн шалгалтад орох үед",
+        "хэвлэмэл хуваарь",
+        "сургуулийн 1 давхар"
+      ],
+      "forbidden_claims": [
+        "хуваарь зөвхөн имэйлээр",
+        "бүгд яг 13:30-д нэгэн зэрэг орно",
+        "хэрэглэгчийн хувийн ярилцлагын цагийг зохиох"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "source-18"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-19",
+      "query": "2026–2027 оны журмаар элсэх батламж авсны дараа элсэлтээ баталгаажуулахын тулд ямар хоёр алхмыг хийх вэ?",
+      "requested_attribute": "admission.confirmation_contract_and_tuition_conditions",
+      "expected_behavior": "Сургуулиас товлосон хугацаанд суралцах гэрээ байгуулж, сургалтын төлбөрийг төлсний дараа элсэн суралцах баталгаажна. Гэрээний хугацаа болон бусад мэдээллийг батламж гардуулах үед мэдээлнэ; яг эцсийн өдөр эсвэл хэсэгчилсэн хувь зохиохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-60163869c3780ab828b2",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+          "version": 1,
+          "locator": "х.3, VI.3, гэрээ ба төлбөр",
+          "quote_start": 0,
+          "quote_end": 218,
+          "quote_sha256": "6aadcd73aa6970c52b759af916c3004063f93c970cdadb115bfcbd32101a4a01",
+          "passage_sha256": "6aadcd73aa6970c52b759af916c3004063f93c970cdadb115bfcbd32101a4a01"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "required_facts": [
+        "2026–2027 оны журам VI.3",
+        "сургуулиас товлосон хугацаанд суралцах гэрээ байгуулна",
+        "сургалтын төлбөр төлсний дараа баталгаажна",
+        "гэрээний хугацааг батламж гардуулах үед мэдээлнэ"
+      ],
+      "forbidden_claims": [
+        "батламж авсан даруйд гэрээгүй бүрэн баталгаажсан",
+        "бүртгэлийн 20,000 ₮ л төлөхөд сургалтын төлбөрийн нөхцөл хангана",
+        "гэрээний эцсийн огноог таамаглах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "source-12"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-20",
+      "query": "2025–2026 оны Байгалийн ухааны VII олимпиадад ЕБС-ийн хэддүгээр ангийн сурагч оролцох эрхтэй байсан бэ?",
+      "requested_attribute": "olympiad.participant_grade",
+      "expected_behavior": "2025–2026 оны хичээлийн жилд ЕБС-ийн 9-р ангид сурч буй бүх суралцагчдад нээлттэй гэж хариулна. Элсэлтийн 9-р анги төгссөн байх эсвэл II курсийн 10-р ангийн шаардлагыг орлуулахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-807ce09761ad83138ac5",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл",
+          "quote_start": 0,
+          "quote_end": 136,
+          "quote_sha256": "f527c4ff45f6ba71c3aae8d3f9384b5693edfcc9e7b58887a72f9b5d0b52265a",
+          "passage_sha256": "b019001b5091dcaf20871856c3da3647546c814faa128772e388a8fe2ee9bce0"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "required_facts": [
+        "2025–2026 оны олимпиад",
+        "ЕБС-ийн 9-р ангид сурч буй суралцагч",
+        "бүх ийм суралцагчдад нээлттэй"
+      ],
+      "forbidden_claims": [
+        "зөвхөн ШМТК-ийн оюутнууд",
+        "10-р анги төгссөн хүн бүр",
+        "ирээдүйн 2027 оны олимпиадын эрх ижил гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-21",
+      "query": "2026 оны Байгалийн ухааны VII олимпиадын бүртгэл дөрөвдүгээр сарын хэднээс хэдний хэдэн цаг хүртэл явсан бэ?",
+      "requested_attribute": "olympiad.registration_window_and_deadline_time",
+      "expected_behavior": "2026 оны 4-р сарын 2-ноос 4-р сарын 23-ны 18:00 хүртэл гэж бүтэн хариулна. Олимпиадын 4-р сарын 25-ны өдрийг бүртгэлийн төгсгөл гэж андуурахгүй; өнгөрсөн snapshot болохыг хадгална.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-807ce09761ad83138ac5",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл",
+          "quote_start": 137,
+          "quote_end": 291,
+          "quote_sha256": "d46a30ccd61ba30d585ca3ce7965716a4786d8735be2300ad8160e46d9edc4da",
+          "passage_sha256": "b019001b5091dcaf20871856c3da3647546c814faa128772e388a8fe2ee9bce0"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "required_facts": [
+        "2026.04.02 эхэлнэ",
+        "2026.04.23 18:00 дуусна",
+        "2025–2026 оны удирдамжийн хүрээ"
+      ],
+      "forbidden_claims": [
+        "2026.04.25 хүртэл бүртгэнэ",
+        "элсэлтийн 8/13 16:00-тай солих",
+        "одоогийн бүртгэл нээлттэйг батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-22",
+      "query": "2026 оны Байгалийн ухааны VII олимпиадын шагналыг хэдний хэдэн цагт, сургуулийн аль өрөөнд гардуулсан хуваарьтай вэ?",
+      "requested_attribute": "olympiad.award_ceremony_date_time_room",
+      "expected_behavior": "Удирдамжид шагналт байр эзэлсэн сурагчдад 2026.04.27-ны 15:00 цагаас ШМТК-ийн 809 тоотод шагнал гардуулахаар заасныг хариулна. Бодит ёслол болсон гэж тусдаа нотолгоогүй батлахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-486fa100d32dd8c468d8",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Долоо. Шалгаруулалт ба шагнал гардуулалт",
+          "quote_start": 76,
+          "quote_end": 190,
+          "quote_sha256": "a147d3fa5d5da72557ecaaa01690fbd0f0eac0df1cbb682a8bcdc465adf306e4",
+          "passage_sha256": "9e6dd77b0ea673dcd550d38155d49a59b7c6c49ff5c3c3347a61b990f2c15a8a"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "required_facts": [
+        "удирдамжийн товлосон хуваарь",
+        "2026.04.27",
+        "15:00 цагаас",
+        "ШМТК-ийн 809 тоот"
+      ],
+      "forbidden_claims": [
+        "4-р сарын 25-ны 10:00 шагнал гардуулна",
+        "1 давхарт гардуулна",
+        "ёслол заавал болсон тухай батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-23",
+      "query": "2025–2026 оны математик-хими-биологийн олимпиадын амжилттай оролцогчдоос хэдэн сурагч, хэдээс хэддүгээр байр хүртэл бичгийн шалгалтгүй элсэх эрхийн бичиг авах вэ?",
+      "requested_attribute": "olympiad.chemistry_exempt_award_count_and_ranks",
+      "expected_behavior": "Энэ ангиллын амжилттай оролцсон 10 сурагч буюу 6–15-р байрт Химийн инженерийн ангид бичгийн шалгалтгүй элсэх эрхийн бичиг олгоно гэж хариулна. Математик-физикийн 20 сурагч, 11–30-р байртай сольж болохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "doc-756c8022c4d1704d4169",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.Б, математик-хими-биологийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 726,
+          "quote_end": 920,
+          "quote_sha256": "f8109d16ebc06b7a507f52137b8b9f5f9945eaca7de4d6405d50a12666f1c397",
+          "passage_sha256": "25730a2df487b6f96ffb070762bcc8bd3df72ad62a43abe8c85a302bd17e3006"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "required_facts": [
+        "2025–2026 оны олимпиадын удирдамж",
+        "математик-хими-биологийн төрөл",
+        "10 сурагч",
+        "6–15-р байр",
+        "Химийн инженерийн ангид бичгийн шалгалтгүй элсэх эрх"
+      ],
+      "forbidden_claims": [
+        "20 сурагч, 11–30-р байр",
+        "бүх шалгалтаас чөлөөлөгдөнө",
+        "аль ч хөтөлбөрт хэрэглэнэ"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [
+        "source-24"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-24",
+      "query": "Хадгалсан компьютерын ухааны хөтөлбөрт SQL болон өгөгдлийн сантай ажиллах ямар ур чадварыг олгоно гэжээ?",
+      "requested_attribute": "programme.computer_science_database_sql_competency",
+      "expected_behavior": "Өгөгдлийн сан зохион байгуулах, SQL ашиглан өгөгдөл боловсруулах чадвар олгохоор тусгасан гэж эхийн хүрээнд хариулна. SQL-ийн яг цаг, кредит эсвэл сертификат зохиохгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-0d2c53c4fd8bebc8ef57",
+          "url": "https://nmct.edu.mn/programs/computer-science-program",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=584:1640",
+          "quote_start": 900,
+          "quote_end": 971,
+          "quote_sha256": "af5a7a0a1d44c743b49bdcea9374cf5acb504ba98f1f247be7112aa9431ae7ba",
+          "passage_sha256": "2dd29b0ae97ec31aac42a35edb225fc9be0550c63827365fd15300cfea3c5eff"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/programs/computer-science-program",
+      "required_facts": [
+        "хадгалсан компьютерын ухааны хөтөлбөр",
+        "өгөгдлийн сан зохион байгуулах",
+        "SQL ашиглан өгөгдөл боловсруулах"
+      ],
+      "forbidden_claims": [
+        "SQL заадаггүй",
+        "SQL сертификат автоматаар олгоно",
+        "долоо хоногт SQL-ийн цагийг зохиох"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [
+        "source-28"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-25",
+      "query": "Компьютерын ухааны хөтөлбөрийн тайлбарт төгсөгч ажиллаж болох ямар дөрвөн мэргэжлийг жишээлсэн бэ?",
+      "requested_attribute": "programme.computer_science_example_career_roles",
+      "expected_behavior": "Программ хангамж хөгжүүлэгч, системийн шинжээч, мэдээллийн системийн инженер, өгөгдлийн шинжээч гэсэн дөрвөн жишээг хэлнэ. Ажилд орох баталгаа, цалин эсвэл төгсөх бүрт оноох албан тушаал гэж тайлбарлахгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-cc4407e176adba345ad4",
+          "url": "https://nmct.edu.mn/programs/computer-science-program",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:1080",
+          "quote_start": 875,
+          "quote_end": 1080,
+          "quote_sha256": "8e77568e349adf11a49b235f45690d54b10bf06efdce599d344bd05674d284f1",
+          "passage_sha256": "5757732d2a5de4c9533511676950c1240e95442d6e54df1dd440dba41110f65a"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/programs/computer-science-program",
+      "required_facts": [
+        "программ хангамж хөгжүүлэгч",
+        "системийн шинжээч",
+        "мэдээллийн системийн инженер",
+        "өгөгдлийн шинжээч",
+        "ажиллах боломжийн жишээ"
+      ],
+      "forbidden_claims": [
+        "төгсөгч бүрт ажил баталгаатай",
+        "цалингийн тоо зохиох",
+        "эдгээр нь 4 тусдаа элсэлтийн хөтөлбөр"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-26",
+      "query": "Сургуулийн холбоо барих хуудсанд асуулт, хүсэлтэд ямар хугацаанд хариулна гэж амласан бэ?",
+      "requested_attribute": "schoolcontact.stated_response_window_business_hours",
+      "expected_behavior": "Хадгалсан холбоо барих хуудсанд ажлын 24 цагийн дотор хариулна гэжээ хэмээн эхийн мэдэгдлийг дамжуулна. Энэ нь бодит хариу ирсэн хэмжилт биш бөгөөд амралтын цагийг оруулсан 24 календарь цаг гэж өөрчлөхгүй.",
+      "reference_answerability": "answerable",
+      "source_refs": [
+        {
+          "source_id": "web-50d20e0273a3d4192453",
+          "url": "https://nmct.edu.mn/contact",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:446",
+          "quote_start": 35,
+          "quote_end": 119,
+          "quote_sha256": "d3bc9a4188c24ea559f5f792615c58e1a4aeada8e701dca4dad778ecd8d14214",
+          "passage_sha256": "6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/contact",
+      "required_facts": [
+        "хадгалсан холбоо барих хуудасны мэдэгдэл",
+        "ажлын 24 цагийн дотор"
+      ],
+      "forbidden_claims": [
+        "24 календарь цаг",
+        "24 минут",
+        "хүсэлтэд бодитоор 24 цагт хариулсныг шалгасан",
+        "бүх тохиолдолд баталгаатай хариулна"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "schoolcontact",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-27",
+      "query": "Бүртгэлийн төлбөрөө хэдээр төлөх ёстой вэ?",
+      "requested_attribute": "registration.amount_scope_ambiguity",
+      "expected_behavior": "Элсэлтийн эсвэл олимпиадын аль бүртгэлийг асуусныг нэг тодруулах асуултаар лавлана. Хэрэгтэй бол 2026 оны элсэлт 20,000 ₮, 2025–2026 оны олимпиад 5,000 ₮ гэдгийг хоёр өөр хүрээний жишээ болгон үзүүлнэ; аль нэгийг хэрэглэгчийн төлөх дүн гэж сонгохгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "doc-44db8d639b5958e8892b",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.11, бүртгэлийн хураамж төлөх",
+          "quote_start": 0,
+          "quote_end": 60,
+          "quote_sha256": "18e48be11a8ada67b61523ad6e9a0c4ff240a6b7e5ea3219fb09b45d3c2e1828",
+          "passage_sha256": "74417c3fd388a384ccedb9f0dd0f2f95b1e225e97f2397333de269ed89f335cb"
+        },
+        {
+          "source_id": "doc-807ce09761ad83138ac5",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл",
+          "quote_start": 0,
+          "quote_end": 136,
+          "quote_sha256": "f527c4ff45f6ba71c3aae8d3f9384b5693edfcc9e7b58887a72f9b5d0b52265a",
+          "passage_sha256": "b019001b5091dcaf20871856c3da3647546c814faa128772e388a8fe2ee9bce0"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "бүртгэлийн төрөл тодорхойгүй",
+        "элсэлт эсвэл олимпиад гэдгийг тодруулна"
+      ],
+      "forbidden_claims": [
+        "хэрэглэгч элсэлтийг асуусан гэж таах",
+        "хэрэглэгч олимпиад гэж таах",
+        "нэг дүнг хамрах хүрээгүй өгөх"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-09",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-28",
+      "query": "Сургуулийн шалгалт дээр нийт хэдэн минут суух вэ?",
+      "requested_attribute": "exam.duration_scope_ambiguity",
+      "expected_behavior": "Элсэлтийн I курсийн бичгийн шалгалт уу, ярилцлага уу, эсвэл олимпиад уу гэдгийг тодруулна. I курсийн бичгийн шалгалтын 120 минут, ярилцлагын 15 минут, олимпиадын 10:00–12:30 хуваарь өөр тул нэгийг шууд нийт хугацаа гэж сонгохгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 653,
+          "quote_end": 689,
+          "quote_sha256": "c773942f3562d6e0529d9e539aef488a24e64c93a6b295d67c6bde00638daaa7",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        },
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 331,
+          "quote_end": 370,
+          "quote_sha256": "cd0c777a7186b37c4e627809cf9e0741681ed8fdc3daf0e844241e0df0dd5f35",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        },
+        {
+          "source_id": "doc-1ef69391981da70cb2ff",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.1, Гурав. Хугацаа, байршил",
+          "quote_start": 0,
+          "quote_end": 72,
+          "quote_sha256": "302ab558bd6b6afd4d6ce6b7572f71bed2a341fb840f4bc07e3073695d305992",
+          "passage_sha256": "302ab558bd6b6afd4d6ce6b7572f71bed2a341fb840f4bc07e3073695d305992"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "шалгалтын төрөл тодорхойгүй",
+        "бичгийн/ярилцлага/олимпиадын аль болохыг тодруулна"
+      ],
+      "forbidden_claims": [
+        "15 минут гэж хамрах хүрээгүй хариулах",
+        "120 минут гэж хамрах хүрээгүй хариулах",
+        "хүлээлт орсон нийт хувийн хугацааг зохиох"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-01",
+      "novelty_kind": "new_ambiguity_of_known_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [
+        "source-04"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-29",
+      "query": "Шилжиж элсэхээр бодож байгаа, миний сонгох хөтөлбөрийн индексийн кодыг хэлээд өгөөч.",
+      "requested_attribute": "admission.transfer_programme_code_missing_programme",
+      "expected_behavior": "Хэрэглэгч Механик инженер эсвэл Химийн инженерийн аль хөтөлбөрт, 2026 оны жагсаалтын II курсийн шилжилтээр орох гэж байгааг тодруулна. Тухайн snapshot-ийн хоёр сонголтыг нэрлэж болно; нэг кодыг хэрэглэгчийн хувийн сонголт гэж таахгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "web-f072ed3607dc1cac55f1",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=733:1702",
+          "quote_start": 584,
+          "quote_end": 652,
+          "quote_sha256": "a7a744524443aa549035c4619fe5af60a5a3116ed5e7c242d53b3e1540f6644c",
+          "passage_sha256": "244c00ff871b93db895f14199fb54f75ad771911f1b3e318e3050498547433e3"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "хөтөлбөрийн нэр дутуу",
+        "2026 оны II курсийн Механик эсвэл Химийн аль болохыг тодруулах"
+      ],
+      "forbidden_claims": [
+        "шууд 071501 гэж хувьчлан өгөх",
+        "шууд 071101 гэж хувьчлан өгөх",
+        "шилжилт бүр бүх хөтөлбөрт боломжтой гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_ambiguity_diagnostic",
+      "topic": "programmes",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-30",
+      "query": "Олимпиадын бичгийн шалгалтгүй элсэх эрхийн бичиг авсан юм. Тэрийгээрээ аль мэргэжлүүдээс сонгож болох вэ?",
+      "requested_attribute": "olympiad.exemption_programme_scope_missing_category_and_rank",
+      "expected_behavior": "Олимпиадын төрөл, байр/эрхийн бичгийн нөхцөлийг тодруулна. Математик-физикийн 11–30-р байрны эрхийн бичиг дөрвөн ангид сонголттой; математик-хими-биологийн 6–15-р байрных зөвхөн Химийн инженерийн ангид үйлчилнэ. Нэг төрлийг тааж бүх эрхийн бичигт хэрэглэж болохгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "doc-4901aef11fdb748c9392",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.А, математик-физикийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 719,
+          "quote_end": 928,
+          "quote_sha256": "5f8fb2d8c21280f966bf9b6a5b78e1d47f3220c808b6aedf2f01c253b6cb1dea",
+          "passage_sha256": "2c0a67c4bb9772d8bd8c50f9d74a9b0c815eca0af53f23119d50998429bc616e"
+        },
+        {
+          "source_id": "doc-756c8022c4d1704d4169",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.Б, математик-хими-биологийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 726,
+          "quote_end": 920,
+          "quote_sha256": "f8109d16ebc06b7a507f52137b8b9f5f9945eaca7de4d6405d50a12666f1c397",
+          "passage_sha256": "25730a2df487b6f96ffb070762bcc8bd3df72ad62a43abe8c85a302bd17e3006"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "олимпиадын төрөл, байр, эрхийн бичгийн нөхцөл дутуу",
+        "төрөл болон байр/эрхийн бичгийг тодруулах"
+      ],
+      "forbidden_claims": [
+        "бүх эрхийн бичгээр дурын таван мэргэжил",
+        "бүгд зөвхөн химид",
+        "эрхийн бичиг бүх шалгалтаас чөлөөлнө"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-24",
+      "novelty_kind": "new_ambiguity_of_known_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-31",
+      "query": "Байгалийн ухааны VII олимпиадын хоёрдугаар байрт хэдэн сурагч шагнах вэ?",
+      "requested_attribute": "olympiad.second_place_award_count_missing_category",
+      "expected_behavior": "Математик-физик эсвэл математик-хими-биологийн аль ангиллыг асуусныг тодруулна. Эхэд эхний төрөлд II байр 2 сурагч, хоёр дахь төрөлд 1 сурагч тул ангилалгүй нэг тоо сонгохгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "doc-4901aef11fdb748c9392",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.А, математик-физикийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 476,
+          "quote_end": 557,
+          "quote_sha256": "5891b3ad1d8e97e08152dc5657c1151015be165c4b067ecb6b53b94d1855b737",
+          "passage_sha256": "2c0a67c4bb9772d8bd8c50f9d74a9b0c815eca0af53f23119d50998429bc616e"
+        },
+        {
+          "source_id": "doc-756c8022c4d1704d4169",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.Б, математик-хими-биологийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 483,
+          "quote_end": 564,
+          "quote_sha256": "a5ffa4abdd4d931c8c979c23519577b9717d328663a5c7d66127bc06f12e0171",
+          "passage_sha256": "25730a2df487b6f96ffb070762bcc8bd3df72ad62a43abe8c85a302bd17e3006"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "олимпиадын ангилал дутуу",
+        "аль ангиллын II байр болохыг тодруулна"
+      ],
+      "forbidden_claims": [
+        "бүх ангилалд II байр 2 сурагч",
+        "бүх ангилалд II байр 1 сурагч",
+        "тоо асуухад зөвхөн 30% гэж хариулах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_ambiguity_diagnostic",
+      "topic": "olympiad",
+      "related_known_case_ids": [
+        "source-23"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-32",
+      "query": "Шалгалтын дүнгээ хэдийд, хаанаас харах вэ?",
+      "requested_attribute": "exam.result_publication_missing_exam_scope",
+      "expected_behavior": "2026 оны наймдугаар сарын элсэлтийн шалгалт уу, Байгалийн ухааны VII олимпиад уу гэдгийг тодруулна. Элсэлтийн нэгдсэн дүн 8-р сарын 15-нд Facebook-д бүртгэлийн дугаараар; олимпиадын дүн тухайн олимпиадын өдөр Facebook-д гэдгийг хүрээтэй ялгана. Батламжийн имэйлийг дүн гэж сольж болохгүй.",
+      "reference_answerability": "needs_clarification",
+      "source_refs": [
+        {
+          "source_id": "doc-63a5cb0920af3f23bdd7",
+          "url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+          "version": 1,
+          "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ",
+          "quote_start": 0,
+          "quote_end": 122,
+          "quote_sha256": "db06aeb945f68028a906f4e3bae75787942f51b4ac87bedc9481e80459f2d109",
+          "passage_sha256": "01198e4fba5ec84753b2743ab023f0ee56687f9c5e4c8f76f86758f0043703ac"
+        },
+        {
+          "source_id": "doc-486fa100d32dd8c468d8",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Долоо. Шалгаруулалт ба шагнал гардуулалт",
+          "quote_start": 0,
+          "quote_end": 75,
+          "quote_sha256": "3aef88c87bd74a17dfa40ff95339aa73af7edef531b2dec9074c5cfb76abbae6",
+          "passage_sha256": "9e6dd77b0ea673dcd550d38155d49a59b7c6c49ff5c3c3347a61b990f2c15a8a"
+        },
+        {
+          "source_id": "doc-1ef69391981da70cb2ff",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.1, Гурав. Хугацаа, байршил",
+          "quote_start": 0,
+          "quote_end": 72,
+          "quote_sha256": "302ab558bd6b6afd4d6ce6b7572f71bed2a341fb840f4bc07e3073695d305992",
+          "passage_sha256": "302ab558bd6b6afd4d6ce6b7572f71bed2a341fb840f4bc07e3073695d305992"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "шалгалтын төрөл болон он/үйл явдал дутуу",
+        "элсэлтийн эсвэл олимпиадын дүн гэдгийг тодруулах"
+      ],
+      "forbidden_claims": [
+        "төрөлгүй 8-р сарын 15 гэж сонгох",
+        "төрөлгүй 4-р сарын 25 гэж сонгох",
+        "имэйл батламжийг нэгдсэн дүнгийн суваг гэж солих"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_ambiguity_diagnostic",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-33",
+      "query": "2026 оны элсэлтийн ярилцлага дуусаад яг хэдэн минутын дараа дүн нь бэлэн болох вэ?",
+      "requested_attribute": "interview.result_delay_minutes",
+      "expected_behavior": "Баталгаажсан хэсгүүд яг хэдэн минутын дараа ярилцлагын дүн гарахыг тогтоогоогүйг хэлнэ. 15 минут нь шалгалтын үргэлжлэх хугацаа; нэгдсэн дүнг 8-р сарын 15-ны өдөрт багтааж зарлах заалт нь хувийн ярилцлагын минутын саатал биш. Яг минут хэрэгтэй бол сургуулиас тодруулахыг санал болгож болно.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 331,
+          "quote_end": 370,
+          "quote_sha256": "cd0c777a7186b37c4e627809cf9e0741681ed8fdc3daf0e844241e0df0dd5f35",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        },
+        {
+          "source_id": "doc-63a5cb0920af3f23bdd7",
+          "url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+          "version": 1,
+          "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ",
+          "quote_start": 0,
+          "quote_end": 122,
+          "quote_sha256": "db06aeb945f68028a906f4e3bae75787942f51b4ac87bedc9481e80459f2d109",
+          "passage_sha256": "01198e4fba5ec84753b2743ab023f0ee56687f9c5e4c8f76f86758f0043703ac"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "яг минутын саатал баталгаажсан хэсгүүдэд тогтоогдоогүй",
+        "15 минут нь ярилцлагын үргэлжлэх хугацаа",
+        "8-р сарын 15-ны нэгдсэн дүнгийн хугацаа өөр атрибут"
+      ],
+      "forbidden_claims": [
+        "дүн 15 минутын дараа гарна",
+        "20 минутын дараа гарна",
+        "вэбсайтын хаана ч мэдээлэл байхгүй гэж нийтлэг мэдэгдэл хийх"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-02",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-34",
+      "query": "2026–2027 оны журмаар ярилцлагын шалгалтад тэнцэх хамгийн бага оноо 20 мөн үү?",
+      "requested_attribute": "interview.passing_threshold",
+      "expected_behavior": "Баталгаажсан хэсэгт ярилцлагыг нийт 20 оноогоор дүгнэнэ гэж байгаа бөгөөд тэнцэх доод босгыг тогтоогоогүй. 20-ийг тэнцэх босго гэж батлахгүй; босгын баталгаатай эхийг шаардана.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "doc-5a851def2889c9fb006f",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт",
+          "quote_start": 230,
+          "quote_end": 330,
+          "quote_sha256": "a653e6daef92e51c9d8f612ea0c00a80f972a8fb60bfed4c700502ac2d0f3965",
+          "passage_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        },
+        {
+          "source_id": "doc-947b13476048f31c1814",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+          "version": 1,
+          "locator": "х.3, VI.5, улсын олимпиадын нөхцөл",
+          "quote_start": 276,
+          "quote_end": 355,
+          "quote_sha256": "057a690dc81ce359565e79e71dd2cc87f6b956820030291cbb28d7179c5b898d",
+          "passage_sha256": "8120155492c87f2a17de2ed057ab1d5bb379222522e19af6b1d46c6be5cb2468"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "нийт дээд оноо 20",
+        "тэнцэх доод босго энэ баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "20 оноо заавал тэнцэх босго",
+        "10/12/15 гэсэн босго зохиох",
+        "нийт оноог доод оноо гэж солих"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "audit-03",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "admissions",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-35",
+      "query": "2027–2028 оны хичээлийн жилийн сургалтын төлбөрийг 8,280,000 төгрөг гэж баттай хэлж болох уу?",
+      "requested_attribute": "tuition.future_2027_2028_annual_amount",
+      "expected_behavior": "Үгүй: баталгаажсан элсэлтийн 2026 оны snapshot-д жилд 8,280,000 ₮ гэж буй боловч 2027–2028 оны төлбөрийг тогтоох баталгаа энэ багцад алга. Хуучин дүнг шинэ жилд шилжүүлэхгүй; ирээдүйн жилийн үнийг сургуулиас баталгаажуулах шаардлагатайг хэлнэ.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "web-a397db96200d51561a39",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:904",
+          "quote_start": 0,
+          "quote_end": 18,
+          "quote_sha256": "f6d2396714a0910b701cdabfd1f1c8632fc430f2255de4098a2ae7e159e6c17f",
+          "passage_sha256": "ef9bbe7fdf26a811f3cc02a31f8c7e9e39519bbf22f9d4d641edd0d212b41240"
+        },
+        {
+          "source_id": "web-ae7f3e7025af1e557949",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1471:2479",
+          "quote_start": 608,
+          "quote_end": 684,
+          "quote_sha256": "25dba261035f9b013f6747f6ce57d61175e983b719fdb6528972aa7aff9723da",
+          "passage_sha256": "7e868ecdf8ee7826d5ecee5e73ab54e1b063365b8cc5b600b420062b054d97d5"
+        },
+        {
+          "source_id": "web-28b0194fe58b446117be",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2215:3116",
+          "quote_start": 670,
+          "quote_end": 699,
+          "quote_sha256": "aa71d9ea74f8dbc027dda7719c10c231ba6cbda64297308905af9cf22ecbc605",
+          "passage_sha256": "0007c206c26c0bd99229aeeaa5bcb873020b141f4ac2ce9c54f2b87a11d9f717"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "байгаа дүн нь 2026 оны элсэлтийн snapshot-ийн жилийн төлбөр",
+        "2027–2028 оны төлбөр баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "2027–2028 онд 8,280,000 ₮ гэж батлах",
+        "инфляцаар шинэ үнийг тооцоод албан ёсны гэж хэлэх",
+        "төлбөр бүх жил ижил гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": "source-34",
+      "novelty_kind": "paraphrase_known_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-36",
+      "query": "2026–2027 оны жилийн сургалтын төлбөрийг сар бүр тэнцүү хувааж төлөх албан ёсны хуваарь, сарын дүн нь юу вэ?",
+      "requested_attribute": "tuition.monthly_instalment_policy_and_schedule",
+      "expected_behavior": "Жилийн дүн болон төлбөр төлсний дараа баталгаажих нөхцөл байгаа боловч сар бүрийн хуваарилалт, хэдэн сар, сарын албан дүн энэ баталгаажсан багцад тогтоогдоогүйг хэлнэ. 8,280,000-ыг 12-т хуваасан 690,000 ₮-ийг бодит төлөлтийн журам гэж өгөхгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "web-ae7f3e7025af1e557949",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1471:2479",
+          "quote_start": 608,
+          "quote_end": 684,
+          "quote_sha256": "25dba261035f9b013f6747f6ce57d61175e983b719fdb6528972aa7aff9723da",
+          "passage_sha256": "7e868ecdf8ee7826d5ecee5e73ab54e1b063365b8cc5b600b420062b054d97d5"
+        },
+        {
+          "source_id": "doc-60163869c3780ab828b2",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+          "version": 1,
+          "locator": "х.3, VI.3, гэрээ ба төлбөр",
+          "quote_start": 0,
+          "quote_end": 218,
+          "quote_sha256": "6aadcd73aa6970c52b759af916c3004063f93c970cdadb115bfcbd32101a4a01",
+          "passage_sha256": "6aadcd73aa6970c52b759af916c3004063f93c970cdadb115bfcbd32101a4a01"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "жилд 8,280,000 ₮ гэсэн дүн бий",
+        "сарын хэсэгчилсэн төлөлтийн бодлого, хуваарь баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "албан ёсны сарын төлбөр 690,000 ₮",
+        "12 сар тэнцүү төлөхийг зөвшөөрнө",
+        "хүүгүй хэсэгчлэн төлөлт баталгаатай"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "fees",
+      "related_known_case_ids": [
+        "audit-08",
+        "audit-07"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-37",
+      "query": "2026–2027 оны элсэлтийн A4 эссэг ямар фонтын хэдэн пунктээр хэвлэх шаардлагатай вэ?",
+      "requested_attribute": "essay.required_font_and_point_size",
+      "expected_behavior": "A4 дээр хэвлэх, өөрийн биеэр авчрах, гараар бичсэн эссэ хүлээж авахгүй гэсэн нөхцөлийг хариуны хүрээ болгон ялгана; фонтын нэр ба пунктын хэмжээг баталгаажсан хэсгүүд тогтоогоогүй тул тоо/нэр зохиохгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "web-28b0194fe58b446117be",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2215:3116",
+          "quote_start": 535,
+          "quote_end": 656,
+          "quote_sha256": "c83103cc3198d137fc32e79a35a6136999c7c910a7e1b9b90be9c4d34e495e12",
+          "passage_sha256": "0007c206c26c0bd99229aeeaa5bcb873020b141f4ac2ce9c54f2b87a11d9f717"
+        },
+        {
+          "source_id": "doc-ec1d94e99ea33af05f56",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.10, эссэ",
+          "quote_start": 0,
+          "quote_end": 250,
+          "quote_sha256": "d08983673525f54135f44d51c216295709a70ca4cdfffd4ab991b9a1045ffe4f",
+          "passage_sha256": "d08983673525f54135f44d51c216295709a70ca4cdfffd4ab991b9a1045ffe4f"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "A4 дээр хэвлэнэ гэсэн заалт бий",
+        "фонтын нэр, пунктын хэмжээ энэ баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "Times New Roman 12 заавал",
+        "Arial 11 заавал",
+        "A4 нь фонтын хэмжээ"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "essay",
+      "related_known_case_ids": [],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-38",
+      "query": "2026–2027 оны элсэлтийн цээж зургийн файлын дээд хэмжээ хэдэн MB байх ёстой вэ?",
+      "requested_attribute": "photo.maximum_file_size_mb",
+      "expected_behavior": "Журмын IV.6-д 6 сарын доторх зураг, регистрийн дугаараар хадгалах, jpeg/png/jpg өргөтгөлийг заасан; харин MB-ийн дээд хэмжээг баталгаажсан хэсгүүд тогтоогоогүйг хэлнэ. 6 сарыг 6 MB эсвэл формат нэрийг хэмжээ болгон хувиргахгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "doc-563cea1c9110eb1ae011",
+          "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+          "version": 1,
+          "locator": "х.2, IV.6, цээж зураг",
+          "quote_start": 0,
+          "quote_end": 149,
+          "quote_sha256": "c0eab410b0585dcb5293877db1b1ecef391eeacc3f842eff3ca262264c9b58c1",
+          "passage_sha256": "c0eab410b0585dcb5293877db1b1ecef391eeacc3f842eff3ca262264c9b58c1"
+        },
+        {
+          "source_id": "web-a397db96200d51561a39",
+          "url": "https://nmct.edu.mn/elselt",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:904",
+          "quote_start": 306,
+          "quote_end": 400,
+          "quote_sha256": "1e6bf1ae2dd2ec45874ad63aef4583ebced49e0004a4af7fa24fb1e45492112b",
+          "passage_sha256": "ef9bbe7fdf26a811f3cc02a31f8c7e9e39519bbf22f9d4d641edd0d212b41240"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "зургийн нас, нэр, формат бий",
+        "файлын дээд MB хэмжээ энэ баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "6 MB",
+        "2 MB эсвэл 5 MB зохиох",
+        "jpeg гэсэн формат нь хэмжээний хязгаар"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "documents",
+      "related_known_case_ids": [
+        "source-01",
+        "source-02",
+        "audit-11"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-39",
+      "query": "Компьютерын ухааны хөтөлбөрт SQL-ийг долоо хоногт яг хэдэн цаг үздэг вэ?",
+      "requested_attribute": "programme.computer_science_sql_weekly_contact_hours",
+      "expected_behavior": "SQL ашиглан өгөгдөл боловсруулах ур чадварын заалт байгаа ч SQL-ийн тусдаа долоо хоногийн цагийг баталгаажсан хэсгүүд тогтоогоогүйг хэлнэ. Хөтөлбөрийн 5 гэсэн үргэлжлэх хугацаа эсвэл өөр хөтөлбөрийн кредитийг SQL-ийн цаг гэж өгөхгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "web-0d2c53c4fd8bebc8ef57",
+          "url": "https://nmct.edu.mn/programs/computer-science-program",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=584:1640",
+          "quote_start": 900,
+          "quote_end": 971,
+          "quote_sha256": "af5a7a0a1d44c743b49bdcea9374cf5acb504ba98f1f247be7112aa9431ae7ba",
+          "passage_sha256": "2dd29b0ae97ec31aac42a35edb225fc9be0550c63827365fd15300cfea3c5eff"
+        },
+        {
+          "source_id": "web-b3273e96db6ca4d9a618",
+          "url": "https://nmct.edu.mn/programs/computer-science-program",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1383:2052",
+          "quote_start": 530,
+          "quote_end": 613,
+          "quote_sha256": "ed56a6c0f4c923ab3dab6256f65bb503670023a0610a192401e57a269c4a959c",
+          "passage_sha256": "eee738410d6dfbcffdd5ff43d34e082eeee61de4091a8fcc05038c31e41cb79c"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "SQL-ийн ур чадвар заасан",
+        "SQL-ийн долоо хоногийн яг цаг энэ баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "долоо хоногт 5 цаг",
+        "долоо хоногт 2 эсвэл 4 цаг зохиох",
+        "хөтөлбөрийн хугацааг цагтай солих"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "programmes",
+      "related_known_case_ids": [
+        "source-28"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    },
+    {
+      "id": "week04-40",
+      "query": "2026 оны олимпиадын эхний байрны 50 хувийн сургалтын төлбөрийн хөнгөлөлт таван жил тасралтгүй үйлчлэх үү?",
+      "requested_attribute": "olympiad.discount_validity_all_five_years",
+      "expected_behavior": "Удирдамжийн шагналын оршил 2026–2027 оны хичээлийн жилд 10–50%-ийн хөнгөлөлттэй суралцах эрхийн бичиг гэж байгаа; I байр 50% гэдэг нь бий. Таван жил үргэлжлэх эсвэл дараагийн жил автоматаар сунгах нөхцөлийг баталгаажсан хэсгүүд тогтоогоогүйг хэлнэ. Зөвхөн нэг жилээр хязгаарлагддаг гэж ч баттай өргөтгөхгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "source_refs": [
+        {
+          "source_id": "doc-4901aef11fdb748c9392",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.А, математик-физикийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 0,
+          "quote_end": 227,
+          "quote_sha256": "dabc5d5389384b58920312bf4bcdccd1684ff398506721510afd43ef831fefb8",
+          "passage_sha256": "2c0a67c4bb9772d8bd8c50f9d74a9b0c815eca0af53f23119d50998429bc616e"
+        },
+        {
+          "source_id": "doc-4901aef11fdb748c9392",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.А, математик-физикийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 395,
+          "quote_end": 475,
+          "quote_sha256": "f1f34f7f260d4a469cf7837e3899e287b71fab7f53129bc92df722b1919f36c9",
+          "passage_sha256": "2c0a67c4bb9772d8bd8c50f9d74a9b0c815eca0af53f23119d50998429bc616e"
+        },
+        {
+          "source_id": "doc-756c8022c4d1704d4169",
+          "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+          "version": 1,
+          "locator": "х.2, Зургаа.Б, математик-хими-биологийн шагнал (Зургаагийн оршилтой хамт)",
+          "quote_start": 402,
+          "quote_end": 482,
+          "quote_sha256": "f1f34f7f260d4a469cf7837e3899e287b71fab7f53129bc92df722b1919f36c9",
+          "passage_sha256": "25730a2df487b6f96ffb070762bcc8bd3df72ad62a43abe8c85a302bd17e3006"
+        }
+      ],
+      "expected_url": null,
+      "required_facts": [
+        "I байрны 50%-ийн эрхийн бичиг бий",
+        "оршил 2026–2027 оны хичээлийн жилийг нэрлэсэн",
+        "таван жил тасралтгүй үргэлжлэх эсэх энэ баталгаажсан багцад тогтоогдоогүй"
+      ],
+      "forbidden_claims": [
+        "бүх таван жил 50% автоматаар",
+        "дараа жилүүдэд автоматаар сунгана",
+        "зөвхөн нэг жил, сунгахыг хориглодог гэж батлах"
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute",
+      "topic": "olympiad",
+      "related_known_case_ids": [
+        "source-23"
+      ],
+      "answerability_scope": "frozen verified indexed passages only; no universal website absence claim; snapshot validity is unknown"
+    }
+  ]
+}
