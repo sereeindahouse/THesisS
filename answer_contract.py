@@ -1,5 +1,6 @@
 """Bounded answer contracts; these are not a semantic entailment classifier."""
 import re
+import unicodedata
 
 MAX_SPEECH_CHARACTERS = 2000
 
@@ -118,3 +119,25 @@ def quantity_context_supported(statement, quote):
                            for kind, labels in context.items()) for part in matches):
                 return False
     return True
+
+
+def tuition_amount_query(query):
+    text = unicodedata.normalize('NFC', query).casefold()
+    if not re.search(r'\bсургалтын\s+төлбөр(?:ийн|ийг)?\b', text):
+        return False
+    # Keep this vocabulary explicit: programmes, discounts, refund policy,
+    # instalments, special student groups and live status require other evidence.
+    words = set(re.findall(r'[^\W\d_]+', text))
+    allowed = set('сургалтын төлбөр төлбөрийн төлбөрийг хэд хэдэн төгрөг төгрөгөөр ₮ mnt '
+                  'жил жилийн жилд жилээр нэг сард сарын сараар сар бүр '
+                  'оны онд он хичээлийн үү уу вэ бэ юм байна мөн зөв эсэхийг '
+                  'энэ тэр танай сургуулийн хэлээд өгөөч'.split())
+    return words <= allowed
+
+
+def tuition_period_notice(query, excerpt):
+    if (tuition_amount_query(query) and re.search(r'\b(?:сард|сарын|сараар|сар)\b', query.casefold())
+            and re.search(r'жилд|жилийн', excerpt.casefold())):
+        return ('Энэ заалтад сургалтын төлбөрийг жилээр заасан. '
+                'Сарын төлбөрийн дүн, хуваарийг энд тодорхойлоогүй.')
+    return ''

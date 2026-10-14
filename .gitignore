@@ -201,3 +201,8 @@ __pycache__/
 !/tests/test_audit_contracts.py
 !/tools/evaluate_answer_quality.py
 !/data/answer-audit-dev-20261012.json
+
+# Explicit paired retrieval experiments and bounded tuition regression.
+!/tools/evaluate_retrieval_ablation.py
+!/tests/test_retrieval_ablation.py
+!/tests/test_tuition_scope.py

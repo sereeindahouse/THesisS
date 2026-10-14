@@ -39,7 +39,7 @@ def run(cases_path, output, base_url):
     with output.open('x', encoding='utf-8') as handle:
         handle.write('{}\n')
     tracked = ['rag_runtime.py', 'answer_contract.py', 'website_retrieval.py', 'demo_server.py',
-               'voice_runtime.py', 'CORE/document_corpus.py', 'CORE/database/website.db',
+               'voice_runtime.py', 'llm_runtime.py', 'CORE/document_corpus.py', 'CORE/database/website.db',
                'runtime/content.db', 'CORE/website/document-excerpts-20261012.json',
                'config/model-catalog/gemma3-4b-text.json', 'runtime/rag-model.json']
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),

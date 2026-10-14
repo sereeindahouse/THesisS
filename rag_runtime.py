@@ -18,7 +18,7 @@ from uuid import uuid4
 from llm_runtime import LLMRuntime, _json_object
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
-    quantity_context_supported)
+    quantity_context_supported, tuition_amount_query, tuition_period_notice)
 
 SYSTEM = '''Answer the QUESTION directly in Mongolian using only the supplied SOURCES.
 Find the passage answering the requested information, not merely the first related passage.
@@ -118,7 +118,7 @@ def source_extract(query, sources):
             continue
         text = source['text']
         excerpt = None
-        if 'төлбөр' in terms and 'сургалт' in search_terms(query) and terms <= {'төлбөр'}:
+        if tuition_amount_query(query):
             match = re.search(r'Сургалтын төлбөр:[^\n]+', text)
             excerpt = match.group() if match else None
         elif terms and terms <= {'мэргэжил','хөтөлбөр'}:
@@ -311,9 +311,17 @@ class ChatRAG:
         result.update(related_sources=[], suggestions=[])
         if result.get("answer"):
             return result
-        # Never work around rejected, expired, incomplete or mismatched year facts.
-        if not self.policy.enabled or result.get("reason_code") not in self.EXTEND or result.get("exact_matches"):
+        # FAQ-only numeric/year absence may use a narrow direct tuition lookup.
+        # This does not bypass rejected/expired/exact FAQ guards or enable an LLM.
+        tuition_handoff = (result.get('reason_code') in {'unmatched_numeric_constraints', 'unsupported_year'}
+                           and tuition_amount_query(query) and not result.get('exact_matches'))
+        if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff) or result.get("exact_matches"):
             return result
+        if tuition_handoff:
+            result['faq_scope_handoff'] = {'reason_code': result['reason_code']}
+            if 'supported_years' in result:
+                # These years describe the FAQ scope, not the later web answer.
+                result['faq_scope_handoff']['supported_years'] = result.pop('supported_years')
         simple = re.sub(r"[^\w\s]", "", query.casefold()).strip()
         if simple in {"сайн байна уу", "сайн уу", "hello", "hi", "баярлалаа", "thanks"}:
             result.update(route="D", message="Сайн байна уу! Сургуулийн мэргэжил, элсэлт, холбоо барих мэдээллээс асуугаарай.",
@@ -361,6 +369,10 @@ class ChatRAG:
             result.update(message="Хадгалсан эх нь өнөөдрийн бүртгэл, сул орон тооны төлөвийг батлахгүй. "
                           "Доорх албан эхийн огноог шалгах эсвэл сургуультай холбогдоорой.",
                           reason_code="live_status_not_supported")
+        elif years and not evidence:
+            result.update(reason_code='requested_year_not_supported',
+                message='Асуусан ' + ', '.join(sorted(years)) + ' оныг батлах тохирох эх энэ хайлтаар олдсонгүй. '
+                        'Өөр оны мэдээллээр орлуулахгүй. Доорх эхүүдийн огноог шалгаж болно.')
         elif ("коосэн" in topic_terms and re.search(r"гэж юу|онцлог|ялгаа", query.casefold())
               and evidence and not any(re.search(r"коосэн\s+(?:гэж|гэдэг|сургалт нь)|коосэн[^\n]*боловсролын онцлог",
                   source["text"].casefold()) for source in evidence)):
@@ -411,6 +423,9 @@ class ChatRAG:
                 source, excerpt = direct
                 heading = source.get('page_header', source['title']).splitlines()[0]
                 dated_heading = heading + ' (татсан: ' + source['retrieved_at'][:10] + ')'
+                period_notice = tuition_period_notice(query, excerpt)
+                if period_notice:
+                    dated_heading += '\n\n' + period_notice
                 result.update(route='A', answer=dated_heading + ' — эхийн мэдээлэл:\n\n' + excerpt,
                     answer_kind='official_website_extract', reason_code='source_text_lookup',
                     related_sources=[], suggestions=[], citations=[dict(document_id=source['source_id'],
@@ -421,6 +436,11 @@ class ChatRAG:
                         source_accepted_for_project=True, school_staff_approval=False)],
                     message='Албан эхийн хэсгийг үг өөрчлөхгүй үзүүлэв. Эхийн он, огноог хадгалсан.')
                 result['rag']['reason'] = 'source_text_lookup_no_generation'
+                return self._remember(result, allow_draft)
+            if tuition_handoff:
+                result.update(reason_code='tuition_amount_source_not_supported',
+                    message='Сургалтын төлбөрийн дүнг шууд батлах тохирох заалт энэ хайлтаар олдсонгүй. '
+                            'Өөр төлбөр, он эсвэл сарын тооцоогоор орлуулахгүй.')
                 return self._remember(result, allow_draft)
             phase_start = time.perf_counter()
             result['rag']['generator_source_ids'] = [source['source_id'] for source in evidence[:3]]

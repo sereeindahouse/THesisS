@@ -814,5 +814,918 @@
       "tools/evaluate_answer_quality.py": "f4653396aa7d79eb0288246ea1cd37c671273feaad7ecb2e676b046bb3996696"
     },
     "hash_note": "Raw measurement retains exact artifact hashes; final_code_sha256_lf uses normalized line endings and removes one trailing space in rag_runtime after measurement. No executable behavior changed."
+  },
+  "retrieval_ablation_20261013": {
+    "measured_date": "2026-10-13",
+    "documented_date": "2026-10-14",
+    "label_scope": "Existing assistant development/tuning labels. One target URL+phrase, not exhaustive relevance judgements, not independent held-out or answer accuracy.",
+    "protocol": {
+      "modes": [
+        "bm25",
+        "e5",
+        "rrf",
+        "rrf_boosted",
+        "production"
+      ],
+      "rrf_k": 30,
+      "anchor_weight": 0.035,
+      "category_weight": 0.09,
+      "common": "Same eligible corpus, Mongolian lexical aliases, E5 prefixes/pooling, max two passages/page, overlap/news exclusion.",
+      "bm25": "Positive lexical scores only; Mongolian normalized query/document terms.",
+      "e5": "Dense scores; no lexical/topic abstention; local pinned model required.",
+      "rrf": "Lexical positive ranks + dense ranks; no extra boosts or lexical/topic gates.",
+      "rrf_boosted": "RRF + anchor/category boosts; no lexical/topic gates.",
+      "production": "Existing RRF+boosts+lexical/topic gates. Default chat retrieval unchanged.",
+      "latency": "Diagnostic timings only; same model cache shared, order rotated by query. Not a controlled speed benchmark."
+    },
+    "summary": {
+      "bm25": {
+        "target_cases": 30,
+        "support_at_1": 20,
+        "support_at_3": 27,
+        "support_at_5": 27,
+        "mrr_at_5": 0.7722222222222221,
+        "no_candidate_controls": 3,
+        "no_candidate_results": 1,
+        "router_controls_not_scored": 3
+      },
+      "e5": {
+        "target_cases": 30,
+        "support_at_1": 7,
+        "support_at_3": 16,
+        "support_at_5": 23,
+        "mrr_at_5": 0.4272222222222222,
+        "no_candidate_controls": 3,
+        "no_candidate_results": 0,
+        "router_controls_not_scored": 3
+      },
+      "rrf": {
+        "target_cases": 30,
+        "support_at_1": 20,
+        "support_at_3": 28,
+        "support_at_5": 28,
+        "mrr_at_5": 0.7666666666666667,
+        "no_candidate_controls": 3,
+        "no_candidate_results": 0,
+        "router_controls_not_scored": 3
+      },
+      "rrf_boosted": {
+        "target_cases": 30,
+        "support_at_1": 22,
+        "support_at_3": 29,
+        "support_at_5": 30,
+        "mrr_at_5": 0.84,
+        "no_candidate_controls": 3,
+        "no_candidate_results": 0,
+        "router_controls_not_scored": 3
+      },
+      "production": {
+        "target_cases": 30,
+        "support_at_1": 22,
+        "support_at_3": 29,
+        "support_at_5": 30,
+        "mrr_at_5": 0.84,
+        "no_candidate_controls": 3,
+        "no_candidate_results": 3,
+        "router_controls_not_scored": 3
+      }
+    },
+    "corpus_id": "3e5fb13c79b18f86d1aefd49bd07f13e367e98bc6a6f24cf4b15e03dd5e267cb",
+    "counts": {
+      "pages": 72,
+      "chunks": 153,
+      "documents": 5,
+      "indexed_chunks": 160,
+      "indexed_document_passages": 21,
+      "indexed_documents": 5
+    },
+    "database_sha256": "7d85a12731746ff8963359090adfc403dce26be2ef4c549981b0b0c4fdf66d1e",
+    "indexed_passages_sha256": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+    "cases_sha256": "ce78e2e61972d95b9e1865d63eb3d5e653efba0167ba069f3e14f9865f852ed8",
+    "code_sha256_lf": {
+      "website_retrieval.py": "96019351f6b53f5f418ad46889914572f7625f5ea09466c4765e6a7cb453aeb0",
+      "tools/evaluate_retrieval_ablation.py": "0a46b88993f0f677a27cf3f34d9b613f214a136676d184ba36475fe4b7a36cd0"
+    },
+    "e5": {
+      "repo_id": "intfloat/multilingual-e5-small",
+      "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3"
+    },
+    "production_parity": {
+      "cases": 36,
+      "identical_candidate_order": true,
+      "scores_equal_with_relative_tolerance": 1e-07
+    },
+    "training_performed": false,
+    "llm_calls": 0,
+    "cases": [
+      {
+        "id": "source-01",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-02",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": 3,
+          "rrf_boosted": 5,
+          "production": 5
+        }
+      },
+      {
+        "id": "source-03",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-04",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 4,
+          "rrf": 2,
+          "rrf_boosted": 2,
+          "production": 2
+        }
+      },
+      {
+        "id": "source-05",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": 3,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-06",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-07",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 3,
+          "e5": 4,
+          "rrf": 3,
+          "rrf_boosted": 3,
+          "production": 3
+        }
+      },
+      {
+        "id": "source-08",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 3,
+          "e5": 4,
+          "rrf": 3,
+          "rrf_boosted": 3,
+          "production": 3
+        }
+      },
+      {
+        "id": "source-09",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-10",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-11",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": null,
+          "e5": 4,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-12",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": 3,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-13",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": 2,
+          "production": 2
+        }
+      },
+      {
+        "id": "source-14",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-15",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-16",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": null,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-17",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 5,
+          "rrf": 1,
+          "rrf_boosted": 2,
+          "production": 2
+        }
+      },
+      {
+        "id": "source-18",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-19",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 2,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-20",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-21",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 5,
+          "rrf": 3,
+          "rrf_boosted": 3,
+          "production": 3
+        }
+      },
+      {
+        "id": "source-22",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 2,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-23",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 3,
+          "rrf": 2,
+          "rrf_boosted": 2,
+          "production": 2
+        }
+      },
+      {
+        "id": "source-24",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 3,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-25",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-26",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 2,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-27",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 1,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-28",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 2,
+          "e5": 1,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-29",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": null,
+          "e5": 4,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-30",
+        "kind": "source_support",
+        "ranks": {
+          "bm25": 2,
+          "e5": 2,
+          "rrf": 1,
+          "rrf_boosted": 1,
+          "production": 1
+        }
+      },
+      {
+        "id": "source-31",
+        "kind": "no_candidates",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      },
+      {
+        "id": "source-32",
+        "kind": "no_candidates",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      },
+      {
+        "id": "source-33",
+        "kind": "no_candidates",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      },
+      {
+        "id": "source-34",
+        "kind": "year_guard",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      },
+      {
+        "id": "source-35",
+        "kind": "live_status_guard",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      },
+      {
+        "id": "source-36",
+        "kind": "concept_guard",
+        "ranks": {
+          "bm25": null,
+          "e5": null,
+          "rrf": null,
+          "rrf_boosted": null,
+          "production": null
+        }
+      }
+    ],
+    "raw_sha256": {
+      "runtime/retrieval-ablation-20261013/results.json": "c65b9b0eab8252f7698fa2d3e4a1cb5f616947164153e2733543df5dbebda2c9",
+      "runtime/retrieval-ablation-20261013/indexed-passages.json": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+      "runtime/retrieval-ablation-20261013/production-parity.json": "0ea630d7147a0d65c0437cac7d52094a2405b4d69ecf44e6d1d4c68650453717"
+    },
+    "limitations": [
+      "Development/tuning questions; not held-out or human gold.",
+      "URL+phrase support is not answer correctness; relevance labels are not exhaustive.",
+      "Common preprocessing, source eligibility, diversity and overlap filtering are retained.",
+      "Dense ranker returns neighbours; no-candidate counts are not a general accuracy score.",
+      "Shared cache/rotated ordering timings are diagnostic, not a latency benchmark.",
+      "Frozen full corpus is local; public clone cannot reconstruct live measurements from hashes."
+    ]
+  },
+  "tuition_and_runtime_followup_20261014": {
+    "measured_dates": [
+      "2026-10-13",
+      "2026-10-14"
+    ],
+    "changes": [
+      "Narrow tuition amount/year FAQ handoff to official /elselt exact clause only; no LLM fallback.",
+      "Annual source vs monthly query explicitly qualified; no invented monthly payment or division.",
+      "FAQ supported-year metadata nested under faq_scope_handoff instead of inherited web-answer metadata.",
+      "Transient local_provider_unavailable status re-probed after 2s; ready status still cached for 30s.",
+      "Live collector fingerprints llm_runtime.py."
+    ],
+    "tests": {
+      "suite_total": 290,
+      "browser_date": "2026-10-13",
+      "browser_checks": {
+        "monthly_fee_annual_source_and_notice": true,
+        "unknown_year_not_substituted": true,
+        "generated_answer_has_citation_and_listen_control": true,
+        "mobile_layout": true,
+        "no_browser_runtime_errors": true
+      },
+      "local_passed": 290,
+      "local_seconds": 30.246
+    },
+    "ready_http": {
+      "cases": 14,
+      "routes": {
+        "A": 6,
+        "E": 4,
+        "D": 1,
+        "C": 3
+      },
+      "llm_calls": 3
+    },
+    "cold_http": {
+      "cases": 14,
+      "routes": {
+        "A": 6,
+        "E": 7,
+        "D": 1
+      },
+      "note": "Three C-required questions abstained while local provider was still starting. Preserved, not counted as successful answers."
+    },
+    "actual_tts_synthesis": false,
+    "new_stt_quality": false,
+    "own_training": false,
+    "correctness_score": null,
+    "raw_sha256": {
+      "runtime/answer-audit-20261013.json": "ce0ef9b974f1b890ced2da5058a2522fab7519fe80294c8c1cc4d5876ed3bc2f",
+      "runtime/answer-audit-ready-20261013.json": "841ebd6cfd8ef897b302d7b7319ed26d8b930a7973c1dc5a9210e265e5ba5e36",
+      "runtime/answer-audit-final-20261014.json": "e410f030e7a2b929f12862593d397068d5e8a8eae3af388197e9a8b45e7a1a94",
+      "runtime/answer-audit-ready-20261014.json": "64cfdcd56b7a06add63c38cb4cee30eb642fa605023c909724dd7a434c7b3fe5",
+      "runtime/tuition-browser-qa.json": "d4ec93e305ed37c7b5c2384be2e572fbd9e6386acafa90927ec7e7bb6f55dd86",
+      "runtime/tests-ablation-local-final-20261014.json": "5b6b9b198f1c94177a94f4dcf29800189b2ec002aa0d5c5ae460fa06e6366e9a"
+    },
+    "cases": [
+      {
+        "id": "audit-01",
+        "query": "Ярилцлага хэдэн минут үргэлжлэх вэ?",
+        "requested_attribute": "interview.duration",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 63.88,
+        "timings_ms": {
+          "policy": 7.11,
+          "retrieval": 47.68,
+          "generation": 0.0
+        },
+        "answer_sha256": "a76de96c47703d1ce2ee3959a9eb8f0b24ed9d35a70d6062bf83d0fab4ab6b61",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-02",
+        "query": "Ярилцлагын шалгалтын дүн хэдэн минутын дараа гарах вэ?",
+        "requested_attribute": "interview.result_delay_minutes",
+        "route": "E",
+        "reason": "requested_attribute_not_supported",
+        "http_wall_ms": 68.19,
+        "timings_ms": {
+          "policy": 7.39,
+          "retrieval": 56.59,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-03",
+        "query": "Ярилцлагад тэнцэх доод оноо хэд вэ?",
+        "requested_attribute": "interview.passing_threshold",
+        "route": "E",
+        "reason": "requested_attribute_not_supported",
+        "http_wall_ms": 96.38,
+        "timings_ms": {
+          "policy": 9.21,
+          "retrieval": 58.04,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-04",
+        "query": "Ярилцлагын шалгалт нийт хэдэн оноотой вэ?",
+        "requested_attribute": "interview.maximum_score",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 62.9,
+        "timings_ms": {
+          "policy": 7.61,
+          "retrieval": 51.8,
+          "generation": 0.0
+        },
+        "answer_sha256": "a76de96c47703d1ce2ee3959a9eb8f0b24ed9d35a70d6062bf83d0fab4ab6b61",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-05",
+        "query": "Коосэн сургалтын онцлог юу вэ?",
+        "requested_attribute": "kosen.definition",
+        "route": "E",
+        "reason": "concept_overview_not_supported",
+        "http_wall_ms": 66.39,
+        "timings_ms": {
+          "policy": 8.89,
+          "retrieval": 52.4,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-06",
+        "query": "Kosen сургалтын онцлог юу вэ?",
+        "requested_attribute": "kosen.definition",
+        "route": "E",
+        "reason": "concept_overview_not_supported",
+        "http_wall_ms": 91.28,
+        "timings_ms": {
+          "policy": 12.43,
+          "retrieval": 75.05,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-07",
+        "query": "Сургалтын төлбөр хэд вэ?",
+        "requested_attribute": "tuition.annual_amount",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 53.49,
+        "timings_ms": {
+          "policy": 6.66,
+          "retrieval": 43.4,
+          "generation": 0.0
+        },
+        "answer_sha256": "b997cb238417798389d5ce154030bc89af2fe27f5d644655745aca929e40ef8c",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-08",
+        "query": "Сургалтын төлбөр сард 8,280,000 төгрөг үү?",
+        "requested_attribute": "tuition.monthly_vs_yearly",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 99.24,
+        "timings_ms": {
+          "policy": 9.77,
+          "retrieval": 61.79,
+          "generation": 0.0
+        },
+        "answer_sha256": "5521da31923deabbd225982612498347c38bc2f46abd9d68495cba888e9d7a41",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-09",
+        "query": "Бүртгэлийн хураамж хэдэн төгрөг вэ?",
+        "requested_attribute": "registration.amount",
+        "route": "D",
+        "reason": "registration_scope_ambiguous",
+        "http_wall_ms": 90.05,
+        "timings_ms": {
+          "policy": 8.99,
+          "retrieval": 53.9,
+          "generation": 0.0
+        },
+        "answer_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-10",
+        "query": "Элсэх эрхээ өөр хүнд шилжүүлж болох уу?",
+        "requested_attribute": "admission.transfer_permission",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 64.3,
+        "timings_ms": {
+          "policy": 7.95,
+          "retrieval": 53.3,
+          "generation": 0.0
+        },
+        "answer_sha256": "2ef072d3697f1750050672666e957103d64f2c433b4991c02546a0870a1dcb96",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-11",
+        "query": "Бүртгэлд зургаа ямар форматтай оруулах вэ?",
+        "requested_attribute": "photo.format",
+        "route": "A",
+        "reason": "source_text_lookup",
+        "http_wall_ms": 67.88,
+        "timings_ms": {
+          "policy": 9.21,
+          "retrieval": 55.16,
+          "generation": 0.0
+        },
+        "answer_sha256": "560b97f64797e5f1d94f02fc2ae2962876068938e708d5eec78455f8ae9b344c",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-12",
+        "query": "Мэргэжлийн хоёр дахь сонголт заавал хийх үү?",
+        "requested_attribute": "admission.second_choice",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 10268.75,
+        "timings_ms": {
+          "policy": 6.09,
+          "retrieval": 49.19,
+          "generation": 10193.79
+        },
+        "answer_sha256": "1be950fe20eccdf0641796b9fac6aaba3e26b63e233194fe85226934938ea33e",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-13",
+        "query": "Элсэлтийн бүртгэлийн хураамж хэд вэ?",
+        "requested_attribute": "registration.admission_amount",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 2518.5,
+        "timings_ms": {
+          "policy": 11.23,
+          "retrieval": 51.84,
+          "generation": 2451.97
+        },
+        "answer_sha256": "748ee763e778def05942144b49d642f344bda17caf3ad2dc9fe083313fccfa83",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      },
+      {
+        "id": "audit-14",
+        "query": "Олимпиадын бүртгэлийн хураамж хэд вэ?",
+        "requested_attribute": "registration.olympiad_amount",
+        "route": "C",
+        "reason": "source_grounded_generation",
+        "http_wall_ms": 2140.89,
+        "timings_ms": {
+          "policy": 8.04,
+          "retrieval": 53.46,
+          "generation": 2075.6
+        },
+        "answer_sha256": "5411e969058c8dee7380b145ba5679ad09ebad1eca208f8cb4e92bac1bbf8f16",
+        "human_review": {
+          "reviewer": null,
+          "correctness": null,
+          "citation_support": null,
+          "completeness": null,
+          "appropriate_abstention": null,
+          "error_category": null,
+          "notes": null
+        }
+      }
+    ],
+    "final_code_sha256_lf": {
+      "answer_contract.py": "68d663982b7a170e5c1f7dd09b8a20a84f014141b0a5026962e5b1ccda09cff9",
+      "rag_runtime.py": "bdfc11899258602447183354eb119b2773044e12eb9857f3ca5c2692dccffec1",
+      "website_retrieval.py": "96019351f6b53f5f418ad46889914572f7625f5ea09466c4765e6a7cb453aeb0",
+      "llm_runtime.py": "21ec6bc861832a629c691c35d60a12743c9e6d10850a6382ba654dac118191ba",
+      "tools/evaluate_answer_quality.py": "c7770f5e92ca18d7717a93f8a56ee0d73d528f0638e9e9e52b593a93ac82a64c",
+      "tools/evaluate_retrieval_ablation.py": "0a46b88993f0f677a27cf3f34d9b613f214a136676d184ba36475fe4b7a36cd0",
+      "tests/test_tuition_scope.py": "942243d8700a093e522a71cc8a2fa75c294064b859fc551a7e537d005e0b3683",
+      "tests/test_retrieval_ablation.py": "82abdafdbc64f6347402e78b9df361967af081bcd45aa4c67f691ba815f7c670",
+      "tests/test_llm_runtime.py": "918931d1a515b0876f5e15525d0433af0693c150c6d493eb955255275f5536ee"
+    },
+    "roadmap_unchanged": true,
+    "limitations": [
+      "No general semantic entailment guarantee; synthetic negation counterexample remains.",
+      "Tuition lexical scope does not cover all possible phrasing or payment eligibility.",
+      "Startup readiness is not immediate; cache retry does not remove GPU/model startup latency.",
+      "No independent held-out human evaluation or new STT/TTS quality."
+    ]
   }
 }

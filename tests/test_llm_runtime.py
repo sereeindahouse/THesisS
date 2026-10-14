@@ -116,6 +116,24 @@ class LLMRuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.status()["llm_calls"], 0)
         self.assertFalse(runtime.status()["network_probe"])
 
+    def test_transient_provider_failure_recovers_without_30_second_stale_cache(self):
+        fake = FakeTransport()
+        fake.tags_error = OSError("provider still starting")
+        runtime = self.runtime(fake)
+        with patch("llm_runtime.time.monotonic", return_value=100.0):
+            self.assertFalse(runtime.status()["available"])
+        fake.tags_error = None
+        with patch("llm_runtime.time.monotonic", return_value=101.0):
+            self.assertFalse(runtime.status()["available"])
+            self.assertEqual(len(fake.calls), 1)
+        with patch("llm_runtime.time.monotonic", return_value=102.01):
+            self.assertTrue(runtime.status()["available"])
+            self.assertEqual(len(fake.calls), 2)
+        with patch("llm_runtime.time.monotonic", return_value=120.0):
+            self.assertTrue(runtime.status()["available"])
+            self.assertEqual(len(fake.calls), 2)
+        self.assertTrue(all(call[0] == "GET" for call in fake.calls))
+
     def test_provider_absent_falls_back_without_chat(self):
         fake = FakeTransport()
         fake.tags_error = OSError("offline")

@@ -25,6 +25,12 @@ from retrieval_probe import bm25_scores, sha256
 
 ROOT = Path(__file__).resolve().parent
 INDEX_VERSION = 'website-hybrid-v3-anchor-coverage'
+# Ranking experiments share the production corpus/preprocessing/diversity policy.
+# Only production applies lexical/topic abstention gates; other modes rank only.
+RANKING_MODES = ('bm25', 'e5', 'rrf', 'rrf_boosted', 'production')
+RRF_K = 30
+ANCHOR_COVERAGE_WEIGHT = .035
+CATEGORY_WEIGHT = .09
 STOPWORDS = set('би миний бид манай танай та надад талаар талаарх тухай юу вэ бэ уу үү юм байна байдаг болох бол ямар хэд хэрхэн яаж хаана хэзээ нь ын ийн ы ий н р болон буюу эсвэл бас мөн энэ тэр тэгээд гэж гэсэн сайн уу мэдээлэл авах өгөөч тайлбарла тайлбарлаж болно болох уу'.split())
 STOPWORDS.update('боломж боломжтой бий дээр доор хэдэн бүх одоо оны онд жил жилийн сонирхож мэдэх мэдмээр хүсэж суралц суралцах'.split())
 # Transparent domain search aliases, not a Mongolian morphological model.
@@ -256,7 +262,9 @@ class WebsiteRetriever:
             self._embeddings = None
             return None
 
-    def search(self, query, limit=5):
+    def search(self, query, limit=5, *, mode='production'):
+        if mode not in RANKING_MODES:
+            raise ValueError('Unknown ranking mode.')
         if not isinstance(query, str) or not query.strip() or len(query) > 1000 or not re.search(r'\w', query):
             raise ValueError('query must contain words and be at most 1000 characters.')
         if type(limit) is not int or not 1 <= limit <= 10:
@@ -271,7 +279,9 @@ class WebsiteRetriever:
             if 'мэргэжил' in anchors:
                 anchors.add('хөтөлбөр')
             lexical = bm25_scores(self._lexical_passages, [' '.join(anchors or query_terms)])[0] if self._rows else []
-            dense = self._dense(query) if self._rows else None
+            dense = self._dense(query) if self._rows and mode != 'bm25' else None
+            if mode in {'e5', 'rrf', 'rrf_boosted'} and dense is None:
+                raise RuntimeError('Dense ranking experiment requires a working pinned local E5; fallback is not an E5 result.')
             lexical_rank = sorted(range(len(self._rows)), key=lambda i: (-lexical[i], self._rows[i]['source_id']))
             dense_rank = sorted(range(len(self._rows)), key=lambda i: (-dense[i], self._rows[i]['source_id'])) if dense is not None else []
             fused = [0.0] * len(self._rows)
@@ -279,35 +289,40 @@ class WebsiteRetriever:
                 for rank, index in enumerate(ranking, 1):
                     if ranking is lexical_rank and lexical[index] <= 0:
                         continue
-                    fused[index] += weight / (30 + rank)
-            # Reward coverage of informative query anchors. A dense neighbour with
-            # only a generic registration term must not hide a specific rule clause.
-            anchor_weight = sum(self._term_weights.get(t, 0) for t in anchors)
-            if anchor_weight:
-                for index, terms in enumerate(self._body_terms):
-                    fused[index] += .035 * sum(self._term_weights.get(t, 0) for t in anchors & terms) / anchor_weight
-            # Explicit phrase/category matches improve ranking only, never certify an answer.
-            query_lower = query.casefold()
-            for index, row in enumerate(self._rows):
-                body = row['text'].casefold()
-                if 'төлбөр' in anchors and 'сургалт' in query_terms and 'сургалтын төлбөр' in body:
-                    fused[index] += .09
-                if anchors <= {'мэргэжил', 'хөтөлбөр'} and anchors and 'элсэлт авах хөтөлбөр' in body:
-                    fused[index] += .09
-                if 'элсэлт' in anchors and 'шаардлага' in anchors and 'элсэлтэд оролцох эрх' in body:
-                    fused[index] += .09
-                if 'дотуур' in anchors and 'дотуур' not in body:
-                    fused[index] = 0
-                if 'ном' in anchors and 'сан' in query_lower and 'номын сан' not in body:
-                    fused[index] = 0
+                    fused[index] += weight / (RRF_K + rank)
+            if mode == 'bm25':
+                fused = list(lexical)
+            elif mode == 'e5':
+                fused = list(dense)
+            if mode in {'production', 'rrf_boosted'}:
+                # Reward coverage of informative query anchors. A dense neighbour with
+                # only a generic registration term must not hide a specific rule clause.
+                anchor_weight = sum(self._term_weights.get(t, 0) for t in anchors)
+                if anchor_weight:
+                    for index, terms in enumerate(self._body_terms):
+                        fused[index] += ANCHOR_COVERAGE_WEIGHT * sum(self._term_weights.get(t, 0) for t in anchors & terms) / anchor_weight
+                # Explicit phrase/category matches improve ranking only, never certify an answer.
+                query_lower = query.casefold()
+                for index, row in enumerate(self._rows):
+                    body = row['text'].casefold()
+                    if 'төлбөр' in anchors and 'сургалт' in query_terms and 'сургалтын төлбөр' in body:
+                        fused[index] += CATEGORY_WEIGHT
+                    if anchors <= {'мэргэжил', 'хөтөлбөр'} and anchors and 'элсэлт авах хөтөлбөр' in body:
+                        fused[index] += CATEGORY_WEIGHT
+                    if 'элсэлт' in anchors and 'шаардлага' in anchors and 'элсэлтэд оролцох эрх' in body:
+                        fused[index] += CATEGORY_WEIGHT
+                    if mode == 'production' and 'дотуур' in anchors and 'дотуур' not in body:
+                        fused[index] = 0
+                    if mode == 'production' and 'ном' in anchors and 'сан' in query_lower and 'номын сан' not in body:
+                        fused[index] = 0
             candidates, used = [], []
             for index in sorted(range(len(self._rows)), key=lambda i: (-fused[i], self._rows[i]['source_id'])):
-                if not fused[index]:
+                if mode != 'e5' and not fused[index]:
                     continue
                 row = self._rows[index]
                 # Unknown topics must not acquire a nearest-neighbour answer merely
                 # because E5 always ranks something. At least one real anchor is required.
-                if anchors and not (anchors & self._body_terms[index]):
+                if mode == 'production' and anchors and not (anchors & self._body_terms[index]):
                     continue
                 # Two distinct parts per page are allowed; overlapping repeats are not.
                 same = [r for r in used if r['url'] == row['url']]
@@ -332,7 +347,10 @@ class WebsiteRetriever:
             if self._dense_status == 'unavailable':
                 warnings.append('Local E5 unavailable; lexical retrieval remains active (' + str(self._error) + ').')
             return dict(query=query.strip(), status='ranked_candidates_only' if candidates else 'no_candidates',
-                corpus_id=self._corpus_id, backend='bm25+e5_rrf' if dense is not None else 'bm25_mongolian',
+                corpus_id=self._corpus_id,
+                backend=('bm25+e5_rrf' if dense is not None else 'bm25_mongolian') if mode == 'production' else mode,
+                ranking_mode=mode, lexical_topic_gates=(mode == 'production'),
+                rrf_k=RRF_K if mode in {'rrf', 'rrf_boosted', 'production'} else None,
                 candidates=candidates, counts=dict(self._counts), warnings=warnings,
                 query_terms=sorted(query_terms), query_anchor_terms=sorted(anchors),
                 has_lexical_evidence=any(row['lexical_overlap_count'] for row in candidates),

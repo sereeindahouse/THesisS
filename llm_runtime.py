@@ -22,6 +22,8 @@ MAX_RESPONSE_BYTES = 64 * 1024
 CHAT_TIMEOUT_SECONDS = 20.0
 STATUS_TIMEOUT_SECONDS = 1.0
 STATUS_CACHE_SECONDS = 30.0
+# Re-probe transient startup/network failures soon without busy polling.
+UNAVAILABLE_STATUS_CACHE_SECONDS = 2.0
 
 _WORDS = re.compile(r"[A-Za-zА-Яа-яЁёӨөҮү]+(?:[-'][A-Za-zА-Яа-яЁёӨөҮү]+)*")
 _LATIN = re.compile(r"[A-Za-z][A-Za-z0-9_'-]*")
@@ -187,7 +189,10 @@ class LLMRuntime:
                         message="Локал LLM тохируулаагүй. STT-ийн эх текстийг хэвээр ашиглана.")
             return base
         with self._status_lock:
-            if self._cached_status is not None and time.monotonic() - self._cached_at < STATUS_CACHE_SECONDS:
+            ttl = (UNAVAILABLE_STATUS_CACHE_SECONDS
+                   if self._cached_status and self._cached_status.get("reason") == "local_provider_unavailable"
+                   else STATUS_CACHE_SECONDS)
+            if self._cached_status is not None and time.monotonic() - self._cached_at < ttl:
                 cached = dict(self._cached_status)
                 cached.update(network_probe=False, cached=True)
                 return cached
