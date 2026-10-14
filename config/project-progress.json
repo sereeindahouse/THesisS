@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "updated_date": "2026-10-14",
+  "target_date": "2026-11-10",
+  "scope_label": "11.10-ны ажиллах хувилбарын 8 инженерийн шалгуур. Ижил жинтэй тоолол; дипломын нийт хувь, ажлын цаг, чанарын оноо биш.",
+  "current_week": "Хуваариар 2-р долоо хоног; 3-р долоо хоногийн техникийн үеийг урьдчилан гүйцэтгэсэн.",
+  "status_basis": "Төслийн нотолгоонд тулгуурласан, 2026.10.14-нд шинэчилсэн бүртгэл; runtime-ийн бэлэн байдлыг тусад нь шалгана.",
+  "milestones": [
+    {
+      "id": "schema",
+      "label": "Схем, импорт, эхийн хувилбар",
+      "state": "done",
+      "detail": "SQLite, fact/FAQ холбоо, readonly хайлт, хувилбар/hash ба импорт ажиллана.",
+      "evidence": [
+        "schemas/content.schema.json",
+        "content_store.py",
+        "CORE/website_corpus.py"
+      ]
+    },
+    {
+      "id": "model-choice",
+      "label": "Модель сонголт ба ижил оролтын туршилт",
+      "state": "done",
+      "detail": "Cafet STT, Батаа/Есүй TTS, BM25/E5, Gemma сонголт ба хэмжсэн хязгаарлалтууд бүртгэлтэй.",
+      "evidence": [
+        "CORE/WEEK03-DECISIONS.mn.md",
+        "docs/experiments/rag-integration-20261012.json"
+      ]
+    },
+    {
+      "id": "retrieval-router",
+      "label": "Хязгаарласан хүрээний хайлт, чиглүүлэгч",
+      "state": "done",
+      "detail": "160 хэсгийн hybrid хайлт; шууд эх, тодруулга, эх дутууг хэлэх замууд ажиллана.",
+      "evidence": [
+        "website_retrieval.py",
+        "question_router.py",
+        "answer_contract.py"
+      ]
+    },
+    {
+      "id": "grounded-rag",
+      "label": "Эхтэй Gemma хариулт ба fallback",
+      "state": "done",
+      "detail": "Бодит эхтэй C хүсэлт ажилласан. Эшлэл/тоо/уртыг шалгана; бүх утгын зөв байдлыг автоматаар батлахгүй.",
+      "evidence": [
+        "rag_runtime.py",
+        "tools/evaluate_answer_quality.py"
+      ]
+    },
+    {
+      "id": "voice-stability",
+      "label": "Дууны урсгалын тогтвортой ажиллагаа",
+      "state": "in_progress",
+      "detail": "Микрофон/файл → STT → засвар → хариулт → TTS холбогдсон. Edge TTS 403-ийг 7.3.1-р засаж хоёр хоолой туршсан; үйлчилгээний тогтвортой байдал/хүний дуудлагын чанар үлдсэн.",
+      "evidence": [
+        "voice_runtime.py",
+        "requirements.txt"
+      ]
+    },
+    {
+      "id": "inspection-ui",
+      "label": "Чат, эхийн сан ба явцыг харах",
+      "state": "done",
+      "detail": "Чатны урсгал, эхийн атлас, сэдэв/төрлөөр шүүх, бүтэн хадгалсан текст, баримтын preview, явцын дэлгэц.",
+      "evidence": [
+        "demo/index.html",
+        "demo/data.html",
+        "data_explorer.py"
+      ]
+    },
+    {
+      "id": "delivery-repro",
+      "label": "API, шинэчлэлт, сэргээх ба дахин гаргах",
+      "state": "in_progress",
+      "detail": "Локал HTTP API/GitHub/суулгах хэрэгсэл бэлэн. Бүтэн corpus-ийг нийтэд сэргээх, үйлчилгээний deployment/backup-restore ажиллагаа үлдсэн.",
+      "evidence": [
+        "demo_server.py",
+        "tools/install_release_models.py",
+        "CORE/WEBSITE-DATA.mn.md"
+      ]
+    },
+    {
+      "id": "device",
+      "label": "HTTPS, таблет, бодит орчин",
+      "state": "todo",
+      "detail": "Зориулсан төхөөрөмж, HTTPS микрофон, бодит хэрэглэгчийн хугацаа/даалгаврын шалгалт хийгдээгүй.",
+      "evidence": [
+        "CORE/ROADMAP-PROGRESS.mn.md"
+      ]
+    }
+  ],
+  "week03": {
+    "complete": true,
+    "completed_date": "2026-10-14",
+    "scope_label": "Схем, модель сонголт, development туршилтын техникийн үе дууссан. Бүтэн систем/дипломын хүлээн авалт биш.",
+    "criteria": [
+      {
+        "id": "schema",
+        "label": "Fact/FAQ/эхийн схем",
+        "state": "done",
+        "detail": "6 эх / 10 fact / 5 FAQ, validator, SQLite хувилбар/импорт.",
+        "evidence": [
+          "schemas/content.schema.json",
+          "data/content-draft-v1.json"
+        ]
+      },
+      {
+        "id": "stt",
+        "label": "Ижил оролтын STT харьцуулалт",
+        "state": "done",
+        "detail": "13 reference, 4 модель; Cafet development сонголт. Нэг хэлэгчийн хязгаар.",
+        "evidence": [
+          "CORE/WEEK03-DECISIONS.mn.md"
+        ]
+      },
+      {
+        "id": "tts",
+        "label": "TTS туршилт ба сонголт",
+        "state": "done",
+        "detail": "Батаа/Есүй, өмнөх хугацаа/хэрэглэгчийн санал; 7.3.1-ээр одоогийн хоёр synthesis ажилласан.",
+        "evidence": [
+          "voice_runtime.py",
+          "CORE/WEEK03-DECISIONS.mn.md"
+        ]
+      },
+      {
+        "id": "embedding",
+        "label": "Ижил corpus/query embedding харьцуулалт",
+        "state": "done",
+        "detail": "160 хэсэг, 36 development query, 5 retrieval mode. Held-out биш.",
+        "evidence": [
+          "tools/evaluate_retrieval_ablation.py",
+          "papers/05-retrieval-method-notes.mn.md"
+        ]
+      },
+      {
+        "id": "c",
+        "label": "Бодит C хэрэгцээнд LLM туршилт",
+        "state": "done",
+        "detail": "Gemma 3 4B, ready HTTP run-д 3 C асуулт. Хүний correctness оноо null.",
+        "evidence": [
+          "docs/experiments/rag-integration-20261012.json"
+        ]
+      },
+      {
+        "id": "choices",
+        "label": "Сонголт, хугацаа, лиценз, хязгаар",
+        "state": "done",
+        "detail": "Pinned revision/hash/license, CPU/GPU, load/inference/synthesis ба fallback.",
+        "evidence": [
+          "config/model-catalog",
+          "reports/system/MODEL-SETUP.mn.md"
+        ]
+      }
+    ]
+  },
+  "research": [
+    {
+      "id": "rq",
+      "label": "Судалгааны асуулт ба арга",
+      "state": "in_progress",
+      "detail": "RQ/хэмжүүрийн ноорог байгаа; эцсийн protocol баталгаажуулалт үлдсэн.",
+      "evidence": []
+    },
+    {
+      "id": "literature",
+      "label": "Өгүүллийн судалгаа",
+      "state": "in_progress",
+      "detail": "20+6 эхийн бүртгэл, сонгосон аргын уншлага. Бүх өгүүлэл бүтнээр шалгагдсан гэж үзэхгүй.",
+      "evidence": []
+    },
+    {
+      "id": "unseen",
+      "label": "Шинэ асуултын хараат бус үнэлгээ",
+      "state": "todo",
+      "detail": "Reference-ийг гаралт харахаас өмнө тогтоож, correctness/эх/бүрэн байдал/тодруулгыг үнэлнэ.",
+      "evidence": []
+    },
+    {
+      "id": "voice-comparison",
+      "label": "Бичсэн / түүхий STT / зассан STT",
+      "state": "todo",
+      "detail": "Ижил даалгаврын амжилт, алдаа, хэрэглэгчийн засах хугацааг харьцуулна.",
+      "evidence": []
+    },
+    {
+      "id": "usability",
+      "label": "Бодит хэрэглэгчийн туршилт",
+      "state": "todo",
+      "detail": "Ойлгомжтой хэрэглээ, зорилтот төхөөрөмж дээрх даалгаврын амжилт.",
+      "evidence": []
+    },
+    {
+      "id": "thesis",
+      "label": "Дипломын үр дүн, хэлэлцүүлэг, бичвэр",
+      "state": "todo",
+      "detail": "Бүтэн дүгнэлт/хязгаарлалтыг нотолгоотой бичих ажил.",
+      "evidence": []
+    }
+  ],
+  "limitations": [
+    "5/8 нь тогтоосон инженерийн checklist-ийн тоолол; нийт дипломын 62.5% гэсэн утгагүй.",
+    "Моделиудын бэлэн жинг ашигласан; өөрийн ASR/LLM сургалт хийгээгүй.",
+    "Автомат тест болон Support@k нь хариултын correctness хувь биш.",
+    "Анхны roadmap болон өмнөх өдрийн түүхэн evidence өөрчлөгдөөгүй."
+  ]
+}

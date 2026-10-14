@@ -17,6 +17,7 @@ from listening_review import ListeningReview
 from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG
+from data_explorer import SourceExplorer
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
@@ -33,6 +34,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     content_policy = ContentUsePolicy(root)
     llm = llm_service if llm_service is not None else LLMRuntime(root)
     rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
+    explorer = SourceExplorer(root,content_database=database)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -95,6 +97,27 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             if self.headers.get("Sec-Fetch-Site") == "cross-site":
                 return self.error(403, "Өөр сайтаас локал өгөгдөл уншихгүй.")
             path = unquote(urlsplit(self.path).path)
+            if path in {"/data", "/data.html", "/data.css", "/data.js"}:
+                name = "data.html" if path in {"/data", "/data.html"} else path[1:]
+                file = (root / "demo" / name).resolve()
+                if file.parent != root / "demo" or not file.is_file():
+                    return self.error(404, "Мэдээллийн сангийн харагдац олдсонгүй.")
+                mime = {".html": "text/html", ".css": "text/css", ".js": "text/javascript"}[file.suffix]
+                return self.send_data(200, file.read_bytes(), mime + "; charset=utf-8")
+            if path == "/api/explorer":
+                try:
+                    return self.send_json(200, explorer.snapshot())
+                except (OSError,sqlite3.Error,ValueError,KeyError,TypeError):
+                    return self.error(503, "Эхийн сан эсвэл явцын бүртгэлийг уншиж чадсангүй.")
+            document = re.fullmatch(r"/api/explorer/document/((?:png|pdf)-[0-9a-f]{20})",path)
+            if document:
+                try:
+                    data,mime = explorer.document(document.group(1))
+                    return self.send_data(200,data,mime)
+                except FileNotFoundError:
+                    return self.error(404, "Хадгалсан эх баримт олдсонгүй.")
+                except (OSError,sqlite3.Error,ValueError):
+                    return self.error(409, "Эх баримтын файл, байрлал эсвэл hash таарахгүй байна.")
             if path == "/api/review":
                 try:
                     return self.send_json(200, review.status())

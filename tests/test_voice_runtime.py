@@ -371,6 +371,58 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.assertFalse(result["human_quality_accepted"])
         self.assertIn("онлайн", result["online_notice"])
 
+    def test_service_rejection_is_specific_sanitized_and_not_blindly_retried(self):
+        class Rejected(Exception):
+            status = 403
+
+        async def rejected(text, selected):
+            raise Rejected("private-text secret-token wss://example.invalid/")
+
+        with patch.object(voice, "_edge_audio", side_effect=rejected) as network:
+            with self.assertRaises(voice.VoiceRuntimeError) as caught:
+                self.runtime.synthesize("Хувийн тестийн текст", voice.ALLOWED_VOICES[0])
+        self.assertEqual(network.call_count, 1)
+        self.assertEqual(caught.exception.code, "tts_service_rejected")
+        self.assertEqual(caught.exception.status, 503)
+        state = self.runtime.status()
+        self.assertEqual(state["tts_last_attempt"]["service_http_status"], 403)
+        self.assertFalse(state["tts_last_attempt"]["success"])
+        serialized = json.dumps(state, ensure_ascii=False) + str(caught.exception)
+        for private in ("private-text", "secret-token", "Хувийн тестийн текст", "wss://"):
+            self.assertNotIn(private, serialized)
+        self.assertFalse((self.root / "runtime").exists())
+
+    def test_rate_limit_then_success_updates_last_attempt_without_false_quality_claim(self):
+        class RateLimited(Exception):
+            status = 429
+
+        async def limited(text, selected):
+            raise RateLimited("busy")
+
+        with patch.object(voice, "_edge_audio", side_effect=limited):
+            with self.assertRaises(voice.VoiceRuntimeError) as caught:
+                self.runtime.synthesize("Тест", voice.ALLOWED_VOICES[0])
+        self.assertEqual(caught.exception.code, "tts_rate_limited")
+
+        async def recovered(text, selected):
+            return b"ID3fixture"
+
+        with patch.object(voice, "_edge_audio", side_effect=recovered):
+            result = self.runtime.synthesize("Тест", voice.ALLOWED_VOICES[0])
+        last = self.runtime.status()["tts_last_attempt"]
+        self.assertTrue(last["success"])
+        self.assertIsNone(last["error_code"])
+        self.assertIsNone(last["service_http_status"])
+        self.assertFalse(last["is_current_availability_guarantee"])
+        self.assertFalse(result["human_quality_accepted"])
+
+    def test_voice_status_distinguishes_dependencies_from_unchecked_online_service(self):
+        with patch.object(voice, "_edge_audio", side_effect=AssertionError("network probe")):
+            state = self.runtime.status()
+        self.assertTrue(state["tts_ready_checks_dependencies_only"])
+        self.assertEqual(state["tts_ready"], state["tts_dependency_ready"])
+        self.assertIsNone(state["tts_last_attempt"])
+
     def test_unsupported_voice_empty_text_and_long_text_never_call_service(self):
         for text, selected in (("Тест", "en-US-AriaNeural"), (" ", voice.ALLOWED_VOICES[0]),
                                ("x" * 2001, voice.ALLOWED_VOICES[0])):

@@ -1,6 +1,6 @@
 # Tested Windows CPU environment; Python 3.11.
 faster-whisper==1.2.1
-edge-tts==7.2.8
+edge-tts==7.3.1
 sounddevice==0.5.6
 scipy==1.17.1
 ctranslate2==4.8.2

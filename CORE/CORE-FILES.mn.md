@@ -4,6 +4,7 @@
 |---|---|---|
 | Demo | [demo_server.py](../demo_server.py), [интерфэйс](../demo/index.html) | Микрофон/файл, текст засвар, чиглүүлэгч, TTS, сонсголын нэг дэлгэц |
 | Нэг даралтын нээлт | [open_demo.py](../open_demo.py), [DEMO.cmd](../DEMO.cmd) | Сервер асаах/ашиглах, браузер нээх |
+| Эхийн атлас ба явц | [data_explorer.py](../data_explorer.py), [интерфэйс](../demo/data.html), [шалгуурын бүртгэл](../config/project-progress.json) | 77 эх, fact/FAQ, огноо/locator, зураг/PDF preview, техникийн явц |
 | Веб эхийн сан | [website_corpus.py](website_corpus.py) | Crawl, snapshot/hash, SQLite, draft эхийн хайлт |
 | PDF/зургийн сонгосон эх | [document_corpus.py](document_corpus.py), [тест](../tests/test_document_corpus.py) | Эх файл/hash, хуудас/заалт, буулгалтын хувилбар |
 | Эхийн хамрах хүрээний хэмжилт | [evaluate_source_retrieval.py](../tools/evaluate_source_retrieval.py), [36 асуулт](../data/rag-source-dev-20261012.json) | Зорилтот хэсэг top1/top3/top5; accuracy биш |

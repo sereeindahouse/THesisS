@@ -1727,5 +1727,195 @@
       "Startup readiness is not immediate; cache retry does not remove GPU/model startup latency.",
       "No independent held-out human evaluation or new STT/TTS quality."
     ]
+  },
+  "database_explorer_and_week03_completion_20261014": {
+    "source_counts": {
+      "html": 72,
+      "binary_documents": 5,
+      "catalogue": 77,
+      "raw_chunks": 153,
+      "indexed_passages": 160,
+      "indexed_document_passages": 21,
+      "curated_sources": 6,
+      "facts": 10,
+      "faqs": 5
+    },
+    "source_counts_basis": "Actual local readonly SQLite plus eligible retrieval snapshot; public clone has no full corpus.",
+    "features": [
+      "Read-only sources/progress/curated viewer",
+      "Unicode word-prefix search, topic/type/pagination",
+      "Captured HTML text, selected document clauses with locator/method/reviewer metadata",
+      "Original PNG/PDF previews whitelisted, root-contained and hash-checked",
+      "Curated field whitelist hides private annotations/reviewer names",
+      "OPEN-DATA.cmd and chat entry, mobile three tabs"
+    ],
+    "browser": {
+      "checks": {
+        "actual_database_counts": true,
+        "all_77_sources_available": true,
+        "tuition_full_source_search": true,
+        "local_png_preview_and_transcription_provenance": true,
+        "local_pdf_original_available": true,
+        "topic_filter": true,
+        "pagination_changes_sources": true,
+        "empty_search_is_clear": true,
+        "progress_and_week3_scope": true,
+        "curated_database_rows": true,
+        "three_mobile_views_fit": true,
+        "chat_has_database_entry": true,
+        "response_bound_tts_works_in_chat": true,
+        "no_browser_runtime_errors": true
+      },
+      "actual_tts_synthesis": true,
+      "audio_seconds": 9.888,
+      "actual_stt_inference": false,
+      "actual_llm_inference": false,
+      "human_quality": false
+    },
+    "week03": {
+      "engineering_complete": true,
+      "completed_date": "2026-10-14",
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "Fact/FAQ/эхийн схем",
+          "state": "done",
+          "detail": "6 эх / 10 fact / 5 FAQ, validator, SQLite хувилбар/импорт.",
+          "evidence": [
+            "schemas/content.schema.json",
+            "data/content-draft-v1.json"
+          ]
+        },
+        {
+          "id": "stt",
+          "label": "Ижил оролтын STT харьцуулалт",
+          "state": "done",
+          "detail": "13 reference, 4 модель; Cafet development сонголт. Нэг хэлэгчийн хязгаар.",
+          "evidence": [
+            "CORE/WEEK03-DECISIONS.mn.md"
+          ]
+        },
+        {
+          "id": "tts",
+          "label": "TTS туршилт ба сонголт",
+          "state": "done",
+          "detail": "Батаа/Есүй, өмнөх хугацаа/хэрэглэгчийн санал; 7.3.1-ээр одоогийн хоёр synthesis ажилласан.",
+          "evidence": [
+            "voice_runtime.py",
+            "CORE/WEEK03-DECISIONS.mn.md"
+          ]
+        },
+        {
+          "id": "embedding",
+          "label": "Ижил corpus/query embedding харьцуулалт",
+          "state": "done",
+          "detail": "160 хэсэг, 36 development query, 5 retrieval mode. Held-out биш.",
+          "evidence": [
+            "tools/evaluate_retrieval_ablation.py",
+            "papers/05-retrieval-method-notes.mn.md"
+          ]
+        },
+        {
+          "id": "c",
+          "label": "Бодит C хэрэгцээнд LLM туршилт",
+          "state": "done",
+          "detail": "Gemma 3 4B, ready HTTP run-д 3 C асуулт. Хүний correctness оноо null.",
+          "evidence": [
+            "docs/experiments/rag-integration-20261012.json"
+          ]
+        },
+        {
+          "id": "choices",
+          "label": "Сонголт, хугацаа, лиценз, хязгаар",
+          "state": "done",
+          "detail": "Pinned revision/hash/license, CPU/GPU, load/inference/synthesis ба fallback.",
+          "evidence": [
+            "config/model-catalog",
+            "reports/system/MODEL-SETUP.mn.md"
+          ]
+        }
+      ],
+      "historical_20261010_evidence_unchanged": true,
+      "scope": "Схем, модель сонголт, development туршилтын техникийн үе дууссан. Бүтэн систем/дипломын хүлээн авалт биш."
+    },
+    "operational_checklist": {
+      "done": 5,
+      "in_progress": 2,
+      "todo": 1,
+      "total": 8,
+      "equal_item_ratio": 0.625,
+      "scope": "11.10-ны ажиллах хувилбарын 8 инженерийн шалгуур. Ижил жинтэй тоолол; дипломын нийт хувь, ажлын цаг, чанарын оноо биш.",
+      "whole_thesis_percentage": null
+    },
+    "tts_compatibility": {
+      "previous": "7.2.8",
+      "fixed": "7.3.1",
+      "previous_real_failure": "403 WebSocket handshake",
+      "installed_envs": [
+        ".venv",
+        ".venv-modeltools"
+      ],
+      "pip_check": {
+        ".venv": "PASS",
+        ".venv-modeltools": "PASS"
+      },
+      "targeted_tests": {
+        "command": "python -X utf8 -m unittest discover -s tests -p test_voice_runtime.py -v",
+        "passed": 28,
+        "seconds": 0.535,
+        "new_tests": 3
+      },
+      "actual_voices": [
+        "mn-MN-BataaNeural",
+        "mn-MN-YesuiNeural"
+      ],
+      "human_quality_accepted": false,
+      "protocol_release": "https://github.com/rany2/edge-tts/releases/tag/7.3.0",
+      "stable_release": "https://github.com/rany2/edge-tts/releases/tag/7.3.1"
+    },
+    "private_evidence_sha256": {
+      "runtime/explorer-browser-qa-20261014.json": "f75f65db802cf8c5218dd4b3b16308c19c915d1aa0c7eac138cc19a19e87ce7d",
+      "runtime/explorer-browser-qa-initial-20261014.json": "04122c5e60575fde86e9d7967df2b83afbc08251402840a3ec7b561fc9e91981",
+      "runtime/explorer-browser-qa-search-before-fix-20261014.json": "eb4fa15fdcad7c8e079c00f45a18ba3facbc00b82a98d43b4249df8b51242052",
+      "runtime/tts-fix-verification-20261014.json": "6149c93a598518c4f237ac2442ced3a08e7edce987439f0e1e503b8b767b8e84",
+      "runtime/tests-explorer-local-final-20261014.json": "298da09808c4497df47c164f49be7b820644c976e5375668de146c292eb3d028"
+    },
+    "diagnostics": [
+      "Initial QA query encoding error in helper, corrected without product change.",
+      "Second QA identified substring search matching төлбөр inside хөтөлбөр; product changed to Unicode word-prefix matching."
+    ],
+    "readonly_databases_unchanged": true,
+    "original_roadmap_unchanged": true,
+    "limitations": [
+      "Manual documented milestone states, not automatic thesis progress or time estimates.",
+      "No full OCR/client-tab coverage or independent answer correctness.",
+      "TTS is online; successful probes do not establish service reliability or human sound quality.",
+      "No own model training, new STT quality or device/HTTPS/userstudy."
+    ],
+    "local_tests": {
+      "total": 306,
+      "passed": 306,
+      "seconds": 33.208
+    },
+    "interrupted_suite_run": {
+      "code": 1073807364,
+      "finished_tests": null,
+      "note": "Process interrupted without suite completion; earlier raw log retained, not counted as passing tests."
+    },
+    "final_code_sha256_lf": {
+      "data_explorer.py": "c9e66fae18687a9a55ee603837b104ea4aa53c1edb2cf629d77c35ef1ccc157f",
+      "demo_server.py": "d69b53a23c52b86d6c2a049d1e3f447cfd71d1cbe9709f221d1f6cefb17af8ce",
+      "demo/data.html": "f055149b16c6d3976c19c9542ca711be860da7715ddb0418f29eda32cbc939bc",
+      "demo/data.css": "ef055b7e6383a8dbf0c912f516b1d66c3e7f2bb773d49140b8d920e28b11f987",
+      "demo/data.js": "af2fcaa809066361ef2a0b32fea98445584e27ef9426d4e77ad97be60ba19a67",
+      "demo/index.html": "34677700977a1f63521640b33afab4857128e8657a93afcd0f52119550a92c9d",
+      "open_demo.py": "ac4db68a0d7710aa6f5f7c39f904e2129183a07fb137e08627dca2c38b30bf35",
+      "voice_runtime.py": "b9ac7e1a262d93e39ec5e1799aa6dea7db0e3538a5e6f5572d5000d59bea4130",
+      "requirements.txt": "e439dd8fff96a1f0618ebf43825e4c641ae0c6e6a01717f5502b8f871280084c",
+      "config/project-progress.json": "dc13dcc90cee4182e126a94847414636ccef0a2aa0df55e8c5b7c8a1f4bea451",
+      "tests/test_data_explorer.py": "86ce4fe09b2d6f11f9cbdddb86749825af68cef9a1c24b501577d82b94815cf3",
+      "tests/test_explorer_http.py": "9cab107f66cc472fb523101fe42122a25adb2f24e424cd3ba9db0c61fa6fd1a4",
+      "tests/test_voice_runtime.py": "5af9887032a54e2a02d665f56f1b6747062dec3d4b366420562e60524ed8dd40"
+    }
   }
 }

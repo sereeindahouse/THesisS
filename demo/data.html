@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Мэдлэгийн атлас · THesisS</title>
+  <link rel="stylesheet" href="/data.css">
+  <script src="/data.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Үндсэн агуулгад очих</a>
+<div class="atlas-shell">
+  <aside class="sidebar" aria-label="Төслийн навигац">
+    <a class="atlas-brand" href="/data" aria-label="THesisS мэдлэгийн атлас">
+      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="M5 6h9a5 5 0 0 1 5 5v16a7 7 0 0 0-5-2H5V6Z" stroke="currentColor" stroke-width="1.6"/><path d="M19 11a5 5 0 0 1 5-5h3v19h-3a7 7 0 0 0-5 2" stroke="currentColor" stroke-width="1.6"/><path d="M9 11h5M9 15h5M9 19h5" stroke="currentColor" stroke-width="1.6"/></svg></span>
+      <span>THesisS<small>МЭДЛЭГИЙН АТЛАС</small></span>
+    </a>
+    <div class="nav-label">Төслийг дотроос нь</div>
+    <nav class="atlas-nav" aria-label="Атласын хэсгүүд" role="tablist">
+      <button id="knowledgeTab" class="nav-button active" role="tab" aria-selected="true" aria-controls="knowledgeView" type="button"><span class="nav-glyph" aria-hidden="true">▤</span>Мэдээллийн сан<span class="nav-arrow" aria-hidden="true">↗</span></button>
+      <button id="curatedTab" class="nav-button" role="tab" aria-selected="false" aria-controls="curatedView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">≡</span>Хариултын сан<span class="nav-arrow" aria-hidden="true">↗</span></button>
+      <button id="progressTab" class="nav-button" role="tab" aria-selected="false" aria-controls="progressView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">◷</span>Төслийн явц<span class="nav-arrow" aria-hidden="true">↗</span></button>
+    </nav>
+    <a href="/" class="chat-link"><span aria-hidden="true">↗</span> Мэдээллийн туслах руу</a>
+    <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span>Локал өгөгдөл<small>Энэ харагдац хадгалсан эхийг уншина. Моделиор шинэ хариулт үүсгэхгүй.</small></div>
+    <div class="sidebar-footer">Эх → хайлт → хариулт<small>Бүтээж буй системийн нотолгоо</small></div>
+  </aside>
+  <main id="main" class="main" tabindex="-1">
+    <header class="topbar"><span>Сургуулийн мэдээллийн систем</span><span class="local-badge"><span aria-hidden="true">●</span> Зөвхөн унших</span></header>
+    <div id="loadState" class="load-state" role="status" aria-live="polite"><div class="loading-mark" aria-hidden="true"></div><h1>Атласыг нээж байна…</h1><p>Хадгалсан эх сурвалж, төслийн явцыг уншиж байна.</p></div>
+    <div id="errorState" class="error-state" hidden><span class="error-symbol" aria-hidden="true">!</span><h1>Мэдээллийн санг нээж чадсангүй</h1><p id="errorMessage">Локал серверийн холболтыг шалгаад дахин оролдоно уу.</p><button id="retryLoad" class="solid-button" type="button">Дахин ачаалах</button><a href="/">Чат руу буцах</a></div>
+    <section id="knowledgeView" class="view" role="tabpanel" aria-labelledby="knowledgeTab" hidden>
+      <div class="hero">
+        <div class="hero-copy"><div class="eyebrow"><span></span>ХАДГАЛСАН ЭХИЙН ЗУРАГЛАЛ</div><h1>Сургуулийн<br><em>мэдлэгийн атлас.</em></h1><p>Чат ямар мэдээлэлд тулгуурлаж байна вэ?<br>Эхийг хайж, бүтэн текст болон хамрах хүрээг нь өөрөө шалгаарай.</p></div>
+        <div class="hero-illustration" aria-hidden="true"><svg viewBox="0 0 280 200" fill="none"><ellipse cx="145" cy="106" rx="110" ry="65" stroke="#abc4b5" stroke-dasharray="4 7"/><ellipse cx="145" cy="106" rx="74" ry="94" stroke="#c8d7c8" transform="rotate(32 145 106)"/><path d="m51 65 92 44 70-66M143 109l71 40M143 109l-78 56" stroke="#abc4b5"/><rect x="111" y="72" width="67" height="72" rx="13" fill="#164e48"/><path d="M128 94h33M128 104h25M128 114h33M128 124h18" stroke="#c7dec8" stroke-width="3" stroke-linecap="round"/><rect x="22" y="45" width="55" height="40" rx="9" fill="#f5eedc" stroke="#c4b888"/><text x="49" y="70" text-anchor="middle" fill="#786e3f" font-size="12" font-family="system-ui">HTML</text><rect x="192" y="22" width="49" height="40" rx="9" fill="#edf1e7" stroke="#bbc8b2"/><text x="216" y="47" text-anchor="middle" fill="#596e50" font-size="12" font-family="system-ui">PDF</text><rect x="193" y="133" width="49" height="40" rx="9" fill="#e2ece7" stroke="#99b2a7"/><text x="217" y="158" text-anchor="middle" fill="#315c50" font-size="12" font-family="system-ui">PNG</text><circle cx="65" cy="164" r="8" fill="#c4a763"/><circle cx="126" cy="24" r="4" fill="#afc2b5"/><path d="m252 90 3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6Z" fill="#b9cdbb"/></svg></div>
+      </div>
+      <div class="stat-grid" id="stats" aria-label="Мэдээллийн сангийн тоон мэдээлэл"></div>
+      <p class="scope-note" id="scopeNote"><span aria-hidden="true">↳</span> Энэ нь бүх сайтын бүрэн хуулбар биш. Хадгалсан эх, сонгосон баримтын хэсгийг харуулна.</p>
+      <section class="catalogue" aria-labelledby="catalogueTitle">
+        <div class="section-title"><div><span class="eyebrow muted">ЭХИЙГ НЭЭЖ ҮЗЭХ</span><h2 id="catalogueTitle">Мэдээллийн цуглуулга</h2></div><span class="snapshot-label" id="snapshotLabel"></span></div>
+        <div class="search-row"><label class="search-box" for="sourceSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="sourceSearch" type="search" placeholder="Элсэлт, төлбөр, Sakura…" autocomplete="off"><span class="search-hint" aria-hidden="true">ХАЙХ</span></label><label class="kind-label">Эхийн төрөл<select id="kindFilter"><option value="all">Бүх төрөл</option><option value="HTML">HTML хуудас</option><option value="PNG">PNG зураг</option><option value="PDF">PDF баримт</option><option value="document">Баримттай эх</option></select></label></div>
+        <div id="topicFilters" class="topic-filters" aria-label="Сэдвээр шүүх"></div>
+        <div class="results-bar"><p id="resultCount" role="status" aria-live="polite"></p><button id="clearFilters" class="text-button" type="button" hidden>Шүүлтийг цэвэрлэх ×</button></div>
+        <div class="explorer-grid">
+          <div class="source-column"><div id="sourceList" class="source-list" aria-label="Эх сурвалжийн жагсаалт"></div><div id="emptyState" class="empty-state" hidden><span aria-hidden="true">⌕</span><h3>Тохирох эх олдсонгүй</h3><p>Өөр түлхүүр үг ашиглах эсвэл шүүлтээ цэвэрлээрэй. Энэ хайлт зөвхөн хадгалсан цуглуулгад хийнэ.</p><button id="emptyReset" class="text-button" type="button">Бүх эхийг харах ↗</button></div><nav id="pagination" class="pagination" aria-label="Эхийн жагсаалтын хуудас"><button id="previousPage" type="button" aria-label="Өмнөх хуудас">←</button><span id="pageInfo"></span><button id="nextPage" type="button" aria-label="Дараагийн хуудас">→</button></nav></div>
+          <article id="sourceDetail" class="source-detail" aria-label="Сонгосон эхийн дэлгэрэнгүй"><div class="detail-placeholder"><span aria-hidden="true">▤</span><p>Эх сурвалжаа сонгоод,<br>мэдээллийг нь нягтлаарай.</p></div></article>
+        </div>
+      </section>
+    </section>
+    <section id="curatedView" class="view" role="tabpanel" aria-labelledby="curatedTab" hidden>
+      <div class="progress-hero"><div class="eyebrow"><span></span>ЭХ → БАРИМТ → БҮРТГЭЛТЭЙ ХАРИУЛТ</div><h1>Хариултын<br><em>тулгуурыг нь харъя.</em></h1><p>SQLite-д бүртгэсэн тогтмол FAQ, бүтэцтэй баримт, эхийн холбоосыг нэг дор нягтлаарай.</p></div>
+      <div id="curatedCounts" class="curated-counts" aria-label="Хариултын сангийн тоон мэдээлэл"></div>
+      <aside class="curated-policy"><strong>Төлөвийн тайлбар</strong><p>«draft» нь анхны өгөгдлийн сангийн metadata. Төслийн эзэн албан эхийг ашиглахыг зөвшөөрсөн; сургуулийн ажилтан бүртгэл тус бүрийг баталсан гэсэн үг биш. Энэ харагдац хариултын зөв байдлыг өөрөө батлахгүй.</p></aside>
+      <label class="search-box curated-search" for="curatedSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="curatedSearch" type="search" placeholder="FAQ, баримт, эхийн бүртгэлээс хайх…" autocomplete="off"></label>
+      <p id="curatedResultCount" class="curated-result-count" role="status" aria-live="polite"></p>
+      <div id="curatedUnavailable" class="empty-state" hidden><h2>Хариултын сан нээгдсэнгүй</h2><p>Мэдээллийн сангийн бусад эхийг эхний табаас шалгаж болно.</p></div>
+      <section aria-labelledby="faqTitle"><div class="section-title"><div><span class="eyebrow muted">ТОГТМОЛ АСУУЛТ — ХАРИУЛТ</span><h2 id="faqTitle">Бүртгэлтэй FAQ</h2></div></div><div id="faqList" class="faq-list"></div></section>
+      <section class="curated-section" aria-labelledby="factsTitle"><div class="section-title"><div><span class="eyebrow muted">ХАРИУЛТЫН БҮРЭЛДЭХҮҮН</span><h2 id="factsTitle">Бүтэцтэй баримтууд</h2></div></div><div id="factsList" class="facts-list"></div></section>
+      <section class="curated-section" aria-labelledby="curatedSourcesTitle"><div class="section-title"><div><span class="eyebrow muted">ТУЛГУУР ЭХИЙН БҮРТГЭЛ</span><h2 id="curatedSourcesTitle">Холбосон эхүүд</h2></div></div><div id="curatedSourcesList" class="curated-sources-list"></div></section>
+    </section>
+    <section id="progressView" class="view" role="tabpanel" aria-labelledby="progressTab" hidden>
+      <div class="progress-hero"><div class="eyebrow"><span></span>ХИЙСЭН АЖИЛ БА ҮЛДСЭН ШАЛГУУР</div><h1>Систем ажиллаж байна.<br><em>Нотолгоо нь өсөж байна.</em></h1><p>Код ажиллах, эх олох, зөв хариулах гурвын явцыг тусад нь харъя.</p></div>
+      <div id="progressSummary" class="progress-summary"></div>
+      <div class="workflow" aria-label="Системийн урсгал"><span>Яриа <small>STT</small></span><i aria-hidden="true">→</i><span>Хайлт <small>BM25 · E5</small></span><i aria-hidden="true">→</i><span>Эхтэй хариулт <small>Router · Gemma</small></span><i aria-hidden="true">→</i><span>Сонсох <small>TTS</small></span></div>
+      <div id="week03Summary" class="week-summary" hidden></div>
+      <div class="section-title"><div><span class="eyebrow muted">БОДИТ ШАЛГУУР</span><h2>Ажлын үе шат</h2></div><span class="small-label">Хийсэн · үргэлжилж буй · үлдсэн</span></div>
+      <div id="milestones" class="milestones"></div>
+      <section id="researchSection" class="research-section" hidden aria-labelledby="researchTitle"><div class="section-title"><div><span class="eyebrow muted">ДИПЛОМЫН НОТОЛГОО</span><h2 id="researchTitle">Судалгааны ажил тусдаа үргэлжилнэ</h2></div></div><div id="researchMilestones" class="research-milestones"></div></section>
+      <aside class="limits-panel"><h2>Энэ үзүүлэлтийг яаж ойлгох вэ?</h2><p>Эндхийн тоо нь инженерийн шалгуурын төлөв. Дипломын гүйцэтгэлийн хувь, чатны зөв хариултын хувь, эсвэл багшийн үнэлгээ гэж тооцохгүй.</p><ul id="progressLimits"></ul></aside>
+    </section>
+    <footer class="main-footer"><span>THesisS · Эхээ харах боломжтой систем</span><span>Албан сайт: <a href="https://nmct.edu.mn" target="_blank" rel="noopener noreferrer">nmct.edu.mn ↗</a></span></footer>
+  </main>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

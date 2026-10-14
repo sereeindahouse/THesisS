@@ -7,6 +7,7 @@ stay in the ignored runtime directory and never become training references.
 import asyncio
 import hashlib
 import importlib.util
+import importlib.metadata
 import io
 import json
 import re
@@ -194,6 +195,7 @@ class VoiceRuntime:
         self._model_lock = threading.Lock()
         self._records_lock = threading.RLock()
         self._records = {}
+        self._last_tts_attempt = None
 
     def status(self):
         profile = self.root / "data" / "stt-model-choice.json"
@@ -209,8 +211,17 @@ class VoiceRuntime:
             pass
         stt_ready = present and all(_has_module(name) for name in ("av", "numpy", "faster_whisper"))
         tts_ready = _has_module("edge_tts")
+        try:
+            tts_version = importlib.metadata.version("edge-tts")
+        except importlib.metadata.PackageNotFoundError:
+            tts_version = None
+        with self._records_lock:
+            last_tts = dict(self._last_tts_attempt) if self._last_tts_attempt else None
         return {"available": stt_ready or tts_ready, "stt_ready": stt_ready,
-                "tts_ready": tts_ready, "model_files_present": present,
+                "tts_ready": tts_ready, "tts_dependency_ready": tts_ready,
+                "tts_package_version": tts_version,
+                "tts_ready_checks_dependencies_only": True,
+                "tts_last_attempt": last_tts, "model_files_present": present,
                 "model_loaded": self._model is not None,
                 "model": PINNED_SOURCE, "revision": PINNED_REVISION,
                 "model_sha256": PINNED_SHA256, "local_files_only": True,
@@ -330,6 +341,17 @@ class VoiceRuntime:
                    "accuracy_measured": False, "text_generated": False, "llm_calls": 0}
         return self._save(_wav_bytes(pcm), "audio/wav", details)
 
+    def _tts_attempt(self, voice, started, *, success, error=None, service_status=None):
+        # No text, URLs, service tokens or raw exception messages in public status.
+        with self._records_lock:
+            self._last_tts_attempt = {
+                "at": datetime.now(timezone.utc).isoformat(), "voice": voice,
+                "success": success, "error_code": error,
+                "service_http_status": service_status,
+                "elapsed_seconds": time.perf_counter() - started,
+                "is_current_availability_guarantee": False,
+            }
+
     def synthesize(self, text, voice):
         self._check_capacity()
         if voice not in ALLOWED_VOICES:
@@ -346,12 +368,29 @@ class VoiceRuntime:
 
         try:
             audio = asyncio.run(limited())
-        except VoiceRuntimeError:
+        except VoiceRuntimeError as exc:
+            self._tts_attempt(voice, started, success=False, error=exc.code)
             raise
         except TimeoutError as exc:
-            raise VoiceRuntimeError("tts_timeout", "Онлайн TTS хугацаандаа дуу буцаасангүй; текстэн хариулт хэвээр байна.", 504) from exc
+            self._tts_attempt(voice, started, success=False, error="tts_timeout")
+            raise VoiceRuntimeError("tts_timeout", "Дуу унших үйлчилгээ хугацаандаа хариулсангүй. Текстэн хариулт хэвээр; дараа дахин сонсож болно.", 504) from exc
         except Exception as exc:
-            raise VoiceRuntimeError("tts_unavailable", "Онлайн TTS ажиллахгүй байна; текстэн хариулт хэвээр байна.", 503) from exc
+            status = getattr(exc, "status", None)
+            status = status if type(status) is int and 100 <= status <= 599 else None
+            if status in (401, 403):
+                code = "tts_service_rejected"
+                message = "Дуу унших үйлчилгээ хүсэлтийг зөвшөөрсөнгүй. Текстэн хариулт хэвээр байна."
+            elif status == 429:
+                code = "tts_rate_limited"
+                message = "Дуу унших үйлчилгээ түр ачаалалтай байна. Түр хүлээгээд дахин сонсоно уу."
+            else:
+                code = "tts_unavailable"
+                message = "Дуу унших үйлчилгээтэй холбогдож чадсангүй. Текстэн хариулт хэвээр; дараа дахин сонсож болно."
+            self._tts_attempt(voice, started, success=False, error=code, service_status=status)
+            # edge-tts already retries a 403 after correcting server-clock skew.
+            # Repeating a rejected protocol request here adds no recovery.
+            raise VoiceRuntimeError(code, message, 503) from exc
+        self._tts_attempt(voice, started, success=True)
         details = {"kind": "tts", "voice": voice, "text": text,
                    "characters": len(text), "synthesis_seconds": time.perf_counter() - started,
                    "service": "online Edge TTS experiment", "online_notice": ONLINE_NOTICE,

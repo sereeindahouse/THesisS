@@ -154,12 +154,14 @@ def main():
         sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Дипломын локал demo-г браузерт нээх")
     parser.add_argument("--no-browser", action="store_true", help="Серверийг шалгаж, браузер нээхгүй")
+    parser.add_argument("--data", action="store_true", help="Эхийн сан ба төслийн явцыг нээх")
     args = parser.parse_args()
     try:
         result = start_or_reuse()
         print("Ажиллаж буй demo-г дахин ашиглав." if result["reused_server"] else "Demo серверийг эхлүүлэв.")
         print(f"Demo: {result['url']}")
-        if not args.no_browser and not webbrowser.open(result["url"], new=2):
+        browser_url = result["url"] + ("/data" if args.data else "")
+        if not args.no_browser and not webbrowser.open(browser_url, new=2):
             print("Браузер автоматаар нээгдсэнгүй. Дээрх хаягийг браузерт нээнэ үү.")
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
         print(f"Алдаа: {error}", file=sys.stderr)

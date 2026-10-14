@@ -206,3 +206,12 @@ __pycache__/
 !/tools/evaluate_retrieval_ablation.py
 !/tests/test_retrieval_ablation.py
 !/tests/test_tuition_scope.py
+
+# Read-only source/progress explorer; original corpus and binary captures stay local.
+!/data_explorer.py
+!/demo/data.html
+!/demo/data.css
+!/demo/data.js
+!/tests/test_data_explorer.py
+!/tests/test_explorer_http.py
+!/config/project-progress.json
