@@ -1,3 +1,54 @@
+# Эхийн сангийн одоогийн төлөв — 2026.10.15
+
+| Хэмжүүр | Өмнө | Одоо |
+|---|---:|---:|
+| HTML хуудас | 72 | 75 |
+| PDF/PNG баримт | 5 | 5 |
+| Анхны HTML chunk | 153 | 164 |
+| Хайлтын үндсэн HTML хэсэг | 139 | 150 |
+| Баримтын сонгосон заалт | 21 | 21 |
+| Тэнхимийн нэмэлт табын хэсэг | 0 | 30 |
+| Нийт RAG хэсэг | 160 | 201 |
+| Бүтэцтэй баримт / FAQ | 10 / 5 | 40 / 30 |
+
+3 шинэ about хуудас, 6 дахин татсан тэнхим: нийт9 HTTP200. 66 хуучин HTML ба
+5 баримтын анхны татсан огноо хэвээр. Local2026.10.15-ны шинэ таталтын UTC нь
+2026.10.14; атлас ISO огноог харуулна. Зорилго/зорилтын JSON, амжилтын HTML-г
+хадгалсан Next Flight өгөгдлөөс JavaScript ажиллуулахгүй задална. Exact HTMLhash,
+JSON pointer/text record, normalizedfieldhash, offset-г шалгана. 12 placeholder/
+огноогүй үзүүлэлтийг omission бүртгэлд үлдээсэн; бүх таб/OCR хамрагдсан гэсэн үг биш.
+Үндсэн HTML-ийн counter/хуучин эхийн агуулгын зөрчил автоматаар засагдаагүй.
+
+14 source record нь11өөрURL-ийн хувилбарууд. v1-г хадгалж v2-д шинэ фактын
+багц нэмсэн. Батлагдаагүй хүчинтэй хугацаа, сургуулийн хүний approval зохиогоогүй.
+Хэрэглэгчийн албан эх ашиглах шийдвэр хүчинтэй; тэр зөвшөөрлийг дахин шаардахгүй.
+
+Харах: [атлас](http://127.0.0.1:8765/data), [FAQ](http://127.0.0.1:8765/data#curated).
+Нийтийн багц: [v2](../data/content-draft-v2-20261015.json),
+[эхийн нотолгоо](../data/content-evidence-v2-20261015.json),
+[validator](../tools/validate_content_evidence.py), [client importer](client_tab_corpus.py).
+
+```powershell
+.\.venv\Scripts\python.exe tools/validate_content_evidence.py data/content-draft-v2-20261015.json data/content-evidence-v2-20261015.json --root . --require-sources
+```
+
+Strict шалгалтад private saved source файлууд хэрэгтэй. Шинэ clone portable hash/
+dependency шалгалтыг хийнэ; private snapshot/DB байхгүй бол яг ижил201 corpus-г
+баталсан гэж үзэхгүй. Локал файлууд:
+`website/snapshots/nmct-supplement-20261014T165540Z/`,
+`website/document-excerpts-supplement-20261015.json`,
+`website/client-tab-excerpts-20261015.json`.
+Нөөц/импортын нотолгоо `runtime/week04-coverage-import-20261015.json`,
+`runtime/week04-content-import-20261015.json`.
+
+Нэмэлт эх ба FAQ нь зөв хариултын баталгаа биш: шинэ24 AI probe8pass/6partial/
+10fail. Одоо утгын холбоо, тооны үүрэг, хугацаа, шаардлагын хүрээ, хэт татгалзлыг
+засах хэрэгтэй. [Бүх хэмжилтийн нэгтгэл](../docs/experiments/rag-integration-20261012.json).
+
+---
+
+## Өмнөх 2026.10.14 snapshot-ийн түүхэн тайлбар
+
 # NMCT албан сайтын мэдээллийн сан — шинэчлэлт 2026.10.14
 
 [Албан сайтаас](https://nmct.edu.mn/) 2026.10.10-нд хадгалсан эхүүдийг ашиглаж байна.

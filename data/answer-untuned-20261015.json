@@ -1,0 +1,1131 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-14T17:01:10.420651+00:00",
+  "label_scope": "assistant-authored pre-output untuned diagnostics; not human gold or a final heldout benchmark",
+  "label_author": "assistant",
+  "human_reference_review": false,
+  "prepared_before_current_system_outputs": true,
+  "source_snapshot": "runtime/week04-coverage-20261015/indexed-passages.json",
+  "source_snapshot_sha256": "1c224fd67aa95696096845a577efb3a6776870c654e04b4f788fc94554920abb",
+  "question_intent_projection_sha256": "6d9ef38c45ef1f3184dc9251a6f05cbe0eb83e43539401f32cb8b2bac47ca192",
+  "stage": "stage2_final_reference_frozen_before_outputs",
+  "counts": {
+    "cases": 24,
+    "reference_answerability": {
+      "answerable": 14,
+      "needs_clarification": 4,
+      "unsupported_in_verified_passages": 6
+    }
+  },
+  "protocol": {
+    "case_author": "separate assistant subagent; AI review, not independent human review",
+    "method_origin": "Original bounded project protocol; no named paper evaluation method claimed.",
+    "previous_outputs_read": false,
+    "model_or_route_calls_before_freeze": 0,
+    "implementation_files_read": false,
+    "prior_development_attributes_read": true,
+    "prior_development_query_wordings_read": false,
+    "sampling": "Purposive nonrandom diagnostic sample from saved official-source excerpts.",
+    "answerability": "Source-bounded; evaluate actual text and evidence, never infer correctness from route or phrase hits.",
+    "grading": "AI reviewer records correctness, citation support, completeness, appropriate abstention, response appropriateness and notes separately. Human fields stay null.",
+    "anti_tuning": "Run final frozen cases once after final code/corpus fingerprint. Preserve all failures. Any subsequent fix uses retired development cases or is a new version; do not relabel a tuned run as untuned.",
+    "interpretation": "No general percent accuracy, human gold, real-user success or statistical generalization. Report observed counts and exact errors with denominators.",
+    "limited_independence": "Different assistant from runtime implementers; same AI system/project context and source limitations. Not strict independent gold.",
+    "reference_risks": [
+      "Saved official snapshots may be undated or stale; current validity unknown.",
+      "Planned participation differs from observed completion.",
+      "Visible card placeholders do not override detailed body counts.",
+      "New final-source snapshot may supply currently unsupported facts; audit before first output and preserve original stage1 if any label must change."
+    ],
+    "review_rubric": {
+      "sha256": "c867b207024cf8275b0f48c00e4442583a09f01330fa6c4285d916304961b181",
+      "prepared_before_model_outputs": true,
+      "language": "mn",
+      "markdown": "# 24 асуултын гаралтыг шалгах урьдчилан тогтоосон дүрэм\n\nЭнэ бол өөр AI туслахын зохиосон, санамсаргүй бус жижиг diagnostic багц.\nЭцсийн дипломын тест, хүний gold, сургуулийн ажилтны баталгаа биш. Дүрмийг\nхариултын гаралтыг харахаас өмнө бичсэн. Өгүүллийн арга гэж атрибуц хийхгүй.\n\nКейс бүрийн хариулт, шаардсан талбар, эшлэлийн бодит текст, хувилбар ба огноог\nтулгаж шалгана. A/B/C/D/E зам, эшлэлийн URL байгаа байдал, үг давхцах нь\nөөрөө зөв хариултын оноо болохгүй.\n\nЗургаан хэмжээсийг тусад нь тэмдэглэнэ:\n\n1. Зөв байдал: хэлсэн баримтын утга, тоо, нөхцөл зөв эсэх.\n2. Эхийн дэмжлэг: бодитоор өгсөн эшлэл хариултын мэдэгдлийг дэмжиж буй эсэх.\n3. Бүрэн байдал: хүссэн бүх гол баримт хариултад байна уу.\n4. Татгалзалт: үнэхээр дутуу эх дээр таахгүй, байхад нь үндэслэлгүй татгалзаагүй юу.\n5. Тодруулга: хэрэгтэй нэр, зам, хөтөлбөрийн ялгааг тодруулсан уу.\n6. Хариултын тохиромж: асуултад ойлгомжтой, хэрэгтэй хариу өгсөн үү.\n\nХариулттай 14 кейст бүх шаардсан гол баримт зөв бөгөөд эхтэй нийцвэл `pass`.\nХэсэг нь зөв, үлдсэн гол баримт дутуу, аюултай шинэ мэдэгдэлгүй бол `partial`.\nШаардсан баримт эхэд байхад огт хариулаагүй, буруу тоо/он/төрөл өгсөн, эсвэл\nэшлэл хариултаа дэмжихгүй бол `fail`. Буруу хэмжээс бүрийг тайлбарлана.\n\nТодруулга шаардсан 4 кейст material ambiguity-г нэрлэж тодруулбал `pass`.\nСонголтуудыг эхтэй нь нөхцөлтэйгээр зэрэг танилцуулаад ямар сонголт болохыг\nасуусан хариулт зөвшөөрөгдөнө. Нэг хувилбарыг тааж нийтлэг шаардлага мэт\nхэлэх нь `fail`; аюултай таамаггүй боловч хэт ерөнхий тусламж `partial`.\nЗаавал D үсэгтэй замаар гарахыг шаардахгүй.\n\nЭхээр тогтоогоогүй 6 кейст тухайн яг асуусан мэдээлэл батлагдаагүйг хэлж,\nзохиомол тоо/огноо/нөхцөл өгөхгүй бол `pass`. Түүхэн эсвэл ойролцоох баримт\nөгч болно; эхийн хүрээг тодорхой хадгална. Мэдээний чимээгүй байдлаас «ийм\nэрх огт байхгүй», «цалин огт өгдөггүй» гэх мэт эсрэг дүгнэлт хийх нь `fail`.\nЗаавал E үсэгтэй замаар гарахыг шаардахгүй.\n\nТухайн жил асуултад тодорхой байвал хариултад дахин он бичээгүйг автоматаар\nбуруу гэж тооцохгүй; өгсөн баримт ба эшлэл зөв жилийн хүрээг хадгалсан эсэхийг\nтулгана. Хадгалсан/шинээр татсан вебийн текстийг байгууллагын өнөөдрийн бодит\nажилтны бүртгэл эсвэл валютын өнөөдрийн ханш гэж батлахгүй.\n\nHTTP/provider үйлчилгээний алдааг утгын буруу хариултаас тусад нь тэмдэглэнэ.\nБүх түүхий болон тасалдсан гаралтыг хадгална; нийлмэл ерөнхий accuracy хувь\nзохиохгүй. Зөвхөн ажиглагдсан тоо, кейсийн ID, хэмжээсийн тэмдэглэл тайлагнана.\nAI review нь `assistant_review` талбарт орно; `human_review` утгууд null хэвээр.\n\nКейсээр засвар хийсний дараах давтан гаралт нь development evidence. Эхний\nхөдөлгөөнгүй код/эхтэй хэмжилтийн алдааг хасаад untuned гэж нэрлэхгүй.\n"
+    }
+  },
+  "cases": [
+    {
+      "id": "untuned04-01",
+      "query": "Карьер төвийн дадлагын жилийн хуваарьт IX–X болон XI–XII сард тус тус ямар ажил төлөвлөсөн бэ?",
+      "requested_attribute": "career.internship_calendar_autumn_stages",
+      "expected_behavior": "Эхийн жилийн хуваарийн хоёр үе шатыг ялгаж хариулах; өнөөдрийн бүртгэл нээлттэй эсэхийг таахгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "IX–X сар: бүртгэл, сонгон шалгаруулалт.",
+        "XI–XII сар: JLPT/EJU шалгалт, бэлтгэл.",
+        "Энэ хуваарь нь 4, 5-р курсийн оюутнуудад зориулсан гэж эхэд бичсэн."
+      ],
+      "forbidden_claims": [
+        "Хэрэглэгчийг автоматаар сонгосон, дадлагын эрх баталгаатай гэж хэлэх.",
+        "Үүнийг энэ жилийн баталгаажсан өдөр, цагийн хуваарь болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "time_stage",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-a3c3375c18cb709dcc5c",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1415:2474",
+          "quote_start": 161,
+          "quote_end": 217,
+          "quote_sha256": "fbe1a3b1df3885220b5571096afa532076e423d04376e45820b4d9686f87a8ab",
+          "passage_sha256": "4520f4574b2e372aab9eb9f090446ac62cb1c6fe03b446ba9b7363dfbdcde1ff"
+        },
+        {
+          "source_id": "web-a3c3375c18cb709dcc5c",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1415:2474",
+          "quote_start": 351,
+          "quote_end": 427,
+          "quote_sha256": "0708d40b81b1e85814cf05757575a471c80affc0619cce546857491006c3ddf8",
+          "passage_sha256": "4520f4574b2e372aab9eb9f090446ac62cb1c6fe03b446ba9b7363dfbdcde1ff"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-02",
+      "query": "2025–2026 оны Ибараки мужийн танилцах хөтөлбөрт мэргэжил бүрээс хэд, нийт хэдэн оюутан хамруулахаар мэдээлсэн бэ?",
+      "requested_attribute": "career.ibaraki_2025_2026_planned_distribution",
+      "expected_behavior": "Он заасан нийтлэгдсэн төлөвлөгөөг хэлэх; бодит оролцооны баталгаа гэж тайлбарлахгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2025–2026 оны хичээлийн жилд мэргэжил тус бүрээс 3, нийт 15 оюутан хамрагдана гэж нийтэлсэн.",
+        "Эх нь Ибараки мужийн аж ахуйн нэгж, сургуулиудтай танилцах хөтөлбөрийг тайлбарласан."
+      ],
+      "forbidden_claims": [
+        "15 оюутан бодитоор явсан/төгссөн гэж төлөвлөгөөг гүйцэтгэсэн баримт болгох.",
+        "Дараагийн хичээлийн жилд мөн 15 гэж батлах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "planned_vs_observed",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-612c88f40f2cea7e2ded",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2145:3241",
+          "quote_start": 161,
+          "quote_end": 329,
+          "quote_sha256": "1c69c3ffedee410d33e5518bda43b036dcaae6257a5d468997cc7f698a5d5a68",
+          "passage_sha256": "0a768ad34ac682a79495b2e5882891579ded63ae8dc30b483b1ead3702d57146"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-03",
+      "query": "JICA-ийн дадлагад ахлах курсийн оюутан ямар алхмаар хамрагдаж, хэд хоног дадлага хийх боломжтой вэ?",
+      "requested_attribute": "career.jica_senior_selection_and_duration",
+      "expected_behavior": "Хүсэлт, ярилцлага, тэнцсэн нөхцөл, хугацааг эхтэй нийцүүлэн хариулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Карьерын төвөөр дамжуулан хүсэлт гаргана.",
+        "Япон хэл дээр ярилцлага өгч тэнцсэн тохиолдолд хамтын ажиллагаатай компанид 7–30 хоног дадлага хийх боломжтой.",
+        "Өвлийн болон зуны амралтаар хамрагдана."
+      ],
+      "forbidden_claims": [
+        "Хүсэлт гаргагч бүр тэнцэнэ эсвэл шууд ажилд орно гэж батлах.",
+        "7–30 хоногийг Сакүра Сайэнсийн 5–7 хоногтой солих."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "programme_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-612c88f40f2cea7e2ded",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2145:3241",
+          "quote_start": 863,
+          "quote_end": 1096,
+          "quote_sha256": "11056f8f3b63115244f3c6442e145c54b170e66d6ad08d1553ad4cd8d94c2409",
+          "passage_sha256": "0a768ad34ac682a79495b2e5882891579ded63ae8dc30b483b1ead3702d57146"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-04",
+      "query": "Монбүшёо тэтгэлэг юуг санхүүжүүлдэг гэж карьер төвийн хуудсанд тайлбарласан бэ?",
+      "requested_attribute": "career.monbusho_published_cost_categories",
+      "expected_behavior": "Нийтлэгдсэн зардлын ангиллыг хариулах; хувь хүний эрх болон шинэ сонгон шалгаруулалтыг таахгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Сургалтын төлбөр, амьжиргааны зардал болон бусад холбогдох зардлыг 100% хариуцдаг гэж тайлбарласан."
+      ],
+      "forbidden_claims": [
+        "Ясудагийн 100,000 иений сарын тэтгэлгийг Монбүшёо-ийн дүн болгох.",
+        "Асуусан хүн тэтгэлэг авна гэж батлах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scholarship_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-83aa405f10bca8e67de7",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=5; page_char_offsets=3586:4545",
+          "quote_start": 401,
+          "quote_end": 543,
+          "quote_sha256": "b65b21ea522c9a0b7df01c55f47ae8cab84d8cca2a05bf14e9084a0bd9bbad95",
+          "passage_sha256": "16fe1f78377d599005b4e7d92997448b8fc7066a6cca047b5adb4c6a6b6f4796"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-05",
+      "query": "Япон коосэнд дэвшин суралцах шаардлагад япон хэлний ямар түвшин, ёс зүйн ямар нөхцөл дурдсан бэ?",
+      "requested_attribute": "career.kosen_japanese_level_and_ethics",
+      "expected_behavior": "Нэрлэсэн хоёр шаардлагыг хариулах; бүрэн шалгуурыг орлохгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Япон хэлний N2 түвшний мэдлэг, чадвартай байх.",
+        "Ёс зүйн зөрчил гаргаагүй байх."
+      ],
+      "forbidden_claims": [
+        "N1 эсвэл N3 гэж түвшнийг өөрчлөх.",
+        "Энэ хоёр нөхцөл л байхад элсэлт баталгаатай гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": null,
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-83aa405f10bca8e67de7",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=5; page_char_offsets=3586:4545",
+          "quote_start": 642,
+          "quote_end": 693,
+          "quote_sha256": "f98d6c172372030666f2c471484c5579d4e13e3de9de32a2fe71da4725f3d870",
+          "passage_sha256": "16fe1f78377d599005b4e7d92997448b8fc7066a6cca047b5adb4c6a6b6f4796"
+        },
+        {
+          "source_id": "web-83aa405f10bca8e67de7",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=5; page_char_offsets=3586:4545",
+          "quote_start": 820,
+          "quote_end": 863,
+          "quote_sha256": "8f9d852d1d32010d06a04d9f71d45bc593133da132a8de8215fafb0ac1dceb95",
+          "passage_sha256": "16fe1f78377d599005b4e7d92997448b8fc7066a6cca047b5adb4c6a6b6f4796"
+        },
+        {
+          "source_id": "web-79aa5da21d68d5469f1f",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=6; page_char_offsets=4353:5029",
+          "quote_start": 193,
+          "quote_end": 220,
+          "quote_sha256": "752ba66c1cc1de29822211536b3d1dba89477ca4302b549c7a8fb41e9b36d347",
+          "passage_sha256": "61fd1bd7e9826fc369982e5015f35fc0cf80db0a843ae56b5318c351d5802208"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-06",
+      "query": "Химийн инженерийн тэнхимийн танилцуулгад үндсэн ба цагийн багш, доктор ба магистрын тоог хэрхэн бичсэн бэ?",
+      "requested_attribute": "chemical.published_staff_and_degree_counts",
+      "expected_behavior": "Танилцуулгын нийтэлсэн бүрэлдэхүүнийг эхэд хамааруулан хэлэх; өнөөгийн ажилтны бүртгэл гэж батлахгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "5 үндсэн багш, 1 цагийн багш.",
+        "2 багш доктор, 4 багш магистр зэрэгтэй."
+      ],
+      "forbidden_claims": [
+        "Хуудасны 0 багш гэсэн картын placeholder-ийг бодит тоо гэж сонгох.",
+        "Энэ тоо өнөөдөр шинэчлэн батлагдсан гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "placeholder_vs_body",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-fe741144d438e9acac67",
+          "url": "https://nmct.edu.mn/departments/chemical",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:900",
+          "quote_start": 565,
+          "quote_end": 758,
+          "quote_sha256": "7e5574c6febef70c3ad30527ce14aac549c67e3c56b437c20e8f06cd33ba8be4",
+          "passage_sha256": "5ac4f9d00d7c96a54da2cac73ea17cd814bdef287a16f4184a0f37dc31d7d8c4"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/chemical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-07",
+      "query": "Химийн инженерчлэлийн хөтөлбөр аль коосэны хөтөлбөрт суурилж, таван жилд хэдэн төрлийн хичээл, кредит цаг судална гэжээ?",
+      "requested_attribute": "chemical.curriculum_origin_courses_credits",
+      "expected_behavior": "Нэг нэрлэсэн хөтөлбөрийн эхийн үзүүлэлтийг хариулах; бусад хөтөлбөрт түгээхгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Японы Сасэбо Коосэны хөтөлбөрт суурилсан.",
+        "5 жилийн хугацаанд 55 төрлийн хичээл, нийт 90 кр цаг судална гэж бичсэн."
+      ],
+      "forbidden_claims": [
+        "Механикийн 177 кредит, 127 хичээлийг Химийн хөтөлбөрт өгөх.",
+        "Нийт сургуулийн бүх хөтөлбөр 90 кредиттэй гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "programme_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-fe741144d438e9acac67",
+          "url": "https://nmct.edu.mn/departments/chemical",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:900",
+          "quote_start": 759,
+          "quote_end": 900,
+          "quote_sha256": "6b524dfa5ecb96e2ece6c5a5dc72c23939e3b68b5eb51ee3fd5747c492547410",
+          "passage_sha256": "5ac4f9d00d7c96a54da2cac73ea17cd814bdef287a16f4184a0f37dc31d7d8c4"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/chemical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-08",
+      "query": "Механик инженерийн тэнхим ямар гурван үндсэн лабораторитой, нэг удаа хэдэн оюутан ажиллах боломжтой гэж танилцуулсан бэ?",
+      "requested_attribute": "mechanical.laboratory_types_and_simultaneous_capacity",
+      "expected_behavior": "Лабораторийн нэр ба эхийн нэг удаагийн боломжийг хариулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Механик боловсруулалтын лаборатори, гагнуур таслах лаборатори, модны лаборатори.",
+        "Нэг удаад 15–20 оюутан ажиллах боломжтой гэж бичсэн."
+      ],
+      "forbidden_claims": [
+        "15–20 гэдгийг тэнхимийн нийт оюутан эсвэл лаборатори бүрийн баталгаатай суудал гэж тайлбарлах.",
+        "Яг одоогийн чөлөөт суудлын тоо хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": null,
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-5ac2c5d4f878aa8bfd19",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "main_element; chunk_id=3; page_char_offsets=1856:2851",
+          "quote_start": 228,
+          "quote_end": 352,
+          "quote_sha256": "0ce746350ca91b9a1d16c3029ccb0bef05c099002694cdc40bf0e32daa363aff",
+          "passage_sha256": "fb3ac84ba07c0a0e2424be1ebb665c8642fd49484069958dc537ac892db381f0"
+        },
+        {
+          "source_id": "web-5ac2c5d4f878aa8bfd19",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "main_element; chunk_id=3; page_char_offsets=1856:2851",
+          "quote_start": 454,
+          "quote_end": 495,
+          "quote_sha256": "ca1c91850778da675616d675e6d23516bfd4f13a8497af5c65563df982241d97",
+          "passage_sha256": "fb3ac84ba07c0a0e2424be1ebb665c8642fd49484069958dc537ac892db381f0"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-09",
+      "query": "2025–2026 онд механикийн тэнхим нийт хэдэн оюутантай, I ба V курс тус бүр хэдтэй гэж мэдээлсэн бэ?",
+      "requested_attribute": "mechanical.student_counts_2025_2026_total_first_fifth",
+      "expected_behavior": "Хичээлийн жилийг хадгалж гурван тоог ялган хариулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2025–2026 оны хичээлийн жилд нийт 128 оюутан.",
+        "1-р курс 27, 5-р курс 17 оюутан."
+      ],
+      "forbidden_claims": [
+        "Эдгээрийг 2026–2027 эсвэл өнөөдрийн баталгаажсан тоо болгох.",
+        "128-ыг тавдугаар курсийн тоо болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "school_year",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-975cacc0f99d0c857054",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "main_element; chunk_id=1; page_char_offsets=460:1592",
+          "quote_start": 624,
+          "quote_end": 787,
+          "quote_sha256": "4ba76b35180c382fa75028096f1c3edc12e740a809f59fb296767dc56e577167",
+          "passage_sha256": "005f441969f417a2f084ff7ff68224ec24c4802473590b9b2df6367310e3aaf7"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-10",
+      "query": "Ерөнхий эрдмийн тэнхим 2024–2025 онд ямар заах аргын нэгдлүүдтэй, хэдэн багштай байсан гэж нийтэлсэн бэ?",
+      "requested_attribute": "general.teaching_groups_staff_2024_2025",
+      "expected_behavior": "Тухайн жилийг хадгалж нэгдэл ба багшийн тоог хариулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Математик–физик, Англи хэл, Япон хэл, Нийгмийн ухаан гэсэн дөрвөн заах аргын нэгдэл.",
+        "2024–2025 оны хичээлийн жилд 20 багштай гэж нийтэлсэн."
+      ],
+      "forbidden_claims": [
+        "2014 оны 4 үндсэн багшийг 2024–2025 оны тоо болгох.",
+        "20 багшийг өнөөдрийн шинэчлэн баталгаажсан тоо болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "historical_year",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-783cf48791e27c05d8da",
+          "url": "https://nmct.edu.mn/departments/general-department",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=1638:2157",
+          "quote_start": 140,
+          "quote_end": 424,
+          "quote_sha256": "4e662fc27c6ceb49d16730e30532f95514c1b18fcef7f91c09a1afe95def3d0e",
+          "passage_sha256": "a9ed388094005158cf391e11b160615df89f54f4ad39d020996497763eb17cd3"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/general-department",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-11",
+      "query": "Барилгын инженерчлэлийн анхны төгсөлт хэдэн онд болж, тэнхимийн хуудсанд нийт хэдэн төгсөлтийн хэдэн төгсөгч гэжээ?",
+      "requested_attribute": "civil.first_graduation_cumulative_cohorts_graduates",
+      "expected_behavior": "Хуудас дахь анхны төгсөлт ба хуримтлагдсан үзүүлэлтийг ялгаж хэлэх.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Анхны төгсөлт 2019 онд.",
+        "Хуудас нийт 7 удаагийн төгсөлтөөр 86 оюутан мэргэжил эзэмшсэн гэж мэдээлсэн."
+      ],
+      "forbidden_claims": [
+        "86-ыг одоо суралцаж буй оюутны тоо болгох.",
+        "Нийтлэгдсэн хуримтлагдсан тоог өнөөдрийн шинэ баталгаатай тоо болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "cumulative_vs_enrolled",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-135381e79c615ea7974d",
+          "url": "https://nmct.edu.mn/departments/civil",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=740:1326",
+          "quote_start": 283,
+          "quote_end": 437,
+          "quote_sha256": "78128d2ed05e3d7e16d3ccd8d74cd68e18a5e8f8aed523a3858ab788785cdd3d",
+          "passage_sha256": "dafef14ff430f06a08c04f71bf773530105ab2123d72357f56b7c353baadcd27"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/civil",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-12",
+      "query": "Оюутны зөвлөлд анги бүрээс хэдэн төлөөлөл ордог гэж сургуулийн хуудсанд бичсэн бэ?",
+      "requested_attribute": "student.council_class_representation_count",
+      "expected_behavior": "Анги бүрийн төлөөллийн тоог хариулах; нийт гишүүнтэй андуурахгүй.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Анги бүрийн төлөөлөл болох 1–2 гишүүнтэй гэж бичсэн."
+      ],
+      "forbidden_claims": [
+        "Зөвлөлийн нийт гишүүн 1–2 гэж хэлэх.",
+        "Сонгуулийн нэрс эсвэл нийт гишүүний тоог таах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": null,
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-c5ff67728846294e2875",
+          "url": "https://nmct.edu.mn/student",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:935",
+          "quote_start": 609,
+          "quote_end": 667,
+          "quote_sha256": "3012ad3ec162ce5b8cf9c3a9c7935f51af81d98cd926660f5dc4a4ecfa62afd2",
+          "passage_sha256": "50519dfacd4424754657ea2355e9a0047dc1d61db6721e578ddf03503eb1bbe2"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/student",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-13",
+      "query": "Оюутны зөвлөлийн журамд мэдэгдээгүй хоцролт, шалтгаангүй таслалт, сануулах хуудасны давталтад өөр өөр ямар арга хэмжээ дурдсан бэ?",
+      "requested_attribute": "student.council_lateness_absence_warning_consequences",
+      "expected_behavior": "Зөвлөлийн гишүүнд хамаарах гурван өөр нөхцөл, арга хэмжээг ялган хариулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Урьдчилан мэдэгдэхгүй 5 удаа хоцорвол анхааруулга.",
+        "Шалтгаангүй 3 удаа тасалвал эрх түдгэлзүүлэх асуудлыг хэлэлцэнэ.",
+        "Ёс зүйн сануулах хуудас 2 удаа авбал гишүүнчлэлээс огцруулна."
+      ],
+      "forbidden_claims": [
+        "3 удаа тасалсан даруй автоматаар огцруулна гэж хэлэх.",
+        "5 удаагийн хоцролтын дүрмийг бүх оюутны сургуулиас хасах журам болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "consequence_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-a149e59fe99aa392b217",
+          "url": "https://nmct.edu.mn/student",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=683:1254",
+          "quote_start": 345,
+          "quote_end": 460,
+          "quote_sha256": "96a4d57ed791af743bb1da66c637e4c2374510587b0187d3d95583f53496262b",
+          "passage_sha256": "b3810a106c3e2172a177e188b9abe0821ce60cf780506ac437f4bbb9571c7729"
+        },
+        {
+          "source_id": "web-a149e59fe99aa392b217",
+          "url": "https://nmct.edu.mn/student",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=683:1254",
+          "quote_start": 483,
+          "quote_end": 571,
+          "quote_sha256": "72bdf8e031a58d83cfb85b505326a9aa8a9fc2c7fb3218048d8a876fd5e6f75b",
+          "passage_sha256": "b3810a106c3e2172a177e188b9abe0821ce60cf780506ac437f4bbb9571c7729"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/student",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-14",
+      "query": "2026 оны есдүгээр сарын Ясуда тэтгэлгийн мэдээнд сарын дүн, эхлэх хугацаа, олгох үргэлжлэх хугацааг юу гэж зарласан бэ?",
+      "requested_attribute": "news.yasuda_2026_announced_amount_start_duration",
+      "expected_behavior": "Мэдээний он ба тэтгэлэг эхлэх оныг ялгах; төгрөгийн дүнг мэдээний ойролцоо дүн гэж хамааруулах.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2027 оны 4 дүгээр сараас эхлэн сургуулиа төгстөл олгоно гэж зарласан.",
+        "Сарын хэмжээ 100,000 иен, мэдээнд ойролцоогоор 2,400,000 төгрөг гэж бичсэн."
+      ],
+      "forbidden_claims": [
+        "2026 оны 4 сараас эхэлсэн гэж огноог сольж хэлэх.",
+        "2,400,000 төгрөгийг өнөөдрийн яг ханш эсвэл тогтмол төгрөгийн дүн гэж батлах.",
+        "Хэмжээ нэмэгдүүлэх хэлэлцүүлгийг шийдэгдсэн өсөлт болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "announcement_vs_start_year",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-734ab8ade91e9da130cf",
+          "url": "https://nmct.edu.mn/news/yasuda-ou-yn-tetgelegt-shine-mongol-koosengiin-oyuutan-shalgarlaa",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:914",
+          "quote_start": 86,
+          "quote_end": 121,
+          "quote_sha256": "f26f84858e97290ff56389d8d7a11f4aa99ef58633dc19a4b05350afa64ca11f",
+          "passage_sha256": "652e84332c868f6668385f66ab67de7d972022fedbe61eae9818f4b2c789a468"
+        },
+        {
+          "source_id": "web-734ab8ade91e9da130cf",
+          "url": "https://nmct.edu.mn/news/yasuda-ou-yn-tetgelegt-shine-mongol-koosengiin-oyuutan-shalgarlaa",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:914",
+          "quote_start": 497,
+          "quote_end": 651,
+          "quote_sha256": "29e29d9d011d77eb3172dc494aa8adbef034b0464fd6880cbd9b4ef3ff29aeb2",
+          "passage_sha256": "652e84332c868f6668385f66ab67de7d972022fedbe61eae9818f4b2c789a468"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/news/yasuda-ou-yn-tetgelegt-shine-mongol-koosengiin-oyuutan-shalgarlaa",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-15",
+      "query": "Тэнхимийн эрхлэгчийн нэр, имэйлийг өгөөч.",
+      "requested_attribute": "department.head_contact_missing_department",
+      "expected_behavior": "Аль тэнхимийн эрхлэгчийг хүсэж буйг тодруулах; нэр, имэйл таахгүй.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Аль тэнхим гэдгийг мэдэхгүй байж нэг эрхлэгчийг сургуулийн бүх тэнхимийн эрхлэгч болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "entity_scope",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-4df150e910a4da3cc120",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "main_element; chunk_id=4; page_char_offsets=2618:3577",
+          "quote_start": 880,
+          "quote_end": 933,
+          "quote_sha256": "bf06938397987745aa419fa22e72e3e63178a1773485442977f05565bbb5263e",
+          "passage_sha256": "5df52028d8a268f76083ab82619458347003bee75b17830e70b82ddbd3267517"
+        },
+        {
+          "source_id": "web-a8515e2b13b696e98ce1",
+          "url": "https://nmct.edu.mn/departments/chemical",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=565:1465",
+          "quote_start": 821,
+          "quote_end": 876,
+          "quote_sha256": "4025fa9121ca60e9763b29f8ca78b78aef2ed8db9178c9f0de2169719f560fc0",
+          "passage_sha256": "9a05d8c8e984291a87ca78b580db5780e3059c123efc26778e74da3992e38b38"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-16",
+      "query": "2026 оны тэтгэлэгт хэддүгээр курсийнхэн хамрагдах боломжтой вэ?",
+      "requested_attribute": "scholarship.eligible_course_missing_scholarship",
+      "expected_behavior": "Ямар тэтгэлэг, мэргэжлийг асууж буйг тодруулах; тус тусын хүрээг хольж тоо хэлэхгүй.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Кисо Жибан болон сургуулийн нэрэмжит химийн тэтгэлгийн курсийг нэгтгэн бүх тэтгэлэгт хамааруулах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scholarship_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-7af7d137fa899d543649",
+          "url": "https://nmct.edu.mn/news/tetgeleg-medeelel",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:244",
+          "quote_start": 75,
+          "quote_end": 212,
+          "quote_sha256": "a96b96a2dc6182e258f6f2677918815d86dee79a0aa6ca7e6f7f09b2fb2f12bc",
+          "passage_sha256": "c8c0a0a10df08e1f441a72add65bde1e8e6809adf14a0247eb1a13884a324829"
+        },
+        {
+          "source_id": "web-104199d1706290069575",
+          "url": "https://nmct.edu.mn/news/tetgeleg-medeelel-01",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:548",
+          "quote_start": 116,
+          "quote_end": 273,
+          "quote_sha256": "e40d19df113946e9e80165c70c6c0a4bb770d4f025d8a096454c4d3a5395ce9c",
+          "passage_sha256": "4886c5f222931ca94f94aef269bb795a77e2956696b0abb3bdd9548b167feaf4"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/news/tetgeleg-medeelel",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-17",
+      "query": "Япон руу явах хөтөлбөр хэд хоног үргэлжлэх вэ?",
+      "requested_attribute": "career.duration_missing_programme",
+      "expected_behavior": "Сакүра Сайэнс, дадлага эсвэл өөр ямар хөтөлбөрийг хэлснийг тодруулах.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Сакүра Сайэнсийн 5–7 ба дадлагын 7–30 хоногийг нэг хөтөлбөрийн нэг хугацаа болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "programme_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-a3c3375c18cb709dcc5c",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1415:2474",
+          "quote_start": 480,
+          "quote_end": 522,
+          "quote_sha256": "a4b8f0a7af4fbaa24a5d5011f5b856b518f2a151c787cca55f644be2e2a723ec",
+          "passage_sha256": "4520f4574b2e372aab9eb9f090446ac62cb1c6fe03b446ba9b7363dfbdcde1ff"
+        },
+        {
+          "source_id": "web-612c88f40f2cea7e2ded",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2145:3241",
+          "quote_start": 958,
+          "quote_end": 1056,
+          "quote_sha256": "69eb9587d989d863916623054af8cdbcaff0aa89f56dac941e9be4b9ea0cf659",
+          "passage_sha256": "0a768ad34ac682a79495b2e5882891579ded63ae8dc30b483b1ead3702d57146"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-18",
+      "query": "Япон руу явахад япон хэлний ямар шаардлага тавьдаг вэ?",
+      "requested_attribute": "career.japanese_requirement_missing_path",
+      "expected_behavior": "Дэвшин сурах, дадлага, ажил эсвэл аяллын аль замыг асуусныг тодруулах.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Япон коосэнд дэвшин суралцах N2 шаардлагыг бүх аялал, дадлага, ажлын замд нийтлэг болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "path_type",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-83aa405f10bca8e67de7",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=5; page_char_offsets=3586:4545",
+          "quote_start": 642,
+          "quote_end": 693,
+          "quote_sha256": "f98d6c172372030666f2c471484c5579d4e13e3de9de32a2fe71da4725f3d870",
+          "passage_sha256": "16fe1f78377d599005b4e7d92997448b8fc7066a6cca047b5adb4c6a6b6f4796"
+        },
+        {
+          "source_id": "web-83aa405f10bca8e67de7",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=5; page_char_offsets=3586:4545",
+          "quote_start": 820,
+          "quote_end": 863,
+          "quote_sha256": "8f9d852d1d32010d06a04d9f71d45bc593133da132a8de8215fafb0ac1dceb95",
+          "passage_sha256": "16fe1f78377d599005b4e7d92997448b8fc7066a6cca047b5adb4c6a6b6f4796"
+        },
+        {
+          "source_id": "web-612c88f40f2cea7e2ded",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2145:3241",
+          "quote_start": 929,
+          "quote_end": 976,
+          "quote_sha256": "65ed887081b5317c4117b44b37e1ac42ee650e6c35d302304d13ebc7821c49b6",
+          "passage_sha256": "0a768ad34ac682a79495b2e5882891579ded63ae8dc30b483b1ead3702d57146"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-19",
+      "query": "Химийн инженерийн тэнхимд яг өнөөдөр ажиллаж байгаа багшийн тоог шинэчлэн батлаад хэлээрэй.",
+      "requested_attribute": "chemical.live_verified_staff_count",
+      "expected_behavior": "Энэ corpus өнөөдрийн боловсон хүчний баталгааг тогтоохгүйг хэлэх; нийтлэгдсэн хуучин тоо өгвөл эхийн хугацааны хязгаарыг хадгалах.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Хадгалсан танилцуулгын 5 үндсэн, 1 цагийн багшийг өнөөдөр шинэчлэн баталсан гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "snapshot_vs_live",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-fe741144d438e9acac67",
+          "url": "https://nmct.edu.mn/departments/chemical",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:900",
+          "quote_start": 565,
+          "quote_end": 651,
+          "quote_sha256": "bac615a9025153f6f124e63e3c5e87660f33fe1a2c54f3b98d5d56cbedc5048f",
+          "passage_sha256": "5ac4f9d00d7c96a54da2cac73ea17cd814bdef287a16f4184a0f37dc31d7d8c4"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/chemical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-20",
+      "query": "2027–2028 оны Кисо Жибан тэтгэлгийн материал хүлээн авах эцсийн өдөр хэд вэ?",
+      "requested_attribute": "scholarship.kiso_future_2027_2028_deadline",
+      "expected_behavior": "Нэрлэсэн ирээдүйн жилийн deadline энэ баталсан хэсгүүдэд байхгүйг хэлэх; огноо зохиохгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "2026 оны мэдээнээс 2027–2028 оны эцсийн өдөр гаргаж таах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "future_year",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-7af7d137fa899d543649",
+          "url": "https://nmct.edu.mn/news/tetgeleg-medeelel",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:244",
+          "quote_start": 40,
+          "quote_end": 74,
+          "quote_sha256": "3089cba1ba482e865270c49fd9e17f2f3bc172b14114eeecdde29534e1fd7f33",
+          "passage_sha256": "c8c0a0a10df08e1f441a72add65bde1e8e6809adf14a0247eb1a13884a324829"
+        },
+        {
+          "source_id": "web-7af7d137fa899d543649",
+          "url": "https://nmct.edu.mn/news/tetgeleg-medeelel",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:244",
+          "quote_start": 75,
+          "quote_end": 212,
+          "quote_sha256": "a96b96a2dc6182e258f6f2677918815d86dee79a0aa6ca7e6f7f09b2fb2f12bc",
+          "passage_sha256": "c8c0a0a10df08e1f441a72add65bde1e8e6809adf14a0247eb1a13884a324829"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/news/tetgeleg-medeelel",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-21",
+      "query": "Ясудагийн сарын 100,000 иен тэтгэлэг яг өнөөдрийн ханшаар хэдэн төгрөг болох вэ?",
+      "requested_attribute": "scholarship.yasuda_current_exact_mnt_conversion",
+      "expected_behavior": "Энэ corpus өнөөдрийн ханш өгөхгүйг хэлэх; мэдээний ойролцоо дүнг одоогийн яг дүн болгохгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "2026 мэдээний ойролцоогоор 2,400,000 төгрөгийг өнөөдрийн яг ханшаар тооцсон гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "approximate_vs_exact_current",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-734ab8ade91e9da130cf",
+          "url": "https://nmct.edu.mn/news/yasuda-ou-yn-tetgelegt-shine-mongol-koosengiin-oyuutan-shalgarlaa",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:914",
+          "quote_start": 574,
+          "quote_end": 651,
+          "quote_sha256": "3a60f59af334895c0ef403bd68fa189fdbbac583143887a48ee5e3801cec0c2d",
+          "passage_sha256": "652e84332c868f6668385f66ab67de7d972022fedbe61eae9818f4b2c789a468"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/news/yasuda-ou-yn-tetgelegt-shine-mongol-koosengiin-oyuutan-shalgarlaa",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-22",
+      "query": "Механикийн CNC лаборатори долоо хоногийн ямар өдрүүдэд хэдээс хэд хүртэл нээлттэй вэ?",
+      "requested_attribute": "mechanical.cnc_lab_weekly_opening_hours",
+      "expected_behavior": "Лабораторийн төхөөрөмжийн мэдээлэл байгаа ч долоо хоногийн цагийн хуваарь энэ corpus-д тогтоогдоогүйг хэлэх.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Сургуулийн оффисын цагийг лабораторийн нээлтийн цаг гэж орлуулах.",
+        "Лабораторийн өдөр, цаг таах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": null,
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-5ac2c5d4f878aa8bfd19",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "main_element; chunk_id=3; page_char_offsets=1856:2851",
+          "quote_start": 353,
+          "quote_end": 453,
+          "quote_sha256": "70ac06a4a27d8c4f0f2f32ee5c75a3fb9e85684d8328e34d29d69d03f65ee570",
+          "passage_sha256": "fb3ac84ba07c0a0e2424be1ebb665c8642fd49484069958dc537ac892db381f0"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-23",
+      "query": "Оюутны зөвлөлөөс огцруулсан шийдвэрийг хэд хоногийн дотор давж заалдаж болох вэ?",
+      "requested_attribute": "student.council_removal_appeal_deadline_days",
+      "expected_behavior": "Хоногийн хугацаа энэ corpus-д байхгүйг хэлэх; эрхийг үгүйсгэх эсвэл хугацаа таахгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Анхааруулга, сануулах хуудасны тоог давж заалдах хоногийн тоо болгох.",
+        "Давж заалдах эрх огт байхгүй гэж эхийн чимээгүй байдлаас дүгнэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": null,
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-a149e59fe99aa392b217",
+          "url": "https://nmct.edu.mn/student",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=683:1254",
+          "quote_start": 483,
+          "quote_end": 571,
+          "quote_sha256": "72bdf8e031a58d83cfb85b505326a9aa8a9fc2c7fb3218048d8a876fd5e6f75b",
+          "passage_sha256": "b3810a106c3e2172a177e188b9abe0821ce60cf780506ac437f4bbb9571c7729"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/student",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    },
+    {
+      "id": "untuned04-24",
+      "query": "JICA-ийн 7–30 хоногийн Японы дадлагын үед оюутанд сард хэдэн иен цалин баталгаатай өгөх вэ?",
+      "requested_attribute": "career.jica_guaranteed_monthly_salary",
+      "expected_behavior": "Баталгаатай сарын цалин энэ corpus-д тогтоогдоогүйг хэлэх; тэтгэлэг, дадлагын хугацаанаас цалин гаргахгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [],
+      "forbidden_claims": [
+        "Тэтгэлгийн 100,000 иен эсвэл 100% санхүүжилтийг JICA дадлагын баталгаатай сарын цалин болгох.",
+        "Цалин огт олгохгүй гэж нотолгоогүйгээр үгүйсгэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "salary_vs_scholarship",
+      "human_review": null,
+      "source_refs": [
+        {
+          "source_id": "web-612c88f40f2cea7e2ded",
+          "url": "https://nmct.edu.mn/career-center",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2145:3241",
+          "quote_start": 958,
+          "quote_end": 1056,
+          "quote_sha256": "69eb9587d989d863916623054af8cdbcaff0aa89f56dac941e9be4b9ea0cf659",
+          "passage_sha256": "0a768ad34ac682a79495b2e5882891579ded63ae8dc30b483b1ead3702d57146"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/career-center",
+      "answerability_scope": "Only the final frozen indexed passages; unavailable means not established there, not universal website absence."
+    }
+  ],
+  "references_rebound_utc": "2026-10-14T17:11:32.776955+00:00",
+  "corpus_fingerprint": {
+    "algorithm": "sha256",
+    "value": "1c224fd67aa95696096845a577efb3a6776870c654e04b4f788fc94554920abb",
+    "byte_scope": "exact final indexed-passages.json file",
+    "passage_count": 201
+  },
+  "question_intent_freeze": {
+    "frozen_utc": "2026-10-14T17:01:10.420651+00:00",
+    "source_snapshot_sha256": "ec246f6f504a76e7cdc724e15e036609319f6cb7c79207a871a20367978505b8",
+    "stage1_private_cases_sha256": "a231096f10c60dbe592718defd659f66789991be73f952d17023863542e41a85",
+    "question_intent_sha256": "028d482bd2fc1650856d4acdf99c865eeb9a417b6548a520f70de138f4f868cf",
+    "canonical_question_intent_projection_sha256": "6d9ef38c45ef1f3184dc9251a6f05cbe0eb83e43539401f32cb8b2bac47ca192",
+    "cases": 24,
+    "model_or_route_calls": 0,
+    "outputs_read": 0,
+    "warning": "Question intent frozen before output; final imported-source reference rebinding remains before first query. AI references, not human gold."
+  },
+  "reference_rebindings": [
+    {
+      "case_id": "untuned04-03",
+      "old_source_id": "web-dd851323f651ca877d86",
+      "new_source_id": "web-612c88f40f2cea7e2ded",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-05",
+      "old_source_id": "web-79aa5da21d68d5469f1f",
+      "new_source_id": "web-83aa405f10bca8e67de7",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-06",
+      "old_source_id": "web-a8515e2b13b696e98ce1",
+      "new_source_id": "web-fe741144d438e9acac67",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-07",
+      "old_source_id": "web-a8515e2b13b696e98ce1",
+      "new_source_id": "web-fe741144d438e9acac67",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-08",
+      "old_source_id": "web-80e37bcb421c2e5bb6d8",
+      "new_source_id": "web-5ac2c5d4f878aa8bfd19",
+      "old_version": 1,
+      "new_version": 2,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-08",
+      "old_source_id": "web-80e37bcb421c2e5bb6d8",
+      "new_source_id": "web-5ac2c5d4f878aa8bfd19",
+      "old_version": 1,
+      "new_version": 2,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-09",
+      "old_source_id": "web-90988a704ddb8cb825ce",
+      "new_source_id": "web-975cacc0f99d0c857054",
+      "old_version": 1,
+      "new_version": 2,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-15",
+      "old_source_id": "web-dcc01552752af0881f82",
+      "new_source_id": "web-4df150e910a4da3cc120",
+      "old_version": 1,
+      "new_version": 2,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-17",
+      "old_source_id": "web-dd851323f651ca877d86",
+      "new_source_id": "web-612c88f40f2cea7e2ded",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-18",
+      "old_source_id": "web-79aa5da21d68d5469f1f",
+      "new_source_id": "web-83aa405f10bca8e67de7",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-18",
+      "old_source_id": "web-dd851323f651ca877d86",
+      "new_source_id": "web-612c88f40f2cea7e2ded",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-19",
+      "old_source_id": "web-a8515e2b13b696e98ce1",
+      "new_source_id": "web-fe741144d438e9acac67",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-22",
+      "old_source_id": "web-80e37bcb421c2e5bb6d8",
+      "new_source_id": "web-5ac2c5d4f878aa8bfd19",
+      "old_version": 1,
+      "new_version": 2,
+      "quote_unchanged": true
+    },
+    {
+      "case_id": "untuned04-24",
+      "old_source_id": "web-dd851323f651ca877d86",
+      "new_source_id": "web-612c88f40f2cea7e2ded",
+      "old_version": 1,
+      "new_version": 1,
+      "quote_unchanged": true
+    }
+  ],
+  "strict_independent_human_evaluation": false,
+  "evaluation_lifecycle": "untuned pre-output diagnostic until any query/reference is used for development; not a final thesis benchmark",
+  "overlap_audit": [
+    {
+      "path": "data/answer-week04-dev-20261014.json",
+      "sha256": "beaa36520086b46f9a3deab9e307958d92891b7c31cbe3f6823a1b2f943f7cbc",
+      "exact_query_overlaps": [],
+      "exact_attribute_identifier_overlaps": [],
+      "scope": "Computational exact-string audit only; semantic novelty and strict task independence not established. Older query wordings not printed or manually read."
+    },
+    {
+      "path": "data/answer-audit-dev-20261012.json",
+      "sha256": "c267acabbbc4c83f04df6b276f5d067354f7cc3eeafa713f4555cf6e9ec8eb82",
+      "exact_query_overlaps": [],
+      "exact_attribute_identifier_overlaps": [],
+      "scope": "Computational exact-string audit only; semantic novelty and strict task independence not established. Older query wordings not printed or manually read."
+    },
+    {
+      "path": "data/rag-source-dev-20261012.json",
+      "sha256": "ce78e2e61972d95b9e1865d63eb3d5e653efba0167ba069f3e14f9865f852ed8",
+      "exact_query_overlaps": [],
+      "exact_attribute_identifier_overlaps": [],
+      "scope": "Computational exact-string audit only; semantic novelty and strict task independence not established. Older query wordings not printed or manually read."
+    }
+  ]
+}

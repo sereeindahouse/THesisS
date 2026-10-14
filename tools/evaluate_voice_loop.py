@@ -42,7 +42,7 @@ def contract_check(case, response):
 def run(cases_path,output_dir,base_url,reuse_audio=None):
     from voice_runtime import VoiceRuntime, ALLOWED_VOICES, _decode_pcm, _wav_bytes
     from score import score
-    from tools.evaluate_answer_quality import sha as file_sha
+    from tools.evaluate_answer_quality import RUNTIME_ARTIFACT_NAMES, sha as file_sha
     parts=urlsplit(base_url)
     if (parts.scheme!='http' or parts.hostname not in {'127.0.0.1','localhost'}
             or parts.username or parts.password or parts.path not in {'','/'} or parts.query or parts.fragment):
@@ -66,9 +66,11 @@ def run(cases_path,output_dir,base_url,reuse_audio=None):
         with opener.open(req,timeout=180) as response:
             return response.read() if binary else json.load(response)
 
-    status=request('/api/status')
-    names=('rag_runtime.py','source_fields.py','answer_contract.py')
+    names=RUNTIME_ARTIFACT_NAMES
     expected={n:file_sha(ROOT/n) for n in names}
+    if any(value is None for value in expected.values()):
+        raise ValueError('Runtime fingerprint requires all six local code files.')
+    status=request('/api/status')
     if any(status.get('rag',{}).get('loaded_artifact_sha256',{}).get(n)!=v for n,v in expected.items()):
         raise ValueError('Stale demo code; restart before voice collection.')
     if status.get('voice',{}).get('stt_ready') is not True:

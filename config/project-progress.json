@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-14",
+  "updated_date": "2026-10-15",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах хувилбарын 8 инженерийн шалгуур. Ижил жинтэй тоолол; дипломын нийт хувь, ажлын цаг, чанарын оноо биш.",
-  "current_week": "Хуваариар 2-р долоо хоног; week3 техникийн үе дууссан, week4-ийн 40 асуулт/автомат дууны хөгжүүлэлт хийсэн.",
+  "current_week": "Хуваариар 2-р долоо хоног; week3 техникийн үе дууссан. Week4-ийн эх/facts/FAQ өргөтгөл, шинэ24 асуултын AI үнэлгээ хийгдсэн; чанарын засвар ба хүний final QA үргэлжилнэ.",
   "status_basis": "Төслийн нотолгоонд тулгуурласан, 2026.10.14-нд шинэчилсэн бүртгэл; runtime-ийн бэлэн байдлыг тусад нь шалгана.",
   "milestones": [
     {
@@ -31,7 +31,7 @@
       "id": "retrieval-router",
       "label": "Хязгаарласан хүрээний хайлт, чиглүүлэгч",
       "state": "done",
-      "detail": "160 хэсгийн hybrid хайлт; шууд эх, тодруулга, эх дутууг хэлэх замууд ажиллана.",
+      "detail": "201 хэсэг:150HTML+21баримт+30нэмэлт таб. Хязгаарласан эхийн хайлт, чиглүүлэгч ажиллана; шинэ асуултад утгын алдаа илэрсэн.",
       "evidence": [
         "website_retrieval.py",
         "question_router.py",
@@ -73,7 +73,7 @@
       "id": "delivery-repro",
       "label": "API, шинэчлэлт, сэргээх ба дахин гаргах",
       "state": "in_progress",
-      "detail": "Локал HTTP API/GitHub/суулгах хэрэгсэл бэлэн. Бүтэн corpus-ийг нийтэд сэргээх, үйлчилгээний deployment/backup-restore ажиллагаа үлдсэн.",
+      "detail": "Хоёр SQLite backup, хувилбартай импорт, idempotence/FK шалгалт; шинэ clone v2 facts/FAQ багцыг ашиглана. Бүтэн private corpus болон deployment/restore/device шалгалт үлдсэн.",
       "evidence": [
         "demo_server.py",
         "tools/install_release_models.py",
@@ -177,9 +177,12 @@
     {
       "id": "unseen",
       "label": "Шинэ асуултын хараат бус үнэлгээ",
-      "state": "todo",
-      "detail": "40 assistant reference-г гаралтаас өмнө тогтоож засварт ашигласан development багц. Засварт ашиглаагүй хүний final багц, нягтлал үлдсэн.",
-      "evidence": []
+      "state": "in_progress",
+      "detail": "Засварт ашиглаагүй24 асуултын урьдчилан царцаасан AI probe:8pass/6partial/10fail. Хүний final gold биш; эдгээрийг цааш засварт ашиглавал development болно.",
+      "evidence": [
+        "data/answer-untuned-20261015.json",
+        "docs/experiments/rag-integration-20261012.json"
+      ]
     },
     {
       "id": "voice-comparison",
@@ -212,11 +215,16 @@
     "Автомат тест болон Support@k нь хариултын correctness хувь биш.",
     "Анхны roadmap болон өмнөх өдрийн түүхэн evidence өөрчлөгдөөгүй."
   ],
-  "evaluation_label": "40 development асуулт + 12 синтетик дуу. Хүний хараат бус чанарын үнэлгээ үлдсэн.",
+  "evaluation_label": "Шинэ24 асуултын AI үнэлгээ:8 зөв/6 дутуу/10 алдаатай. Хүний эцсийн үнэлгээ хийгдээгүй.",
   "week04": {
     "state": "in_progress",
     "development_cases": 40,
     "synthetic_clips": 12,
-    "scope": "Хөгжүүлэлтийн reference/protocol/алдааны засвар хийсэн; source/client-tab coverage ба final human QA үлдсэн."
+    "scope": "Хязгаарласан эх/facts/FAQ,40 development query, RQ/protocol,24untuned AI probe бэлэн. Хүний үнэлгээ ба илэрсэн утгын алдааг засах ажил үлдсэн.",
+    "source_extension_done": true,
+    "curation_done": true,
+    "untuned_ai_probe_done": true,
+    "untuned_cases": 24,
+    "human_final_qa_done": false
   }
 }

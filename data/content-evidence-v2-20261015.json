@@ -1,0 +1,758 @@
+{
+  "schema_version": 1,
+  "created": "2026-10-15",
+  "reviewer_kind": "assistant",
+  "package_file": "data/content-draft-v2-20261015.json",
+  "baseline_file": "data/content-draft-v1.json",
+  "baseline_sha256": "b5bbd92205bea1f0f315016983f1690a96c863e58549f8a2144ae152df832db6",
+  "baseline_package_id": "a1e9779b7da18d63edda23318c48d9e4828b695b9535e2ca976f7cff7e4b9ae5",
+  "source_run_id": "nmct-20261010T045245Z",
+  "catalog_sha256": "d7a55592c80ced66aa082508e4e8dbb1cefe9eea9071dd199a6289a262711110",
+  "limits": [
+    "Saved official source clauses, not current enrollment/open status.",
+    "Source update and validity dates remain unknown; no staff approval claimed.",
+    "Document clauses reuse selected assistant visual transcriptions checked on 2026-10-12; not full OCR or human gold.",
+    "Client tabs and freshly captured pages are outside this content package.",
+    "The original package and all inherited records remain unchanged."
+  ],
+  "source_proofs": [
+    {
+      "document_id": "nmct-contact-web-20261007",
+      "version": 2,
+      "url": "https://nmct.edu.mn/contact",
+      "retrieved_at": "2026-10-10T04:52:49.392956+00:00",
+      "kind": "saved_html_main_text",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/80b11bd9c9f7dd486180.txt",
+      "input_sha256": "6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8",
+      "html_file": "CORE/website/snapshots/nmct-20261010T045245Z/html/80b11bd9c9f7dd486180.html",
+      "html_sha256": "7503a6181b349e1e2e580d6784b67af6ecd0f56921b428eab228c45cdac3803f",
+      "text_scope": "main_element",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "url": "https://nmct.edu.mn/elselt",
+      "retrieved_at": "2026-10-10T04:52:46.842088+00:00",
+      "kind": "saved_html_main_text",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "html_file": "CORE/website/snapshots/nmct-20261010T045245Z/html/418f4fa9b65c86470b1e.html",
+      "html_sha256": "b42b212009bceeb4a546fbbf39617ca21a3603c56dd82df40904f4bfd4b6710f",
+      "text_scope": "main_element",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-departments-web-20261007",
+      "version": 2,
+      "url": "https://nmct.edu.mn/departments",
+      "retrieved_at": "2026-10-10T04:52:47.714489+00:00",
+      "kind": "saved_html_main_text",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/dd25c1da68fdbf18194d.txt",
+      "input_sha256": "b0ecdabe1c8e2f486774a11b73f7a35d2780ad23b5fd333c867e5c0477eea538",
+      "html_file": "CORE/website/snapshots/nmct-20261010T045245Z/html/dd25c1da68fdbf18194d.html",
+      "html_sha256": "1189cafb4d593739af51d2a2c64ca1f3ca6a23db5eb0c3f4bdb566d0b77a80b5",
+      "text_scope": "main_element",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+      "version": 1,
+      "url": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "retrieved_at": "2026-10-10T04:57:58.303806+00:00",
+      "kind": "selected_visual_transcription",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "asset_file": "CORE/website/snapshots/nmct-20261010T045245Z/documents/f92db87a0aca8d9a4294.png",
+      "asset_sha256": "6c4ba81047645010f1650bf99cd38126e7ce95faf38572ac1a2a62851c559c77",
+      "extraction_version": 1,
+      "method": "visual_transcription",
+      "reviewer_kind": "assistant",
+      "prior_review_date": "2026-10-12",
+      "coverage": "selected_passages",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "retrieved_at": "2026-10-10T04:57:58.401755+00:00",
+      "kind": "selected_visual_transcription",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "asset_file": "CORE/website/snapshots/nmct-20261010T045245Z/documents/37cedca270c9cd2fb4ab.png",
+      "asset_sha256": "77cc809ec9f7109fcfe16924349dfdcf2c510887d50c08baf66dab3a885d6ee1",
+      "extraction_version": 1,
+      "method": "visual_transcription",
+      "reviewer_kind": "assistant",
+      "prior_review_date": "2026-10-12",
+      "coverage": "selected_passages",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "url": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "retrieved_at": "2026-10-10T04:57:58.500648+00:00",
+      "kind": "selected_visual_transcription",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "asset_file": "CORE/website/snapshots/nmct-20261010T045245Z/documents/52432a89a6dbeb7cf0cb.png",
+      "asset_sha256": "df183aa075f0ed098ca27ab8ffb1a9fc2a3d6887aa953e6a09648cce04ec7912",
+      "extraction_version": 1,
+      "method": "visual_transcription",
+      "reviewer_kind": "assistant",
+      "prior_review_date": "2026-10-12",
+      "coverage": "selected_passages",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-admission-appendix-snapshot-20261010",
+      "version": 1,
+      "url": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "retrieved_at": "2026-10-10T04:57:58.624552+00:00",
+      "kind": "selected_visual_transcription",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "asset_file": "CORE/website/snapshots/nmct-20261010T045245Z/documents/907686a07adaf5306c9c.png",
+      "asset_sha256": "8ea74e4a1aa0a1b912cecd47357b0baa6a28f13e14770a6bd17f330abb7720d7",
+      "extraction_version": 1,
+      "method": "visual_transcription",
+      "reviewer_kind": "assistant",
+      "prior_review_date": "2026-10-12",
+      "coverage": "selected_passages",
+      "source_updated_at": null
+    },
+    {
+      "document_id": "nmct-olympiad-rule-snapshot-20261010",
+      "version": 1,
+      "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "retrieved_at": "2026-10-10T04:57:58.197490+00:00",
+      "kind": "selected_visual_transcription",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "asset_file": "CORE/website/snapshots/nmct-20261010T045245Z/documents/ff3b367239f4758e5628.pdf",
+      "asset_sha256": "f436dc5d15bf1e56bc55258c144fab2c51e34e7a1fa68b675c6546f837a1295a",
+      "extraction_version": 1,
+      "method": "visual_transcription",
+      "reviewer_kind": "assistant",
+      "prior_review_date": "2026-10-12",
+      "coverage": "selected_passages",
+      "source_updated_at": null
+    }
+  ],
+  "fact_proofs": [
+    {
+      "fact_id": "school.location.snapshot20261010",
+      "document_id": "nmct-contact-web-20261007",
+      "version": 2,
+      "locator": "Хаяг мэдээлэл / Хаяг",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/80b11bd9c9f7dd486180.txt",
+      "input_sha256": "6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8",
+      "year_scope": null,
+      "quotes": [
+        {
+          "quote": "Улаанбаатар хот, Баянзүрх дүүрэг, 25-р хороо, шинэ монгол",
+          "start": 139,
+          "end": 196,
+          "quote_sha256": "45b55d1cf006a92952d64bef94e00480b8f6b3d2be3ed4bd06eee66ee871ebe5"
+        }
+      ]
+    },
+    {
+      "fact_id": "school.general_hours.snapshot20261010",
+      "document_id": "nmct-contact-web-20261007",
+      "version": 2,
+      "locator": "Хаяг мэдээлэл / Ажлын цаг",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/80b11bd9c9f7dd486180.txt",
+      "input_sha256": "6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8",
+      "year_scope": null,
+      "quotes": [
+        {
+          "quote": "Даваа - Баасан: 09:00 - 18:00\nБямба: 10:00 - 14:00\nНям: Амарна",
+          "start": 249,
+          "end": 311,
+          "quote_sha256": "10fc7325aaadd8d114bc3e79d1250ee933b499a7d2f13edefe565a09bb3dba54"
+        }
+      ]
+    },
+    {
+      "fact_id": "school.contact_reply_promise.snapshot20261010",
+      "document_id": "nmct-contact-web-20261007",
+      "version": 2,
+      "locator": "Бидэнтэй холбоо барих / хариулах мэдэгдэл",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/80b11bd9c9f7dd486180.txt",
+      "input_sha256": "6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8",
+      "year_scope": null,
+      "quotes": [
+        {
+          "quote": "Асуулт, санал, хүсэлтээ бидэнд илгээнэ үү. Бид ажлын 24 цагийн дотор хариулах болно.",
+          "start": 35,
+          "end": 119,
+          "quote_sha256": "d3bc9a4188c24ea559f5f792615c58e1a4aeada8e701dca4dad778ecd8d14214"
+        }
+      ]
+    },
+    {
+      "fact_id": "school.departments.snapshot20261010",
+      "document_id": "nmct-departments-web-20261007",
+      "version": 2,
+      "locator": "Тэнхимүүд / зургаан тэнхимийн гарчиг",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/dd25c1da68fdbf18194d.txt",
+      "input_sha256": "b0ecdabe1c8e2f486774a11b73f7a35d2780ad23b5fd333c867e5c0477eea538",
+      "year_scope": null,
+      "quotes": [
+        {
+          "quote": "Ерөнхий Эрдмийн тэнхим",
+          "start": 159,
+          "end": 181,
+          "quote_sha256": "703f45c178fc18864da66781b8d76012886502e74ecbfe559b4e36dc7f4bf40c"
+        },
+        {
+          "quote": "Компьютерын ухааны тэнхим",
+          "start": 1520,
+          "end": 1545,
+          "quote_sha256": "68385d0163b2dd7ff0c89166db4b44508d9a298ce57492cb45e19b23f2d4e309"
+        },
+        {
+          "quote": "Механик инженерийн тэнхим",
+          "start": 4082,
+          "end": 4107,
+          "quote_sha256": "fe7d821fb34febadd8afedab8cea98c10e553aee910efe40a9a73ec5b4f106df"
+        },
+        {
+          "quote": "Барилгын дэд бүтцийн инженерийн тэнхим",
+          "start": 7160,
+          "end": 7198,
+          "quote_sha256": "1d4a4252a6ba85aaef7c04445a84162e38d025cbadabfb869a256d155a16d9a0"
+        },
+        {
+          "quote": "Цахилгаан электроникийн инженерийн тэнхим",
+          "start": 7976,
+          "end": 8017,
+          "quote_sha256": "18d2493c1cecce53188db61e28f49f064125ff88d45ada4eae0464369517ade5"
+        },
+        {
+          "quote": "Химийн инженерийн тэнхим",
+          "start": 8326,
+          "end": 8350,
+          "quote_sha256": "0da20f6d96db10328c5d2b641a619430a79af8e222bf2079689c1c4392a93722"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.programs.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Хөтөлбөрүүд · Индекс / 1-р курс",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "071309 Цахилгааны инженер\n071501 Механик инженер\n073204 Барилгын инженер\n071101 Химийн инженер\n061301 Компьютерийн ухаан",
+          "start": 1196,
+          "end": 1316,
+          "quote_sha256": "af7649e5eec675d5c044fbc5163a7a8f2ee64776b05aafde9ed330e17918ac83"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.transfer_programs.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Хөтөлбөрүүд · Индекс / 2-р курс шилжин",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "2-р курс шилжин · 4 жил\n071501 Механик инженер\n071101 Химийн инженер",
+          "start": 1317,
+          "end": 1385,
+          "quote_sha256": "a7a744524443aa549035c4619fe5af60a5a3116ed5e7c242d53b3e1540f6644c"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.course_duration.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Элсэлт авах хөтөлбөр / Хичээллэх хугацаа",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Хичээллэх хугацаа · 1-р курс 5 жил · 2-р курс 4 жил",
+          "start": 1127,
+          "end": 1178,
+          "quote_sha256": "e10906b60007fd7085b4b36638826181ea4d48d85cb27cf46db786bcf8ce53b8"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.engineering_degree.2026_2027",
+      "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+      "version": 1,
+      "locator": "х.1, I.1",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "ШМТК нь инженерийн 5 жилийн хөтөлбөрөөр дэд бакалаврын зэрэг олгодог дээд боловсролын сургалтын байгууллага бөгөөд сургуулийн элсэлтийн бодлогод нийцсэн мэдлэг, чадвар, хандлага бүхий элсэгчдийг элсүүлэн авах, элсэлтийн шалгалтын үйл ажиллагааг үр дүнтэй зохион байгуулахад энэхүү журмын зорилго оршино.",
+          "start": 0,
+          "end": 303,
+          "quote_sha256": "db2132b95d1a963fec58b6687c4cace1058aa29097385f63716610dd8fe17122"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.course_qualification.2026_2027",
+      "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+      "version": 1,
+      "locator": "х.1, III.2, курсийн шаардлага",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "1-р курст Бүртгүүлэгч нь ЕБС-ийн 9-р ангийг төгсөж суурь боловсролын гэрчилгээ авсан сурагч байна.\n2-р курст Бүртгүүлэгч нь ЕБС-ийн 10-р ангийг төгссөн байна.",
+          "start": 0,
+          "end": 158,
+          "quote_sha256": "e2df634b85064d1aaa5f28c11e47baaa170b9c7c7aa659305e1d1cc2e0b78df6"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.foreign_school_documents.2026_2027",
+      "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+      "version": 1,
+      "locator": "х.1, III.2, гадаадад боловсрол эзэмшсэн суралцагч",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Гадаад оронд ерөнхий боловсрол эзэмшсэн суралцагч ШМТК-д элсэх хүсэлт гаргахдаа ЕБС-тай дүйцүүлэх болох шалгалтыг гадаад оронд өгсөн болохыг гэрчилсэн баримтыг БШУЯ-наас баталгаажуулсан тодорхойлолтын хамт бүрдүүлэн Элсэлтийн комисст ирүүлнэ.",
+          "start": 0,
+          "end": 242,
+          "quote_sha256": "fcedbd97c7042cc2072176ad56c695566e380b554db00047a50f8b58773aefc8"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.registration_fee.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Элсэлт 2026 / Бүртгэлийн хураамж",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Бүртгэлийн хураамж: 20,000 ₮",
+          "start": 263,
+          "end": 291,
+          "quote_sha256": "10b32f3c984a6ad8010a27d4d2a0f67f7d7269f9d4a231f48d8a3105175eb158"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.registration_fee_payment.2026_2027",
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "locator": "х.2, IV.11, бүртгэлийн хураамж төлөх",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж 20,000 төгрөгийг зааврын дагуу, QR код ашиглан Хаан банк, Төрийн банк, Худалдаа хөгжлийн банк, Хас банк, Богд банк, Улаанбаатар хотын банкны аппликейшн ашиглан төлнө (Голомт банкаар төлөх боломжгүй болно).",
+          "start": 0,
+          "end": 249,
+          "quote_sha256": "74417c3fd388a384ccedb9f0dd0f2f95b1e225e97f2397333de269ed89f335cb"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.annual_tuition.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Холбоо барих хэсгийн дараах сургалтын төлбөрийн мөр",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Сургалтын төлбөр: жилд 8,280,000 ₮ (Найман сая хоёр зуун наян мянган төгрөг)",
+          "start": 2079,
+          "end": 2155,
+          "quote_sha256": "25dba261035f9b013f6747f6ce57d61175e983b719fdb6528972aa7aff9723da"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.online_registration_steps.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "1. Бүртгүүлэх / 2. Хураамж төлөх / 3. Хувийн хэсэг",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "1. Бүртгүүлэх\nЦээж зураг, иргэний болон холбоо барих мэдээлэл, сонирхож буй мэргэжлээ сонгож формоо бөглөнө.\n2. Хураамж төлөх\nИлгээсний дараа QPay QR код гарна. Уншуулаад бүртгэлийн хураамжаа төлнө.\n3. Хувийн хэсэг\nТөлбөр баталгаажмагц нэвтэрч, өөрийн бүртгэлийн бүх мэдээллийг харах боломжтой болно.",
+          "start": 292,
+          "end": 592,
+          "quote_sha256": "95ceb87e0e0735e292bc480481608f6680e73a3d0825ff088ef344f35bc3d5c2"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.writing_exam.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Бичгийн шалгалт / 1-р курс",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "1-р курс — 120 минут\nНийт 100 оноотой шалгалт · 7-оос 4-ийг хариулна\nМатематик 40 оноо\nФизик 20 оноо\nХими 20 оноо\nЭх хэл, монгол 10 оноо\nТехник зураг 10 оноо",
+          "start": 1402,
+          "end": 1559,
+          "quote_sha256": "0862af39b645eb9d7edf4116e79891160790046700a7958c599b41ef033aa148"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.essay_rule.2026_2027",
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "locator": "х.2, IV.10, эссэ",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Бүртгүүлэгч бичгийн шалгалтад ирэхдээ дараах асуултад хариулж хэвлэмэл байдлаар авч ирэн хураалгана. Үгийн тоо 500-700 байна.\nКоосэнд суралцах болсон шалтгаан\n5 мэргэжлээс Яагаад энэ мэргэжлийг сонгох болсон шалтгаан\nӨөрийн сонирхол ур чадварын тухай",
+          "start": 0,
+          "end": 250,
+          "quote_sha256": "d08983673525f54135f44d51c216295709a70ca4cdfffd4ab991b9a1045ffe4f"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.essay_format.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Бичгийн шалгалтын санамж / Анхаарах",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Анхаарах: Эссэгээ A4 цаасан дээр хэвлээд бичгийн шалгалтын өдөр өөрийн биеэр авч ирнэ. Гараар бичсэн эссэ хүлээн авахгүй.",
+          "start": 2750,
+          "end": 2871,
+          "quote_sha256": "c83103cc3198d137fc32e79a35a6136999c7c910a7e1b9b90be9c4d34e495e12"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.photo_requirements.2026_2027",
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "locator": "х.2, IV.6, цээж зураг",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Сүүлийн 6 сарын дотор авахуулсан цээж зургийг өөрийн регистрийн дугаараар хадгалан, зурган файлаар (jpeg, png, jpg өргөтгөлтэй байх) системд оруулна.",
+          "start": 0,
+          "end": 149,
+          "quote_sha256": "c0eab410b0585dcb5293877db1b1ecef391eeacc3f842eff3ca262264c9b58c1"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.second_choice.2026_2027",
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "locator": "х.2, IV.8-9, мэргэжлийн сонголт",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Бүртгүүлэгч Цахим бүртгэлийн явцад элсэн суралцах мэргэжлийн хөтөлбөрийг сонгох ба хөтөлбөрийн онцлогийг урьдчилан судалж, үнэн зөв сонголт хийнэ.\nБүртгүүлэгч нэмэлтээр мэргэжлийн хөтөлбөрийн 2-р сонголт заавал хийж бүртгүүлнэ.",
+          "start": 0,
+          "end": 227,
+          "quote_sha256": "f1d98b14c0980aec71e219beb9138ede7d28c8167ce354152e870b5b4c9361a3"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.interview.2026_2027",
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "locator": "х.2, V.4, ярилцлагын шалгалт",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Ярилцлагын шалгалтаар бүртгүүлэгчийн инженер технологийн мэргэжлээр суралцах сонирхол, хүсэл эрмэлзэл, өөрийгөө илэрхийлэх чадвар, эцэг эхийн хамтын ажиллагааг шалгах ба шалгагч багш нар бүртгүүлэгч бүртэй ярилцах хэлбэрээр авна. Бүртгүүлэгч эцэг эх, асран хамгаалагчтай хамт ярилцлагын шалгалтад орох ба нийт 20 оноогоор дүгнэнэ. Ярилцлагын шалгалт 15 минут үргэлжилнэ.",
+          "start": 0,
+          "end": 370,
+          "quote_sha256": "69dcc2ae26eee46279078bc4e8f5120c2bc30584be09de128e6319b95b7366c9"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.enrollment_confirmation.2026_2027",
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "locator": "х.3, VI.3, гэрээ ба төлбөр",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Элсэгч сургуулиас товлосон хугацаанд суралцах гэрээ байгуулан, сургалтын төлбөрийг төлсний дараа элсэн суралцах баталгаажна. Суралцах гэрээ байгуулах хугацаа болон бусад мэдээллийг элсэх батламж гардуулах үед мэдээлнэ.",
+          "start": 0,
+          "end": 218,
+          "quote_sha256": "6aadcd73aa6970c52b759af916c3004063f93c970cdadb115bfcbd32101a4a01"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.national_olympiad_exemption.2026_2027",
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "locator": "х.3, VI.5, улсын олимпиадын нөхцөл",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Бүртгүүлэгч нь тухайн хичээлийн жилд Улсын аварга шалгаруулах математик, физик, химийн олимпиадад амжилттай оролцож “1-10”-р байрт шалгарсан амжилт үзүүлсэн бол ШМТК-д бичгийн шалгалтгүй элсэн суралцах боломжтой бөгөөд тус сургуульд элсэн суралцах хүсэлтээ бичгээр ирүүлснээр зөвхөн ярилцлагын шалгалтад орж тэнцсэн тохиолдолд элсэн суралцах эрхтэй болно.",
+          "start": 0,
+          "end": 355,
+          "quote_sha256": "8120155492c87f2a17de2ed057ab1d5bb379222522e19af6b1d46c6be5cb2468"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.school_olympiad_exemption.2026_2027",
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "locator": "х.3, VI.6, сургуулийн олимпиадын нөхцөл",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Бүртгүүлэгч нь тус сургуулиас зохион байгуулсан олимпиад, мэргэжлийн уралдаан тэмцээнд амжилттай оролцож элсэлтийн бичгийн шалгалтгүй элсэн суралцах эрхийн бичиг гардан авсан тохиолдолд 4-р бүлэгт зааснаар элсэлтийн шалгалтын бүртгэл хийлгэж, элсэх эрхийн бичиг, батламжийг хавсарган бүртгүүлнэ. Мөн тус сургуульд элсэн суралцах хүсэлтээ бичгээр ирүүлэх ба ярилцлагын шалгалтад орж тэнцсэн тохиолдолд элсэн суралцах эрхтэй болно.",
+          "start": 0,
+          "end": 429,
+          "quote_sha256": "9071dc8ee3afc4b706aceecfd56dd533109c3f0a08cc618acfd869cbd0807b21"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.nontransferable_right.2026_2027",
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "locator": "х.3, VII.1, элсэх эрх шилжүүлэх",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.",
+          "start": 0,
+          "end": 43,
+          "quote_sha256": "fc875710c2cc6b21e6c192ae77d17968a23995a9cc2fef3673dc9984e23aa24d"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.missed_contract.2026_2027",
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "locator": "х.3, VII.2, гэрээ байгуулах хугацаа",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026–2027",
+      "quotes": [
+        {
+          "quote": "Элсэх эрх авсан боловч хүндэтгэх шалтгаангүйгээр заасан хугацаанд ирж суралцах гэрээ байгуулаагүй элсэгчийг суралцахаас татгалзсан хэмээн үзэж элсэх эрхийн бичгийг хүчингүйд тооцно. Энэ тохиолдолд элсэлтийн шалгалтын оноогоор дараагийн шалгуулагчид мэдэгдэн, түүний хүсэлтийг үндэслэн элсүүлж болно.",
+          "start": 0,
+          "end": 299,
+          "quote_sha256": "7ec794630bc92dc22e0199c3cf70119348531d91bfee75199d7e79f6e3e82a5d"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.inquiry_phones.2026",
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "locator": "Холбоо барих / Лавлах утас",
+      "input_file": "CORE/website/snapshots/nmct-20261010T045245Z/text/418f4fa9b65c86470b1e.txt",
+      "input_sha256": "f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Бүртгэл, шалгалт, төлбөртэй холбоотой асуултаа доорх дугаараар лавлана уу.\nУтас 7577-7799 Утас 9951-0543 Утас 8880-6229",
+          "start": 1959,
+          "end": 2078,
+          "quote_sha256": "aa576a54a696452c1085735313cae9a2cd849e0ebb3b87b26ca53a0d65547b35"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.exam_schedule.2026",
+      "document_id": "nmct-admission-appendix-snapshot-20261010",
+      "version": 1,
+      "locator": "хавсралт, 4. Шалгалтын хугацаа",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "БИЧГИЙН ШАЛГАЛТ 2026.08.15 ӨДӨР 10:00 ЦАГААС ЭХЛЭХ ТУЛ 09:30 МИНУТАД СУРГУУЛИЙН 1 ДАВХАРТ ИРСЭН БАЙНА.\nЯРИЛЦЛАГЫН ШАЛГАЛТ 2026.08.15 ӨДӨР 13:30 ЦАГААС ЭХЭЛНЭ. ЯРИЛЦЛАГЫН ШАЛГАЛТЫН ХУВААРИЙГ БИЧГИЙН ШАЛГАЛТАД ОРОХ ҮЕД ХЭВЛЭСЭН БАЙДЛААР ГАРГАЖ СУРГУУЛИЙН 1 ДАВХАРТ БАЙРШУУЛСАН БАЙНА.",
+          "start": 0,
+          "end": 281,
+          "quote_sha256": "a165a9077f629e274ffa6ea8c7e4eb0d84aba1aa1c0bfa766aa5bb05c3268978"
+        }
+      ]
+    },
+    {
+      "fact_id": "admission.results_schedule.2026",
+      "document_id": "nmct-admission-appendix-snapshot-20261010",
+      "version": 1,
+      "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2026",
+      "quotes": [
+        {
+          "quote": "Шалгалтын нэгдсэн дүнг 8-р сарын 15-ны өдөрт багтаан сургуулийн фэйсбүүк хуудсанд бүртгэлийн дугаараар байршуулан зарлана.\n8-р сарын 17-ны өдөр тэнцсэн сурагчдад батламжийг цахим шуудангаар дамжуулан гардуулна.",
+          "start": 0,
+          "end": 210,
+          "quote_sha256": "01198e4fba5ec84753b2743ab023f0ee56687f9c5e4c8f76f86758f0043703ac"
+        }
+      ]
+    },
+    {
+      "fact_id": "olympiad.registration.2025_2026",
+      "document_id": "nmct-olympiad-rule-snapshot-20261010",
+      "version": 1,
+      "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2025–2026",
+      "quotes": [
+        {
+          "quote": "Тус олимпиад нь 2025-2026 оны хичээлийн жилд ЕБС-ийн 9-р ангид сурч буй бүх суралцагчдад нээлттэй бөгөөд бүртгэлийн хураамж 5000 төгрөг.\nОлимпиадад оролцогчдыг 2026 оны 04-р сарын 2-ноос 04-р сарын 23-ны 18:00 цаг хүртэл ШМТК-ийн фэйсбүүк хуудсанд байршуулсан бүртгэлийн холбоосоор бүртгэнэ.",
+          "start": 0,
+          "end": 291,
+          "quote_sha256": "b019001b5091dcaf20871856c3da3647546c814faa128772e388a8fe2ee9bce0"
+        }
+      ]
+    },
+    {
+      "fact_id": "olympiad.categories.2025_2026",
+      "document_id": "nmct-olympiad-rule-snapshot-20261010",
+      "version": 1,
+      "locator": "х.1, Хоёр. Олимпиадын ангилал ба агуулга",
+      "input_file": "CORE/website/document-excerpts-20261012.json",
+      "input_sha256": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+      "year_scope": "2025–2026",
+      "quotes": [
+        {
+          "quote": "2025-2026 оны хичээлийн жилд зохион байгуулж буй байгалийн ухааны 7-р олимпиад дараах ангиллаар зохион байгуулагдана.\n1. Математик, физик (Математик 60%, Физик 40%)\n2. Математик, хими, биологи (Математик 60%, Хими 25%, Биологи 15%)",
+          "start": 0,
+          "end": 231,
+          "quote_sha256": "79f13842346e88d05dc315587cae03b07e5152a68a980e1c979b48e331b8c6ff"
+        }
+      ]
+    }
+  ],
+  "package_id": "c6665bcf027663bc8e4653604d2de104962a61864157829e8049ec785a862e60",
+  "new_faq_ids": [
+    "faq.contact.location",
+    "faq.contact.general_hours",
+    "faq.contact.reply_promise",
+    "faq.departments.list",
+    "faq.admission.programs.2026",
+    "faq.admission.duration.2026",
+    "faq.admission.qualification.2026_2027",
+    "faq.admission.registration_fee.2026",
+    "faq.admission.annual_tuition.2026",
+    "faq.admission.online_steps.2026",
+    "faq.admission.writing_exam.2026",
+    "faq.admission.essay.2026_2027",
+    "faq.admission.photo.2026_2027",
+    "faq.admission.second_choice.2026_2027",
+    "faq.admission.interview.2026_2027",
+    "faq.admission.foreign_school.2026_2027",
+    "faq.admission.contract.2026_2027",
+    "faq.admission.transfer_right.2026_2027",
+    "faq.admission.missed_contract.2026_2027",
+    "faq.admission.inquiry_phones.2026",
+    "faq.admission.exam_schedule.2026",
+    "faq.admission.results.2026",
+    "faq.olympiad.registration.2025_2026",
+    "faq.olympiad.categories.2025_2026",
+    "faq.admission.olympiad_exemption.2026_2027"
+  ],
+  "counts": {
+    "sources": 14,
+    "facts": 40,
+    "faqs": 30
+  },
+  "inherited_counts": {
+    "sources": 6,
+    "facts": 10,
+    "faqs": 5
+  },
+  "new_fact_ids": [
+    "school.location.snapshot20261010",
+    "school.general_hours.snapshot20261010",
+    "school.contact_reply_promise.snapshot20261010",
+    "school.departments.snapshot20261010",
+    "admission.programs.2026",
+    "admission.transfer_programs.2026",
+    "admission.course_duration.2026",
+    "admission.engineering_degree.2026_2027",
+    "admission.course_qualification.2026_2027",
+    "admission.foreign_school_documents.2026_2027",
+    "admission.registration_fee.2026",
+    "admission.registration_fee_payment.2026_2027",
+    "admission.annual_tuition.2026",
+    "admission.online_registration_steps.2026",
+    "admission.writing_exam.2026",
+    "admission.essay_rule.2026_2027",
+    "admission.essay_format.2026",
+    "admission.photo_requirements.2026_2027",
+    "admission.second_choice.2026_2027",
+    "admission.interview.2026_2027",
+    "admission.enrollment_confirmation.2026_2027",
+    "admission.national_olympiad_exemption.2026_2027",
+    "admission.school_olympiad_exemption.2026_2027",
+    "admission.nontransferable_right.2026_2027",
+    "admission.missed_contract.2026_2027",
+    "admission.inquiry_phones.2026",
+    "admission.exam_schedule.2026",
+    "admission.results_schedule.2026",
+    "olympiad.registration.2025_2026",
+    "olympiad.categories.2025_2026"
+  ],
+  "source_manifest_file": "CORE/website/snapshots/nmct-20261010T045245Z/manifest.json",
+  "source_manifest_sha256": "e36d807b958364113991e364bc63a5147af10003590e0ee709d57670f71e6967"
+}

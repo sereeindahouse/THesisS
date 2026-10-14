@@ -2225,5 +2225,329 @@
       "runtime/clarification-tests-local-20261014.txt",
       "runtime/clarification-live-20261014.json"
     ]
+  },
+  "week04_source_extension_20261015": {
+    "date": "2026-10-15",
+    "scope": "Bounded official source coverage + versioned curation + untuned AI diagnostic; not final human acceptance.",
+    "fresh_official_fetches": 9,
+    "new_html_urls": 3,
+    "revisited_department_urls": 6,
+    "sources": {
+      "unique_urls": 80,
+      "html_pages": 75,
+      "binary_documents": 5,
+      "raw_html_chunks": 164,
+      "indexed_html_passages": 150,
+      "indexed_document_passages": 21,
+      "indexed_client_tab_passages": 30,
+      "indexed_total": 201
+    },
+    "client_fields": {
+      "pages_with_selected_fields": 5,
+      "passages": 30,
+      "omissions": 12,
+      "method": "next_flight_whitelist_v1",
+      "html_hash_and_json_locator_checked": true,
+      "full_site_or_all_tabs_claimed": false
+    },
+    "curation": {
+      "versioned_source_records": 14,
+      "unique_urls": 11,
+      "facts": 40,
+      "faqs": 30,
+      "new_facts": 30,
+      "new_faqs": 25,
+      "package_id": "c6665bcf027663bc8e4653604d2de104962a61864157829e8049ec785a862e60",
+      "strict_private_source_files_verified": 14,
+      "real_http_questions_and_aliases": 39,
+      "route_b": 39,
+      "llm_calls": 0,
+      "inherited_package_preserved": true,
+      "school_staff_approval_claimed": false
+    },
+    "backup_and_import": {
+      "private_proof": "runtime/week04-coverage-import-20261015.json",
+      "content_import_proof": "runtime/week04-content-import-20261015.json",
+      "both_databases_backed_up": true,
+      "repeat_import_idempotent": true,
+      "foreign_key_checks_passed": true
+    },
+    "local_unit_tests": {
+      "passed": 432,
+      "seconds": 51.999,
+      "scope": "Measured source checkpoint before concurrent external edits."
+    },
+    "browser": {
+      "created_utc": "2026-10-14T17:37:02.378006+00:00",
+      "checks_passed": 9,
+      "checks": [
+        "75HTML/201indexed/5assets/164raw rendered",
+        "30clientfields scope rendered",
+        "goalsJson sourcefilter found4pages",
+        "main/clientcapture dates distinct",
+        "30FAQ40facts14versionedrecords rendered",
+        "published_clause shown as readable text",
+        "interview filter found3FAQ; expanded15min/20points and exactofficialPNGsource",
+        "375px mobile width374 no horizontaloverflow",
+        "browsererrorlog empty"
+      ],
+      "desktop_and_mobile_images_viewed": true,
+      "viewport_reset": true,
+      "human_listening": false,
+      "screenshots": [
+        "runtime/atlas-desktop-final-20261015.jpg",
+        "runtime/atlas-mobile-final-20261015.jpg",
+        "runtime/atlas-source-final-20261015.jpg",
+        "runtime/atlas-overview-final-20261015.jpg"
+      ]
+    },
+    "six_imported_code_hashes_required": true,
+    "own_training": false,
+    "untuned_diagnostic": {
+      "schema_version": 1,
+      "evaluation_kind": "assistant_review_of_untuned_pre_output_frozen_diagnostics",
+      "reviewed_utc": "2026-10-14T17:33:14.304096+00:00",
+      "case_count": 24,
+      "case_verdict_counts": {
+        "fail": 10,
+        "pass": 8,
+        "partial": 6
+      },
+      "case_verdict_ids": {
+        "pass": [
+          "untuned04-04",
+          "untuned04-07",
+          "untuned04-08",
+          "untuned04-10",
+          "untuned04-11",
+          "untuned04-12",
+          "untuned04-19",
+          "untuned04-20"
+        ],
+        "partial": [
+          "untuned04-06",
+          "untuned04-09",
+          "untuned04-16",
+          "untuned04-17",
+          "untuned04-22",
+          "untuned04-23"
+        ],
+        "fail": [
+          "untuned04-01",
+          "untuned04-02",
+          "untuned04-03",
+          "untuned04-05",
+          "untuned04-13",
+          "untuned04-14",
+          "untuned04-15",
+          "untuned04-18",
+          "untuned04-21",
+          "untuned04-24"
+        ]
+      },
+      "case_verdicts_by_reference_answerability": {
+        "answerable": {
+          "fail": 6,
+          "pass": 6,
+          "partial": 2
+        },
+        "needs_clarification": {
+          "fail": 2,
+          "partial": 2
+        },
+        "unsupported_in_verified_passages": {
+          "pass": 2,
+          "fail": 2,
+          "partial": 2
+        }
+      },
+      "independent_human_evaluation": false,
+      "human_review_fields_all_null": true,
+      "general_accuracy": null,
+      "final_heldout_accuracy": null,
+      "limitation": "Nonrandom 24-case source-bounded AI diagnostic. Different assistants from implementers, same AI/project context. Secondary AI crosscheck was consulted, not independent interrater statistics or human adjudication.",
+      "secondary_ai_crosscheck": {
+        "cases": 24,
+        "reviewer_kind": "assistant_subagent",
+        "final_case_verdict_counts": {
+          "fail": 10,
+          "pass": 8,
+          "partial": 6
+        },
+        "consulted_before_final_adjudication": true,
+        "human_gold": false,
+        "agreement_statistic": null
+      },
+      "raw_run": {
+        "path": "runtime/week04-untuned-live-20261015.json",
+        "sha256": "dda6338f971713d33a4612cb1e8dd4c8329d9d20b88169d81ae7074de1363ee8",
+        "created_utc": "2026-10-14T17:20:30.110503+00:00",
+        "git_head": "745cafe251e13a032fac85fed04836e7bf562d5d",
+        "git_dirty": true,
+        "measured_artifact_sha256": {
+          "tools/evaluate_answer_quality.py": "ea1c88112f4f4f173d36a6843f7ff8fce5da9bf48f93671174840894b315f4d3",
+          "tools/validate_answer_cases.py": "714e77df30212ef8672dbef47385f962a80455fcfe03e95d6647e7a1822416b1",
+          "source_fields.py": "a16ea1eb814053b576ec7e38e070ddd7f008c78a4bcbde043fd5bfa7d1b4c25e",
+          "rag_runtime.py": "c85aeba9643b15806c959feeb306d08a3086983d831f74a4e01c31ff10fa6fb5",
+          "answer_contract.py": "ddc04535abf8795d09ad8eb5675115f1f8f8ba5865211250b26397d6a5bebe93",
+          "website_retrieval.py": "89b9718737c38772b7ea48df7534572426dba5df0cb18cb0b540c9d26aa80557",
+          "demo_server.py": "8441864d92a8277ad86f4c9c6cc797ed2368500a7720fa3f755cf3d3c6149c2e",
+          "voice_runtime.py": "795229e224ab246c044b9945bdda2c7d8f060ad46becd83ee8b66cef177377fd",
+          "llm_runtime.py": "21ec6bc861832a629c691c35d60a12743c9e6d10850a6382ba654dac118191ba",
+          "CORE/document_corpus.py": "afd087193ded4ea9c7305249715b51b727510556cf0264499745c942dd184102",
+          "CORE/client_tab_corpus.py": "4bd209350d7dd555a9b8c255f109064efda354b2154b993724b2ea079952def9",
+          "CORE/database/website.db": "73fb91ae3ce392495c74141a913cfcb3aa067c709e6d2900da82e78483317601",
+          "runtime/content.db": "e8d6936bb37fafbfc78698ffbe30c99f2da79cec0769b67adc0e8bf50ba2df4f",
+          "CORE/website/document-excerpts-20261012.json": "e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd",
+          "config/model-catalog/gemma3-4b-text.json": "58278a9cbea885b7911fcd544e92a53dddd4458c54007f0c2db20c3357fe86eb",
+          "runtime/rag-model.json": "c3dc98363ccbd19fe536d3f5a9f4a62b65749133d252f1dbcf5322d6a1e53507"
+        },
+        "current_disk_correspondence_asserted": false,
+        "subsequent_state_note": "Root reported concurrent external edits after collection. Review binds only to captured run/preflight artifact hashes; subsequent disk code was not read or measured."
+      },
+      "reference_cases": {
+        "path": "data/answer-untuned-20261015.json",
+        "sha256": "e4a71e509478609a4562890549a1843a5342d8b598ee152e9312c220554785d1",
+        "source_snapshot_sha256": "1c224fd67aa95696096845a577efb3a6776870c654e04b4f788fc94554920abb",
+        "indexed_passages": 201,
+        "reference_quote_count": 36,
+        "reference_unique_passages": 16,
+        "reference_unique_urls": 9
+      },
+      "runtime": {
+        "preflight_path": "runtime/week04-untuned-preflight-20261015.json",
+        "preflight_sha256": "57da5b86586f0f1fae508f067c30acda1e8f734ab169a82f44f826e0f344ceb3",
+        "six_loaded_hashes_match_disk": true,
+        "loaded_hash_match_scope": "At recorded preflight/collection only, not current disk after reported external edits.",
+        "untuned_cases_used_for_warmup": false,
+        "all_http_success": 24,
+        "route_counts": {
+          "C": 15,
+          "E": 8,
+          "D": 1
+        },
+        "llm_calls": 20,
+        "service_error_count": 0,
+        "http_wall": {
+          "n": 24,
+          "mean_ms": 2489.52,
+          "median_ms": 2740.89,
+          "min_ms": 63.52,
+          "max_ms": 3941.79,
+          "p95_nearest_rank_ms": 3694.19
+        },
+        "http_wall_by_route": {
+          "C": {
+            "n": 15,
+            "mean_ms": 2924.99,
+            "median_ms": 2935.78,
+            "min_ms": 2377.71,
+            "max_ms": 3941.79,
+            "p95_nearest_rank_ms": 3941.79
+          },
+          "D": {
+            "n": 1,
+            "mean_ms": 71.33,
+            "median_ms": 71.33,
+            "min_ms": 71.33,
+            "max_ms": 71.33,
+            "p95_nearest_rank_ms": 71.33
+          },
+          "E": {
+            "n": 8,
+            "mean_ms": 1975.28,
+            "median_ms": 2509.41,
+            "min_ms": 63.52,
+            "max_ms": 3694.19,
+            "p95_nearest_rank_ms": 3694.19
+          }
+        },
+        "sum_http_wall_ms": 59748.37,
+        "latency_scope": "Sequential warmed local HTTP observations; excludes STT/TTS/user/device/network. Not cold-start or latency-stability benchmark."
+      },
+      "evidence": {
+        "generated_claim_quotes_checked": 15,
+        "exact_full_snapshot_quotes": 15,
+        "generated_web_citations_version_checked": 15,
+        "structural_mismatch_count": 0,
+        "quote_membership_is_not_semantic_entailment": true,
+        "answerable_cases_with_all_frozen_quotes_in_captured_retrieved_text": 13,
+        "answerable_case_denominator": 14,
+        "remaining_case_blocked_before_rag": "untuned04-14",
+        "warning": "Captured quote availability is not answer accuracy, complete corpus coverage or independent retrieval gold."
+      },
+      "failure_examples": [
+        {
+          "case_id": "untuned04-02",
+          "kind": "quantity_role",
+          "finding": "Эх мэргэжил тус бүрээс3/нийт15; хариулт мэргэжил бүрээс15 болгосон."
+        },
+        {
+          "case_id": "untuned04-01",
+          "kind": "temporal_modality",
+          "finding": "Жилийн төлөвлөсөн хуваарь «явагдсан» болсон; XI–XII үе шат дутуу."
+        },
+        {
+          "case_ids": [
+            "untuned04-03",
+            "untuned04-05",
+            "untuned04-13"
+          ],
+          "kind": "overabstention_after_support_retrieval",
+          "finding": "Бүх шаардсан эшлэл retrieved text-д байсан ч quantity/number guard answer=null болгосон."
+        },
+        {
+          "case_id": "untuned04-14",
+          "kind": "false_constraint_clarification",
+          "finding": "Ясудагийн тодорхой асуултыг RAG-аас өмнө FAQ wording-оор блоклож, элсэлтийн citations өгсөн."
+        },
+        {
+          "case_ids": [
+            "untuned04-15",
+            "untuned04-18"
+          ],
+          "kind": "missing_material_clarification",
+          "finding": "Тэнхимийг тааж сонгосон; дэвшин сурах N2 шаардлагыг бүх Япон явах замд ерөнхийлсөн."
+        },
+        {
+          "case_ids": [
+            "untuned04-06",
+            "untuned04-09"
+          ],
+          "kind": "incomplete_answer",
+          "finding": "Зөв тоонууд өгсөн ч 5үндсэн/1цагийн багш ба нийт128 оюутныг орхисон."
+        },
+        {
+          "case_id": "untuned04-22",
+          "kind": "adjacent_fact_substitution",
+          "finding": "Нээлтийн цагийн оронд төхөөрөмж/багтаамж өгч, цагийн эх байхгүйг хэлээгүй."
+        },
+        {
+          "case_id": "untuned04-24",
+          "kind": "wrong_abstention_reason",
+          "finding": "Цалин зохиогоогүй ч эхэд байгаа7–30хоногийг numeric constraint-аар үгүйсгэж, хамааралгүй citations өгсөн."
+        }
+      ],
+      "adjudication_notes": [
+        "11/12: гол баримтаар pass, хэл найруулгын response appropriateness partial хэвээр.",
+        "16: Кисо нэрийг илт хүрээлсэн зөв баримт тул partial, универсал буруу шаардлага гэж fail болгоогүй.",
+        "21: өнөөдрийн яг ханш гэж шууд батлаагүйг тусад нь хадгалсан; дэмжигдээгүй төгстөл→төгсөхөд хугацааны өөрчлөлтөөс strict fail.",
+        "23: ерөнхий баталгаажаагүй гэсэн татгалзалтыг strict rubric-аар partial; human adjudication-аар өөр байж болно."
+      ],
+      "lifecycle": {
+        "case_or_reference_edits_after_freeze": 0,
+        "server_or_provider_calls_by_reviewers": 0,
+        "evaluation_team_fixes_tuning_reruns_after_exposure": 0,
+        "human_evaluation_completed": false,
+        "future_rule": "All exposed cases are now observed. Any future tuning/fix using them is development; preserve this untouched first run and use new unexposed questions for another untuned measurement."
+      }
+    },
+    "remaining": [
+      "semantic quantity/entity/time/scope failures",
+      "overabstention and false clarification",
+      "human final answer review",
+      "real typed/raw/edited-STT user study",
+      "private full-corpus reproduction and HTTPS/device delivery"
+    ]
   }
 }

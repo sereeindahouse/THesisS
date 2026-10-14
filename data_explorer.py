@@ -66,7 +66,7 @@ class SourceExplorer:
 
     def snapshot(self):
         summary=dict(available=False,pages=0,raw_chunks=0,documents=0,
-                     indexed_passages=0,indexed_html_passages=0,document_passages=0,
+                     indexed_passages=0,indexed_html_passages=0,document_passages=0,client_tab_passages=0,
                      readonly=True,curated=dict(sources=0,facts=0,faqs=0),
                      corpus_id=None,retrieved_at=None)
         curated=dict(available=False,counts=dict(summary['curated']),sources=[],facts=[],faqs=[])
@@ -117,15 +117,23 @@ class SourceExplorer:
                 url=page['url']
                 if not official(url):
                     continue
+                # Keep the main text and selected public client fields distinct.
+                client=[row for row in indexed if row['url']==url and row.get('text_scope')=='client_tab_field_excerpt']
+                extra=''.join('\n\n'+row['source_locator']+'\n'+row['text'] for row in client)
                 # Ineligible pages remain inspectable, clearly separate from RAG.
                 result['sources'].append(dict(id=source_id('html',url,page['version']),kind='html',
-                    title=page['title'],url=url,text=page['text'],topic=topic(url,page['title']),
+                    title=page['title'],url=url,text=page['text']+extra,topic=topic(url,page['title']),
                     version=page['version'],retrieved_at=page['retrieved_at'],
                     source_updated_at=page['source_updated_at'],locator='',text_scope=page['text_scope'],
                     extraction_method='html_text',reviewer_kind=None,
-                    indexed_passages=index_counts[url],raw_chunks=chunks[url],document_passages=0,
-                    content_sha256=page['text_sha256'],preview_url=None,
-                    coverage='captured_html_text',approval_status=page['approval_status']))
+                    indexed_passages=index_counts[url],raw_chunks=chunks[url],document_passages=0,client_tab_passages=len(client),
+                    client_tab_retrieved_at=sorted({row['retrieved_at'] for row in client}),
+                    passages=[dict(locator=row['source_locator'],text=row['text'],retrieved_at=row['retrieved_at'],
+                        text_sha256=hashlib.sha256(row['text'].encode()).hexdigest(),
+                        html_sha256=row.get('html_sha256'),field_sha256=row.get('field_sha256')) for row in client],
+                    content_sha256=page['text_sha256'],main_text_sha256=page['text_sha256'],
+                    display_text_sha256=hashlib.sha256((page['text']+extra).encode()).hexdigest(),preview_url=None,
+                    coverage='captured_html_with_selected_client_fields' if client else 'captured_html_text',approval_status=page['approval_status']))
             for asset in assets:
                 url=asset['url']
                 if not official(url):
@@ -140,7 +148,7 @@ class SourceExplorer:
                 title=titles[0] if titles else Path(urlsplit(url).path).name
                 result['sources'].append(dict(id=identifier,kind=kind,title=title,url=url,
                     text='\n\n'.join(row.get('source_locator','')+'\n'+row['text'] for row in passages),
-                    topic=topic(url,title),version=version,retrieved_at=run['retrieved_at'],
+                    topic=topic(url,title),version=version,retrieved_at=passages[0]['retrieved_at'] if passages else run['retrieved_at'],
                     source_updated_at=None,locator='; '.join(row.get('source_locator','') for row in passages),
                     text_scope='document_visual_excerpt',extraction_method='visual_transcription' if passages else None,
                     reviewer_kind=passages[0].get('reviewer_kind') if passages else None,
@@ -151,8 +159,9 @@ class SourceExplorer:
             summary.update(available=True,pages=sum(s['kind']=='html' for s in result['sources']),
                 documents=sum(s['kind']!='html' for s in result['sources']),
                 raw_chunks=sum(s['raw_chunks'] for s in result['sources']),indexed_passages=len(indexed),
-                indexed_html_passages=sum(not row.get('extraction_method') for row in indexed),
-                document_passages=sum(bool(row.get('extraction_method')) for row in indexed),
+                indexed_html_passages=sum(row.get('text_scope') not in {'document_visual_excerpt','client_tab_field_excerpt'} for row in indexed),
+                document_passages=sum(row.get('text_scope')=='document_visual_excerpt' for row in indexed),
+                client_tab_passages=sum(row.get('text_scope')=='client_tab_field_excerpt' for row in indexed),
                 retrieved_at=run['retrieved_at'],corpus_id=state.get('corpus_id'),run_id=run['run_id'])
         return result
 

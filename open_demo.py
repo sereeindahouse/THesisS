@@ -63,10 +63,12 @@ def ensure_database(root):
         if not database.is_file():
             raise RuntimeError(f"Өгөгдлийн сангийн зам файл биш: {database}")
         return False
-    source = root / "data" / "content-draft-v1.json"
+    source = root / "data" / "content-draft-v2-20261015.json"
+    if not source.is_file():
+        source = root / "data" / "content-draft-v1.json"
     importer = root / "import_content.py"
     if not source.is_file() or not importer.is_file():
-        raise RuntimeError("data/content-draft-v1.json эсвэл import_content.py олдсонгүй.")
+        raise RuntimeError("data/content-draft багц эсвэл import_content.py олдсонгүй.")
     database.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="demo-import-", dir=database.parent) as temporary:
         staged = Path(temporary) / "content.db"

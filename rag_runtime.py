@@ -17,16 +17,20 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from llm_runtime import LLMRuntime, _json_object
+from website_retrieval import WebsiteRetriever
 from source_fields import ambiguity, requested_detail, detail_supported, DETAIL_LABELS, field_extract, registration_amount_query
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_period_notice)
 
 # Capture import-time bytes, not files reread after a running server is edited.
-# The collector uses these three module fingerprints to reject a stale demo.
+# Import retrieval first so its document/client dependencies are loaded before
+# their bytes are captured. Collectors compare these frozen startup fingerprints
+# against disk and reject stale modules before sending answer/audio requests.
 RUNTIME_ARTIFACT_SHA256 = {
-    name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-    for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py')
+    name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
+    for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
+                 'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py')
 }
 
 SYSTEM = '''Answer the QUESTION directly in Mongolian using only the supplied SOURCES.
@@ -251,7 +255,6 @@ class ChatRAG:
     def __init__(self, root, policy, retriever=None, generator=None):
         self.root, self.policy = Path(root), policy
         if retriever is None:
-            from website_retrieval import WebsiteRetriever
             retriever = WebsiteRetriever(root=self.root)
         self.retriever = retriever
         self.generator = generator or GroundedGenerator(self.root)

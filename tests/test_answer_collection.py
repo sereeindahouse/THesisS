@@ -21,10 +21,11 @@ class AnswerCollectionTests(unittest.TestCase):
         self.output = self.root / 'new-run' / 'answers.json'
         self.code_root = self.root / 'project'
         self.code_root.mkdir()
-        for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py'):
+        for name in collector.RUNTIME_ARTIFACT_NAMES:
+            (self.code_root/name).parent.mkdir(parents=True, exist_ok=True)
             (self.code_root/name).write_text('Import-time contents of '+name, encoding='utf-8')
         self.code_hashes = {name: collector.sha(self.code_root/name)
-            for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py')}
+            for name in collector.RUNTIME_ARTIFACT_NAMES}
         self.status = dict(rag=dict(loaded_artifact_sha256=dict(self.code_hashes),
             provider_available=False))
         self.source_hash = hashlib.sha256(b'Frozen source bytes, not model output.').hexdigest()
@@ -152,6 +153,18 @@ class AnswerCollectionTests(unittest.TestCase):
                 dict(rag=dict(loaded_artifact_sha256={'rag_runtime.py': self.code_hashes['rag_runtime.py']}))):
             with self.subTest(status=status):
                 self.rejected_after_status_before_answer(status)
+
+    def test_legacy_three_hash_server_cannot_pass_expanded_source_preflight(self):
+        old = {name:self.code_hashes[name] for name in
+            ('rag_runtime.py', 'source_fields.py', 'answer_contract.py')}
+        self.rejected_after_status_before_answer(dict(rag=dict(loaded_artifact_sha256=old)))
+
+    def test_runtime_fingerprint_covers_imported_retrieval_and_source_modules(self):
+        import sys
+        from rag_runtime import RUNTIME_ARTIFACT_SHA256
+        self.assertEqual(set(RUNTIME_ARTIFACT_SHA256), set(collector.RUNTIME_ARTIFACT_NAMES))
+        for name in ('website_retrieval','CORE.document_corpus','CORE.client_tab_corpus'):
+            self.assertIn(name, sys.modules)
 
     def test_legacy_cases_keep_no_status_request(self):
         self.bundle.pop('source_snapshot_sha256')

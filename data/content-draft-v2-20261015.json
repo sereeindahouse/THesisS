@@ -1,0 +1,1946 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "document_id": "nmct-contact-web-20261007",
+      "version": 1,
+      "title": "Холбоо барих",
+      "source_url_or_filename": "https://nmct.edu.mn/contact",
+      "retrieved_at": "2026-10-09",
+      "source_updated_at": null,
+      "scope": "q01;q04;q06;q13;q16;q18",
+      "content_capture": "selected_fact_extract",
+      "notes": "Хаяг, ерөнхий утас, имэйл, ажлын цаг байна. Сургалтын албаны тусгай цаг/утас гэж заагаагүй. Хуудасны шинэчилсэн огноо; албаны тусгай холбоо; хүчинтэй хугацаа; батлагч Web tool crawl can predate the check; full HTML is not captured.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 1,
+      "title": "Элсэлт 2026",
+      "source_url_or_filename": "https://nmct.edu.mn/elselt",
+      "retrieved_at": "2026-10-09",
+      "source_updated_at": null,
+      "scope": "q03;q05;q11;q12;q14;q15;q18",
+      "content_capture": "audit_metadata_only",
+      "notes": "2026 оны мэдээлэл байна. Дээд мэдэгдэл эхэлсэн, үндсэн хэсэг хаагдсан гэж зөрнө. Хаагдах 8/13 гэж харагдана; 10/15-ныг дэмжихгүй. Идэвхтэй эсэх; шинэчилсэн огноо; 2027 оны төлбөр; 2025 оны хувилбар; батлагч Web tool crawl can predate the check; full HTML is not captured.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-departments-web-20261007",
+      "version": 1,
+      "title": "Тэнхимүүд",
+      "source_url_or_filename": "https://nmct.edu.mn/departments",
+      "retrieved_at": "2026-10-07",
+      "source_updated_at": null,
+      "scope": "q02;q05;q07;q08;q09;q17",
+      "content_capture": "audit_metadata_only",
+      "notes": "Тэнхимийн жагсаалт ба хамтын ажиллагааны мэдээлэл байна. КУ-ны дэлгэрэнгүйтэй давхцах тул бие даасан давхар баталгаа гэж тооцохгүй. Шинэчилсэн огноо; хүчинтэй хугацаа; батлагч Web tool crawl can predate the check; full HTML is not captured.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-cs-web-20261007",
+      "version": 1,
+      "title": "Компьютерын ухааны тэнхим",
+      "source_url_or_filename": "https://nmct.edu.mn/departments/computer-science",
+      "retrieved_at": "2026-10-09",
+      "source_updated_at": null,
+      "scope": "q02;q07;q08;q09;q17",
+      "content_capture": "selected_fact_extract",
+      "notes": "КУ-ны сургалт ба Sakura/ARC хамтын ажиллагааны дэлгэрэнгүй байна; өмнөх draft эхтэй гол агуулга таарч байна. Шинэчилсэн огноо; хүчинтэй хугацаа; батлагч Web tool crawl can predate the check; full HTML is not captured.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-about-web-20261007",
+      "version": 1,
+      "title": "Бидний тухай",
+      "source_url_or_filename": "https://nmct.edu.mn/about",
+      "retrieved_at": "2026-10-07",
+      "source_updated_at": null,
+      "scope": "Сургуулийн ерөнхий танилцуулга",
+      "content_capture": "audit_metadata_only",
+      "notes": "Эрхэм зорилго, бүтэц, ерөнхий танилцуулга байна. Хувь хүний нэр/албан тушаал шинэчлэгдэж болох мэдээлэл. Шинэчилсэн огноо; хүчинтэй хугацаа; батлагч Web tool crawl can predate the check; full HTML is not captured.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-cs-program-web-20261009",
+      "version": 1,
+      "title": "Компьютерын ухааны хөтөлбөр",
+      "source_url_or_filename": "https://nmct.edu.mn/programs/computer-science-program",
+      "retrieved_at": "2026-10-09",
+      "source_updated_at": null,
+      "scope": "Хөтөлбөрийн ерөнхий чиглэл ба практик сургалтын хэлбэр; улирал тус бүрийн бүтэн төлөвлөгөө биш.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Official department page links here. Checked web text; crawler dated last month. No full HTML snapshot, source update date or human approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-contact-web-20261007",
+      "version": 2,
+      "title": "Бидэнтэй холбоо барих",
+      "source_url_or_filename": "https://nmct.edu.mn/contact",
+      "retrieved_at": "2026-10-10T04:52:49.392956+00:00",
+      "source_updated_at": null,
+      "scope": "2026-10-10-нд татсан сургуулийн ерөнхий холбоо, хаяг, ажлын цаг; сургалтын албаны тусгай цаг биш.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; text_sha256=6bbd6e2004652a42640a614001e9b65c03c9b3509489d743c7a795f4562a43a8; html_sha256=7503a6181b349e1e2e580d6784b67af6ecd0f56921b428eab228c45cdac3803f. Selected published clauses rechecked locally on 2026-10-15. Current validity unknown. No school staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admissions-web-20261007",
+      "version": 2,
+      "title": "Шинэ Монгол Технологийн Коллежийн элсэлтийн онлайн бүртгэл",
+      "source_url_or_filename": "https://nmct.edu.mn/elselt",
+      "retrieved_at": "2026-10-10T04:52:46.842088+00:00",
+      "source_updated_at": null,
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; text_sha256=f9b36f4491555939dee5de2cd4fd9ce63b42d49260ee4df8ce45fdc90b796fd0; html_sha256=b42b212009bceeb4a546fbbf39617ca21a3603c56dd82df40904f4bfd4b6710f. Selected published clauses rechecked locally on 2026-10-15. Current validity unknown. No school staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-departments-web-20261007",
+      "version": 2,
+      "title": "Тэнхимүүд",
+      "source_url_or_filename": "https://nmct.edu.mn/departments",
+      "retrieved_at": "2026-10-10T04:52:47.714489+00:00",
+      "source_updated_at": null,
+      "scope": "2026-10-10-нд татсан тэнхимүүдийн нэрс; багш/хөтөлбөрийн counter, огноогүй статистик оруулаагүй.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; text_sha256=b0ecdabe1c8e2f486774a11b73f7a35d2780ad23b5fd333c867e5c0477eea538; html_sha256=1189cafb4d593739af51d2a2c64ca1f3ca6a23db5eb0c3f4bdb566d0b77a80b5. Selected published clauses rechecked locally on 2026-10-15. Current validity unknown. No school staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+      "version": 1,
+      "title": "2026-2027 оны хичээлийн жилд оюутан элсүүлэх журам",
+      "source_url_or_filename": "https://nmct.edu.mn/elseltiin-juram/page-1.png",
+      "retrieved_at": "2026-10-10T04:57:58.303806+00:00",
+      "source_updated_at": null,
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; asset_sha256=6c4ba81047645010f1650bf99cd38126e7ce95faf38572ac1a2a62851c559c77; extraction bundle_sha256=e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd; visual_transcription version 1; selected passages previously checked by assistant on 2026-10-12. Not full OCR, human gold, or staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+      "version": 1,
+      "title": "2026-2027 оны хичээлийн жилд оюутан элсүүлэх журам",
+      "source_url_or_filename": "https://nmct.edu.mn/elseltiin-juram/page-2.png",
+      "retrieved_at": "2026-10-10T04:57:58.401755+00:00",
+      "source_updated_at": null,
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; asset_sha256=77cc809ec9f7109fcfe16924349dfdcf2c510887d50c08baf66dab3a885d6ee1; extraction bundle_sha256=e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd; visual_transcription version 1; selected passages previously checked by assistant on 2026-10-12. Not full OCR, human gold, or staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+      "version": 1,
+      "title": "2026-2027 оны хичээлийн жилд оюутан элсүүлэх журам",
+      "source_url_or_filename": "https://nmct.edu.mn/elseltiin-juram/page-3.png",
+      "retrieved_at": "2026-10-10T04:57:58.500648+00:00",
+      "source_updated_at": null,
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; asset_sha256=df183aa075f0ed098ca27ab8ffb1a9fc2a3d6887aa953e6a09648cce04ec7912; extraction bundle_sha256=e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd; visual_transcription version 1; selected passages previously checked by assistant on 2026-10-12. Not full OCR, human gold, or staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-admission-appendix-snapshot-20261010",
+      "version": 1,
+      "title": "2026 оны оюутан элсүүлэх журмын хавсралт",
+      "source_url_or_filename": "https://nmct.edu.mn/elseltiin-juram/12.png",
+      "retrieved_at": "2026-10-10T04:57:58.624552+00:00",
+      "source_updated_at": null,
+      "scope": "2026 оны элсэлтийн хавсралтын шалгалтын цаг ба дүн зарлах заалтууд; өнгөрсөн тов, өнөөдрийн хуваарь биш.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; asset_sha256=8ea74e4a1aa0a1b912cecd47357b0baa6a28f13e14770a6bd17f330abb7720d7; extraction bundle_sha256=e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd; visual_transcription version 1; selected passages previously checked by assistant on 2026-10-12. Not full OCR, human gold, or staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "document_id": "nmct-olympiad-rule-snapshot-20261010",
+      "version": 1,
+      "title": "2025-2026 оны Байгалийн ухааны VII олимпиадын удирдамж",
+      "source_url_or_filename": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf",
+      "retrieved_at": "2026-10-10T04:57:58.197490+00:00",
+      "source_updated_at": null,
+      "scope": "2025–2026 оны VII олимпиадын ангилал, оролцогч, хураамжийн сонгосон заалт; 2026 оны өнгөрсөн арга хэмжээ.",
+      "content_capture": "selected_fact_extract",
+      "notes": "Saved run nmct-20261010T045245Z; asset_sha256=f436dc5d15bf1e56bc55258c144fab2c51e34e7a1fa68b675c6546f837a1295a; extraction bundle_sha256=e254021fe33715d3277d8f32886de70205aa70ceae86cfdfc9de4e5a0aec4bfd; visual_transcription version 1; selected passages previously checked by assistant on 2026-10-12. Not full OCR, human gold, or staff approval.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    }
+  ],
+  "facts": [
+    {
+      "fact_id": "school.general_phone",
+      "entity_id": "nmct",
+      "key": "general_phone",
+      "value": "+976 75777799",
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 1,
+          "locator": "Хаяг мэдээлэл / Утас"
+        }
+      ],
+      "scope": "Сургуулийн ерөнхий холбоо; сургалтын албаны тусгай дугаар гэж нэрлэхгүй.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.general_email",
+      "entity_id": "nmct",
+      "key": "general_email",
+      "value": "info@nmct.edu.mn",
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 1,
+          "locator": "Хаяг мэдээлэл / Имэйл"
+        }
+      ],
+      "scope": "Сургуулийн ерөнхий холбоо.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.location",
+      "entity_id": "nmct",
+      "key": "location",
+      "value": "Улаанбаатар хот, Баянзүрх дүүрэг, 25-р хороо, шинэ монгол",
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 1,
+          "locator": "Хаяг мэдээлэл / Хаяг"
+        }
+      ],
+      "scope": "Сайтад байгаа хаяг; байрны нарийвчилсан дугаар болон газрын зураг батлагдаагүй.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.sakura.start_month",
+      "entity_id": "nmct.computer_science",
+      "key": "sakura_start_month",
+      "value": "2024-03",
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / Sakura Internet"
+        }
+      ],
+      "scope": "Хамтын ажиллагааны эхэлсэн сар; яг өдрийг таамаглахгүй.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.arc.start_month",
+      "entity_id": "nmct.computer_science",
+      "key": "arc_start_month",
+      "value": "2025-02",
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / ARC"
+        }
+      ],
+      "scope": "Хамтын ажиллагааны эхэлсэн сар; яг өдрийг таамаглахгүй.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.arc.courses",
+      "entity_id": "nmct.computer_science",
+      "key": "arc_courses",
+      "value": [
+        "Интернэт технологи",
+        "Үйлдлийн систем",
+        "Мэдээллийн нууцлал, хамгаалал"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / ARC"
+        }
+      ],
+      "scope": "2025–2026 оны хичээлийн жилийн намрын улирал.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.sakura.activities",
+      "entity_id": "nmct.computer_science",
+      "key": "sakura_activities",
+      "value": [
+        "онлайн сургалт",
+        "оюутны дадлага",
+        "уралдаанд зориулсан үүлэн серверийн дэмжлэг"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / Sakura Internet"
+        }
+      ],
+      "scope": "Хуудасны тайлбарт дурдсан чиглэлүүд; өнөөдрийн идэвхтэй үйлчилгээний амлалт биш.",
+      "notes": "",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.program.url",
+      "entity_id": "nmct.computer_science",
+      "key": "program_url",
+      "value": "https://nmct.edu.mn/programs/computer-science-program",
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-program-web-20261009",
+          "version": 1,
+          "locator": "Хөтөлбөрийн үндсэн хуудас"
+        }
+      ],
+      "scope": "Хөтөлбөрийн ерөнхий танилцуулга; курс/улирлын нарийвчилсан төлөвлөгөө гэж хэлэхгүй.",
+      "notes": "Source update/validity dates and human approval remain unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.program.topics",
+      "entity_id": "nmct.computer_science",
+      "key": "program_topics",
+      "value": [
+        "программчлал",
+        "алгоритм ба өгөгдлийн бүтэц",
+        "программ хангамжийн инженерчлэл",
+        "өгөгдлийн сан",
+        "компьютерийн сүлжээ",
+        "хиймэл оюун ухаан"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-program-web-20261009",
+          "version": 1,
+          "locator": "Хөтөлбөрийн танилцуулга"
+        }
+      ],
+      "scope": "Хөтөлбөрийн ерөнхий танилцуулга; курс/улирлын нарийвчилсан төлөвлөгөө гэж хэлэхгүй.",
+      "notes": "Source update/validity dates and human approval remain unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "cs.program.practice",
+      "entity_id": "nmct.computer_science",
+      "key": "learning_methods",
+      "value": [
+        "лаборатори",
+        "төсөл",
+        "дадлага",
+        "бие даасан судалгаа"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-program-web-20261009",
+          "version": 1,
+          "locator": "Сургалтын явцын тайлбар"
+        }
+      ],
+      "scope": "Хөтөлбөрийн ерөнхий танилцуулга; курс/улирлын нарийвчилсан төлөвлөгөө гэж хэлэхгүй.",
+      "notes": "Source update/validity dates and human approval remain unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.location.snapshot20261010",
+      "entity_id": "nmct",
+      "key": "location.snapshot20261010",
+      "value": {
+        "year_scope": null,
+        "published_clause": "Улаанбаатар хот, Баянзүрх дүүрэг, 25-р хороо, шинэ монгол"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Хаяг мэдээлэл / Хаяг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан сургуулийн ерөнхий холбоо, хаяг, ажлын цаг; сургалтын албаны тусгай цаг биш.",
+      "notes": "Exact selected published clause(s). Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.general_hours.snapshot20261010",
+      "entity_id": "nmct",
+      "key": "general_hours.snapshot20261010",
+      "value": {
+        "year_scope": null,
+        "published_clause": "Даваа - Баасан: 09:00 - 18:00\nБямба: 10:00 - 14:00\nНям: Амарна"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Хаяг мэдээлэл / Ажлын цаг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан сургуулийн ерөнхий холбоо, хаяг, ажлын цаг; сургалтын албаны тусгай цаг биш.",
+      "notes": "Exact selected published clause(s). Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.contact_reply_promise.snapshot20261010",
+      "entity_id": "nmct",
+      "key": "contact_reply_promise.snapshot20261010",
+      "value": {
+        "year_scope": null,
+        "published_clause": "Асуулт, санал, хүсэлтээ бидэнд илгээнэ үү. Бид ажлын 24 цагийн дотор хариулах болно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Бидэнтэй холбоо барих / хариулах мэдэгдэл"
+        }
+      ],
+      "scope": "Холбоо барих хуудсанд нийтэлсэн амлалт; бодитоор хэмжсэн хариулах хугацаа биш.",
+      "notes": "Exact selected published clause(s). Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "school.departments.snapshot20261010",
+      "entity_id": "nmct",
+      "key": "departments.snapshot20261010",
+      "value": {
+        "year_scope": null,
+        "published_clause": [
+          "Ерөнхий Эрдмийн тэнхим",
+          "Компьютерын ухааны тэнхим",
+          "Механик инженерийн тэнхим",
+          "Барилгын дэд бүтцийн инженерийн тэнхим",
+          "Цахилгаан электроникийн инженерийн тэнхим",
+          "Химийн инженерийн тэнхим"
+        ]
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-departments-web-20261007",
+          "version": 2,
+          "locator": "Тэнхимүүд / зургаан тэнхимийн гарчиг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан тэнхимүүдийн нэрс; багш/хөтөлбөрийн counter, огноогүй статистик оруулаагүй.",
+      "notes": "Exact selected published clause(s). Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.programs.2026",
+      "entity_id": "nmct.admissions",
+      "key": "programs.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "071309 Цахилгааны инженер\n071501 Механик инженер\n073204 Барилгын инженер\n071101 Химийн инженер\n061301 Компьютерийн ухаан"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Хөтөлбөрүүд · Индекс / 1-р курс"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.transfer_programs.2026",
+      "entity_id": "nmct.admissions",
+      "key": "transfer_programs.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "2-р курс шилжин · 4 жил\n071501 Механик инженер\n071101 Химийн инженер"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Хөтөлбөрүүд · Индекс / 2-р курс шилжин"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.course_duration.2026",
+      "entity_id": "nmct.admissions",
+      "key": "course_duration.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Хичээллэх хугацаа · 1-р курс 5 жил · 2-р курс 4 жил"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Элсэлт авах хөтөлбөр / Хичээллэх хугацаа"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.engineering_degree.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "engineering_degree.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "ШМТК нь инженерийн 5 жилийн хөтөлбөрөөр дэд бакалаврын зэрэг олгодог дээд боловсролын сургалтын байгууллага бөгөөд сургуулийн элсэлтийн бодлогод нийцсэн мэдлэг, чадвар, хандлага бүхий элсэгчдийг элсүүлэн авах, элсэлтийн шалгалтын үйл ажиллагааг үр дүнтэй зохион байгуулахад энэхүү журмын зорилго оршино."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, I.1"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.course_qualification.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "course_qualification.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "1-р курст Бүртгүүлэгч нь ЕБС-ийн 9-р ангийг төгсөж суурь боловсролын гэрчилгээ авсан сурагч байна.\n2-р курст Бүртгүүлэгч нь ЕБС-ийн 10-р ангийг төгссөн байна."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, III.2, курсийн шаардлага"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.foreign_school_documents.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "foreign_school_documents.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Гадаад оронд ерөнхий боловсрол эзэмшсэн суралцагч ШМТК-д элсэх хүсэлт гаргахдаа ЕБС-тай дүйцүүлэх болох шалгалтыг гадаад оронд өгсөн болохыг гэрчилсэн баримтыг БШУЯ-наас баталгаажуулсан тодорхойлолтын хамт бүрдүүлэн Элсэлтийн комисст ирүүлнэ."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, III.2, гадаадад боловсрол эзэмшсэн суралцагч"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.registration_fee.2026",
+      "entity_id": "nmct.admissions",
+      "key": "registration_fee.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Бүртгэлийн хураамж: 20,000 ₮"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Элсэлт 2026 / Бүртгэлийн хураамж"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.registration_fee_payment.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "registration_fee_payment.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж 20,000 төгрөгийг зааврын дагуу, QR код ашиглан Хаан банк, Төрийн банк, Худалдаа хөгжлийн банк, Хас банк, Богд банк, Улаанбаатар хотын банкны аппликейшн ашиглан төлнө (Голомт банкаар төлөх боломжгүй болно)."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.11, бүртгэлийн хураамж төлөх"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.annual_tuition.2026",
+      "entity_id": "nmct.admissions",
+      "key": "annual_tuition.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Сургалтын төлбөр: жилд 8,280,000 ₮ (Найман сая хоёр зуун наян мянган төгрөг)"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Холбоо барих хэсгийн дараах сургалтын төлбөрийн мөр"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан хуудасны ЖИЛИЙН төлбөр; сарын төлбөр, бүх 5 жилийн нийт дүн, 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.online_registration_steps.2026",
+      "entity_id": "nmct.admissions",
+      "key": "online_registration_steps.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "1. Бүртгүүлэх\nЦээж зураг, иргэний болон холбоо барих мэдээлэл, сонирхож буй мэргэжлээ сонгож формоо бөглөнө.\n2. Хураамж төлөх\nИлгээсний дараа QPay QR код гарна. Уншуулаад бүртгэлийн хураамжаа төлнө.\n3. Хувийн хэсэг\nТөлбөр баталгаажмагц нэвтэрч, өөрийн бүртгэлийн бүх мэдээллийг харах боломжтой болно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "1. Бүртгүүлэх / 2. Хураамж төлөх / 3. Хувийн хэсэг"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.writing_exam.2026",
+      "entity_id": "nmct.admissions",
+      "key": "writing_exam.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "1-р курс — 120 минут\nНийт 100 оноотой шалгалт · 7-оос 4-ийг хариулна\nМатематик 40 оноо\nФизик 20 оноо\nХими 20 оноо\nЭх хэл, монгол 10 оноо\nТехник зураг 10 оноо"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Бичгийн шалгалт / 1-р курс"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.essay_rule.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "essay_rule.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Бүртгүүлэгч бичгийн шалгалтад ирэхдээ дараах асуултад хариулж хэвлэмэл байдлаар авч ирэн хураалгана. Үгийн тоо 500-700 байна.\nКоосэнд суралцах болсон шалтгаан\n5 мэргэжлээс Яагаад энэ мэргэжлийг сонгох болсон шалтгаан\nӨөрийн сонирхол ур чадварын тухай"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.10, эссэ"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.essay_format.2026",
+      "entity_id": "nmct.admissions",
+      "key": "essay_format.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Анхаарах: Эссэгээ A4 цаасан дээр хэвлээд бичгийн шалгалтын өдөр өөрийн биеэр авч ирнэ. Гараар бичсэн эссэ хүлээн авахгүй."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Бичгийн шалгалтын санамж / Анхаарах"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.photo_requirements.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "photo_requirements.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Сүүлийн 6 сарын дотор авахуулсан цээж зургийг өөрийн регистрийн дугаараар хадгалан, зурган файлаар (jpeg, png, jpg өргөтгөлтэй байх) системд оруулна."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.6, цээж зураг"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.second_choice.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "second_choice.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Бүртгүүлэгч Цахим бүртгэлийн явцад элсэн суралцах мэргэжлийн хөтөлбөрийг сонгох ба хөтөлбөрийн онцлогийг урьдчилан судалж, үнэн зөв сонголт хийнэ.\nБүртгүүлэгч нэмэлтээр мэргэжлийн хөтөлбөрийн 2-р сонголт заавал хийж бүртгүүлнэ."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.8-9, мэргэжлийн сонголт"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.interview.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "interview.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Ярилцлагын шалгалтаар бүртгүүлэгчийн инженер технологийн мэргэжлээр суралцах сонирхол, хүсэл эрмэлзэл, өөрийгөө илэрхийлэх чадвар, эцэг эхийн хамтын ажиллагааг шалгах ба шалгагч багш нар бүртгүүлэгч бүртэй ярилцах хэлбэрээр авна. Бүртгүүлэгч эцэг эх, асран хамгаалагчтай хамт ярилцлагын шалгалтад орох ба нийт 20 оноогоор дүгнэнэ. Ярилцлагын шалгалт 15 минут үргэлжилнэ."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.enrollment_confirmation.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "enrollment_confirmation.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Элсэгч сургуулиас товлосон хугацаанд суралцах гэрээ байгуулан, сургалтын төлбөрийг төлсний дараа элсэн суралцах баталгаажна. Суралцах гэрээ байгуулах хугацаа болон бусад мэдээллийг элсэх батламж гардуулах үед мэдээлнэ."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.3, гэрээ ба төлбөр"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.national_olympiad_exemption.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "national_olympiad_exemption.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Бүртгүүлэгч нь тухайн хичээлийн жилд Улсын аварга шалгаруулах математик, физик, химийн олимпиадад амжилттай оролцож “1-10”-р байрт шалгарсан амжилт үзүүлсэн бол ШМТК-д бичгийн шалгалтгүй элсэн суралцах боломжтой бөгөөд тус сургуульд элсэн суралцах хүсэлтээ бичгээр ирүүлснээр зөвхөн ярилцлагын шалгалтад орж тэнцсэн тохиолдолд элсэн суралцах эрхтэй болно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.5, улсын олимпиадын нөхцөл"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.school_olympiad_exemption.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "school_olympiad_exemption.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Бүртгүүлэгч нь тус сургуулиас зохион байгуулсан олимпиад, мэргэжлийн уралдаан тэмцээнд амжилттай оролцож элсэлтийн бичгийн шалгалтгүй элсэн суралцах эрхийн бичиг гардан авсан тохиолдолд 4-р бүлэгт зааснаар элсэлтийн шалгалтын бүртгэл хийлгэж, элсэх эрхийн бичиг, батламжийг хавсарган бүртгүүлнэ. Мөн тус сургуульд элсэн суралцах хүсэлтээ бичгээр ирүүлэх ба ярилцлагын шалгалтад орж тэнцсэн тохиолдолд элсэн суралцах эрхтэй болно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.6, сургуулийн олимпиадын нөхцөл"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.nontransferable_right.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "nontransferable_right.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Элсэх эрхийг бусдад шилжүүлэхийг хориглоно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VII.1, элсэх эрх шилжүүлэх"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.missed_contract.2026_2027",
+      "entity_id": "nmct.admissions",
+      "key": "missed_contract.2026_2027",
+      "value": {
+        "year_scope": "2026–2027",
+        "published_clause": "Элсэх эрх авсан боловч хүндэтгэх шалтгаангүйгээр заасан хугацаанд ирж суралцах гэрээ байгуулаагүй элсэгчийг суралцахаас татгалзсан хэмээн үзэж элсэх эрхийн бичгийг хүчингүйд тооцно. Энэ тохиолдолд элсэлтийн шалгалтын оноогоор дараагийн шалгуулагчид мэдэгдэн, түүний хүсэлтийг үндэслэн элсүүлж болно."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VII.2, гэрээ байгуулах хугацаа"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "notes": "Exact selected published clause(s). Year scope 2026–2027. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.inquiry_phones.2026",
+      "entity_id": "nmct.admissions",
+      "key": "inquiry_phones.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Бүртгэл, шалгалт, төлбөртэй холбоотой асуултаа доорх дугаараар лавлана уу.\nУтас 7577-7799 Утас 9951-0543 Утас 8880-6229"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Холбоо барих / Лавлах утас"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хуудсанд бүртгэл/шалгалт/төлбөрийн лавлах гэж нийтэлсэн дугаарууд; сургалтын албаны тусгай дугаар биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.exam_schedule.2026",
+      "entity_id": "nmct.admissions",
+      "key": "exam_schedule.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "БИЧГИЙН ШАЛГАЛТ 2026.08.15 ӨДӨР 10:00 ЦАГААС ЭХЛЭХ ТУЛ 09:30 МИНУТАД СУРГУУЛИЙН 1 ДАВХАРТ ИРСЭН БАЙНА.\nЯРИЛЦЛАГЫН ШАЛГАЛТ 2026.08.15 ӨДӨР 13:30 ЦАГААС ЭХЭЛНЭ. ЯРИЛЦЛАГЫН ШАЛГАЛТЫН ХУВААРИЙГ БИЧГИЙН ШАЛГАЛТАД ОРОХ ҮЕД ХЭВЛЭСЭН БАЙДЛААР ГАРГАЖ СУРГУУЛИЙН 1 ДАВХАРТ БАЙРШУУЛСАН БАЙНА."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-appendix-snapshot-20261010",
+          "version": 1,
+          "locator": "хавсралт, 4. Шалгалтын хугацаа"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хавсралтын шалгалтын цаг ба дүн зарлах заалтууд; өнгөрсөн тов, өнөөдрийн хуваарь биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "admission.results_schedule.2026",
+      "entity_id": "nmct.admissions",
+      "key": "results_schedule.2026",
+      "value": {
+        "year_scope": "2026",
+        "published_clause": "Шалгалтын нэгдсэн дүнг 8-р сарын 15-ны өдөрт багтаан сургуулийн фэйсбүүк хуудсанд бүртгэлийн дугаараар байршуулан зарлана.\n8-р сарын 17-ны өдөр тэнцсэн сурагчдад батламжийг цахим шуудангаар дамжуулан гардуулна."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-appendix-snapshot-20261010",
+          "version": 1,
+          "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хавсралтын шалгалтын цаг ба дүн зарлах заалтууд; өнгөрсөн тов, өнөөдрийн хуваарь биш.",
+      "notes": "Exact selected published clause(s). Year scope 2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "olympiad.registration.2025_2026",
+      "entity_id": "nmct",
+      "key": "registration.2025_2026",
+      "value": {
+        "year_scope": "2025–2026",
+        "published_clause": "Тус олимпиад нь 2025-2026 оны хичээлийн жилд ЕБС-ийн 9-р ангид сурч буй бүх суралцагчдад нээлттэй бөгөөд бүртгэлийн хураамж 5000 төгрөг.\nОлимпиадад оролцогчдыг 2026 оны 04-р сарын 2-ноос 04-р сарын 23-ны 18:00 цаг хүртэл ШМТК-ийн фэйсбүүк хуудсанд байршуулсан бүртгэлийн холбоосоор бүртгэнэ."
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-olympiad-rule-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл"
+        }
+      ],
+      "scope": "2025–2026 оны VII олимпиадын ангилал, оролцогч, хураамжийн сонгосон заалт; 2026 оны өнгөрсөн арга хэмжээ.",
+      "notes": "Exact selected published clause(s). Year scope 2025–2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "fact_id": "olympiad.categories.2025_2026",
+      "entity_id": "nmct",
+      "key": "categories.2025_2026",
+      "value": {
+        "year_scope": "2025–2026",
+        "published_clause": "2025-2026 оны хичээлийн жилд зохион байгуулж буй байгалийн ухааны 7-р олимпиад дараах ангиллаар зохион байгуулагдана.\n1. Математик, физик (Математик 60%, Физик 40%)\n2. Математик, хими, биологи (Математик 60%, Хими 25%, Биологи 15%)"
+      },
+      "source_refs": [
+        {
+          "document_id": "nmct-olympiad-rule-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, Хоёр. Олимпиадын ангилал ба агуулга"
+        }
+      ],
+      "scope": "2025–2026 оны VII олимпиадын ангилал, оролцогч, хураамжийн сонгосон заалт; 2026 оны өнгөрсөн арга хэмжээ.",
+      "notes": "Exact selected published clause(s). Year scope 2025–2026. Saved snapshot only; no invented update/validity/approval date.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    }
+  ],
+  "faqs": [
+    {
+      "faq_id": "faq.contact",
+      "question": "Сургуулийн холбоо барих мэдээллийг хэлнэ үү.",
+      "question_aliases": [
+        "Холбоо барих утас хэд вэ?"
+      ],
+      "answer": "Сургуулийн ерөнхий утас +976 75777799, имэйл info@nmct.edu.mn. Эдгээр нь ерөнхий холбоо барих мэдээлэл.",
+      "fact_ids": [
+        "school.general_phone",
+        "school.general_email"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 1,
+          "locator": "Хаяг мэдээлэл"
+        }
+      ],
+      "scope": "Ерөнхий холбоо; сургалтын албаны тусгай холбоог батлахгүй.",
+      "answer_status": "complete_in_scope",
+      "notes": "q04/q16-д боломжит тогтмол FAQ; батлагдсан gold answer биш.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.sakura",
+      "question": "ШМТК-ийн Sakura хамтын ажиллагааны талаар мэдээлэл өгнө үү.",
+      "question_aliases": [],
+      "answer": "Компьютерын ухааны тэнхим Sakura Internet-тэй 2024 оны гуравдугаар сараас хамтран ажиллаж эхэлсэн гэж албан ёсны хуудсанд тайлбарлажээ. Хамтын ажиллагаанд онлайн сургалт, оюутны дадлага, уралдаанд зориулсан үүлэн серверийн дэмжлэг багтдаг.",
+      "fact_ids": [
+        "cs.sakura.start_month",
+        "cs.sakura.activities"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / Sakura Internet"
+        }
+      ],
+      "scope": "Хуудасны нийтэлсэн түүхэн тайлбар; шинэ дадлагын бүртгэл нээлттэй гэж хэлэхгүй.",
+      "answer_status": "complete_in_scope",
+      "notes": "q02-ийн тайлбарыг тогтмол FAQ-аар өгөх боломжтой; LLM зайлшгүй шаардлагатай нь тогтоогдоогүй.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.arc.courses",
+      "question": "ARC хамтын ажиллагаанд ямар хичээлүүд багтсан бэ?",
+      "question_aliases": [],
+      "answer": "2025–2026 оны намрын улирлын хамтын ажиллагаанд Интернэт технологи, Үйлдлийн систем, Мэдээллийн нууцлал, хамгаалал гэсэн гурван хичээл багтсан гэж тэнхимийн хуудсанд дурдсан.",
+      "fact_ids": [
+        "cs.arc.courses"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа / ARC"
+        }
+      ],
+      "scope": "Зөвхөн дурдсан улирал; өөр оны хөтөлбөр гэж хэрэглэхгүй.",
+      "answer_status": "complete_in_scope",
+      "notes": "q09-д боломжит тогтмол хариулт; батлагдсан gold биш.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.cs.program",
+      "question": "Компьютерын ухааны чиглэлээр суралцах хүсэлтэй байгаа тул сургалтын хөтөлбөр болон албан ёсны мэдээллийн эх сурвалжийг хэлж өгнө үү.",
+      "question_aliases": [],
+      "answer": "Албан ёсны танилцуулгад программчлал, алгоритм, программ хангамж бүтээх арга, өгөгдлийн сан, сүлжээ, хиймэл оюуны чиглэлээр суралцахыг тайлбарласан. Лаборатори, төсөл, дадлага, судалгаагаар мэдлэгээ бататгана. Хөтөлбөрийн эх: https://nmct.edu.mn/programs/computer-science-program. Энэ нь ерөнхий танилцуулга; улирал бүрийн бүтэн төлөвлөгөө энэ шалгасан хуудсанд байхгүй.",
+      "fact_ids": [
+        "cs.program.url",
+        "cs.program.topics",
+        "cs.program.practice"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-program-web-20261009",
+          "version": 1,
+          "locator": "Хөтөлбөрийн танилцуулга"
+        }
+      ],
+      "scope": "Ерөнхий хөтөлбөрийн тайлбар ба албан ёсны холбоос.",
+      "answer_status": "complete_in_scope",
+      "notes": "q17-ийн ерөнхий хүсэлтэд тогтмол FAQ candidate; нарийвчилсан улирлын хүсэлтэд partial.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.cs.department",
+      "question": "Компьютерын ухааны тэнхимийн талаар тайлбарлана уу.",
+      "question_aliases": [],
+      "answer": "Тэнхимийн хөтөлбөр нь программчлал, өгөгдөл, сүлжээ зэрэг компьютерын ухааны чиглэлүүдийг хамардаг. Тэнхимийн хуудсанд Sakura Internet-тэй 2024 оны гуравдугаар сараас, ARC-тай 2025 оны хоёрдугаар сараас хамтран ажиллаж эхэлсэн гэж дурдсан. Энэ нь шалгасан хуудсуудын ерөнхий танилцуулга.",
+      "fact_ids": [
+        "cs.program.topics",
+        "cs.sakura.start_month",
+        "cs.arc.start_month"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-cs-program-web-20261009",
+          "version": 1,
+          "locator": "Хөтөлбөрийн танилцуулга"
+        },
+        {
+          "document_id": "nmct-cs-web-20261007",
+          "version": 1,
+          "locator": "Хамтын ажиллагаа"
+        }
+      ],
+      "scope": "Сургалтын ерөнхий чиглэл ба дурдсан хамтын ажиллагааны түүх.",
+      "answer_status": "complete_in_scope",
+      "notes": "q07-ийн ерөнхий хүсэлтэд тогтмол FAQ candidate; бүх тэнхимийн мэдээллийг бүрэн хамарна гэж үзэхгүй.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.contact.location",
+      "question": "Сургуулийн хаяг хаана вэ?",
+      "answer": "2026-10-10-нд татсан холбоо барих хуудсанд хаягийг Улаанбаатар хот, Баянзүрх дүүрэг, 25-р хороо, шинэ монгол гэж нийтэлсэн.",
+      "question_aliases": [
+        "Сургуулийн хаягийг хэлнэ үү."
+      ],
+      "fact_ids": [
+        "school.location.snapshot20261010"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Хаяг мэдээлэл / Хаяг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан сургуулийн ерөнхий холбоо, хаяг, ажлын цаг; сургалтын албаны тусгай цаг биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.contact.general_hours",
+      "question": "Сургуулийн ерөнхий ажлын цаг хэд вэ?",
+      "answer": "2026-10-10-нд татсан холбоо барих хуудсанд Даваа–Баасан 09:00–18:00, Бямба 10:00–14:00, Ням амарна гэж нийтэлсэн. Эдгээр нь сургуулийн ерөнхий цаг; сургалтын албаны тусгай цаг гэж заагаагүй.",
+      "question_aliases": [
+        "Сургууль бямба гарагт хэдээс хэд хүртэл ажилладаг вэ?",
+        "Сургууль ням гарагт ажилладаг уу?"
+      ],
+      "fact_ids": [
+        "school.general_hours.snapshot20261010"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Хаяг мэдээлэл / Ажлын цаг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан сургуулийн ерөнхий холбоо, хаяг, ажлын цаг; сургалтын албаны тусгай цаг биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.contact.reply_promise",
+      "question": "Сайтын холбоо барих хүсэлтэд ямар хугацаанд хариулах гэж нийтэлсэн бэ?",
+      "answer": "2026-10-10-нд татсан холбоо барих хуудсанд «Бид ажлын 24 цагийн дотор хариулах болно» гэж нийтэлсэн. Энэ нь сайтын амлалт бөгөөд хэмжсэн бодит хариулах хугацаа биш.",
+      "question_aliases": [],
+      "fact_ids": [
+        "school.contact_reply_promise.snapshot20261010"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-contact-web-20261007",
+          "version": 2,
+          "locator": "Бидэнтэй холбоо барих / хариулах мэдэгдэл"
+        }
+      ],
+      "scope": "Холбоо барих хуудсанд нийтэлсэн амлалт; бодитоор хэмжсэн хариулах хугацаа биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.departments.list",
+      "question": "Сургууль ямар тэнхимүүдтэй вэ?",
+      "answer": "2026-10-10-нд татсан тэнхимүүдийн хуудсанд Ерөнхий Эрдмийн, Компьютерын ухааны, Механик инженерийн, Барилгын дэд бүтцийн инженерийн, Цахилгаан электроникийн инженерийн, Химийн инженерийн гэсэн 6 тэнхимийг жагсаасан.",
+      "question_aliases": [
+        "Тэнхимүүдийн нэрсийг хэлнэ үү."
+      ],
+      "fact_ids": [
+        "school.departments.snapshot20261010"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-departments-web-20261007",
+          "version": 2,
+          "locator": "Тэнхимүүд / зургаан тэнхимийн гарчиг"
+        }
+      ],
+      "scope": "2026-10-10-нд татсан тэнхимүүдийн нэрс; багш/хөтөлбөрийн counter, огноогүй статистик оруулаагүй.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.programs.2026",
+      "question": "2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?",
+      "answer": "2026 оны хадгалсан элсэлтийн хуудсанд 1-р курст 071309 Цахилгааны инженер, 071501 Механик инженер, 073204 Барилгын инженер, 071101 Химийн инженер, 061301 Компьютерийн ухаан гэсэн 5 хөтөлбөр байна. 2-р курст шилжин элсэхэд Механик инженер болон Химийн инженерийг жагсаасан.",
+      "question_aliases": [
+        "2026 оны элсэлтийн мэргэжлийн индексүүд юу вэ?"
+      ],
+      "fact_ids": [
+        "admission.programs.2026",
+        "admission.transfer_programs.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Хөтөлбөрүүд · Индекс / 1-р курс"
+        },
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Хөтөлбөрүүд · Индекс / 2-р курс шилжин"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.duration.2026",
+      "question": "2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?",
+      "answer": "2026 оны элсэлтийн хуудсанд 1-р курсээс элсэх хөтөлбөр 5 жил, 2-р курст шилжин элсэх хөтөлбөр 4 жил гэжээ. 2026–2027 оны журмын I.1-д инженерийн 5 жилийн хөтөлбөрөөр дэд бакалаврын зэрэг олгодог гэж тодорхойлсон.",
+      "question_aliases": [
+        "2026 оны элсэлтээр 1-р курс, 2-р курсийн суралцах хугацаа хэд вэ?"
+      ],
+      "fact_ids": [
+        "admission.course_duration.2026",
+        "admission.engineering_degree.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Элсэлт авах хөтөлбөр / Хичээллэх хугацаа"
+        },
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, I.1"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш. 2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.qualification.2026_2027",
+      "question": "2026–2027 оны журмаар 1-р курс болон 2-р курст ямар анги төгссөн сурагч бүртгүүлэх вэ?",
+      "answer": "2026–2027 оны журмын III.2-т 1-р курст ЕБС-ийн 9-р ангийг төгсөж, суурь боловсролын гэрчилгээ авсан сурагч; 2-р курст ЕБС-ийн 10-р ангийг төгссөн сурагч бүртгүүлэхээр заасан.",
+      "question_aliases": [
+        "2026–2027 оны элсэлтийн курсийн шаардлага юу вэ?"
+      ],
+      "fact_ids": [
+        "admission.course_qualification.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, III.2, курсийн шаардлага"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.registration_fee.2026",
+      "question": "2026 оны элсэлтийн бүртгэлийн хураамж хэд вэ?",
+      "answer": "2026 оны элсэлтийн хуудсанд бүртгэлийн хураамж 20,000 төгрөг, QPay-ээр төлнө гэж нийтэлсэн. Энэ нь элсэлтийн бүртгэлийн хураамж.",
+      "question_aliases": [
+        "2026 оны элсэлтийн бүртгэлийн хураамжийг яаж төлөх вэ?"
+      ],
+      "fact_ids": [
+        "admission.registration_fee.2026",
+        "admission.online_registration_steps.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Элсэлт 2026 / Бүртгэлийн хураамж"
+        },
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "1. Бүртгүүлэх / 2. Хураамж төлөх / 3. Хувийн хэсэг"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.annual_tuition.2026",
+      "question": "2026 оны элсэлтийн хуудсанд жилийн сургалтын төлбөр хэд гэж нийтэлсэн бэ?",
+      "answer": "2026 оны хадгалсан элсэлтийн хуудсанд сургалтын төлбөрийг жилд 8,280,000 төгрөг гэж нийтэлсэн. Энэ нь жилийн дүн; сарын эсвэл бүх хөтөлбөрийн нийт дүн биш. 2027 оны төлбөрийг энэ эх батлахгүй.",
+      "question_aliases": [
+        "2026 оны жилийн сургалтын төлбөр хэд вэ?"
+      ],
+      "fact_ids": [
+        "admission.annual_tuition.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Холбоо барих хэсгийн дараах сургалтын төлбөрийн мөр"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан хуудасны ЖИЛИЙН төлбөр; сарын төлбөр, бүх 5 жилийн нийт дүн, 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.online_steps.2026",
+      "question": "2026 оны элсэлтийн цахим бүртгэлийн алхмууд юу вэ?",
+      "answer": "2026 оны элсэлтийн хуудсын алхмууд: цээж зураг, иргэний болон холбоо барих мэдээлэл, сонирхож буй мэргэжлээ сонгон формоо бөглөнө; илгээсний дараа гарсан QPay QR кодоор бүртгэлийн хураамж төлнө; төлбөр баталгаажмагц нэвтэрч хувийн хэсгээс бүртгэлийн мэдээллээ харна. Энэ нь хадгалсан үйл явц бөгөөд өнөөдөр бүртгэл нээлттэйг батлахгүй.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.online_registration_steps.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "1. Бүртгүүлэх / 2. Хураамж төлөх / 3. Хувийн хэсэг"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.writing_exam.2026",
+      "question": "2026 оны элсэлтийн 1-р курсийн бичгийн шалгалт хэдэн минут, хэдэн оноотой вэ?",
+      "answer": "2026 оны элсэлтийн хуудсанд 1-р курсийн бичгийн шалгалт 120 минут, нийт 100 оноотой, 7-оос 4-ийг хариулна гэжээ. Математик 40, Физик 20, Хими 20, Эх хэл/монгол 10, Техник зураг 10 оноо гэж жагсаасан.",
+      "question_aliases": [
+        "2026 оны 1-р курсийн бичгийн шалгалтын онооны хуваарилалт юу вэ?"
+      ],
+      "fact_ids": [
+        "admission.writing_exam.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Бичгийн шалгалт / 1-р курс"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.essay.2026_2027",
+      "question": "2026–2027 оны элсэлтийн эссэг яаж бэлтгэж авчрах вэ?",
+      "answer": "2026–2027 оны журмын IV.10-д 500–700 үгтэй, хэвлэмэл эссэ авчирч хураалгахаар заасан. Сэдвүүд нь Коосэнд суралцах шалтгаан, 5 мэргэжлээс тухайн мэргэжлийг сонгох шалтгаан, өөрийн сонирхол ур чадвар. 2026 оны элсэлтийн хуудсанд A4 цаасан дээр хэвлээд бичгийн шалгалтын өдөр өөрийн биеэр авчрах, гараар бичсэн эссэ хүлээн авахгүй гэжээ. Эх нь сэдэв тус бүрд 500–700 үг гэж тусад нь заагаагүй.",
+      "question_aliases": [
+        "2026–2027 оны элсэлтийн эссэний үгийн тоо, сэдэв, хэвлэх шаардлага юу вэ?"
+      ],
+      "fact_ids": [
+        "admission.essay_rule.2026_2027",
+        "admission.essay_format.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.10, эссэ"
+        },
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Бичгийн шалгалтын санамж / Анхаарах"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд. 2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.photo.2026_2027",
+      "question": "2026–2027 оны элсэлтийн цээж зургийн шаардлага юу вэ?",
+      "answer": "2026–2027 оны журмын IV.6-д сүүлийн 6 сарын дотор авахуулсан цээж зургийг өөрийн регистрийн дугаараар хадгалж, jpeg, png, jpg өргөтгөлтэй зурган файлаар системд оруулахаар заасан. Энд зургийн пикселийн хэмжээ заагаагүй.",
+      "question_aliases": [
+        "2026–2027 оны элсэлтийн зураг ямар өргөтгөлтэй, ямар нэртэй байх вэ?"
+      ],
+      "fact_ids": [
+        "admission.photo_requirements.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.6, цээж зураг"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.second_choice.2026_2027",
+      "question": "2026–2027 оны элсэлтийн бүртгэлд хоёр дахь мэргэжлийн сонголт хийх ёстой юу?",
+      "answer": "2026–2027 оны журмын IV.8–9-д хөтөлбөрийн онцлогийг урьдчилан судалж мэргэжлээ сонгох, нэмэлтээр мэргэжлийн хөтөлбөрийн 2-р сонголтыг заавал хийж бүртгүүлэхээр заасан.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.second_choice.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, IV.8-9, мэргэжлийн сонголт"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.interview.2026_2027",
+      "question": "2026–2027 оны элсэлтийн ярилцлагын шалгалт ямар нөхцөлтэй вэ?",
+      "answer": "2026–2027 оны журмын V.4-т ярилцлагыг 15 минут, нийт 20 оноогоор дүгнэхээр заасан. Бүртгүүлэгч эцэг эх эсвэл асран хамгаалагчтай хамт орно. Инженер технологийн мэргэжлээр суралцах сонирхол, хүсэл эрмэлзэл, өөрийгөө илэрхийлэх чадвар, эцэг эхийн хамтын ажиллагааг шалгаж, багш нар бүртгүүлэгч бүртэй ярилцана.",
+      "question_aliases": [
+        "2026–2027 оны элсэлтийн ярилцлага хэдэн минут, хэдэн оноотой вэ?"
+      ],
+      "fact_ids": [
+        "admission.interview.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page2-snapshot-20261010",
+          "version": 1,
+          "locator": "х.2, V.4, ярилцлагын шалгалт"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: IV.6, IV.8-11, V.4; хадгалсан х.2-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.foreign_school.2026_2027",
+      "question": "2026–2027 оны журмаар гадаадад ерөнхий боловсрол эзэмшсэн сурагч ямар баримт өгөх вэ?",
+      "answer": "2026–2027 оны журмын III.2-т ЕБС-тай дүйцүүлэх шалгалтыг гадаад оронд өгснийг гэрчилсэн баримт болон БШУЯ-наас баталгаажуулсан тодорхойлолтыг хамт бүрдүүлж Элсэлтийн комисст ирүүлэхээр заасан.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.foreign_school_documents.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page1-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, III.2, гадаадад боловсрол эзэмшсэн суралцагч"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: I.1, III.2; хадгалсан х.1-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.contract.2026_2027",
+      "question": "2026–2027 оны журмаар элсэн суралцах нь хэзээ баталгаажих вэ?",
+      "answer": "2026–2027 оны журмын VI.3-т сургуулиас товлосон хугацаанд суралцах гэрээ байгуулж, сургалтын төлбөр төлсний дараа элсэн суралцах нь баталгаажна гэжээ. Гэрээ байгуулах хугацаа болон бусад мэдээллийг элсэх батламж гардуулах үед мэдээлнэ. Бүртгэлийн хураамж төлөхтэй ялгаатай шат.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.enrollment_confirmation.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.3, гэрээ ба төлбөр"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.transfer_right.2026_2027",
+      "question": "2026–2027 оны журмаар элсэх эрхээ бусдад шилжүүлж болох уу?",
+      "answer": "2026–2027 оны журмын VII.1-д элсэх эрхийг бусдад шилжүүлэхийг хориглоно гэж заасан.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.nontransferable_right.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VII.1, элсэх эрх шилжүүлэх"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.missed_contract.2026_2027",
+      "question": "2026–2027 оны журмаар заасан хугацаанд суралцах гэрээ байгуулахгүй бол яах вэ?",
+      "answer": "2026–2027 оны журмын VII.2-т элсэх эрх авсан боловч хүндэтгэх шалтгаангүйгээр заасан хугацаанд ирж гэрээ байгуулаагүй элсэгчийг суралцахаас татгалзсан гэж үзэн элсэх эрхийн бичгийг хүчингүйд тооцно гэжээ. Энэ тохиолдолд шалгалтын оноогоор дараагийн шалгуулагчид мэдэгдэж, хүсэлтийг нь үндэслэн элсүүлж болно.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.missed_contract.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VII.2, гэрээ байгуулах хугацаа"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.inquiry_phones.2026",
+      "question": "2026 оны элсэлтийн бүртгэл, шалгалт, төлбөрийг ямар утсаар лавлах гэж нийтэлсэн бэ?",
+      "answer": "2026 оны элсэлтийн хуудсанд бүртгэл, шалгалт, төлбөртэй холбоотой лавлах утсыг 7577-7799, 9951-0543, 8880-6229 гэж нийтэлсэн. Сургалтын албаны тусгай утас гэж нэрлээгүй.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.inquiry_phones.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Холбоо барих / Лавлах утас"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хуудсанд бүртгэл/шалгалт/төлбөрийн лавлах гэж нийтэлсэн дугаарууд; сургалтын албаны тусгай дугаар биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.exam_schedule.2026",
+      "question": "2026 оны элсэлтийн хавсралтад бичгийн болон ярилцлагын шалгалтын цагийг яаж заасан бэ?",
+      "answer": "2026 оны хавсралтад бичгийн шалгалт 2026.08.15-ны 10:00 цагт эхлэх тул 09:30-д сургуулийн 1 давхарт ирсэн байхаар заасан. Ярилцлага мөн өдрийн 13:30-д эхэлнэ; хуваарийг бичгийн шалгалтын үед хэвлэж сургуулийн 1 давхарт байрлуулна. Энэ нь 2026 оны өнгөрсөн тов.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.exam_schedule.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-appendix-snapshot-20261010",
+          "version": 1,
+          "locator": "хавсралт, 4. Шалгалтын хугацаа"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хавсралтын шалгалтын цаг ба дүн зарлах заалтууд; өнгөрсөн тов, өнөөдрийн хуваарь биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.results.2026",
+      "question": "2026 оны элсэлтийн хавсралтад дүн болон батламжийг яаж хүргэхээр заасан бэ?",
+      "answer": "2026 оны хавсралтад шалгалтын нэгдсэн дүнг 8-р сарын 15-ны өдөрт багтаан сургуулийн фэйсбүүк хуудсанд бүртгэлийн дугаараар зарлана, 8-р сарын 17-нд тэнцсэн сурагчдын батламжийг цахим шуудангаар дамжуулан гардуулна гэжээ. Энэ нь тухайн оны нийтэлсэн хуваарь.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.results_schedule.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-appendix-snapshot-20261010",
+          "version": 1,
+          "locator": "хавсралт, 5. Элсэлтийн дүн мэдээ"
+        }
+      ],
+      "scope": "2026 оны элсэлтийн хавсралтын шалгалтын цаг ба дүн зарлах заалтууд; өнгөрсөн тов, өнөөдрийн хуваарь биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.olympiad.registration.2025_2026",
+      "question": "2025–2026 оны VII олимпиадын бүртгэлийн хураамж, оролцогчийн нөхцөл юу вэ?",
+      "answer": "2025–2026 оны VII олимпиадын удирдамжид тухайн хичээлийн жилд ЕБС-ийн 9-р ангид сурч буй бүх суралцагчдад нээлттэй, бүртгэлийн хураамж 5000 төгрөг гэжээ. Бүртгэл 2026 оны 04-р сарын 2-ноос 04-р сарын 23-ны 18:00 хүртэл сургуулийн фэйсбүүк хуудсын холбоосоор гэж заасан. Энэ нь өнгөрсөн арга хэмжээ; элсэлтийн 20,000 төгрөгийн хураамжтай адил биш.",
+      "question_aliases": [
+        "2025–2026 оны VII олимпиадын бүртгэлийн хураамж хэд вэ?"
+      ],
+      "fact_ids": [
+        "olympiad.registration.2025_2026",
+        "admission.registration_fee.2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-olympiad-rule-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, Дөрөв. Оролцогчид ба Бүртгэл"
+        },
+        {
+          "document_id": "nmct-admissions-web-20261007",
+          "version": 2,
+          "locator": "Элсэлт 2026 / Бүртгэлийн хураамж"
+        }
+      ],
+      "scope": "2025–2026 оны VII олимпиадын ангилал, оролцогч, хураамжийн сонгосон заалт; 2026 оны өнгөрсөн арга хэмжээ. 2026 оны элсэлтийн хадгалсан мэдээлэл, 2026–2027 оны журмын холбоос; өнөөдрийн нээлттэй байдал болон 2027 оны үнэ биш.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.olympiad.categories.2025_2026",
+      "question": "2025–2026 оны VII олимпиад ямар ангилал, хичээлийн хувьтай вэ?",
+      "answer": "2025–2026 оны VII олимпиадын удирдамжид хоёр ангилал байна: Математик, физик — Математик 60%, Физик 40%; Математик, хими, биологи — Математик 60%, Хими 25%, Биологи 15%.",
+      "question_aliases": [],
+      "fact_ids": [
+        "olympiad.categories.2025_2026"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-olympiad-rule-snapshot-20261010",
+          "version": 1,
+          "locator": "х.1, Хоёр. Олимпиадын ангилал ба агуулга"
+        }
+      ],
+      "scope": "2025–2026 оны VII олимпиадын ангилал, оролцогч, хураамжийн сонгосон заалт; 2026 оны өнгөрсөн арга хэмжээ.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    },
+    {
+      "faq_id": "faq.admission.olympiad_exemption.2026_2027",
+      "question": "2026–2027 оны журмаар олимпиадын амжилттай элсэгч бичгийн шалгалтаас ямар нөхцөлөөр чөлөөлөгдөх вэ?",
+      "answer": "2026–2027 оны журмын VI.5-д тухайн хичээлийн жилийн улсын математик, физик, химийн олимпиадын 1–10-р байрт шалгарсан бүртгүүлэгч бичгээр хүсэлт гаргаж, ярилцлагад орж тэнцсэн тохиолдолд бичгийн шалгалтгүй элсэх боломжтой гэжээ. VI.6-д сургуулийн олимпиад эсвэл мэргэжлийн уралдаанаас бичгийн шалгалтгүй элсэх эрхийн бичиг авсан хүн бүртгэлээ хийлгэн эрхийн бичиг, батламжаа хавсаргах, бичгээр хүсэлт ирүүлэх, ярилцлагад орж тэнцэхээр заасан. Бичгийн шалгалтаас чөлөөлөхийг ярилцлагаас чөлөөлөхтэй адилтгахгүй.",
+      "question_aliases": [],
+      "fact_ids": [
+        "admission.national_olympiad_exemption.2026_2027",
+        "admission.school_olympiad_exemption.2026_2027"
+      ],
+      "source_refs": [
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.5, улсын олимпиадын нөхцөл"
+        },
+        {
+          "document_id": "nmct-admission-rule-page3-snapshot-20261010",
+          "version": 1,
+          "locator": "х.3, VI.6, сургуулийн олимпиадын нөхцөл"
+        }
+      ],
+      "scope": "2026–2027 оны элсэлтийн журам: VI.3, VI.5-6, VII.1-2; хадгалсан х.3-ийн сонгосон заалтууд.",
+      "answer_status": "complete_in_scope",
+      "notes": "Assistant-curated exact-question FAQ from cited saved official clauses. Not human gold or school staff approval; current validity unknown.",
+      "approval_status": "draft",
+      "approved_by": null,
+      "approved_at": null,
+      "valid_from": null,
+      "valid_until": null
+    }
+  ]
+}

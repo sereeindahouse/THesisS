@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from tools import evaluate_voice_loop as loop
+from tools.evaluate_answer_quality import RUNTIME_ARTIFACT_NAMES
 
 
 class SyntheticLoopTests(unittest.TestCase):
@@ -34,7 +35,7 @@ class SyntheticLoopTests(unittest.TestCase):
     def test_raw_recognition_is_forwarded_and_answer_voice_is_bound_to_raw_response(self):
         calls=[];synthesized=[]
         hashes={n:hashlib.sha256((loop.ROOT/n).read_bytes()).hexdigest()
-                for n in ('rag_runtime.py','source_fields.py','answer_contract.py')}
+                for n in RUNTIME_ARTIFACT_NAMES}
         raw='Өөрөөр таньсан текст'
         class Opener:
             def open(self,req,timeout):
@@ -86,7 +87,7 @@ class SyntheticLoopTests(unittest.TestCase):
 
     def test_missing_local_stt_blocks_question_tts_and_output(self):
         hashes={n:hashlib.sha256((loop.ROOT/n).read_bytes()).hexdigest()
-                for n in ('rag_runtime.py','source_fields.py','answer_contract.py')}
+                for n in RUNTIME_ARTIFACT_NAMES}
         class Opener:
             def open(self,req,timeout):
                 self_path=req.full_url.split(':8765')[-1]
@@ -96,6 +97,32 @@ class SyntheticLoopTests(unittest.TestCase):
             with self.assertRaises(ValueError):loop.run(self.cases,self.output,'http://127.0.0.1:8765')
             tts.assert_not_called()
         self.assertFalse(self.output.exists())
+
+    def test_stale_source_modules_block_audio_and_output_before_question_tts(self):
+        hashes={n:hashlib.sha256((loop.ROOT/n).read_bytes()).hexdigest()
+                for n in RUNTIME_ARTIFACT_NAMES}
+        for name in ('website_retrieval.py','CORE/document_corpus.py','CORE/client_tab_corpus.py'):
+            for failure in ('stale','missing'):
+                loaded=dict(hashes)
+                if failure=='stale':loaded[name]='0'*64
+                else:loaded.pop(name)
+                requests=[]
+                class Opener:
+                    def open(self,req,timeout):
+                        requests.append(req)
+                        if req.full_url!='http://127.0.0.1:8765/api/status':
+                            raise AssertionError('Audio/answer request before code preflight')
+                        return io.BytesIO(json.dumps(dict(rag=dict(loaded_artifact_sha256=loaded),
+                            voice=dict(stt_ready=True))).encode())
+                with self.subTest(module=name,failure=failure), \
+                        patch.object(loop.urllib.request,'build_opener',return_value=Opener()), \
+                        patch('voice_runtime.VoiceRuntime') as tts:
+                    with self.assertRaisesRegex(ValueError,'Stale demo code'):
+                        loop.run(self.cases,self.output,'http://127.0.0.1:8765')
+                    tts.assert_not_called()
+                self.assertEqual(len(requests),1)
+                self.assertEqual(requests[0].get_method(),'GET')
+                self.assertFalse(self.output.exists())
 
 
 if __name__=='__main__':unittest.main()

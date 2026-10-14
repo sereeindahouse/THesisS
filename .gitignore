@@ -234,6 +234,16 @@ __pycache__/
 !/CORE/SELF-CHECK.cmd
 
 # Bounded clarification replies; tokens and runtime conversations stay private.
+!/CORE/client_tab_corpus.py
+!/tests/test_client_tab_corpus.py
+!/tests/test_client_tab_integration.py
 !/clarification_context.py
 !/tests/test_clarification_context.py
 !/tests/test_clarification_http.py
+
+# Versioned Week4 source evidence and untuned protocol.
+!/data/content-draft-v2-20261015.json
+!/data/content-evidence-v2-20261015.json
+!/data/answer-untuned-20261015.json
+!/tools/validate_content_evidence.py
+!/tests/test_content_expansion.py

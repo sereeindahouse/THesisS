@@ -15,6 +15,8 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME_ARTIFACT_NAMES = ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
+    'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py')
 
 
 def sha(path):
@@ -47,10 +49,10 @@ def run(cases_path, output, base_url, validation_path=None):
     if bundle.get('source_snapshot_sha256'):
         # A collector hash of disk files does not identify already imported
         # server modules. Reject a stale server before reserving any output.
-        artifact_names = ('rag_runtime.py', 'source_fields.py', 'answer_contract.py')
+        artifact_names = RUNTIME_ARTIFACT_NAMES
         expected_artifacts = {name: sha(ROOT/name) for name in artifact_names}
         if any(value is None for value in expected_artifacts.values()):
-            raise ValueError('Runtime fingerprint requires all three local code files.')
+            raise ValueError('Runtime fingerprint requires all six local code files.')
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         status_request = urllib.request.Request(base_url.rstrip('/')+'/api/status',
             headers={'Origin': base_url.rstrip('/')})
@@ -72,7 +74,7 @@ def run(cases_path, output, base_url, validation_path=None):
         handle.write('{}\n')
     tracked = ['tools/evaluate_answer_quality.py', 'tools/validate_answer_cases.py',
                'source_fields.py', 'rag_runtime.py', 'answer_contract.py', 'website_retrieval.py', 'demo_server.py',
-               'voice_runtime.py', 'llm_runtime.py', 'CORE/document_corpus.py', 'CORE/database/website.db',
+               'voice_runtime.py', 'llm_runtime.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'CORE/database/website.db',
                'runtime/content.db', 'CORE/website/document-excerpts-20261012.json',
                'config/model-catalog/gemma3-4b-text.json', 'runtime/rag-model.json']
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),

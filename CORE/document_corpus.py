@@ -120,7 +120,7 @@ def read_document_rows(db, run):
                 identity = f"{record['run_id']}|{record['url']}|{record['payload_sha256']}|{ordinal}"
                 rows.append(dict(source_id='doc-' + digest(identity.encode())[:20],
                     url=doc['url'], version=doc['version'], title=doc['title'] + ' — ' + passage['locator'],
-                    retrieved_at=run['retrieved_at'], source_updated_at=None,
+                    retrieved_at=doc.get('retrieved_at') or run['retrieved_at'], source_updated_at=None,
                     text_scope='document_visual_excerpt', valid_from=None, valid_until=None,
                     chunk_id=ordinal, start_offset=0, end_offset=len(text), text=text, excerpt=text,
                     page_years=sorted(set(re.findall(r'\b20\d{2}\b', doc['title'] + ' ' + text))),

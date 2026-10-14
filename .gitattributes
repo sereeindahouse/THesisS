@@ -12,3 +12,8 @@ data/retrieval-dev-cases-20261010.json -text
 docs/experiments/*.json -text
 *.wav -text
 *.cmd text eol=crlf
+
+# Keep pre-output case and versioned curation evidence byte hashes portable.
+data/answer-untuned-20261015.json -text
+data/content-draft-v2-20261015.json -text
+data/content-evidence-v2-20261015.json -text

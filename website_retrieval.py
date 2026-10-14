@@ -21,10 +21,11 @@ from urllib.parse import urlsplit
 
 from CORE.website_corpus import readonly
 from CORE.document_corpus import read_document_rows
+from CORE.client_tab_corpus import read_client_tab_rows
 from retrieval_probe import bm25_scores, sha256
 
 ROOT = Path(__file__).resolve().parent
-INDEX_VERSION = 'website-hybrid-v3-anchor-coverage'
+INDEX_VERSION = 'website-hybrid-v4-client-field-coordinates'
 # Ranking experiments share the production corpus/preprocessing/diversity policy.
 # Only production applies lexical/topic abstention gates; other modes rank only.
 RANKING_MODES = ('bm25', 'e5', 'rrf', 'rrf_boosted', 'production')
@@ -168,6 +169,7 @@ class WebsiteRetriever:
             chunks = db.execute('SELECT c.* FROM chunks c JOIN captures x ON c.url=x.url AND c.version=x.version WHERE x.run_id=? ORDER BY c.url,c.ordinal', (run['run_id'],)).fetchall()
             document_count = db.execute('SELECT COUNT(*) FROM assets WHERE run_id=?', (run['run_id'],)).fetchone()[0]
             document_rows, document_warnings = read_document_rows(db, run)
+            client_rows, client_warnings = read_client_tab_rows(db, run)
         page_map = {(p['url'], p['version']): dict(p) for p in pages}
         rows, seen = [], set()
         for chunk in chunks:
@@ -201,8 +203,16 @@ class WebsiteRetriever:
                 page_years=sorted(set(re.findall(r'\b20\d{2}\b', page['text']))),
                 page_header=page['text'][:300], snapshot_only=True, validity_unknown=not bool(page['valid_from'] and page['valid_until']))
             rows.append(row)
+        # A client field inherits the captured HTML page's approval/validity
+        # guard; extracting a hidden field cannot make a blocked page eligible.
+        client_rows = [row for row in client_rows if (page := page_map.get((row['url'], row['version'])))
+            and _official(row['url']) and page['text_scope'] == 'main_element'
+            and page.get('approval_status') != 'rejected'
+            and not (page['valid_from'] and page['valid_from'] > date.today().isoformat())
+            and not (page['valid_until'] and page['valid_until'] < date.today().isoformat())]
         rows.extend(document_rows)
-        self._document_warnings = document_warnings
+        rows.extend(client_rows)
+        self._document_warnings = document_warnings + client_warnings
         self._run = dict(run)
         self._rows = rows
         self._passages = [row['title'] + '\n' + _rank_text(row['text']) for row in rows]
@@ -211,7 +221,8 @@ class WebsiteRetriever:
         frequencies = Counter(term for terms in self._body_terms for term in terms)
         self._term_weights = {term: math.log(1 + (len(rows) + 1) / (count + 1)) for term, count in frequencies.items()}
         self._counts = dict(pages=len(pages), chunks=len(chunks), documents=document_count, indexed_chunks=len(rows),
-            indexed_document_passages=len(document_rows), indexed_documents=len({r['url'] for r in document_rows}))
+            indexed_document_passages=len(document_rows), indexed_documents=len({r['url'] for r in document_rows}),
+            indexed_client_tab_passages=len(client_rows), indexed_client_tab_pages=len({r['url'] for r in client_rows}))
         fingerprint = INDEX_VERSION + run['manifest_sha256'] + '|'.join(row['source_id'] for row in rows)
         self._corpus_id = hashlib.sha256(fingerprint.encode()).hexdigest()
         self._embeddings = None
@@ -326,7 +337,13 @@ class WebsiteRetriever:
                     continue
                 # Two distinct parts per page are allowed; overlapping repeats are not.
                 same = [r for r in used if r['url'] == row['url']]
-                if len(same) >= 2 or any(r.get('text_scope') != 'document_visual_excerpt' and max(0, min(r['end_offset'], row['end_offset']) - max(r['start_offset'], row['start_offset'])) > .55 * min(len(r['text']), len(row['text'])) for r in same):
+                # Normalized field offsets belong to one JSON locator, not the
+                # HTML page or another field which also starts at zero.
+                if len(same) >= 2 or any(r.get('text_scope') == row.get('text_scope')
+                        and r.get('text_scope') != 'document_visual_excerpt'
+                        and (row.get('text_scope') != 'client_tab_field_excerpt'
+                             or r.get('source_locator') == row.get('source_locator'))
+                        and max(0, min(r['end_offset'], row['end_offset']) - max(r['start_offset'], row['start_offset'])) > .55 * min(len(r['text']), len(row['text'])) for r in same):
                     continue
                 # News listings mostly duplicate article teasers; use article bodies instead.
                 if urlsplit(row['url']).path == '/news':
@@ -342,7 +359,7 @@ class WebsiteRetriever:
                 if len(candidates) == limit:
                     break
             warnings = ['Search rankings do not prove answer support or current validity.',
-                        'Document passages are selected visual transcriptions, not complete OCR or human gold. Hidden client-side tabs are not fully included.']
+                        'Documents and whitelisted client fields are selected excerpts, not complete OCR, all client tabs or human gold.']
             warnings.extend(getattr(self, '_document_warnings', []))
             if self._dense_status == 'unavailable':
                 warnings.append('Local E5 unavailable; lexical retrieval remains active (' + str(self._error) + ').')

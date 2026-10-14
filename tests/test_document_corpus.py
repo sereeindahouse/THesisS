@@ -53,6 +53,13 @@ class DocumentCorpusTests(unittest.TestCase):
         self.assertEqual(row['asset_sha256'],self.sha)
         self.assertEqual(before,hashlib.sha256(self.db.read_bytes()).hexdigest())
 
+    def test_inherited_excerpt_retains_original_capture_date(self):
+        self.doc['retrieved_at']='2026-10-09T00:00:00+00:00'
+        self.write()
+        import_excerpts(self.db,self.bundle)
+        row=self.search('Цээж зураг')['candidates'][0]
+        self.assertEqual(row['retrieved_at'],self.doc['retrieved_at'])
+
     def test_same_version_cannot_be_rewritten(self):
         import_excerpts(self.db,self.bundle)
         self.doc['passages'][0]['text']='Өөрчлөгдсөн журам. Зургийн нөхцөл өөр.'
