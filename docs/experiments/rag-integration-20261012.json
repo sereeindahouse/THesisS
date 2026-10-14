@@ -2092,7 +2092,43 @@
       "channel": "ByamB4",
       "metadata_and_creator_description_checked": true,
       "full_frames_audio_transcript_review": false,
-      "note": "Creator describes browser/buyer/phone agents. Our synthetic test is an application of the user idea, not a verified video implementation."
+      "note": "Browser key frames and the complete auto-generated Mongolian transcript were inspected after browser access became available. Captions contain errors. Oyu Anir is a visible UI label, not an implementation trace. No full continuous audiovisual watch, quality benchmark, or video-specified synthetic self-test is claimed. Existing thesis guards, source cards and self-test were mapped to the observed ideas; bounded short clarification context remains a proposal, not a code change.",
+      "in_app_browser_opened": true,
+      "review_date": "2026-10-14",
+      "full_auto_generated_mn_transcript_read": true,
+      "continuous_audio_listening": false,
+      "key_frame_review": true,
+      "frame_times_approximate": [
+        "0:26",
+        "0:56",
+        "1:01",
+        "1:11",
+        "1:21",
+        "5:31",
+        "5:51-5:56"
+      ],
+      "resolution_inspected": "1920x1080",
+      "observed_workflow": [
+        "buyer request",
+        "browser Facebook group search",
+        "listing comparison and ranking",
+        "phone conversation",
+        "visible seller/agent transcript",
+        "clarification of unclear storage capacity"
+      ],
+      "observed_stt_ui_label": "oyu Anir",
+      "vendor_documentation": "https://dev.oyu.so/",
+      "unverified": [
+        "STT checkpoint/runtime endpoint",
+        "actual streaming protocol",
+        "LLM model/provider",
+        "TTS model/provider",
+        "telephone provider",
+        "browser framework",
+        "own model training",
+        "WER/latency"
+      ],
+      "local_media_download_completed": false
     },
     "source_audit": {
       "new_crawl": false,
