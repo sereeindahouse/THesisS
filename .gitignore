@@ -232,3 +232,8 @@ __pycache__/
 !/tools/voice_report.py
 !/tests/test_voice_report.py
 !/CORE/SELF-CHECK.cmd
+
+# Bounded clarification replies; tokens and runtime conversations stay private.
+!/clarification_context.py
+!/tests/test_clarification_context.py
+!/tests/test_clarification_http.py

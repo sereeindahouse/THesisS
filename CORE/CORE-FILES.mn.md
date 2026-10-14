@@ -1,3 +1,9 @@
+2026.10.15 нэмэлт: [clarification_context.py](../clarification_context.py) D тодруулгын
+богино хариуг зөвшөөрсөн сонголттой холбодог; [demo_server.py](../demo_server.py)
+API/эхийн binding-ийг дахин шалгана. [demo/index.html](../demo/index.html) raw ба
+тодруулсан бүтэн асуултыг харуулж, шинэ чатад холбоосыг арилгана.
+`tests/test_clarification_context.py`, `tests/test_clarification_http.py` regression.
+
 # Гол файлуудыг нэг дороос нээх
 
 | Хэсэг | Үндсэн файл | Үүрэг |

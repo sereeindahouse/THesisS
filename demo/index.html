@@ -54,6 +54,10 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
     <div class="composer-width">
       <p id="voiceStatus" class="status composer-status" role="status" aria-live="polite"></p>
       <p id="routeStatus" class="status composer-status" role="status" aria-live="polite"></p>
+      <div id="clarificationHint" class="composer-status" hidden>
+        <span id="clarificationHintText"></span>
+        <button id="clearClarification" type="button" class="quiet-button">Өөр асуулт асуух</button>
+      </div>
       <div id="capturePreview" class="capture-preview" hidden>
         <span class="capture-label" id="captureLabel">Дууны бичлэг</span>
         <button id="removeCapture" type="button" class="quiet-button" aria-label="Оруулсан дууг хасах">Хасах ×</button>
@@ -121,7 +125,7 @@ async function api(path,body){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),path==="/api/route"?120000:45000);
  try{const r=await fetch(path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,signal:controller.signal});
   let v;try{v=await r.json()}catch{throw Error("Серверийн хариулт уншигдсангүй. Дахин оролдоно уу.")}
-  if(!r.ok)throw Error(v?.error||"Сервер хүсэлтийг боловсруулж чадсангүй.");return v;
+  if(!r.ok){const error=Error(v?.error||"Сервер хүсэлтийг боловсруулж чадсангүй.");error.status=r.status;throw error}return v;
  }catch(error){if(error.name==="AbortError")throw Error("Хүлээлгийн хугацаа дууслаа. Сервер ажиллаж байгаа эсэхийг шалгаад дахин оролдоно уу.");throw error}
  finally{clearTimeout(timer)}
 }
@@ -155,6 +159,27 @@ $("allowDraft").addEventListener("change",()=>{++faqGeneration;$("searchButton")
 let routeGeneration=0;
 let chatSequence=0;
 const chatTurns=[];
+let pendingClarification=null;
+const ownedClarificationIds=new Set();
+function refreshClarificationHint(){
+ const active=Boolean(pendingClarification);$("clarificationHint").hidden=!active;
+ $("routeQuery").placeholder=active?"Тодруулгын хариугаа энд бичээрэй…":"Асуултаа энд бичээрэй…";
+ $("clarificationHintText").textContent=active?"Өмнөх асуултын тодруулгад богино хариулж болно.":"";
+}
+async function discardClarifications(ids){
+ if(!ids.length)return;for(const id of ids)ownedClarificationIds.delete(id);
+ try{await api("/api/conversation/reset",{clarification_ids:ids})}catch{}
+}
+function clearPendingClarification(){
+ const previous=pendingClarification;pendingClarification=null;refreshClarificationHint();
+ if(previous)discardClarifications([previous.id]);
+}
+function acceptClarification(result,draft){
+ const id=result?.conversation?.clarification_id;
+ pendingClarification=id?{id,originalQuery:result.query,draft}:null;
+ if(id)ownedClarificationIds.add(id);refreshClarificationHint();
+}
+$("clearClarification").addEventListener("click",()=>{clearPendingClarification();$("routeQuery").focus()});
 function scrollChat(){const area=$("assistant");area.scrollTo({top:area.scrollHeight,behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"})}
 function sizeComposer(){const input=$("routeQuery");input.style.height="auto";input.style.height=Math.min(input.scrollHeight,160)+"px"}
 function compactSourceList(citations){
@@ -163,7 +188,10 @@ function compactSourceList(citations){
  }return sourceList([...sources.values()].map(c=>({...c,locator:[...c.locators].join(" · ")})));
 }
 function appendTurn(query,draft){
- const turn={id:++chatSequence,query,draft,result:null};chatTurns.push(turn);$("chatWelcome").hidden=true;
+ const clarification=pendingClarification?.draft===draft?pendingClarification:null;
+ if(pendingClarification&&!clarification)clearPendingClarification();
+ pendingClarification=null;refreshClarificationHint();
+ const turn={id:++chatSequence,query,draft,result:null,clarification};chatTurns.push(turn);$("chatWelcome").hidden=true;
  const user=node("div",query,"message user-message");user.setAttribute("aria-label","Таны асуулт");
  const assistant=node("article",undefined,"message assistant-message");assistant.setAttribute("aria-label","Туслахын хариулт");assistant.dataset.turn=turn.id;
  const mark=node("div","✦","assistant-mark");mark.setAttribute("aria-hidden","true");
@@ -173,12 +201,12 @@ function appendTurn(query,draft){
 function hasSpokenReply(result){return [result?.answer,result?.clarification?.question,result?.message].some(value=>typeof value==="string"&&value.trim())}
 function speakTurn(turn){
  if(!hasSpokenReply(turn.result)||turn.result.can_speak===false||voiceBusy||routeBusy||micStarting||micRecorder?.state==="recording")return;
- latestRoute={query:turn.query,draft:turn.draft,result:turn.result};
- clearSpeech();turn.body.append($("audioDock"));$("audioDock").hidden=false;refreshVoiceControls();$("speakButton").click();
+ latestRoute={query:turn.result.query||turn.query,draft:turn.draft,result:turn.result};
+ clearSpeech();turn.body.append($("audioDock"));$("audioDock").hidden=false;refreshVoiceControls();scrollChat();$("speakButton").click();
 }
 function submitFollowup(query){
  if(routeBusy||voiceBusy||micStarting||micRecorder?.state==="recording")return;
- $("routeQuery").value=query;sizeComposer();$("routeForm").requestSubmit();
+ clearPendingClarification();$("routeQuery").value=query;sizeComposer();$("routeForm").requestSubmit();
 }
 function followupButtons(questions){
  const options=node("div",undefined,"chat-options");
@@ -204,6 +232,9 @@ function renderRelatedSources(sources){
 function renderTurn(turn,result){
  if(!result||typeof result!=="object"||Array.isArray(result))throw Error("Хариултын мэдээлэл дутуу ирлээ.");
  turn.result=result;turn.element.dataset.route=result.route;const target=turn.body;target.replaceChildren();
+ if(result.conversation?.applied&&result.conversation.resolved_query!==turn.query){
+  target.append(node("p","Тодруулсан асуулт: "+result.conversation.resolved_query,"chat-notice"));
+ }
  if(result.answer_kind==="development_draft_preview")target.append(node("p","Хөгжүүлэлтийн ноорог мэдээлэл.","chat-notice"));
  const hasAnswer=typeof result.answer==="string"&&Boolean(result.answer.trim());
  const fallback=[result.clarification?.question,result.message].find(v=>typeof v==="string"&&v.trim());
@@ -251,14 +282,18 @@ async function askTurn(turn){
  const slowTimer=setTimeout(()=>{if(generation===routeGeneration&&routeBusy)turn.body.append(node("p","Эхийн мэдээллийг нэгтгэж байна. Асуулт тань хадгалагдсан.","waiting-helper"))},8000);
  $("routeStatus").textContent="";refreshVoiceControls();scrollChat();
  try{
-  const result=await api("/api/route",{query:turn.query,allow_draft:turn.draft});
-  if(generation!==routeGeneration)return;
-  latestRoute={query:turn.query,draft:turn.draft,result};renderTurn(turn,result);
+  const result=await api("/api/route",{query:turn.query,allow_draft:turn.draft,...(turn.clarification?{clarification_id:turn.clarification.id}:{})});
+  if(turn.clarification)ownedClarificationIds.delete(turn.clarification.id);
+  if(generation!==routeGeneration){if(result.conversation?.clarification_id)await discardClarifications([result.conversation.clarification_id]);return}
+  acceptClarification(result,turn.draft);
+  latestRoute={query:result.query||turn.query,draft:turn.draft,result};renderTurn(turn,result);
  }catch(error){
   if(generation!==routeGeneration)return;
-  const text=node("p","Холболт саатсан тул хариулт авч чадсангүй. Асуулт тань хадгалагдсан. Дахин оролдоно уу.","message-error"),retry=node("button","Дахин оролдох","secondary-button");retry.type="button";
+  const context=turn.clarification;
+  if(context){await discardClarifications([context.id]);turn.clarification=null}
+  const text=node("p",context?"Тодруулгыг үргэлжлүүлж чадсангүй. Эх асуултаа дахин илгээж тодруулна уу.":"Холболт саатсан тул хариулт авч чадсангүй. Асуулт тань хадгалагдсан. Дахин оролдоно уу.","message-error"),retry=node("button",context?"Эх асуултаа дахин илгээх":"Дахин оролдох","secondary-button");retry.type="button";
   const details=node("details",undefined,"message-error-details");details.append(node("summary","Алдааны дэлгэрэнгүй"),node("p",error.message));
-  retry.addEventListener("click",()=>askTurn(turn));turn.body.replaceChildren(text,retry,details);scrollChat();
+  retry.addEventListener("click",()=>context?submitFollowup(context.originalQuery):askTurn(turn));if(generation!==routeGeneration)return;turn.body.replaceChildren(text,retry,details);scrollChat();
  }finally{clearTimeout(slowTimer);if(generation===routeGeneration){routeBusy=false;refreshVoiceControls()}}
 }
 $("routeForm").addEventListener("submit",e=>{
@@ -269,7 +304,7 @@ $("routeForm").addEventListener("submit",e=>{
 $("routeQuery").addEventListener("keydown",e=>{
  if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();if(!$("routeButton").disabled)$("routeForm").requestSubmit()}
 });
-$("routeDraft").addEventListener("change",()=>{invalidateVoiceAnswer();refreshVoiceControls();$("routeStatus").textContent="Горимыг дараагийн асуултад хэрэглэнэ."});
+$("routeDraft").addEventListener("change",()=>{clearPendingClarification();invalidateVoiceAnswer();refreshVoiceControls();$("routeStatus").textContent="Горимыг дараагийн асуултад хэрэглэнэ."});
 document.querySelectorAll("[data-route-example]").forEach(button=>button.addEventListener("click",()=>{
  if(routeBusy||voiceBusy)return;$("routeQuery").value=button.dataset.routeExample;$("toolsDialog").close();$("routeForm").requestSubmit();
 }));
@@ -304,7 +339,7 @@ function refreshVoiceControls(){
  $("recordStop").disabled=!recording;
  $("attachAudio").disabled=busy;$("voiceFile").disabled=busy;
  $("transcribeButton").disabled=!voiceState.stt_ready||!selectedAudio||busy;
- $("ttsVoice").disabled=busy;$("routeQuery").disabled=voiceBusy||active;$("routeDraft").disabled=busy;
+ $("ttsVoice").disabled=busy;$("routeQuery").disabled=voiceBusy||active;$("routeDraft").disabled=busy;$("clearClarification").disabled=busy;
  $("routeButton").disabled=busy||!$("routeQuery").value.trim();
  document.querySelectorAll("[data-route-example],[data-followup-query]").forEach(b=>b.disabled=busy);
  document.querySelectorAll(".play-message").forEach(b=>{b.disabled=!voiceState.tts_ready||busy;b.title=voiceState.tts_ready?"Хариултыг дуугаар сонсох":"Дуут хариултын үйлчилгээ бэлэн биш"});
@@ -328,7 +363,7 @@ $("voiceFile").addEventListener("change",()=>{
 });
 $("removeCapture").addEventListener("click",()=>{invalidateVoiceAnswer();clearInput();$("voiceStatus").textContent="";refreshVoiceControls()});
 $("transcribeButton").addEventListener("click",transcribeSelected);
-$("recordStart").addEventListener("click",async()=>{invalidateVoiceAnswer();clearInput();$("routeQuery").value="";$("routeDraft").checked=false;$("allowDraft").checked=false;$("websiteDraft").checked=false;document.querySelectorAll("audio").forEach(p=>p.pause());const epoch=++micEpoch;micStarting=true;refreshVoiceControls();$("voiceStatus").textContent="Браузерын микрофоны зөвшөөрлийг өгнө үү…";
+$("recordStart").addEventListener("click",async()=>{if($("routeDraft").checked)clearPendingClarification();invalidateVoiceAnswer();clearInput();$("routeQuery").value="";$("routeDraft").checked=false;$("allowDraft").checked=false;$("websiteDraft").checked=false;document.querySelectorAll("audio").forEach(p=>p.pause());const epoch=++micEpoch;micStarting=true;refreshVoiceControls();$("voiceStatus").textContent="Браузерын микрофоны зөвшөөрлийг өгнө үү…";
  try{const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1},video:false});if(epoch!==micEpoch){stream.getTracks().forEach(t=>t.stop());return}micStream=stream;
   const mime=["audio/webm;codecs=opus","audio/ogg;codecs=opus","audio/mp4"].find(t=>MediaRecorder.isTypeSupported(t));const recorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});micRecorder=recorder;const chunks=[];
   recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onerror=()=>{stopMic(true);$("voiceStatus").textContent="Микрофоны бичлэг алдаатай. WAV файл оруулж болно."};
@@ -337,13 +372,13 @@ $("recordStart").addEventListener("click",async()=>{invalidateVoiceAnswer();clea
  }catch(e){if(epoch===micEpoch){stopMic(true);$("voiceStatus").textContent="Микрофон нээгдсэнгүй: "+e.message+". WAV файл оруулах боломжтой."}}});
 $("recordStop").addEventListener("click",()=>stopMic());
 $("routeQuery").addEventListener("input",()=>{clearCorrection();clearSpeech();sizeComposer();refreshVoiceControls();$("voiceStatus").textContent=""});
-$("voiceReset").addEventListener("click",async()=>{stopMic(true);invalidateVoiceAnswer();clearInput();$("routeQuery").value="";sizeComposer();chatTurns.length=0;document.body.append($("audioDock"));$("routeResult").replaceChildren();$("chatWelcome").hidden=false;$("audioDock").hidden=true;$("routeDraft").checked=false;$("allowDraft").checked=false;$("websiteDraft").checked=false;document.querySelectorAll("audio").forEach(p=>p.pause());$("query").value="";$("websiteQuery").value="";++websiteGeneration;++faqGeneration;$("websiteResults").replaceChildren();$("candidates").replaceChildren();resetPreview();$("websiteStatus").textContent="";$("searchStatus").textContent="";$("websiteForm").querySelector("button").disabled=false;$("searchButton").disabled=false;$("voiceStatus").textContent="";$("routeStatus").textContent="";await discardVoice([...ownedVoiceIds]);refreshVoiceControls()});
+$("voiceReset").addEventListener("click",async()=>{const clarificationIds=[...ownedClarificationIds];pendingClarification=null;refreshClarificationHint();discardClarifications(clarificationIds);stopMic(true);invalidateVoiceAnswer();clearInput();$("routeQuery").value="";sizeComposer();chatTurns.length=0;document.body.append($("audioDock"));$("routeResult").replaceChildren();$("chatWelcome").hidden=false;$("audioDock").hidden=true;$("routeDraft").checked=false;$("allowDraft").checked=false;$("websiteDraft").checked=false;document.querySelectorAll("audio").forEach(p=>p.pause());$("query").value="";$("websiteQuery").value="";++websiteGeneration;++faqGeneration;$("websiteResults").replaceChildren();$("candidates").replaceChildren();resetPreview();$("websiteStatus").textContent="";$("searchStatus").textContent="";$("websiteForm").querySelector("button").disabled=false;$("searchButton").disabled=false;$("voiceStatus").textContent="";$("routeStatus").textContent="";await discardVoice([...ownedVoiceIds]);refreshVoiceControls()});
 $("speakButton").addEventListener("click",async()=>{if(!latestRoute||voiceBusy)return;const snapshot=latestRoute,generation=++voiceGeneration;voiceBusy=true;clearSpeech();refreshVoiceControls();$("audioDock").hidden=false;$("ttsStatus").textContent="Дуут хариултыг бэлтгэж байна…";
- try{const r=await api("/api/voice/speak",{query:snapshot.query,allow_draft:snapshot.draft,voice:$("ttsVoice").value,package_id:snapshot.result.package_id,...(snapshot.result.response_id?{response_id:snapshot.result.response_id}:{})});ownResponse(r);if(generation!==voiceGeneration){await discardVoice([r.id]);return}$("voiceReplyPlayer").src=r.audio_url;$("voiceReplyPlayer").hidden=false;$("audioDock").hidden=false;$("spokenText").textContent=r.spoken_text;$("ttsStatus").textContent="";
+ try{const r=await api("/api/voice/speak",{query:snapshot.query,allow_draft:snapshot.draft,voice:$("ttsVoice").value,package_id:snapshot.result.package_id,...(snapshot.result.response_id?{response_id:snapshot.result.response_id}:{})});ownResponse(r);if(generation!==voiceGeneration){await discardVoice([r.id]);return}$("voiceReplyPlayer").src=r.audio_url;$("voiceReplyPlayer").hidden=false;$("audioDock").hidden=false;$("spokenText").textContent=r.spoken_text;$("ttsStatus").textContent="";scrollChat();
   try{await $("voiceReplyPlayer").play()}catch{if(generation===voiceGeneration)$("ttsStatus").textContent="Дуу бэлэн. ▶ дарж сонсоно."}
  }catch(e){if(generation===voiceGeneration)$("ttsStatus").textContent=e.message}finally{voiceBusy=false;refreshVoiceControls()}});
 $("ttsVoice").addEventListener("change",()=>{++voiceGeneration;clearSpeech();refreshVoiceControls()});
-window.addEventListener("pagehide",()=>{stopMic(true);if(ownedVoiceIds.size)fetch("/api/voice/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:[...ownedVoiceIds]}),keepalive:true}).catch(()=>{})});
+window.addEventListener("pagehide",()=>{stopMic(true);if(ownedClarificationIds.size)fetch("/api/conversation/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clarification_ids:[...ownedClarificationIds]}),keepalive:true}).catch(()=>{});if(ownedVoiceIds.size)fetch("/api/voice/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:[...ownedVoiceIds]}),keepalive:true}).catch(()=>{})});
 
 
 function clearCorrection(){++correctionGeneration;correctionBusy=false;correctionValue=null;$("correctionStatus").textContent="";$("correctionText").textContent="";$("correctionSuggestion").hidden=true}

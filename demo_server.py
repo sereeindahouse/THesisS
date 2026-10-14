@@ -1,8 +1,10 @@
 """Loopback development UI: read-only school content, private voice and human review."""
 import argparse
+import hashlib
 import json
 import re
 import sqlite3
+import time
 from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,13 +20,18 @@ from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG
 from data_explorer import SourceExplorer
+from clarification_context import ClarificationContext, ClarificationConflict
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
+CLARIFICATION_ARTIFACT_SHA256 = {
+    name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+    for name in ("clarification_context.py", "demo_server.py")
+}
 
 
-def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None):
+def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
     database = Path(db_path or root / "runtime" / "content.db").resolve()
@@ -34,6 +41,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     content_policy = ContentUsePolicy(root)
     llm = llm_service if llm_service is not None else LLMRuntime(root)
     rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
+    clarification_context = clarification_service if clarification_service is not None else ClarificationContext()
     explorer = SourceExplorer(root,content_database=database)
 
     class Handler(BaseHTTPRequestHandler):
@@ -178,6 +186,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.send_json(200, {
                     "website": website, "content_policy": content_policy.status(), "llm": llm.status(),
                     "rag": rag_state,
+                    "clarification": {**clarification_context.status(),
+                                      "loaded_artifact_sha256": dict(CLARIFICATION_ARTIFACT_SHA256)},
                     "routing": {"available": True, "c_enabled": rag_state["provider"]["available"] and content_policy.enabled, "human_gold": False,
                                 "mode": "development_proposed_not_gold"},
                     "mode": "local_development", "demo_protocol_version": 2, "readonly": False,
@@ -242,6 +252,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             path = unquote(urlsplit(self.path).path)
             if path not in {"/api/search", "/api/preview", "/api/website-search", "/api/route",
+                            "/api/conversation/reset",
                             "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset", "/api/voice/correct",
                             "/api/review/stt-confirm", "/api/review/tts-confirm"}:
                 return self.error(404, "Энэ API нээлттэй биш.")
@@ -251,6 +262,10 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     result = voice.transcribe(audio, self.headers.get_content_type())
                     return self.send_json(200, result)
                 body = self.read_json(24576 if path.startswith("/api/review/") else MAX_BODY)
+                if path == "/api/conversation/reset":
+                    if set(body) != {"clarification_ids"}:
+                        raise ValueError("Зөвхөн clarification_ids жагсаалт өгнө.")
+                    return self.send_json(200, clarification_context.reset(body["clarification_ids"]))
                 if path == "/api/voice/correct":
                     if set(body) != {"text"}:
                         raise ValueError("Зөвхөн text талбар өгнө.")
@@ -299,7 +314,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                   text_generated=current.get("generated", False), llm_calls=0,
                                   answer_kind=current.get("answer_kind"))
                     return self.send_json(200, result)
-                allowed = ({"query", "allow_draft"} if path == "/api/route" else
+                allowed = ({"query", "allow_draft", "clarification_id"} if path == "/api/route" else
                            {"query", "allow_draft", "limit"} if path in {"/api/search", "/api/website-search"} else
                            {"faq_id", "allow_draft"})
                 if set(body) - allowed:
@@ -315,7 +330,38 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     if type(limit) is not int or not 1 <= limit <= 5:
                         raise ValueError("limit нь 1–5 бүхэл тоо байна.")
                     if path == "/api/route":
-                        return self.send_json(200, rag.route(database, query.strip(), allow_draft=allow_draft))
+                        context_started = time.perf_counter()
+                        raw_query = query.strip()
+                        conversation = dict(raw_query=raw_query, resolved_query=raw_query,
+                                            applied=False, reason="fresh_query", clarification_id=None)
+                        if "clarification_id" in body:
+                            token = body["clarification_id"]
+                            if not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{32}", token):
+                                raise ValueError("Тодруулгын ID буруу.")
+                            # Read the current package/corpus independently of the
+                            # short reply; neither client text nor cached D is an
+                            # answer or authorization to bypass routing guards.
+                            with ReadOnlyContentStore(database) as store:
+                                package_id = store.package_id()
+                            retriever = getattr(rag, "retriever", None)
+                            corpus_id = (retriever.status().get("corpus_id") if retriever is not None
+                                         else rag.status().get("retrieval", {}).get("corpus_id"))
+                            conversation = clarification_context.resolve(
+                                token, raw_query, allow_draft=allow_draft,
+                                package_id=package_id, corpus_id=corpus_id)
+                        context_elapsed = time.perf_counter() - context_started
+                        result = rag.route(database, conversation["resolved_query"], allow_draft=allow_draft)
+                        context_started = time.perf_counter()
+                        if "clarification_id" in body:
+                            result_corpus = (result.get("rag") or {}).get("corpus_id")
+                            if result["package_id"] != package_id or (result_corpus is not None and result_corpus != corpus_id):
+                                raise ClarificationConflict("Тодруулах үед эхийн хувилбар өөрчлөгдлөө. Бүтэн асуултаа дахин илгээнэ үү.")
+                        conversation["clarification_id"] = clarification_context.issue(result, allow_draft=allow_draft)
+                        conversation["context_latency_ms"] = round(
+                            (context_elapsed + time.perf_counter() - context_started) * 1000, 3)
+                        conversation["latency_scope"] = "clarification_package_corpus_checks_resolution_and_issue; excludes_rag_route_http_stt_tts"
+                        result["conversation"] = conversation
+                        return self.send_json(200, result)
                     if path == "/api/website-search":
                         result = search_website(query.strip(), root / "CORE/database/website.db",
                                                 limit=limit, allow_draft=allow_draft or content_policy.enabled)
@@ -342,6 +388,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.send_json(error.status, {"error": str(error), "code": error.code})
             except PermissionError as error:
                 return self.error(403, str(error))
+            except ClarificationConflict as error:
+                return self.error(409, str(error))
             except ValueError as error:
                 return self.error(400, str(error))
             except KeyError:

@@ -132,6 +132,18 @@ def field_extract(query, sources):
         text = source['text']
         visual = source.get('text_scope') == 'document_visual_excerpt'
         match = None
+        # Canonical clarification choice: copy a labelled amount from its
+        # actual olympiad source. Year evidence is checked upstream. Do not
+        # reuse this for deadline, monthly, negative or conditional queries.
+        if re.fullmatch(r"(?:(?:19|20)\d{2}(?:\s*[–—-]\s*(?:19|20)\d{2})?\s+оны\s+)?"
+                        r"олимпиадын\s+бүртгэлийн\s+хураамж\s+хэд\s+вэ[?!.]*", q):
+            if source['url'] == 'https://nmct.edu.mn/olympiad':
+                match = re.search(r'Бүртгэлийн хураамж\n\d+(?:[.,]\d+)*\s*(?:₮|төгрөг)(?=\n|$)', text)
+            elif (visual and source['url'].startswith('https://nmct.edu.mn/olympiad/')
+                  and text.startswith('Тус олимпиад нь')):
+                match = re.search(r'Тус олимпиад нь[^\n]*бүртгэлийн хураамж\s+\d+(?:[.,]\d+)*\s*төгрөг[^\n]*', text)
+            if match and len(match.group()) <= 1500:
+                return source, match.group()
         if visual:
             if ('гадаад' in q and re.search(r'ебс|ерөнхий боловсрол|суурь боловсрол', q)
                     and re.search(r'баримт|тодорхойлолт', q) and not re.search(r'их сургууль|дадлага', q)

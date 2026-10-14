@@ -2169,5 +2169,61 @@
       "tools/voice_report.py": "47945eb4abe0bb4860c3a391f7d8bdd2f676052da900c92cd340ef24a596cbbb"
     },
     "code_byte_note": "Raw collection hashes identify local Windows runtime bytes; LF hashes identify Git text normalization."
+  },
+  "clarification_extension_20261015": {
+    "local_tests": {
+      "count": 397,
+      "seconds": 42.552,
+      "passed": true
+    },
+    "live_http": {
+      "count": 15,
+      "passed": true,
+      "llm_calls": 1,
+      "two_fee_answers_llm_calls": 0,
+      "human_review": null,
+      "private_raw": "runtime/clarification-live-final-20261015.json"
+    },
+    "browser": {
+      "checks": 11,
+      "desktop_mobile_viewed": true,
+      "real_tts_duration_seconds": 23.544,
+      "human_listening": false,
+      "new_stt_inference": false
+    },
+    "mode": "bounded_explicit_D_reply_not_general_memory",
+    "examples": [
+      "registration fee -> admission/olympiad short reply",
+      "ARC -> listed year 2026"
+    ],
+    "limits": {
+      "ttl_seconds": 300,
+      "max_entries": 64,
+      "one_shot": true,
+      "unknown_reply": "fresh_query",
+      "stale_or_changed_binding": 409
+    },
+    "guards": [
+      "preserve original substantive qualifiers",
+      "reroute full question through source/date/number guards",
+      "scoped reset and late UI response cleanup",
+      "resolved query bound TTS",
+      "reversed years rejected before empty FAQ handoff"
+    ],
+    "literal_olympiad_fee_source_lookup": true,
+    "amounts_hardcoded": false,
+    "roadmap_sha256": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
+    "database_sha256": {
+      "runtime/content.db": "9c3aa3e29ad430d055e75f4a30655a67dcf31bd6c4f1eaa40021ee164a988c72",
+      "CORE/database/website.db": "7d85a12731746ff8963359090adfc403dce26be2ef4c549981b0b0c4fdf66d1e"
+    },
+    "own_training": false,
+    "new_source_import": false,
+    "final_accuracy_claim": false,
+    "known_limit": "Historyless short reply can still reach generative C; no arbitrary multi-turn memory or verified live streaming.",
+    "retained_failed_logs": [
+      "runtime/clarification-tests-local-20261014.txt",
+      "runtime/clarification-live-20261014.json"
+    ]
   }
 }

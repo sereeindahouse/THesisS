@@ -159,6 +159,10 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
                 binding='explicit_year_literal_base', supplied_years=years)]
         return value
 
+    if any(int(start) > int(end) for start, end in YEAR_RANGE_RE.findall(query)):
+        return finish('E', ['invalid_year_range'],
+            'Асуултын жилийн хүрээ урвуу байна. Оны дарааллыг автоматаар засахгүй.')
+
     if not candidates:
         return finish('E', ['no_supported_question_match'],
             'Одоогийн facts/FAQ багцад энэ асуултыг дэмжих таарсан асуулт алга. '
@@ -166,9 +170,6 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
     related_ids = [candidate['faq_id'] for candidate in candidates]
     support = {faq_id: _support_text(faqs[faq_id], facts) for faq_id in related_ids}
     query_years = set(YEAR_RE.findall(query))
-    if any(int(start) > int(end) for start, end in YEAR_RANGE_RE.findall(query)):
-        return finish('E', ['invalid_year_range'],
-            'Асуултын жилийн хүрээ урвуу байна. Оны дарааллыг автоматаар засахгүй.')
     constraint_ids = exact_ids if len(exact_ids) == 1 else related_ids
     supported_years = {year for faq_id in constraint_ids for year in YEAR_RE.findall(support[faq_id])}
     year_compatible = [faq_id for faq_id in constraint_ids
