@@ -247,3 +247,14 @@ __pycache__/
 !/data/answer-untuned-20261015.json
 !/tools/validate_content_evidence.py
 !/tests/test_content_expansion.py
+
+!/speech_text.py
+
+!/tests/test_registration_speech.py
+
+# Source-preserving selection and scope regressions.
+!/evidence_contract.py
+!/tests/test_evidence_contract.py
+!/tests/test_scope_fields.py
+!/tests/test_semantic_handoff.py
+!/data/answer-semantic-unseen-20261015.json

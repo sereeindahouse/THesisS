@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from rag_runtime import ChatRAG, GroundedGenerator, source_extract
+from evidence_contract import evidence_units
 
 SOURCE = dict(source_id='web-test', text='Сургалтын төлбөр: жилд 8,280,000 ₮.',
               excerpt='Сургалтын төлбөр: жилд 8,280,000 ₮.', url='https://nmct.edu.mn/elselt',
@@ -21,7 +22,7 @@ class GeneratorTests(unittest.TestCase):
         (self.root/'runtime').mkdir()
         self.config = self.root/'runtime/rag-model.json'
         self.config.write_text(json.dumps(dict(model='local-test',base_url='http://127.0.0.1:11434')))
-        self.proposal = dict(insufficient=False, claims=[{k:CLAIM[k] for k in ('text','source_id')}])
+        self.proposal = dict(insufficient=False, unit_ids=['u1'])
         self.requests = []
 
     def tearDown(self):
@@ -43,16 +44,16 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(r['claims'][0]['quote'],SOURCE['text'])
 
     def test_invented_citation_rejected(self):
-        self.proposal['claims'][0]['source_id']='invented'
-        self.assertEqual(self.generate()['reason'],'unknown_citation')
+        self.proposal['unit_ids']=['invented']
+        self.assertEqual(self.generate()['reason'],'unknown_evidence_unit')
 
     def test_model_authored_quote_not_accepted(self):
-        self.proposal['claims'][0]['quote']='Төлбөр үнэгүй болсон байна.'
+        self.proposal['quote']='Төлбөр үнэгүй болсон байна.'
         self.assertEqual(self.generate()['reason'],'invalid_generation')
 
     def test_invented_number_rejected(self):
-        self.proposal['claims'][0]['text']='Сургалтын төлбөр 9,999,999 ₮.'
-        self.assertEqual(self.generate()['reason'],'unsupported_number')
+        self.proposal=dict(insufficient=False,claims=[{'source_id':'web-test','text':'Сургалтын төлбөр 9,999,999 ₮.'}])
+        self.assertEqual(self.generate()['reason'],'invalid_generation')
 
     def test_generator_year_mismatch_makes_no_provider_call(self):
         r=GroundedGenerator(self.root,self.transport).generate('2028 оны төлбөр?', [SOURCE])
@@ -60,15 +61,15 @@ class GeneratorTests(unittest.TestCase):
         self.assertFalse(self.requests)
 
     def test_question_is_not_accepted_as_answer(self):
-        self.proposal['claims'][0]['text']='Сургалтын төлбөр хэд вэ?'
-        self.assertEqual(self.generate()['reason'],'question_instead_of_answer')
+        self.proposal['text']='Сургалтын төлбөр хэд вэ?'
+        self.assertEqual(self.generate()['reason'],'invalid_generation')
 
     def test_insufficient_no_answer(self):
-        self.proposal=dict(insufficient=True,claims=[])
+        self.proposal=dict(insufficient=True,unit_ids=[])
         self.assertFalse(self.generate()['generated'])
 
     def test_malformed_claim_rejected(self):
-        self.proposal['claims'][0]['text']=123
+        self.proposal['unit_ids']=[123]
         self.assertEqual(self.generate()['reason'],'invalid_generation')
 
     def test_unconfigured_no_model_call(self):
@@ -88,11 +89,23 @@ class GeneratorTests(unittest.TestCase):
         self.assertFalse(self.generate()['generated'])
         self.assertFalse(self.requests)
 
+    def test_duplicate_selection_does_not_duplicate_a_claim(self):
+        self.proposal['unit_ids']*=2
+        self.assertFalse(self.generate()['generated'])
+
+    def test_contradictory_insufficient_selection_rejected(self):
+        self.proposal['insufficient']=True
+        self.assertEqual(self.generate()['reason'],'invalid_generation')
+
     def test_prompt_data_is_structured(self):
         self.generate()
         p=self.requests[-1][2]
         self.assertIsInstance(p['format'],dict)
         self.assertEqual(json.loads(p['messages'][1]['content'])['SOURCES'][0]['source_id'],'web-test')
+        self.assertIn('EVIDENCE_UNITS',json.loads(p['messages'][1]['content']))
+        self.assertNotIn('page_header',json.loads(p['messages'][1]['content'])['SOURCES'][0])
+        self.assertEqual(p['options']['seed'],42)
+        self.assertEqual(self.generate()['claims'][0]['text'],SOURCE['text'])
 
 
 class Policy:

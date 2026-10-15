@@ -2548,6 +2548,291 @@
       "human final answer review",
       "real typed/raw/edited-STT user study",
       "private full-corpus reproduction and HTTPS/device delivery"
-    ]
+    ],
+    "semantic_followup_development": {
+      "scope": "Source-preserving selection development checkpoint; answer quality remains experimental.",
+      "mechanism": {
+        "llm_role": "select original evidence-unit IDs",
+        "answer_text_generated": false,
+        "server_reconstructs_exact_spans": true,
+        "preserves_publication_context": true,
+        "department_scope_filter": "bounded literal named-title staff/head queries",
+        "semantic_correctness_proven": false,
+        "seed": 42,
+        "provider_usage": "raw Ollama token counts and nanosecond durations where available"
+      },
+      "original24": {
+        "first_ai_counts": {
+          "pass": 8,
+          "partial": 6,
+          "fail": 10
+        },
+        "now_observed_development": true,
+        "final_ai_review": {
+          "cases": 24,
+          "counts": {
+            "overall": {
+              "fail": 1,
+              "pass": 20,
+              "partial": 3
+            },
+            "correctness": {
+              "fail": 1,
+              "pass": 23
+            },
+            "relevance": {
+              "fail": 1,
+              "pass": 20,
+              "partial": 3
+            },
+            "completeness": {
+              "fail": 1,
+              "pass": 23
+            },
+            "citation_support": {
+              "not_applicable": 11,
+              "pass": 13
+            }
+          },
+          "route_counts": {
+            "E": 7,
+            "C": 13,
+            "D": 4
+          },
+          "dimensions": {
+            "overall": {
+              "fail": 1,
+              "pass": 20,
+              "partial": 3
+            },
+            "correctness": {
+              "fail": 1,
+              "pass": 23
+            },
+            "relevance": {
+              "fail": 1,
+              "pass": 20,
+              "partial": 3
+            },
+            "completeness": {
+              "fail": 1,
+              "pass": 23
+            },
+            "citation_support": {
+              "not_applicable": 11,
+              "pass": 13
+            }
+          },
+          "answerable_dimensions": {
+            "overall": {
+              "fail": 1,
+              "pass": 10,
+              "partial": 3
+            },
+            "correctness": {
+              "fail": 1,
+              "pass": 13
+            },
+            "relevance": {
+              "fail": 1,
+              "pass": 10,
+              "partial": 3
+            },
+            "completeness": {
+              "fail": 1,
+              "pass": 13
+            },
+            "citation_support": {
+              "not_applicable": 1,
+              "pass": 13
+            }
+          },
+          "exact_claim_membership": {
+            "returned_claims": 23,
+            "exact_source_members": 23,
+            "returned_C_answers": 13
+          },
+          "expected_clarification": {
+            "cases": 4,
+            "appropriate": 4
+          },
+          "expected_unsupported": {
+            "cases": 6,
+            "appropriate": 6
+          },
+          "remaining_failures": [
+            "untuned04-01"
+          ],
+          "remaining_partials": [
+            "untuned04-03",
+            "untuned04-04",
+            "untuned04-05"
+          ]
+        },
+        "raw": "runtime/semantic-release-v2-development-20261015.json",
+        "review": "runtime/semantic-development-final-review-20261015.json"
+      },
+      "new16_first_run": {
+        "cases": 16,
+        "observed_routes": {
+          "C": 13,
+          "E": 3
+        },
+        "llm_calls": 15,
+        "answerability_counts": {
+          "answerable": 11,
+          "needs_clarification": 2,
+          "unsupported_in_verified_passages": 3
+        },
+        "assistant_overall_counts": {
+          "partial": 6,
+          "pass": 5,
+          "fail": 5
+        },
+        "by_answerability": {
+          "answerable": {
+            "partial": 4,
+            "pass": 4,
+            "fail": 3
+          },
+          "needs_clarification": {
+            "fail": 2
+          },
+          "unsupported_in_verified_passages": {
+            "pass": 1,
+            "partial": 2
+          }
+        },
+        "dimension_counts": {
+          "correctness": {
+            "pass": 14,
+            "not_applicable": 2
+          },
+          "citation_support": {
+            "pass": 13,
+            "not_applicable": 3
+          },
+          "answer_relevance": {
+            "partial": 9,
+            "fail": 4,
+            "pass": 3
+          },
+          "completeness": {
+            "partial": 6,
+            "pass": 5,
+            "fail": 5
+          },
+          "abstention": {
+            "pass": 9,
+            "fail": 4,
+            "not_applicable": 3
+          },
+          "clarification": {
+            "not_applicable": 14,
+            "fail": 2
+          },
+          "response_appropriateness": {
+            "partial": 6,
+            "fail": 7,
+            "pass": 3
+          }
+        },
+        "claim_texts_exact_source_members": 31,
+        "claims_checked": 31,
+        "quotes_exact_source_members": 31,
+        "all_reference_quotes_retrieved_cases": 13,
+        "answerable_all_reference_quotes_retrieved": 9,
+        "answerable_required_fact_counts": {
+          "pass": 17,
+          "fail": 16,
+          "partial": 1
+        },
+        "fail_ids": [
+          "semantic-unseen04-04",
+          "semantic-unseen04-05",
+          "semantic-unseen04-11",
+          "semantic-unseen04-12",
+          "semantic-unseen04-13"
+        ],
+        "partial_ids": [
+          "semantic-unseen04-01",
+          "semantic-unseen04-03",
+          "semantic-unseen04-08",
+          "semantic-unseen04-10",
+          "semantic-unseen04-15",
+          "semantic-unseen04-16"
+        ],
+        "pass_ids": [
+          "semantic-unseen04-02",
+          "semantic-unseen04-06",
+          "semantic-unseen04-07",
+          "semantic-unseen04-09",
+          "semantic-unseen04-14"
+        ],
+        "http_provider_failures": 0,
+        "human_reviewed_cases": 0,
+        "general_accuracy_claimed": false,
+        "label_scope": "First frozen-code/source run; bounded AI diagnostic review, not human gold or general accuracy.",
+        "cases_sha256": "5c519d691da0338e678a9b96401eaad4f09c3ea0778902f569873c44140ba593",
+        "raw": "runtime/semantic-unseen-live-20261015.json",
+        "raw_sha256": "869bc0f5e2ead6ca5ce0bec541f6df87d54ffb43d71eddc70f82ede1a7a6f7f8",
+        "review": "runtime/semantic-unseen-reviewed-20261015.json",
+        "backend_freeze": "runtime/semantic-release-freeze-v2-20261015.json",
+        "no_backend_tuning_after_first_outputs": true,
+        "future_use_requires_development_label": true
+      },
+      "synthetic_voice": {
+        "cases": 2,
+        "voices": 2,
+        "clips": 4,
+        "decoded_answers": 4,
+        "human_voice": false,
+        "human_listening_quality": false,
+        "raw_routes": {
+          "C": 2,
+          "D": 2
+        },
+        "all_typed_and_raw_smoke_checks_pass": true,
+        "wer": 0.1111111111111111,
+        "cer": 0.02830188679245283,
+        "not_comparable_to_previous_different_questions": true,
+        "raw": "runtime/semantic-voice-loop-20261015/results.json"
+      },
+      "local_tests": {
+        "run": 494,
+        "passed": 494,
+        "seconds": 51.559,
+        "raw": "runtime/semantic-tests-release-v2-20261015.txt"
+      },
+      "research_basis": {
+        "ALCE": "selected correctness/citation methodology sections",
+        "ARES": "selected relevance/faithfulness and human-label limitations; no trained automatic judge implemented",
+        "all26_full_read": false
+      },
+      "unchanged": {
+        "roadmap_sha256": "8a65454e342464a9646d5faec377b74053a16ead0a255c62f1a1d2b5779c208f",
+        "website_db_sha256": "73fb91ae3ce392495c74141a913cfcb3aa067c709e6d2900da82e78483317601",
+        "content_db_sha256": "e8d6936bb37fafbfc78698ffbe30c99f2da79cec0769b67adc0e8bf50ba2df4f",
+        "own_model_training": false,
+        "new_model_downloads": false
+      },
+      "remaining": [
+        "Wrong or incomplete evidence-unit selection on new attributes",
+        "Ambiguous names/pathways need clarification",
+        "Unsupported fields must say information is absent rather than return unrelated prose",
+        "Human answer/voice usability evaluation",
+        "Real typed/raw/edited-STT and HTTPS/device acceptance"
+      ],
+      "browser_qa": {
+        "checks": 10,
+        "passed": 10,
+        "desktop_mobile_viewed": true,
+        "mobile_no_horizontal_overflow": true,
+        "real_answer_audio_seconds": 13.32,
+        "human_listening_quality": false,
+        "physical_microphone_tablet": false,
+        "raw": "runtime/semantic-browser-qa-20261015.json"
+      }
+    }
   }
 }

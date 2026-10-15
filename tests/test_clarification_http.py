@@ -379,11 +379,14 @@ class ClarificationHTTPTests(unittest.TestCase):
         routed = len(self.rag.routed)
         status, spoken = self.request('/api/voice/speak', {**speech, 'query': result['query']})
         self.assertEqual(status, 200)
-        self.assertEqual(spoken['spoken_text'], result['answer'])
+        self.assertIn('12,345 төгрөг', result['answer'])
+        expected_spoken = result['answer'].replace(
+            '12,345 төгрөг', 'арван хоёр мянга гурван зуун дөчин таван төгрөг')
+        self.assertEqual(spoken['spoken_text'], expected_spoken)
         self.assertEqual(spoken['citations'], result['citations'])
         self.assertEqual(len(self.rag.routed), routed)
         self.assertEqual(spoken['llm_calls'], 0)
-        self.assertEqual(self.voice.spoken, [(result['answer'], 'mn-MN-BataaNeural')])
+        self.assertEqual(self.voice.spoken, [(expected_spoken, 'mn-MN-BataaNeural')])
 
     def test_id_and_reset_validation_reject_control_fields(self):
         for token in (None, '', 'z' * 32, 'a' * 31, 7, True, [], {}):

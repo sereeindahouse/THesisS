@@ -255,7 +255,7 @@
       "method_mn": "ALCE нь хариултын fluency, correctness, citation recall/precision-ийг тусад нь үнэлдэг.",
       "limitation_mn": "NLI/LLM дээр суурилсан автомат шүүлтийн Монгол хэлний найдвартай байдал манайд батлагдаагүй.",
       "project_decision_mn": "Холбоос байгаагаар үнэн гэж оноо өгөхгүй; claim тус бүрийн эхийн дэмжлэгийг хүний rubric-аар бүртгэнэ.",
-      "assistant_checked_scope": "pdf_sections_3.2_3.3_correctness_citation_quality_checked",
+      "assistant_checked_scope": "pdf_sections_3.2_3.3_correctness_citation_quality_checked;2026-10-15_sections_3.3_3.4_6_support_shortcuts_human_evaluation_checked",
       "full_reading_complete": false,
       "student_reading_confirmed": false,
       "student_progress": "not_confirmed"
@@ -383,7 +383,7 @@
       "method_mn": "Synthetic сургалттай LM judge, хүний цөөн annotation/PPI-аар relevance/faithfulness үнэлэх.",
       "limitation_mn": "Judge өөрөө fine-tuned; манай хүрээнд хэрэгжүүлээгүй, хүний annotation-гүй эцсийн үнэлгээний баталгаа биш.",
       "project_decision_mn": "Judge-ийн алдааг хүний шүүлттэй нягтлах үндэслэл; approved gold-той үнэлгээний дизайн бэлтгэнэ.",
-      "assistant_checked_scope": "primary_metadata_and_abstract_screened",
+      "assistant_checked_scope": "pdf_sections_3.2_3.3_7_judges_relevance_faithfulness_human_PPI_limitations_checked_2026-10-15",
       "full_reading_complete": false,
       "student_reading_confirmed": false,
       "student_progress": "not_confirmed"

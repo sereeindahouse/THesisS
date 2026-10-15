@@ -9,6 +9,85 @@ from answer_contract import tuition_amount_query
 _FIRST = r'(?<!\w)(?:1-р|нэгдүгээр|i)\s+курс'
 _SECOND = r'(?<!\w)(?:2-р|хоёрдугаар|ii)\s+курс'
 
+# These words describe the requested attribute, rather than identifying one
+# department, scholarship or Japan pathway. Names come from the supplied
+# source text; this list contains no answer values or scholarship names.
+_SCOPE_GENERIC = frozenset('''энэ тэр аль ямар юу вэ бэ уу үү юм байна байгаа
+оны онд он сарын сар жил жилийн хичээлийн эх эхийн хуудсанд хуудасны
+мэдээлэл мэдээлсэн нийтэлсэн нийтлэгдсэн мэдээнд тухай талаар гэж гэсэн
+хэд хэдэн хэддүгээр хэддүгээрийн хэр хэрхэн яаж өгөөч өгнө нэр нэрийг
+имэйл имэйлийг мэйл утас холбоо барих тэнхим тэнхимийн эрхлэгч эрхлэгчийн
+тэтгэлэг тэтгэлэгт тэтгэлгийн хөтөлбөр хөтөлбөрийн хөтөлбөрт
+хамрагдах хамрагдаж хамрагддаг боломж боломжтой болзол нөхцөл шаардлага
+шаардлагад шаардлагатай тавьдаг ямархуу курс курсийн курсийнхэн оюутан
+оюутны оюутнууд сурагч сурагчид сургууль сургуулийн манай танай
+япон японы японд улсын улс руу явах явахад хэл хэлний түвшин үргэлжлэх
+үргэлжилдэг үргэлжилнэ вэ хоног хоногийн өдөр өдрийн хугацаа хугацааг
+сарын дүн хэмжээ эхлэх олгох зарласан есдүгээр наймдугаар дөрөвдүгээр
+болон ба тус бүр хувьд нь n jlpt eju'''.split())
+_SCOPE_SUFFIXES = ('гийн', 'ийн', 'ын', 'аар', 'ээр', 'оор', 'өөр', 'аас', 'ээс', 'оос', 'өөс')
+
+
+def _scope_words(text):
+    words = set(re.findall(r'[^\W\d_]+', text.casefold())) - _SCOPE_GENERIC
+    result = set()
+    for word in words:
+        for suffix in _SCOPE_SUFFIXES:
+            if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+                word = word[:-len(suffix)]
+                break
+        if word not in _SCOPE_GENERIC:
+            result.add(word)
+    return result
+
+
+def _literal_scope(query, sources):
+    """A literal, non-generic query/source name overlap, not inferred NER."""
+    query_words = _scope_words(query)
+    return bool(query_words & _scope_words('\n'.join(
+        source.get('title', '') + '\n' + source['text'] for source in sources)))
+
+
+def _department_names(sources):
+    names = []
+    for source in sources:
+        title = source.get('title', '').strip()
+        if 'тэнхим' in title.casefold() and title.casefold() not in {'тэнхим', 'тэнхимүүд'}:
+            if title not in names:
+                names.append(title)
+    return names
+
+
+def department_evidence_sources(query, sources):
+    """Keep one literally named department's staff evidence, when unambiguous.
+
+    Only supplied source titles identify departments. This bounded lexical
+    filter does not infer names from body text, URLs, dates or retrieval rank.
+    Generic, comparative and multiple-department questions retain every source.
+    """
+    q = query.casefold()
+    if ('тэнхим' not in q or not re.search(r'багш|эрхлэгч', q)
+            or re.search(r'харьцуул|тэнхимүүд|бүх\s+тэнхим|бусад\s+тэнхим|өөр\s+тэнхим|хоёр\s+тэнхим', q)):
+        return sources
+    query_words = _scope_words(query)
+    matches = {}
+    for source in sources:
+        title = source.get('title', '')
+        if not isinstance(title, str) or 'тэнхим' not in title.casefold():
+            continue
+        named_words = {word for word in _scope_words(title) if not word.startswith('инженер')}
+        if named_words and named_words <= query_words:
+            key = ' '.join(title.casefold().split())
+            matches.setdefault(key, set())
+            if source.get('url'):
+                matches[key].add(source['url'])
+    if len(matches) != 1:
+        return sources
+    title, urls = next(iter(matches.items()))
+    return [source for source in sources
+            if source.get('url') in urls
+            or ' '.join(source.get('title', '').casefold().split()) == title]
+
 
 def registration_amount_query(query):
     q = query.casefold()
@@ -19,6 +98,23 @@ def registration_amount_query(query):
 def ambiguity(query, sources):
     q = query.casefold()
     text = '\n'.join(s['text'].casefold() for s in sources)
+    if ('тэнхим' in q and 'эрхлэгч' in q and re.search(r'нэр|имэйл|мэйл|утас', q)
+            and not _literal_scope(query, sources)):
+        names = _department_names(sources)
+        return ('Аль тэнхимийн эрхлэгчийн нэр, холбоо барих мэдээлэл хэрэгтэй вэ?'
+                + (' ' + '; '.join(names[:5]) + '.' if names else ''), [])
+    japan = bool(re.search(r'япон', q))
+    pathway = bool(re.search(r'дадлаг|дэвшин|суралц|аялал|ажил(?:лах|д|длах)|танилцах', q))
+    multiple = bool(re.search(r'харьцуул|хөтөлбөрүүд|бүх\s+тэтгэл|тэтгэлгүүд', q))
+    if (japan and (re.search(r'хоног|хугацаа|үргэлжил|хэр удаан', q)
+                   or ('хэл' in q and re.search(r'шаардлаг|түвшин', q)))
+            and not pathway and not multiple and not _literal_scope(query, sources)):
+        return ('Япон руу явах аль замыг асууж байна вэ: танилцах хөтөлбөр, дадлага, '
+                'дэвшин суралцах эсвэл ажиллах уу? Хугацаа, хэлний шаардлага нь замаасаа хамаарна.', [])
+    if ('тэтгэл' in q and re.search(r'курс|хамрагд|хамрагдах|шаардлаг|нөхцөл|дүн|хэмжээ|хугацаа|эхлэх|хэзээ|хэд', q)
+            and not multiple and not _literal_scope(query, sources)):
+        return ('Аль тэтгэлэгт хөтөлбөрийн тухай асууж байна вэ? Тэтгэлгийн нэрийг нэмж асууна уу; '
+                'хамрагдах курс, нөхцөл нь хөтөлбөрөөсөө хамаарна.', [])
     if ('бүртгэ' in q and 'хураамч' in q and re.search(r'хэд|төгрөг', q)):
         return ('Бүртгэлийн хураамжийн тухай асууж байна уу? Элсэлтийн эсвэл олимпиадын бүртгэл үү?',
                 ['Элсэлтийн бүртгэлийн хураамж хэд вэ?', 'Олимпиадын бүртгэлийн хураамж хэд вэ?'])
@@ -60,6 +156,16 @@ def ambiguity(query, sources):
 def requested_detail(query):
     """Return a narrow missing-field screen, not an automatic truth label."""
     q = query.casefold()
+    if ('ханш' in q and re.search(r'өнөөдр|яг одоо|одоогийн|одоог|бодит цаг', q)):
+        return 'current_exchange_rate'
+    if ('лаборатор' in q and re.search(r'нээлттэй|ажиллах цаг|цагийн хуваарь|хэдээс|хэд хүртэл', q)
+            and re.search(r'долоо хоног|өдр|хэдээс|хэд хүртэл|цагийн хуваарь', q)):
+        return 'laboratory_opening_hours'
+    if (re.search(r'давж\s+заалд|гомдол\s+гарга', q)
+            and re.search(r'хоног|өдөр|хугацаа|хэзээ', q)):
+        return 'appeal_deadline'
+    if ('цалин' in q and re.search(r'баталгаат|баталгаатай|заавал|батлан', q)):
+        return 'guaranteed_salary'
     if re.search(r'элсэлтийн\s+(?:алб|комисс)', q) and re.search(r'утас|имэйл|мэйл', q):
         return 'admission_office_contact'
     if registration_amount_query(query):
@@ -82,6 +188,10 @@ def requested_detail(query):
 
 
 DETAIL_LABELS = {
+    'current_exchange_rate': 'өнөөдрийн бодит валютын ханш',
+    'laboratory_opening_hours': 'лабораторийн нээлттэй өдөр, цагийн хуваарь',
+    'appeal_deadline': 'давж заалдах/гомдол гаргах хугацаа',
+    'guaranteed_salary': 'баталгаатай олгох цалингийн хэмжээ, нөхцөл',
     'registration_amount': 'бүртгэлийн хураамжийн дүн',
     'admission_office_contact': 'элсэлтийн алба/комиссын холбоо барих мэдээлэл',
     'essay_font': 'эссэний фонт, үсгийн пунктын шаардлага',
@@ -98,7 +208,24 @@ def detail_supported(field, text):
     # Nearby programme duration, A4 format and word count are not substitutes.
     if field == 'registration_amount':
         return bool(re.search(r'бүртгэлийн\s+хураамж\w*[:\s]*\d+(?:[.,]\d+)*\s*(?:төгрөг|₮)', text.casefold()))
+    if field == 'current_exchange_rate':
+        # A captured conversion, even with a date or the word "today", cannot
+        # establish a live rate. This application has no live FX evidence tool.
+        return False
     for clause in re.split(r'\n|(?<=[.!?])\s+', text.casefold()):
+        if (field == 'laboratory_opening_hours' and 'лаборатор' in clause
+                and re.search(r'нээлттэй|ажилла(?:х|на|даг)|цагийн хуваарь', clause)
+                and re.search(r'даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням|өдөр бүр|өдрүүд', clause)
+                and re.search(r'\d{1,2}[:.]\d{2}|\d+\s*цагаас|\d+\s*цаг хүртэл', clause)):
+            return True
+        if (field == 'appeal_deadline' and re.search(r'давж\s+заалд|гомдол\s+гарга', clause)
+                and re.search(r'\d+\s*(?:ажлын\s+)?(?:хоног|өдөр)|\d{1,2}[:/]\d{1,2}|\d+\s*сарын\s*\d+', clause)):
+            return True
+        if (field == 'guaranteed_salary' and 'цалин' in clause
+                and re.search(r'баталгаат|баталгаатай|заавал|батлан', clause)
+                and not re.search(r'баталгаагүй|баталгаатай\s+(?:биш|гэж.{0,20}болохгүй)', clause)
+                and re.search(r'\d+(?:[.,]\d+)*\s*(?:иен|төгрөг|₮|доллар|usd|jpy|mnt)', clause)):
+            return True
         if (field == 'admission_office_contact' and re.search(r'элсэлтийн\s+(?:алб|комисс)', clause)
                 and re.search(r'утас|имэйл|мэйл', clause) and re.search(r'\d|@', clause)):
             return True

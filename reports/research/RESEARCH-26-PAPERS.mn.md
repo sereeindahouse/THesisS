@@ -32,7 +32,7 @@
 - **paper21 — [Common Voice: A Massively-Multilingual Speech Corpus](https://aclanthology.org/2020.lrec-1.520/)**: Ирээдүйн олон хэлэгчийн тестийн provenance/release/split хадгалах; өөрийн training scope нэмэхгүй.
 - **paper22 — [Scaling Speech Technology to 1,000+ Languages](https://arxiv.org/abs/2305.13516)**: Нөөц багатай хэлний өөр model family-н судалгааны үндэслэл; шинэ том download эхлүүлэхгүй.
 - **paper23 — [M3-Embedding: Multi-Linguality, Multi-Functionality, Multi-Granularity Text Embeddings Through Self-Knowledge Distillation](https://arxiv.org/abs/2402.03216)**: E5 baseline-ийн бодит дутагдал тогтоогдвол нэмэлт candidate; одоо default болгохгүй.
-- **paper24 — [ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems](https://aclanthology.org/2024.naacl-long.20/)**: Judge-ийн алдааг хүний шүүлттэй нягтлах үндэслэл; approved gold-той үнэлгээний дизайн бэлтгэнэ.
+- **paper24 — [ARES: An Automated Evaluation Framework for Retrieval-Augmented Generation Systems](https://aclanthology.org/2024.naacl-long.20/)** — **Аргын сонгосон хэсэг (§3.2–3.3, §7; 2026.10.15)**: Context relevance, answer faithfulness, answer relevance-ийг ялгаж, judge-ийн алдааг хүний annotation-тай нягтлах үндэслэл; PPI/judge training-ийг манайд хэрэгжүүлээгүй.
 - **paper25 — [SelectiveNet: A Deep Neural Network with an Integrated Reject Option](https://proceedings.mlr.press/v97/geifman19a.html)**: Хариулсан хувь ба тэр дундах алдааг хамт тайлагнах санаа; шинэ router model сургахгүй.
 - **paper26 — [MIRACL: A Multilingual Retrieval Dataset Covering 18 Diverse Languages](https://aclanthology.org/2023.tacl-1.63/)**: Query–relevant source labels, nDCG/Recall хүрээг ойлгох; локал gold-ийг human approval-гүй батлагдсан гэж үзэхгүй.
 
@@ -45,3 +45,9 @@ Whisper/Халх ASR → бэлэн Монгол checkpoint ба WER/CER. BM25/B
 Ойрын гүн уншлагын дараалал: paper14 E5 ба paper10 BM25 (ажилласан code/protocol), paper13 BEIR (benchmark/split ба домайн), paper16 ALCE ба paper18 RAGAs (үнэлгээний rubric), paper19 Human-AI (дууны алдаа засах урсгал). Хэрэглэгчийн Whisper уншлага §3.5-аас үргэлжилнэ. Нэг өгүүллийг дуусахыг бүх кодын ажлын gate болгохгүй.
 
 [CSV бүртгэл](../../data/literature-matrix.csv), [catalog](../../data/research-catalog-20261010.json), [судалгааны асуудал/RQ/туршилтын ноорог](THESIS-RESEARCH-SYNTHESIS-2026-10-10.mn.md). CSV нь анхны гурван мөрийн түүхийг хадгалсан; registry-ийн тоо болон уншлага дууссан тоо өөр.
+
+## 2026.10.15 — үнэлгээний сонгосон хэсгийн уншлагын нэмэлт
+
+Туслах [paper16 ALCE-ийн §3.3, §3.4, §6](https://aclanthology.org/2023.emnlp-main.398.pdf) болон [paper24 ARES-ийн §3.2, §3.3, §7](https://aclanthology.org/2024.naacl-long.20.pdf)-г албан эхээс нягталсан. Хэрэгжүүлэлтэд хариултын эхийн дэмжлэг, асуултад хамаарал, бүрэн байдлыг салгаж шалгах, AI judge-ийн дүнг хүний annotation гэж тооцохгүй байх үндэслэл болгосон. Эхийн урт хэсгийг шууд эшилсэн нь асуусан бүх талбарт зөв хариулсан баталгаа биш. [Аргын дэлгэрэнгүй тэмдэглэл](../../papers/06-evaluation-interface-method-notes.mn.md).
+
+Энэ нь хоёр өгүүллийн bounded section reading; full_reading_complete=false хэвээр. Нийт 26 өгүүллийг бүтнээр уншсан гэж дүгнэхгүй. Хэрэглэгчийн уншлагын явц, student_progress, student_reading_confirmed болон анхны CSV бүртгэлийг энэ шинэчлэлтээр өөрчлөөгүй. ARES-ийн PPI/сургасан judge-ийг хэрэгжүүлээгүй; Монгол diagnostic-ийн AI үнэлгээ human gold эсвэл статистикийн CI биш.

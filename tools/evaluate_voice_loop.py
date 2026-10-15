@@ -69,7 +69,7 @@ def run(cases_path,output_dir,base_url,reuse_audio=None):
     names=RUNTIME_ARTIFACT_NAMES
     expected={n:file_sha(ROOT/n) for n in names}
     if any(value is None for value in expected.values()):
-        raise ValueError('Runtime fingerprint requires all six local code files.')
+        raise ValueError('Runtime fingerprint requires all required local code files.')
     status=request('/api/status')
     if any(status.get('rag',{}).get('loaded_artifact_sha256',{}).get(n)!=v for n,v in expected.items()):
         raise ValueError('Stale demo code; restart before voice collection.')

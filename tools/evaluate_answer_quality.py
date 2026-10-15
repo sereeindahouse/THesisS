@@ -16,14 +16,14 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ARTIFACT_NAMES = ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
-    'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py')
+    'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'evidence_contract.py', 'speech_text.py')
 
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
 
 
-def run(cases_path, output, base_url, validation_path=None):
+def run(cases_path, output, base_url, validation_path=None, label_scope=None):
     # This collector intentionally sends questions only to the local thesis demo.
     from urllib.parse import urlsplit
     parts = urlsplit(base_url)
@@ -52,7 +52,7 @@ def run(cases_path, output, base_url, validation_path=None):
         artifact_names = RUNTIME_ARTIFACT_NAMES
         expected_artifacts = {name: sha(ROOT/name) for name in artifact_names}
         if any(value is None for value in expected_artifacts.values()):
-            raise ValueError('Runtime fingerprint requires all six local code files.')
+            raise ValueError('Runtime fingerprint requires all required local code files.')
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         status_request = urllib.request.Request(base_url.rstrip('/')+'/api/status',
             headers={'Origin': base_url.rstrip('/')})
@@ -75,10 +75,11 @@ def run(cases_path, output, base_url, validation_path=None):
     tracked = ['tools/evaluate_answer_quality.py', 'tools/validate_answer_cases.py',
                'source_fields.py', 'rag_runtime.py', 'answer_contract.py', 'website_retrieval.py', 'demo_server.py',
                'voice_runtime.py', 'llm_runtime.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'CORE/database/website.db',
-               'runtime/content.db', 'CORE/website/document-excerpts-20261012.json',
+               'runtime/content.db', 'evidence_contract.py', 'speech_text.py', 'CORE/website/document-excerpts-20261012.json',
                'config/model-catalog/gemma3-4b-text.json', 'runtime/rag-model.json']
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),
-        label_scope=bundle.get('label_scope', 'Unreviewed'), cases_sha256=sha(cases_path),
+        label_scope=label_scope or bundle.get('label_scope', 'Unreviewed'),
+        input_label_scope=bundle.get('label_scope', 'Unreviewed'), cases_sha256=sha(cases_path),
         artifact_sha256={name: sha(ROOT/name) for name in tracked},
         git_head=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
         git_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT, text=True)),
@@ -119,5 +120,6 @@ if __name__ == '__main__':
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--base-url', default='http://127.0.0.1:8765')
     parser.add_argument('--validation', type=Path, help='Frozen reference validation report; must match input cases.')
+    parser.add_argument('--label-scope', help='Run-specific scope, e.g. observed development rerun; preserves original input label separately.')
     args = parser.parse_args()
-    run(args.cases, args.output, args.base_url, args.validation)
+    run(args.cases, args.output, args.base_url, args.validation, args.label_scope)

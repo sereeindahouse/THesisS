@@ -108,49 +108,57 @@ class AuditContracts(unittest.TestCase):
 
 
 class ClaimContracts(unittest.TestCase):
-    def generate(self, text, source_text=SOURCE['text'], copies=1):
+    def generate(self, proposal, source_text=SOURCE['text']):
         source = dict(SOURCE, text=source_text)
-        proposal = dict(insufficient=False, claims=[dict(source_id=source['source_id'], text=text) for _ in range(copies)])
         generator = GroundedGenerator('.')
         generator.model = 'test'
         with patch.object(generator, 'status', return_value=dict(available=True)), patch.object(
                 generator, '_request', return_value=dict(done=True, message=dict(content=json.dumps(proposal)))):
             return generator.generate('Төлбөр хэд вэ?', [source])
 
+    def select(self, text):
+        from evidence_contract import evidence_units
+        units=evidence_units([dict(SOURCE,text=text)])
+        return self.generate(dict(insufficient=False,unit_ids=['u1']),text)
+
     def test_yearly_fee_cannot_become_monthly_with_same_number(self):
-        result = self.generate('Сургалтын төлбөр сард 8,280,000 ₮.')
+        result=self.generate(dict(insufficient=False,claims=[dict(source_id=SOURCE['source_id'],
+            text='Сургалтын төлбөр сард 8,280,000 ₮.')]))
         self.assertFalse(result['generated'])
-        self.assertEqual(result['reason'], 'unsupported_quantity_context')
+        self.assertEqual(result['reason'],'invalid_generation')
 
     def test_registration_fee_cannot_become_tuition(self):
-        result = self.generate('Сургалтын төлбөр 20,000 төгрөг.', 'Бүртгэлийн хураамж 20,000 төгрөг.')
+        result=self.generate(dict(insufficient=False,unit_ids=['Сургалтын төлбөр 20,000 төгрөг.']),
+            'Бүртгэлийн хураамж 20,000 төгрөг.')
         self.assertFalse(result['generated'])
 
-    def test_units_attach_to_same_number_not_whole_source(self):
-        result = self.generate('Сургалтын төлбөр сард 8,280,000 ₮.',
-            'Сургалтын төлбөр жилд 8,280,000 ₮. Дотуур байрны төлбөр сард 200,000 ₮.')
-        self.assertFalse(result['generated'])
+    def test_selected_numbers_keep_original_fee_and_period_roles(self):
+        text='Сургалтын төлбөр жилд 8,280,000 ₮. Дотуур байрны төлбөр сард 200,000 ₮.'
+        result=self.select(text)
+        self.assertEqual(result['claims'][0]['text'],text)
 
     def test_correct_monthly_fee_is_accepted(self):
-        text = 'Сургалтын төлбөр сард 690,000 ₮.'
-        self.assertTrue(self.generate(text, text)['generated'])
+        text='Сургалтын төлбөр сард 690,000 ₮.'
+        self.assertEqual(self.select(text)['claims'][0]['text'],text)
 
-    def test_html_fee_label_on_previous_line_is_supported(self):
-        result = self.generate('Бүртгэлийн хураамж 5,000 ₮.',
-            'Байгалийн ухааны олимпиад\nБүртгэлийн хураамж\n5,000 ₮\nХичээл')
+    def test_html_fee_label_on_previous_line_is_preserved(self):
+        text='Байгалийн ухааны олимпиад\nБүртгэлийн хураамж\n5,000 ₮\nХичээл'
+        result=self.select(text)
         self.assertTrue(result['generated'])
+        self.assertIn('Бүртгэлийн хураамж\n5,000 ₮',result['claims'][0]['text'])
 
-    def test_semantic_guard_is_not_a_general_entailment_proof(self):
-        # Known residual blind spot explicitly retained in the evidence.
-        result = self.generate('Элсэх эрхийг бусдад шилжүүлж болно.',
-            'Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.')
-        self.assertTrue(result['generated'])
+    def test_free_text_cannot_reverse_source_negation(self):
+        source='Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.'
+        forged=dict(insufficient=False,claims=[dict(source_id=SOURCE['source_id'],text='Элсэх эрхийг бусдад шилжүүлж болно.')])
+        self.assertFalse(self.generate(forged,source)['generated'])
+        self.assertEqual(self.select(source)['claims'][0]['text'],source)
 
     def test_total_generated_answer_fits_speech_budget(self):
-        text = 'Т' * 850
-        result = self.generate(text, text, copies=3)
+        from evidence_contract import evidence_units
+        source='Нөхцөл. '+('Т'*850)+'\nӨөр нөхцөл. '+('Б'*850)+'\nНэмэлт. '+('М'*850)
+        units=evidence_units([dict(SOURCE,text=source)])
+        result=self.generate(dict(insufficient=False,unit_ids=[f'u{i+1}' for i in range(len(units))]),source)
         self.assertFalse(result['generated'])
-        self.assertEqual(result['reason'], 'answer_exceeds_speech_budget')
 
 
 if __name__ == '__main__':

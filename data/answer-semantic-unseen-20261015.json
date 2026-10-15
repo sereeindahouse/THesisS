@@ -1,0 +1,715 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-10-15T02:21:22.814944+00:00",
+  "label_scope": "AI-authored source-bounded pre-output diagnostics; human-unreviewed; not final heldout or human accuracy",
+  "label_author": "assistant",
+  "human_reference_review": false,
+  "prepared_before_current_system_outputs": true,
+  "source_snapshot": "runtime/week04-coverage-20261015/indexed-passages.json",
+  "source_snapshot_sha256": "1c224fd67aa95696096845a577efb3a6776870c654e04b4f788fc94554920abb",
+  "question_intent_projection_sha256": "8150b10f4df7e30c8ed4fc949e4b13f1cafa52cb4aef93ab236bad6090aae395",
+  "stage": "frozen_before_first_semantic_unseen_output",
+  "counts": {
+    "cases": 16,
+    "reference_answerability": {
+      "answerable": 11,
+      "needs_clarification": 2,
+      "unsupported_in_verified_passages": 3
+    }
+  },
+  "strict_independent_human_evaluation": false,
+  "evaluation_lifecycle": "Unseen to backend implementers until code freeze; AI-authored diagnostic. Retire to development after first output or any tuning use.",
+  "corpus_fingerprint": {
+    "algorithm": "sha256",
+    "value": "1c224fd67aa95696096845a577efb3a6776870c654e04b4f788fc94554920abb",
+    "byte_scope": "exact indexed-passages.json bytes",
+    "passage_count": 201
+  },
+  "overlap_audit": {
+    "previous_cases_path": "data/answer-untuned-20261015.json",
+    "previous_cases_sha256": "e4a71e509478609a4562890549a1843a5342d8b598ee152e9312c220554785d1",
+    "previous_case_count": 24,
+    "exact_query_overlap": 0,
+    "exact_attribute_overlap": 0,
+    "semantic_overlap_review": "Author compared all 24 prior intents; new object/attribute tasks, no prior-task paraphrases. Shared error classes remain intentional.",
+    "old_outputs_read": false,
+    "old_reviews_read": false
+  },
+  "protocol": {
+    "case_author": "separate assistant subagent",
+    "implementation_files_read": false,
+    "runtime_model_outputs_read": false,
+    "model_or_route_calls_before_freeze": 0,
+    "sampling": "Purposive nonrandom diagnostic sample.",
+    "evidence_validation": "Existing source-ref validator checks exact quote membership, locator, version, offsets and hashes; does not certify semantic labels.",
+    "missing_evidence_audit": "Full 201-passage keyword matches for budget/menu/accreditation terms and nearest contextual passages were inspected; absence labels are bounded to this frozen collection.",
+    "anti_tuning": "Freeze exact source, questions, references and rubric before one final-code run; keep first results and all failures; subsequent fixes are development.",
+    "review_rubric": {
+      "prepared_before_model_outputs": true,
+      "language": "mn",
+      "sha256": "d8778e96bc8adcf7c05e52bc5585ef54149d249917fb61a77df698a7df264f24",
+      "markdown": "# Шинэ 16 diagnostic кейсийн урьдчилсан үнэлгээний дүрэм\n\nЭнэ нь AI туслахын source-only зохиосон, санамсаргүй бус жижиг багц. Хүний gold,\nэцсийн дипломын benchmark, бодит хэрэглэгчийн accuracy биш. Хуучин 24 кейсийн\nintent-ийг зөвхөн давхцал шалгахад уншсан; хуучин гаралт, AI review, шинэ backend\nкодыг зохиогч уншаагүй. Асуулт, reference, энэ дүрмийг шинэ model output-оос өмнө\nхөдөлгөөнгүй болгоно. Backend implementer-д үгчилсэн асуултыг код freeze хүртэл\nүзүүлэхгүй. Эх нь тогтоосон 201 хэсэг; өнөөдрийн бодит бүх вэбийг төлөөлөхгүй.\n\nКейс бүрт долоон хэмжээсийг тусад нь pass / partial / fail / not_applicable гэж\nбүртгэнэ: correctness, citation_support, answer_relevance, completeness,\nabstention, clarification, response_appropriateness. Кейсийн нийт дүн ба\nтайлбарыг тусад нь хадгална. HTTP/provider алдааг утгын алдаанаас салгана.\n\nCorrectness нь хэлсэн баримтын объект, тоо, нэгж, огноо, хүрээ, completed/planned/\nongoing/goal хэлбэрийг эхтэй тулгана. Citation_support нь бодитоор буцаасан эшлэл\nтэр мэдэгдлийг дэмжсэн эсэх; URL/ID/үг давхцах нь нотолгоо биш. Answer_relevance\nнь асуусан зүйлд чиглэсэн эсэх. Completeness нь required_facts бүх гол талбарт\nхариулсан эсэх. Эшлэлийн хавсралтад баримт байгааг хариултын үндсэн текст эсвэл\nspokentext-д орхигдсон хариултын орлуулга гэж автоматаар тооцохгүй.\n\nЯг эхийн хэсгийг хариулт болгон өгөх нь зөвшөөрөгдөнө. Гэхдээ хариултын сонгосон\nхэсэг нь асуусан утгыг хадгалж, хэрэгтэй бүх гол талбарыг багтаах ёстой. Эхийн\nбүх хэсгийг өөрийг нь эшлэн буцааснаар relevance/completeness автоматаар pass\nболохгүй. Илүүдэл текст чухал ялгааг далдалбал response_appropriateness partial;\nутга буруу холбогдсон бол correctness fail. Зөв баримтын найруулгын жижиг алдаа,\nкирилл/латин хувилбар, ойролцоо нэр томьёог утга өөрчлөөгүй бол шийтгэхгүй.\n\nAnswerable 11 кейст бүх required facts зөв, гол дутуу зүйлгүй, бодит эшлэлүүд нь\nхариултыг дэмжсэн, материаллаг зохиомол мэдэгдэлгүй бол нийт pass. Гол баримтын\nзарим нь зөв боловч бусад нь дутуу, буруу шинэ мэдэгдэлгүй бол partial. Гол\nтоо/объект/он/хүрээ буруу, ямар ч гол хариултгүй, эхтэй зөрсөн эсвэл эхэд байхад\nүндэслэлгүй бүрэн татгалзсан бол fail. Тайлбарлахдаа зөв ба буруу талбарыг нэрлэнэ.\n\nAmbiguity 2 кейст дутуу объект/нэгж/танхимын төрлийг нэрлэж тодруулах асуулт\nасуувал pass. Боломжит утгуудыг зөв хүрээтэй нь нөхцөлтэй салгаж хариулахыг мөн\nзөвшөөрнө. Нэгийг тааж бүх тохиолдолд адил мэт хэлэх нь fail. Аюултай таамаггүй\nч материаллаг ялгааг илэрхийлээгүй хэт ерөнхий тусламж partial. D route шаардахгүй.\n\nUnsupported 3 кейст яг асуусан огноо/төсөв/live мэдээлэл эхээр тогтоогдоогүйг\nил тод хэлж, баримт зохиохгүй бол pass. Ойролцоох эхтэй контекст өгч болно.\nАсуултын гол талбарт чимээгүйгээр хамаагүй мэдээлэл өгсөн бол partial. Баттай\nмэдээлэл мэт таамагласан, зохиомол тоо/огноо өгсөн, эсвэл эхийн чимээгүйгээс\nтөсөв/цэс/эрх огт байхгүй гэж дүгнэвэл fail. E route шаардахгүй.\n\nAI review нь assistant_review; human_review null, human_reference_review false\nхэвээр. Хүний бодит хяналт хийгдээгүйг хүний дүнгээр сольж бичихгүй. Route болон\nLLM call-ийн тоо нь үйл ажиллагааны хэмжүүр; answer accuracy-ийн label биш.\nЭхний гаралтын бүх амжилт, алдаа, тасалдсан оролдлогыг хадгална. Дараа нь энэ\nбагцаар засвар хийвэл development багц болсон гэдгийг ил тод тэмдэглэнэ. Ерөнхий\naccuracy хувь, статистикийн CI, ARES/ALCE-г бүтнээр хэрэгжүүлсэн гэж дүгнэхгүй.\n"
+    },
+    "research_application": "ALCE sections 3.3/3.4/6 and ARES sections 3.2/3.3/7 motivated distinct support/relevance/completeness and explicit human-label boundaries. This is an original bounded protocol, not a reproduction of either benchmark."
+  },
+  "cases": [
+    {
+      "id": "semantic-unseen04-01",
+      "query": "Сургалтын орчны танилцуулгад ердийн анги танхим болон лабораторийг тус бүр хэдэн өрөө, хэдэн суудалтай гэж мэдээлсэн бэ?",
+      "requested_attribute": "environment.classroom_laboratory_room_seat_roles",
+      "expected_behavior": "Дөрвөн тоог зөв объект, хэмжих нэгжтэй нь холбоно; хадгалсан танилцуулгын хүрээг хадгална.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Анги танхим: 25 өрөө.",
+        "Анги танхим: 658 суудал.",
+        "Туршилт, дадлагын лаборатори: 13.",
+        "Лаборатори: 278 суудал."
+      ],
+      "forbidden_claims": [
+        "658 эсвэл 278-ыг өрөөний тоо болгох.",
+        "25 эсвэл 13-ыг суудлын тоо болгох.",
+        "Дурдсан суудлын тоог өнөөдрийн ашиглах сул суудлын тоо гэж батлах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "quantity_role",
+      "source_refs": [
+        {
+          "source_id": "web-5dade7d3100d21c404bd",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:901",
+          "quote_start": 328,
+          "quote_end": 378,
+          "quote_sha256": "17f17c8957ca904155bf9644bcc8e916a894b0dfeafe3d40c0040c7dea3e60bc",
+          "passage_sha256": "54a0eb4337f79002a4c9d28157af83aba5b55709b8c4a1d4636b1373458a7ba5"
+        },
+        {
+          "source_id": "web-5dade7d3100d21c404bd",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:901",
+          "quote_start": 613,
+          "quote_end": 668,
+          "quote_sha256": "228d1819d114565bf4f9042587fa3760d888c799a23de2629b5a77c3c06b090e",
+          "passage_sha256": "54a0eb4337f79002a4c9d28157af83aba5b55709b8c4a1d4636b1373458a7ba5"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-02",
+      "query": "Нийтийн хоолны газрын үйлчилгээний танхимын талбай ба хүний суудлын тоо хэд вэ?",
+      "requested_attribute": "environment.cafeteria_area_seat_roles",
+      "expected_behavior": "Талбай болон суудлыг салгаж, хоёуланд хариулна.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Үйлчилгээний танхимын талбай 400 м².",
+        "Хүний суудал 360."
+      ],
+      "forbidden_claims": [
+        "400 хүний суудалтай гэж солих.",
+        "360 м² гэж талбай болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "quantity_role",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 563,
+          "quote_end": 755,
+          "quote_sha256": "6361be90a28738beb5540195aeb19e5843b0506a848f6a6d598870ec7901ffa1",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-03",
+      "query": "Сургалтын орчны хуудсанд спортын хоёр заал, бүжгийн танхимын талбайг тус тус болон нийлбэрээр нь яаж мэдээлсэн бэ?",
+      "requested_attribute": "environment.shared_sports_dance_area_scope",
+      "expected_behavior": "Хоёр заалын нийлмэл талбай, бүжгийн талбай, нийт талбай ба дундын ашиглалтын хүрээг хадгална.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Шинэ Монгол ЕБС-ийн дундын ашиглалтын 2 спорт заалын талбай 644.7 м².",
+        "Бүжгийн танхим 360 м².",
+        "Нийт талбай 1004.7 м²."
+      ],
+      "forbidden_claims": [
+        "644.7 м²-ыг нэг заал тус бүрийн талбай гэж хэлэх.",
+        "Дундын ашиглалтын заалуудыг зөвхөн коллежийн өмч гэж батлах.",
+        "1004.7-ыг суудлын тоо болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "quantity_scope_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 335,
+          "quote_end": 562,
+          "quote_sha256": "74fe7a1bb798cb62a4556fa2463cc23226d3c1a3de9a3e132ecb953858f3a6fb",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-04",
+      "query": "Номын сангийн нийт номын үзүүлэлт, нэг оюутанд ногдох номын хүрээ, Koha ашиглаж эхэлсэн оныг хамтад нь хэлээрэй.",
+      "requested_attribute": "environment.library_stock_per_student_koha_year",
+      "expected_behavior": "Гурван ялгаатай үзүүлэлтэд хариулж, + тэмдэг болон интервалын утгыг хадгална.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "3270+ ном, сурах бичиг гэж мэдээлсэн.",
+        "Нэг оюутанд 5.2–7.9 ном ногдоно гэжээ.",
+        "Koha программыг 2016 оноос нэвтрүүлэн ашиглаж байна гэжээ."
+      ],
+      "forbidden_claims": [
+        "3270-ыг яг тэнцүү баталгаат өнөөдрийн тоо гэж хэлэх.",
+        "5.2–7.9-ийг сургалтын жил эсвэл номын үнэ болгох.",
+        "Koha ашиглаж эхэлсэн оныг сургуулийн үүссэн онтой адилтгах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "quantity_temporal_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 124,
+          "quote_end": 334,
+          "quote_sha256": "3c53f9f71a076ef0be2215bfec5615cd6947ced4903998a05ff9c63d15f5e9ee",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-05",
+      "query": "Сургуулийн түүхэнд анх хэдэн оны хэдэн сарын хэдэнд байгуулагдаж, хэдэн оюутан хэдэн бүлгээр эхэлсэн гэжээ?",
+      "requested_attribute": "history.founding_date_initial_students_groups",
+      "expected_behavior": "Байгуулагдсан огноо, эхний оюутан ба бүлгийн тоог бүрэн ялгаж өгнө.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2014 оны 9 сарын 15-нд үүсгэн байгуулагдсан гэжээ.",
+        "Анхны 93 оюутан.",
+        "3 бүлгээр хичээллэж эхэлсэн."
+      ],
+      "forbidden_claims": [
+        "93-ыг бүлгийн тоо болгох.",
+        "3-ыг мэргэжлийн тоо гэж өөрчлөх.",
+        "Түүхэн эхний тоог өнөөдрийн тоо болгох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "temporal_quantity_roles",
+      "source_refs": [
+        {
+          "source_id": "web-ff32cc81b1109c3dca5f",
+          "url": "https://nmct.edu.mn/about/history",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:978",
+          "quote_start": 295,
+          "quote_end": 442,
+          "quote_sha256": "6c313152d15da05aed0d4cf49659b126d58878120a5d966517f4c0789799b10a",
+          "passage_sha256": "db6a16b2ff7ddabeeefb9a434d2af00aea8fdde25d817b67c682ae3c509acd4e"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/history",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-06",
+      "query": "Түүхийн хуудсан дахь 2025 оны тусгай зөвшөөрөл, 2026 оны магадлан итгэмжлэлийн явцыг ялгаж тайлбарлаарай.",
+      "requested_attribute": "history.relicensing_2025_reaccreditation_2026_modality",
+      "expected_behavior": "Гарчиг болон өгүүлбэрийн зөрүүг completed гэж дэвэргэхгүй; хуудасны бодит тайлбарын үргэлжилж буй хэлбэрийг хадгална.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2025 онд коллежийн ангиллаар сургалт эрхлэх тусгай зөвшөөрлөө дахин авсан гэжээ.",
+        "2026 оны хэсгийн бодит тайлбар нь байгууллагын магадлан итгэмжлэлд дахин орж байна гэжээ."
+      ],
+      "forbidden_claims": [
+        "2026 оны дахин магадлан итгэмжлэлийг дууссан, шийдвэр гарсан гэж батлах.",
+        "2025 оны тусгай зөвшөөрлийг 2026 оны магадлан итгэмжлэлийн эцсийн шийдвэртэй адилтгах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "temporal_modality",
+      "source_refs": [
+        {
+          "source_id": "web-dc11a0de6a8d7f87e976",
+          "url": "https://nmct.edu.mn/about/history",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1474:1789",
+          "quote_start": 66,
+          "quote_end": 271,
+          "quote_sha256": "2708af5cf3fc768c0619cef6a513cd030b82c916e07e553bc7511aea4e73bb85",
+          "passage_sha256": "00fe2a981241ab9e61df7285ce0d1428787840fa9eab3a30ae39c039f2ed85b8"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/history",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-07",
+      "query": "Чанарын баталгаажуулалтын тогтолцоонд төлөвлөлт, тайлагнал болон хяналт, үнэлгээ ямар чиглэлээр, хэнээс хэнд хүрдэг вэ?",
+      "requested_attribute": "quality.planning_reporting_control_evaluation_direction",
+      "expected_behavior": "Хоёр нэр, чиглэл, эхлэх ба хүрэх түвшнийг ялгаж өгнө.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Төлөвлөлт, тайлагнал доороос дээш чиглэнэ.",
+        "Багш, ажилтнаас удирдлагын түвшинд хүрнэ.",
+        "Хяналт, үнэлгээ дээрээс доош чиглэнэ.",
+        "Удирдлагаас багш, ажилтанд хүрнэ."
+      ],
+      "forbidden_claims": [
+        "Хоёр урсгалыг эсрэгээр солих.",
+        "Аль нэг урсгалыг орхин бүх тогтолцоо гэж танилцуулах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scope_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-0ee9c18aa1f39a6366de",
+          "url": "https://nmct.edu.mn/about/quality",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1404:2377",
+          "quote_start": 166,
+          "quote_end": 274,
+          "quote_sha256": "da58d7895d53336265f228908245a8620e045926e7762a768ddcaa152eb259e0",
+          "passage_sha256": "43d7a66f24224ab48c26069ceb0c44207ff100fb0d0410d3499271ab9b6d92c8"
+        },
+        {
+          "source_id": "web-0ee9c18aa1f39a6366de",
+          "url": "https://nmct.edu.mn/about/quality",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1404:2377",
+          "quote_start": 410,
+          "quote_end": 514,
+          "quote_sha256": "9a407ef589ee982ebe60230515d2f71b541c54a4c188bf5e68dc2378bbce5a47",
+          "passage_sha256": "43d7a66f24224ab48c26069ceb0c44207ff100fb0d0410d3499271ab9b6d92c8"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/quality",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-08",
+      "query": "Чанарын хуудсанд мониторинг болон үнэлгээний зорилго, давтамжийн ялгааг юу гэж тайлбарласан бэ?",
+      "requested_attribute": "quality.monitoring_evaluation_purpose_frequency",
+      "expected_behavior": "Хяналт болон үнэлгээний гол объект, зорилго, давтамжийг эхийн хэмжээнд ялгана.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Мониторинг нь дүрэм, журам, тушаал шийдвэрийн хэрэгжилт болон өдөр тутмын үйл ажиллагааны чанарыг хянаж, тусалж зөвлөхөд чиглэнэ.",
+        "Үнэлгээ нь эрхэм зорилго, алсын хараа, тэнхим хөтөлбөрийн зорилго, зорилтын биелэлтийг тодорхой хугацааны давтамжтай үнэлж шинэчлэн сайжруулахад чиглэнэ.",
+        "Үнэлгээнд дотоод болон гадаад олон талын оролцоо дурдсан."
+      ],
+      "forbidden_claims": [
+        "Мониторинг, үнэлгээ хоёрыг ижил нэг өдөр тутмын шалгалт гэж тайлбарлах.",
+        "Эхэд байхгүй яг өдөр, цагийн хуваарь зохиох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scope_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-a95966f6db9b05c951a3",
+          "url": "https://nmct.edu.mn/about/quality",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:909",
+          "quote_start": 534,
+          "quote_end": 824,
+          "quote_sha256": "77e7b5a216f32a763d6555c1b953099e158b97238184bc8639f03347bf9e4aa2",
+          "passage_sha256": "babe3a4cc4d88e59b1a426b3327a353b633ef19ac48abf70b1f45a165ae5d708"
+        },
+        {
+          "source_id": "web-98610459089b02bfdd1e",
+          "url": "https://nmct.edu.mn/about/quality",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=746:1678",
+          "quote_start": 222,
+          "quote_end": 502,
+          "quote_sha256": "c54e4e893bce783f3c9483de5c3b9a4b4b9ecabb1c06e30309c552eaaf742959",
+          "passage_sha256": "e717fa45659b9280f4ed3df0c80cd2648b3e0928151b2e6977d946a189f8a3fd"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/quality",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-09",
+      "query": "Чанарын оролцогч талуудаас тэнхим, багууд болон оюутнууд улирал тутам тус тус юу хийдэг вэ?",
+      "requested_attribute": "quality.termly_department_student_actions",
+      "expected_behavior": "Хоёр оролцогчийн ажил, улирал тутмын хүрээг хоёуланг хэлнэ.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "Тэнхим, багууд улирал тутам багш, ажилтнуудын санал хүсэлтийг авч үйл ажиллагааны сайжруулалтад тусгана.",
+        "Оюутнууд улирал тутам хичээлийн судалгаа болон сэтгэл ханамжийн судалгаанд оролцоно гэж мэдээлсэн."
+      ],
+      "forbidden_claims": [
+        "Оюутнууд тэнхимийн багшийн саналыг нэгтгэдэг гэж үүргийг солих.",
+        "Улирал тутмыг жилд нэг удаа гэж хувиргах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scope_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-dd5b246675338b09bc5e",
+          "url": "https://nmct.edu.mn/about/quality",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2139:2552",
+          "quote_start": 239,
+          "quote_end": 413,
+          "quote_sha256": "507ae37a98424bf81a54ecaf552534efb866e3d410be9d70ea980790468c7c37",
+          "passage_sha256": "55f57b8d57ec51364dca203b1ca11b227c2c01d89dc9f33d324731e3ebe3e162"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/quality",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-10",
+      "query": "Механикийн тэнхимийн зорилтод CAD, Drafter болон CAM, тоног төхөөрөмжийг ямар өөр чадвартай холбож бичсэн бэ?",
+      "requested_attribute": "mechanical.objectives_cad_drafter_cam_capability_scope",
+      "expected_behavior": "Хоёр хэрэгсэл, технологийн бүлгийн үүргийг ялгаж, эзэмшүүлэх зорилт гэсэн modality-г хадгална.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "CAD, Drafter-ыг механик эд анги, механизмын зураг төсөл боловсруулж симуляци хийх чадвар эзэмшүүлэхтэй холбосон.",
+        "CAM болон металл боловсруулах суурь машин, хэмжилтийн багаж, гагнуурын төхөөрөмжийг ашиглан туршилт, судалгааны ажил хийх технологи эзэмшүүлэхтэй холбосон.",
+        "Эдгээрийг эзэмшүүлэх сургалтын зорилт гэсэн хэлбэрээр тайлбарласан."
+      ],
+      "forbidden_claims": [
+        "Зорилтыг бүх оюутанд аль хэдийн батлагдсан ур чадварын шалгалтын дүн болгох.",
+        "CAD болон CAM-ыг хооронд нь сольж тайлбарлах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "scope_modality_completeness",
+      "source_refs": [
+        {
+          "source_id": "tab-2d866f46dc0970f91267",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "Flight record 4 JSON /3/children/1/3/children/3/children/3/children/0/3/children/3/goalsJson -> text record 16/objectives/2",
+          "quote_start": 0,
+          "quote_end": 119,
+          "quote_sha256": "46fd3241831bbcc77dd19eee2fbb0d1c56b3b1f4963d3e37b8d0395e485cdcd7",
+          "passage_sha256": "46fd3241831bbcc77dd19eee2fbb0d1c56b3b1f4963d3e37b8d0395e485cdcd7"
+        },
+        {
+          "source_id": "tab-0306e8d92cf6ed3c9389",
+          "url": "https://nmct.edu.mn/departments/mechanical",
+          "version": 2,
+          "locator": "Flight record 4 JSON /3/children/1/3/children/3/children/3/children/0/3/children/3/goalsJson -> text record 16/objectives/3",
+          "quote_start": 0,
+          "quote_end": 175,
+          "quote_sha256": "408ca8987de270216b338d75ee98e33838a706f0a08962345fa1e158b209f772",
+          "passage_sha256": "408ca8987de270216b338d75ee98e33838a706f0a08962345fa1e158b209f772"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments/mechanical",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-11",
+      "query": "ARC компанитай хамтын ажиллагааны танилцуулгад 2025–2026 оны намрын ямар гурван хичээл, ажлын ярилцлагын ямар явцыг дурдсан бэ?",
+      "requested_attribute": "computer_science.arc_autumn_courses_interview_modality",
+      "expected_behavior": "Гурван хичээл, онлайн хэрэгжүүлсэн хүрээ, ярилцлагын бодит modality-г хамтад нь өгнө.",
+      "reference_answerability": "answerable",
+      "required_facts": [
+        "2025–2026 оны намрын Интернэт технологи хичээл.",
+        "Үйлдлийн систем хичээл.",
+        "Мэдээллийн нууцлал, хамгаалал хичээл.",
+        "Эдгээр 3 хичээлийн хөтөлбөрийг сайжруулж онлайнаар хэрэгжүүлсэн гэжээ.",
+        "Эхний оюутнууд ажлын ярилцлагад амжилттай оролцсон гэжээ."
+      ],
+      "forbidden_claims": [
+        "Сакура Интернэт эсвэл StoD-ийг ARC-тай сольж нэрлэх.",
+        "Ярилцлагад амжилттай оролцсоныг бүх оюутны ажилд орсон баталгаа болгох.",
+        "Эхэд байхгүй ажилд орсон хүний тоо гаргах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "temporal_modality_completeness",
+      "source_refs": [
+        {
+          "source_id": "web-4a69cd351c9a1c2ed6a2",
+          "url": "https://nmct.edu.mn/departments",
+          "version": 1,
+          "locator": "main_element; chunk_id=3; page_char_offsets=2166:3066",
+          "quote_start": 485,
+          "quote_end": 900,
+          "quote_sha256": "8eadc4c5403e65a90f3853eaa7e8b6ac7653a1accd1b80cc627869d64d6fdae8",
+          "passage_sha256": "6438a35fcec53f5368fc50ba9cd4130da2f51784622fd45f7ec444bfcf0d3a9b"
+        },
+        {
+          "source_id": "web-f458857ade8641cbdc8b",
+          "url": "https://nmct.edu.mn/departments",
+          "version": 1,
+          "locator": "main_element; chunk_id=4; page_char_offsets=2926:4051",
+          "quote_start": 0,
+          "quote_end": 388,
+          "quote_sha256": "a522c78a1a1f388b5830599ff45fb481f0c09e83e55c3cad516f5700ae640c98",
+          "passage_sha256": "d62b48e8f8eb5105134b319fb364138940dafb6da8af4b9bcd61cf241753dbf5"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/departments",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-12",
+      "query": "Сургуулийн танхим хэдэн суудалтай вэ?",
+      "requested_attribute": "environment.seat_count_missing_facility",
+      "expected_behavior": "Танхимын төрлийг таахгүй; мэдээлэлтэй нөхцөлт ялгалт буюу тодруулах асуулт зөвшөөрнө.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [
+        "Ердийн анги, лекцийн танхим, хоолны танхим гэх мэт суудлын өөр өөр үзүүлэлттэй байж болохыг ялгана.",
+        "Аль танхимыг асуусныг тодруулна, эсвэл эхтэй нөхцөлт сонголтуудыг тус тусын хүрээнд өгнө."
+      ],
+      "forbidden_claims": [
+        "Нэг танхимын эсвэл бүх ангийн нийлбэр суудлыг бүх танхимд ижил гэж таах."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "ambiguity_quantity_role",
+      "source_refs": [
+        {
+          "source_id": "web-5dade7d3100d21c404bd",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=0; page_char_offsets=0:901",
+          "quote_start": 328,
+          "quote_end": 378,
+          "quote_sha256": "17f17c8957ca904155bf9644bcc8e916a894b0dfeafe3d40c0040c7dea3e60bc",
+          "passage_sha256": "54a0eb4337f79002a4c9d28157af83aba5b55709b8c4a1d4636b1373458a7ba5"
+        },
+        {
+          "source_id": "web-e07a093c4471d0037aeb",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=1; page_char_offsets=669:1709",
+          "quote_start": 205,
+          "quote_end": 243,
+          "quote_sha256": "73ae854ba45a323e8f726759b6ffeaba8c7f84fbd5ffeff253f6b77929a5c0a1",
+          "passage_sha256": "9879454367351403f6e87b14243ab594bf831baa7786e11314313c97530761d1"
+        },
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 563,
+          "quote_end": 755,
+          "quote_sha256": "6361be90a28738beb5540195aeb19e5843b0506a848f6a6d598870ec7901ffa1",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-13",
+      "query": "Сургалтын орчны хуудсан дахь 360 гэсэн үзүүлэлт нь юуны хэмжээ вэ?",
+      "requested_attribute": "environment.number_360_missing_object_unit",
+      "expected_behavior": "Хоёр боломжит утгыг үл сольж тодруулна; route үсгийг шаардахгүй.",
+      "reference_answerability": "needs_clarification",
+      "required_facts": [
+        "Бүжгийн танхимын 360 м² талбай гэсэн утга байна.",
+        "Хоолны газрын 360 хүний суудал гэсэн өөр утга байна.",
+        "Аль хэсгийг асуусныг тодруулна, эсвэл хоёр утгыг нэгж ба объекттой нь нөхцөлтэй салгаж өгнө."
+      ],
+      "forbidden_claims": [
+        "360 гэсэн тоонд нэг л боломжит объект байна гэж батлах.",
+        "Талбай ба суудлыг нэгтгэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "ambiguity_quantity_role",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 385,
+          "quote_end": 540,
+          "quote_sha256": "55bfea923e7bb62988b1d2612d19fc84ae42906c1ceb39aa9598a242a7fefa30",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        },
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 563,
+          "quote_end": 755,
+          "quote_sha256": "6361be90a28738beb5540195aeb19e5843b0506a848f6a6d598870ec7901ffa1",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-14",
+      "query": "2027 онд номын санд шинэ ном авах батлагдсан төсөв хэдэн төгрөг вэ?",
+      "requested_attribute": "environment.library_2027_acquisition_budget",
+      "expected_behavior": "Яг төсвийн дүн эхээр тогтоогдоогүйг хэлнэ; ойролцоох номын тоог мөнгөн дүн болгохгүй.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [
+        "Хадгалсан баталгаажуулсан хэсгүүдээр 2027 оны ном худалдан авах батлагдсан төсвийн дүн тогтоогдоогүй."
+      ],
+      "forbidden_claims": [
+        "3270+ номын тооноос төсөв тооцоолох.",
+        "Төсөв огт байхгүй гэж дүгнэх.",
+        "Хуурамч мөнгөн дүн зохиох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "unsupported_future_budget",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 124,
+          "quote_end": 334,
+          "quote_sha256": "3c53f9f71a076ef0be2215bfec5615cd6947ced4903998a05ff9c63d15f5e9ee",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-15",
+      "query": "Нийтийн хоолны газрын өнөөдрийн баталсан хоолны цэс болон үнэ хэд вэ?",
+      "requested_attribute": "environment.cafeteria_today_menu_prices",
+      "expected_behavior": "Сар тутмын ерөнхий ажиллагааг өнөөдрийн цэс гэж хувиргахгүй; асуусан хоёр live талбарыг тогтоогоогүйг хэлнэ.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [
+        "Цэсийг сар бүрээр батлуулдаг гэсэн ерөнхий мэдээлэл байна.",
+        "Өнөөдрийн бодит цэс ба үнэ энэ frozen эхээр тогтоогдоогүй."
+      ],
+      "forbidden_claims": [
+        "Тодорхой хоол, үнэ эсвэл өнөөдөр үйлчилж буй цэс зохиох.",
+        "Цэс огт батлуулдаггүй гэж хэлэх."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "unsupported_live_detail",
+      "source_refs": [
+        {
+          "source_id": "web-82e76d45ec245c5e0a39",
+          "url": "https://nmct.edu.mn/about/environment",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1398:2335",
+          "quote_start": 645,
+          "quote_end": 738,
+          "quote_sha256": "cbc330906abeb567e4349127ce2c665ba657a84bf45df564128427f8636cb8b7",
+          "passage_sha256": "eca7de7c5de14f2af58f4ac53f7086ef54b798e5d8d0bc3b11bd23532fcfb157"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/environment",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    },
+    {
+      "id": "semantic-unseen04-16",
+      "query": "2026 оны байгууллагын дахин магадлан итгэмжлэлийн эцсийн шийдвэр яг хэдэн сарын хэдний өдөр гарсан бэ?",
+      "requested_attribute": "quality.reaccreditation_2026_final_decision_date",
+      "expected_behavior": "Эцсийн шийдвэрийн огноо тогтоогдоогүйг хэлж, үргэлжилж буй тайлбарын хүрээг хадгална.",
+      "reference_answerability": "unsupported_in_verified_passages",
+      "required_facts": [
+        "Түүхийн хэсэгт байгууллагын магадлан итгэмжлэлд дахин орж байна гэж бичсэн.",
+        "2026 оны эцсийн шийдвэрийн яг сар, өдөр баталгаажуулсан хэсгүүдэд тогтоогдоогүй."
+      ],
+      "forbidden_claims": [
+        "2026 оны гарчгийг эцсийн шийдвэр гарсан нотолгоо болгох.",
+        "2020 оны анхны магадлан итгэмжлэл эсвэл 2025 оны тусгай зөвшөөрлийн оныг асуусан шийдвэрийн өдөр болгох.",
+        "Хуурамч сар, өдөр зохиох."
+      ],
+      "label_author": "assistant",
+      "human_reference_review": false,
+      "human_review": null,
+      "paraphrase_of": null,
+      "novelty_kind": "new_attribute_or_ambiguity_diagnostic",
+      "contrast": "unsupported_temporal_completion",
+      "source_refs": [
+        {
+          "source_id": "web-dc11a0de6a8d7f87e976",
+          "url": "https://nmct.edu.mn/about/history",
+          "version": 1,
+          "locator": "main_element; chunk_id=2; page_char_offsets=1474:1789",
+          "quote_start": 165,
+          "quote_end": 271,
+          "quote_sha256": "39e1e49904879b5439e78ea5f5ac192aa5f9c5eef2ebb380e93541b8688d0c8b",
+          "passage_sha256": "00fe2a981241ab9e61df7285ce0d1428787840fa9eab3a30ae39c039f2ed85b8"
+        }
+      ],
+      "expected_url": "https://nmct.edu.mn/about/history",
+      "answerability_scope": "Only the frozen 201 indexed passages; not a universal website or present-day operational claim."
+    }
+  ]
+}

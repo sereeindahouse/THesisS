@@ -1,6 +1,7 @@
 """Bounded answer contracts; these are not a semantic entailment classifier."""
 import re
 import unicodedata
+from speech_text import normalize_spoken_currency, remove_rendered_citations
 
 MAX_SPEECH_CHARACTERS = 2000
 
@@ -9,11 +10,14 @@ def spoken_text(result):
     """One shared display-to-speech selection, including draft/clarification text."""
     if result.get('answer') is not None:
         prefix = 'Ноорог, сургуулиар баталгаажаагүй. ' if result.get('answer_kind') == 'development_draft_preview' else ''
-        return prefix + result['answer']
+        text = result['answer']
+        if result.get('answer_kind') == 'rag_generated':
+            text = remove_rendered_citations(text, len(result.get('citations', [])))
+        return normalize_spoken_currency(prefix + text)
     text = result.get('message', '')
     if result.get('clarification'):
         text += ' ' + result['clarification']['question']
-    return text
+    return normalize_spoken_currency(text)
 
 
 def render_claims(claims):

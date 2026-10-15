@@ -358,7 +358,8 @@ class VoiceRuntime:
             raise VoiceRuntimeError("tts_voice", "Bataa эсвэл Yesui монгол дууг сонгоно уу.")
         if not isinstance(text, str) or not text.strip():
             raise VoiceRuntimeError("tts_text_empty", "Уншуулах текст хоосон байна.")
-        text = text.strip()
+        from speech_text import normalize_spoken_currency
+        text = normalize_spoken_currency(text.strip())
         if len(text) > MAX_TEXT_CHARACTERS:
             raise VoiceRuntimeError("tts_text_limit", "Уншуулах текст 2000 тэмдэгтээс урт байна.")
         started = time.perf_counter()
