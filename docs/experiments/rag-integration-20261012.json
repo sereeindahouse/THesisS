@@ -3697,5 +3697,173 @@
     "other_computer_install_verified": false,
     "visual_browser_qa_performed": false,
     "publication_evidence_recorded_separately": true
+  },
+  "independent_audit_20261021": {
+    "date": "2026-10-21",
+    "audited_source_commit": "640bf98697ffa598abf1407b8df1ff9b2ee119f1",
+    "scope": "Independent engineering, evidence and thesis-scope audit; not a held-out accuracy evaluation.",
+    "local_tests": {
+      "run": 897,
+      "passed": 897,
+      "seconds": 174.942,
+      "source_or_data_drift": []
+    },
+    "fresh_remote_existing_verification": {
+      "run": 897,
+      "passed": 896,
+      "skipped": 1,
+      "reason": "Private frozen corpus intentionally absent. Existing project environment reused; not a clean dependency install."
+    },
+    "live_http": {
+      "queries": 20,
+      "route_counts": {
+        "C": 10,
+        "D": 3,
+        "A": 3,
+        "E": 4
+      },
+      "additional_clarification_followup": 1,
+      "loaded_artifacts_checked": 16,
+      "all_loaded_artifacts_match_disk": true,
+      "all_queries_passed_semantically": false,
+      "known_semantic_failure": "A school founding-date/student-count query returned an unrelated scholarship article.",
+      "other_observations": [
+        "Mid-word leading source fragment",
+        "Repeated source list",
+        "Irrelevant adjacent context"
+      ],
+      "reference_year_correction": "A 2027 query can match the source 2026–2027 school-year title. The final unsupported-year check explicitly used 2029–2030."
+    },
+    "synthetic_voice_smoke": {
+      "clips": 1,
+      "raw_stt": "элсэлтийн онлайн бүртгэл",
+      "registration_steps_complete": true,
+      "decoded_audio_seconds": 25.488,
+      "wrong_response_query_rejected_http": 409,
+      "human_voice": false,
+      "human_listening_score": null
+    },
+    "known_current_code_findings": [
+      {
+        "priority": "P2",
+        "file": "website_retrieval.py",
+        "line": 253,
+        "issue": "Chunk boundaries can start inside a word; exact source membership does not ensure a complete sentence."
+      },
+      {
+        "priority": "P2",
+        "file": "source_fields.py",
+        "line": 737,
+        "issue": "Formatting requests containing хэрэггүй or зөвхөн can disable all requested-field completeness checks."
+      },
+      {
+        "priority": "P2",
+        "file": "evidence_contract.py",
+        "line": 250,
+        "issue": "A continuation can inherit context across an omitted oversized paragraph and attach to the wrong section."
+      }
+    ],
+    "human_pilot": {
+      "participants": 1,
+      "participant_scope": "Developer pilot, not independent gold.",
+      "answer_questions": 8,
+      "answer_conditions": 3,
+      "answer_reviews": 24,
+      "listening_clips": 12,
+      "total_events": 49,
+      "original_answer_completeness": {
+        "gemma": {
+          "complete": 1,
+          "partial": 5,
+          "insufficient": 2
+        },
+        "bm25_best1": {
+          "complete": 3,
+          "partial": 4,
+          "insufficient": 1
+        },
+        "bm25_best3": {
+          "complete": 3,
+          "partial": 4,
+          "insufficient": 1
+        }
+      },
+      "identical_visible_pairs": 3,
+      "identical_pairs_with_disagreeing_ratings": 2,
+      "new_post_fix_human_review": null
+    },
+    "observed_development_ai": {
+      "questions": 8,
+      "gemma_complete": 8,
+      "best3_complete": 8,
+      "best1_complete": 4,
+      "gemma_irrelevant": 2,
+      "best3_irrelevant": 7,
+      "gemma_redundant": 2,
+      "best3_redundant": 3,
+      "general_llm_advantage_established": false
+    },
+    "tts_pilot": {
+      "critical_slots_before": [
+        12,
+        14
+      ],
+      "critical_slots_after": [
+        11,
+        14
+      ],
+      "intelligibility_mean_before": 4.0,
+      "intelligibility_mean_after": 3.3333333333333335,
+      "naturalness_mean_before": 3.8333333333333335,
+      "naturalness_mean_after": 3.0,
+      "human_quality_gain_established": false,
+      "population_mos": false
+    },
+    "real_task_pilot": {
+      "tasks": 1,
+      "raw_equals_confirmed": true,
+      "actual_edits": 0,
+      "causal_edit_gain_established": false
+    },
+    "historical_raw_stt": {
+      "utterances": 13,
+      "word_errors": 67,
+      "reference_words": 186,
+      "wer_percent": 36.02150537634409,
+      "character_errors": 184,
+      "reference_characters": 1089,
+      "cer_percent": 16.89623507805326,
+      "raw_stt_improvement_established": false
+    },
+    "literature": {
+      "catalog_entries": 56,
+      "note_and_ledger_hash_pairs_checked": 56,
+      "audit_reread_all_primary_papers": false,
+      "recorded_review_scope": "Assistant main-body review records; complete appendix, figure, reproduction and student-reading completion not inferred."
+    },
+    "thesis_draft": {
+      "private_markdown_chapters": 10,
+      "final_template_and_supervisor_review_complete": false
+    },
+    "privacy": {
+      "structural_scan_performed": true,
+      "all_sensitive_data_absence_guaranteed": false,
+      "private_audio_models_databases_human_raw_published": false,
+      "authorized_demo_audio_only": [
+        "q01",
+        "q02",
+        "q03"
+      ]
+    },
+    "remaining": [
+      "Correctness and completeness on new questions",
+      "Three reproducible boundary/guard defects",
+      "Independent human evaluation and stable rubric",
+      "Real edited-STT causal comparison",
+      "Stable hosting and a full clean-machine installation",
+      "Final thesis template, citations and supervisor review"
+    ],
+    "browser_scope": "Teacher card, source atlas and read-only admin observed and screenshotted before Work disabled browser control; final audio was verified through explicit backend APIs.",
+    "no_production_code_fixes_made_by_this_audit": true
   }
 }

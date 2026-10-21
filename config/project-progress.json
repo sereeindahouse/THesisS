@@ -175,7 +175,7 @@
       "id": "literature",
       "label": "Өгүүллийн судалгаа",
       "state": "in_progress",
-      "detail": "20+6 эхийн бүртгэл, сонгосон аргын уншлага. Бүх өгүүлэл бүтнээр шалгагдсан гэж үзэхгүй.",
+      "detail": "Анхны26 ба нэмэлт30=56эхийн catalog/note/ledger, BibTeX бий. 10.20assistant main-body review хүрээтэй; appendix/figure/reproduction болон хэрэглэгчийн бүх уншлага дууссан гэж тооцоогүй. Энэ аудит56note+ledgerhashнийцлийг шалгасан.",
       "evidence": []
     },
     {
@@ -191,8 +191,8 @@
     {
       "id": "voice-comparison",
       "label": "Бичсэн / түүхий STT / зассан STT",
-      "state": "todo",
-      "detail": "Өмнөх6асуулт×2хоолой12WAV болон шинэ2асуулт×2хоолой4WAV typed/raw synthetic урсгал хийсэн. Хүний бодит яриа, edited-STT, засах хугацааны судалгаа үлдсэн.",
+      "state": "in_progress",
+      "detail": "Synthetic typed/raw урсгал ба нэг хүний typed/raw/илэрхийбаталсанtask бий. Raw/баталсан текст ижил/edit0 тул засварын causalgainбатлагдаагүй; бодит edited-STT, хугацаа, counterbalance үнэлгээ үлдсэн.",
       "evidence": [
         "CORE/SELF-CHECK.cmd",
         "tools/evaluate_voice_loop.py"
@@ -202,7 +202,7 @@
       "id": "usability",
       "label": "Бодит хэрэглэгчийн туршилт",
       "state": "in_progress",
-      "detail": "Нэгхүн6TTSclip-ийгүнэлжхадгалсан; бүрэндаалгаврын/өргөнхэрэглэгчийнсудалгааүлдсэн.",
+      "detail": "Нэг хөгжүүлэгчийн49event:12сонсгол,8асуулт×3аргын24хариулт,нэгtask-ийн3нөхцөл. Өргөн хараат бус хэрэглэгчийн судалгаа ба засварын дараах хүний дахин үнэлгээ үлдсэн.",
       "evidence": []
     },
     {
@@ -1530,5 +1530,18 @@
     "other_computer_install_verified": false,
     "visual_browser_qa_performed": false,
     "publication_evidence_recorded_separately": true
+  },
+  "independent_audit_20261021": {
+    "source_commit": "640bf98697ffa598abf1407b8df1ff9b2ee119f1",
+    "local_tests_passed": 897,
+    "local_test_seconds": 174.942,
+    "code_or_data_drift": false,
+    "live_queries": 20,
+    "loaded_code_hashes_matched": 16,
+    "semantic_failures_remain": true,
+    "known_reproducible_code_findings": 3,
+    "overall_thesis_percent": null,
+    "general_accuracy": null,
+    "summary": "Ажиллах систем/ноорог их ахисан; шинэ асуултын чанар, LLM/STT/TTS gain ба хараат бус хүний эцсийн үнэлгээ батлагдаагүй."
   }
 }
