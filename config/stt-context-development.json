@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "arms": {
+    "baseline": {},
+    "school_hotwords": {
+      "hotwords": "Шинэ Монгол Технологийн Коллеж, элсэлт, сургалтын төлбөр, тэтгэлэг, лаборатори, Koha"
+    },
+    "beam10": {
+      "beam_size": 10
+    }
+  }
+}

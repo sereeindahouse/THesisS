@@ -6,6 +6,7 @@ downloads weights, sends student audio, or confirms a human transcript.
 import asyncio
 import copy
 import hashlib
+import importlib.util
 import io
 import json
 import subprocess
@@ -163,6 +164,34 @@ class AudioBoundsTests(unittest.TestCase):
         self.assertEqual(calls[0]["options"], {"enable_drefs": "0"})
 
 
+class SpeechPresenceHelperTests(unittest.TestCase):
+    def test_local_detector_uses_explicit_options_and_never_crops_input(self):
+        waveform = object(); calls=[]
+        def timestamps(audio, **kwargs):
+            calls.append((audio,kwargs));return [{'start':12,'end':25}]
+        fake=types.SimpleNamespace(VadOptions=lambda **kwargs:types.SimpleNamespace(**kwargs),
+                                   get_speech_timestamps=timestamps)
+        with patch.dict(sys.modules,{'faster_whisper.vad':fake}):result=voice._speech_presence(waveform)
+        self.assertIs(calls[0][0],waveform)
+        self.assertEqual(calls[0][1]['sampling_rate'],16000)
+        options=calls[0][1]['vad_options']
+        self.assertEqual((options.threshold,options.neg_threshold,options.min_speech_duration_ms,
+                          options.min_silence_duration_ms,options.speech_pad_ms),(.5,None,0,2000,400))
+        self.assertEqual(options.max_speech_duration_s,float('inf'))
+        self.assertEqual(result['options']['max_speech_duration_s'],'Infinity')
+        json.dumps(result,allow_nan=False)
+        self.assertTrue(result['any_speech']);self.assertEqual(result['region_count'],1)
+        self.assertFalse(result['crops_or_reorders_audio']);self.assertFalse(result['calibrated_confidence'])
+
+    def test_local_detector_failure_is_explicit_and_never_bypassed(self):
+        fake=types.SimpleNamespace(VadOptions=lambda **kwargs:kwargs,
+            get_speech_timestamps=lambda *args,**kwargs:(_ for _ in ()).throw(RuntimeError('onnx failed')))
+        with patch.dict(sys.modules,{'faster_whisper.vad':fake}),self.assertRaises(voice.VoiceRuntimeError) as caught:
+            voice._speech_presence(object())
+        self.assertEqual(caught.exception.code,'speech_presence_failed')
+        self.assertEqual(caught.exception.status,503)
+
+
 class VoiceRuntimeTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -170,6 +199,9 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.runtime = voice.VoiceRuntime(self.root)
         self.input = wav_bytes()
         self.pcm = b"\x01\x00" * 320
+        self.presence=patch.object(voice,'_speech_presence',return_value=dict(
+            voice._speech_presence_policy(),any_speech=True,region_count=1))
+        self.presence.start();self.addCleanup(self.presence.stop)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -200,6 +232,82 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.assertFalse(result["tts_ready"])
         self.assertFalse(result["model_loaded"])
         self.assertFalse((self.root / "runtime").exists())
+        self.assertFalse(result["model_fingerprint_verified"])
+        self.assertEqual(result["effective_decoding"], profile()["decoding"])
+        self.assertTrue(result['speech_presence']['enabled'])
+        self.assertFalse(result['speech_presence']['whisper_vad_filter'])
+
+    def test_no_speech_stops_before_whisper_loading_or_storage(self):
+        for failure in ('no_speech','detector_error'):
+            output=dict(voice._speech_presence_policy(),any_speech=False,region_count=0)
+            error=voice.VoiceRuntimeError('speech_presence_failed','detector unavailable',503)
+            with self.subTest(failure=failure),patch.object(voice,'_decode_pcm',return_value=self.pcm), \
+                    patch.object(voice,'_waveform',return_value=[.1]*320), \
+                    patch.object(voice,'_speech_presence',return_value=output,
+                                 side_effect=error if failure=='detector_error' else None), \
+                    patch('stt_mn.load_choice') as load,patch.object(self.runtime,'_save') as save:
+                with self.assertRaises(voice.VoiceRuntimeError) as caught:
+                    self.runtime.transcribe(self.input,'audio/wav')
+                self.assertEqual(caught.exception.code,'audio_no_speech' if failure=='no_speech' else 'speech_presence_failed')
+                self.assertEqual(caught.exception.status,400 if failure=='no_speech' else 503)
+                load.assert_not_called();save.assert_not_called()
+            self.assertIsNone(self.runtime._model)
+            self.assertFalse((self.root/'runtime').exists())
+
+    def test_speech_gate_and_whisper_receive_same_full_waveform_and_baseline_decoder(self):
+        waveform=[.1,.2,.3,.4]; received=[]
+        def detector(audio):
+            self.assertIs(audio,waveform)
+            return dict(voice._speech_presence_policy(),any_speech=True,region_count=1)
+        def transcribe(audio,**kwargs):
+            self.assertIs(audio,waveform);self.assertEqual(audio,[.1,.2,.3,.4]);received.append(kwargs)
+            return iter([types.SimpleNamespace(start=0,end=.02,text='Test')]),None
+        model=types.SimpleNamespace(transcribe=transcribe)
+        with patch.dict(sys.modules,{'faster_whisper':types.SimpleNamespace(WhisperModel=lambda *args,**kwargs:model)}), \
+                patch('stt_mn.load_choice',return_value=(profile(),self.root/'models/fixture')), \
+                patch.object(voice,'_decode_pcm',return_value=self.pcm), \
+                patch.object(voice,'_waveform',return_value=waveform), \
+                patch.object(voice,'_speech_presence',side_effect=detector):
+            result=self.runtime.transcribe(self.input,'audio/wav')
+        self.assertEqual(received,[dict(voice._FIXED_DECODING)])
+        self.assertFalse(received[0]['vad_filter']);self.assertEqual(received[0]['beam_size'],5)
+        self.assertNotIn('hotwords',received[0]);self.assertNotIn('initial_prompt',received[0])
+        self.assertTrue(result['speech_presence']['any_speech'])
+
+    def test_voice_and_stt_loaded_hashes_are_frozen_across_disk_edits(self):
+        directory = self.root / 'imports'; directory.mkdir()
+        for name in voice.VOICE_ARTIFACT_NAMES:
+            (directory/name).write_bytes((Path(voice.__file__).parent/name).read_bytes())
+        stt_spec = importlib.util.spec_from_file_location('stt_mn',directory/'stt_mn.py')
+        stt = importlib.util.module_from_spec(stt_spec); stt_spec.loader.exec_module(stt)
+        spec = importlib.util.spec_from_file_location('voice_hash_fixture',directory/'voice_runtime.py')
+        module = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules,{'stt_mn':stt}):spec.loader.exec_module(module)
+        runtime = module.VoiceRuntime(directory)
+        with patch.object(module,'_has_module',return_value=False):before=runtime.status()
+        expected = {name:hashlib.sha256((directory/name).read_bytes()).hexdigest() for name in module.VOICE_ARTIFACT_NAMES}
+        self.assertEqual(before['loaded_artifact_sha256'],expected)
+        for name in module.VOICE_ARTIFACT_NAMES:
+            with (directory/name).open('ab') as handle:handle.write(b'\n# post-import edit\n')
+        before['loaded_artifact_sha256']['stt_mn.py']='changed by caller'
+        before['effective_decoding']['beam_size']=10
+        with patch.object(module,'_has_module',return_value=False):after=runtime.status()
+        self.assertEqual(after['loaded_artifact_sha256'],expected)
+        self.assertEqual(after['effective_decoding']['beam_size'],5)
+        self.assertTrue(all(after['loaded_artifact_sha256'][name]!=hashlib.sha256((directory/name).read_bytes()).hexdigest()
+                            for name in module.VOICE_ARTIFACT_NAMES))
+
+    def test_stt_imported_before_voice_cannot_be_fingerprinted_as_edited_disk_code(self):
+        directory=self.root/'stale_import';directory.mkdir()
+        stt_path=directory/'stt_mn.py';stt_path.write_bytes((Path(voice.__file__).parent/'stt_mn.py').read_bytes())
+        spec=importlib.util.spec_from_file_location('stt_mn',stt_path)
+        stt=importlib.util.module_from_spec(spec);spec.loader.exec_module(stt)
+        stt_path.write_text(stt_path.read_text(encoding='utf-8').replace('return choice, path','return choice, path.resolve()'),encoding='utf-8')
+        (directory/'voice_runtime.py').write_bytes(Path(voice.__file__).read_bytes())
+        spec=importlib.util.spec_from_file_location('voice_stale_stt_fixture',directory/'voice_runtime.py')
+        module=importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules,{'stt_mn':stt}):spec.loader.exec_module(module)
+        self.assertIsNone(module._LOADED_ARTIFACT_SHA256['stt_mn.py'])
 
     def test_local_pinned_model_and_exact_decoder_keep_draft_text_unconfirmed(self):
         init = []
@@ -218,6 +326,24 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.assertFalse(result["accuracy_measured"])
         self.assertEqual(result["input_sha256"], hashlib.sha256(self.input).hexdigest())
         self.assertFalse(result["fine_tuning_performed"])
+        self.assertEqual(result['loaded_artifact_sha256'],dict(voice._LOADED_ARTIFACT_SHA256))
+        self.assertEqual(result['effective_decoding'],result['decoding'])
+        self.assertTrue(result['model_loaded'])
+        self.assertTrue(result['model_fingerprint_verified'])
+        self.assertEqual(result['model_fingerprint']['actual_compute_type'],'int8_float32')
+
+    def test_loaded_model_metadata_does_not_follow_later_profile_or_return_value_mutations(self):
+        selected=profile()
+        first,calls=self.call_transcribe(choice=selected)
+        selected['source_repo']='another model'
+        selected['decoding']['beam_size']=10
+        first['model_fingerprint']['source_repo']='caller mutation'
+        first['effective_decoding']['beam_size']=10
+        with patch.object(voice,'_has_module',return_value=False):status=self.runtime.status()
+        self.assertEqual(status['model_fingerprint']['source_repo'],voice.PINNED_SOURCE)
+        self.assertEqual(status['effective_decoding']['beam_size'],5)
+        self.assertTrue(status['model_loaded'])
+        self.assertEqual(calls[0],voice.EXPECTED_DECODING)
 
     def test_profile_revision_or_decoder_changes_stop_before_model_creation(self):
         for field, value in [("source_revision", "wrong"), ("decoding", {"language": "en"}),
@@ -246,10 +372,12 @@ class VoiceRuntimeTests(unittest.TestCase):
 
     def test_exact_digital_silence_is_rejected_without_changing_quiet_nonzero_policy(self):
         with patch.object(voice, "_decode_pcm", return_value=b"\x00\x00" * 320), \
+                patch.object(voice, "_speech_presence") as detector, \
                 patch("stt_mn.load_choice", side_effect=AssertionError("must not inspect model")):
             with self.assertRaises(voice.VoiceRuntimeError) as caught:
                 self.runtime.transcribe(self.input, "audio/wav")
         self.assertEqual(caught.exception.code, "audio_silent")
+        detector.assert_not_called()
         self.assertFalse((self.root / "runtime").exists())
         result, _ = self.call_transcribe()
         self.assertTrue(result["speech_text_available"])
@@ -370,6 +498,68 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.assertFalse(result["text_generated"])
         self.assertFalse(result["human_quality_accepted"])
         self.assertIn("онлайн", result["online_notice"])
+
+    def test_repeat_tts_reuses_exact_audio_but_owns_distinct_deletable_ids(self):
+        async def edge(*args):return b'ID3cached-audio'
+        with patch.object(voice,'_edge_audio',side_effect=edge) as network:
+            first=self.runtime.synthesize('Текст 1.',voice.ALLOWED_VOICES[0])
+            second=self.runtime.synthesize('Текст 1.',voice.ALLOWED_VOICES[0])
+            self.assertEqual(network.call_count,1)
+            self.assertFalse(first['cache_hit']);self.assertTrue(second['cache_hit'])
+            self.assertFalse(second['provider_request'])
+            self.assertNotEqual(first['id'],second['id'])
+            self.runtime.reset([first['id']])
+            self.assertEqual(self.runtime.audio(second['id'])[0],b'ID3cached-audio')
+            self.runtime.synthesize('Текст 2.',voice.ALLOWED_VOICES[0])
+            self.runtime.synthesize('Текст 1.',voice.ALLOWED_VOICES[1])
+            self.assertEqual(network.call_count,3)
+
+    def test_tts_cache_expires_and_full_session_reset_clears_it(self):
+        async def edge(*args):return b'ID3fixture'
+        with patch.object(voice,'_edge_audio',side_effect=edge) as network:
+            first=self.runtime.synthesize('Давтах текст.',voice.ALLOWED_VOICES[0])
+            key=next(iter(self.runtime._tts_cache));created,audio,details=self.runtime._tts_cache[key]
+            self.runtime._tts_cache[key]=(created-voice.TTS_CACHE_SECONDS,audio,details)
+            second=self.runtime.synthesize('Давтах текст.',voice.ALLOWED_VOICES[0])
+            self.assertFalse(second['cache_hit']);self.assertEqual(network.call_count,2)
+            self.runtime.reset([first['id'],second['id']])
+            self.assertFalse(self.runtime._tts_cache)
+            self.runtime.synthesize('Давтах текст.',voice.ALLOWED_VOICES[0])
+            self.assertEqual(network.call_count,3)
+
+    def test_tts_cache_is_bounded_and_does_not_cache_provider_failure(self):
+        async def edge(*args):return b'ID3fixture'
+        with patch.object(voice,'_edge_audio',side_effect=edge),patch.object(voice,'MAX_TTS_CACHE_ITEMS',2):
+            for i in range(3):self.runtime.synthesize('Текст '+str(i),voice.ALLOWED_VOICES[0])
+            self.assertEqual(len(self.runtime._tts_cache),2)
+        with patch.object(voice,'_edge_audio',side_effect=RuntimeError('offline')):
+            with self.assertRaises(voice.VoiceRuntimeError):self.runtime.synthesize('Шинэ текст.',voice.ALLOWED_VOICES[0])
+        self.assertEqual(len(self.runtime._tts_cache),2)
+
+    def test_tts_concurrent_identical_requests_make_one_provider_call(self):
+        calls=[];results=[];errors=[]
+        async def edge(*args):calls.append(args);await asyncio.sleep(0.02);return b'ID3fixture'
+        def request():
+            try:results.append(self.runtime.synthesize('Ижил текст.',voice.ALLOWED_VOICES[0]))
+            except Exception as error:errors.append(error)
+        with patch.object(voice,'_edge_audio',side_effect=edge):
+            threads=[threading.Thread(target=request) for _ in range(2)]
+            for thread in threads:thread.start()
+            for thread in threads:thread.join(timeout=2)
+        self.assertEqual(errors,[]);self.assertEqual(len(calls),1)
+        self.assertEqual(len({result['id'] for result in results}),2)
+
+    def test_recognition_review_warns_without_rewriting_text_or_claiming_accuracy(self):
+        quiet=(10).to_bytes(2,'little',signed=True)*100
+        self.assertIn('quiet_recording',voice._recognition_review(quiet,[])['flags'])
+        clipped=(32767).to_bytes(2,'little',signed=True)*100
+        self.assertIn('clipped_recording',voice._recognition_review(clipped,[])['flags'])
+        normal=(3000).to_bytes(2,'little',signed=True)*100
+        rows=[dict(avg_logprob=-1.2,no_speech_prob=.7,compression_ratio=2.8)]
+        result=voice._recognition_review(normal,rows)
+        self.assertEqual(result['flags'],['low_decoder_score','uncertain_speech','repetitive_output'])
+        self.assertFalse(result['calibrated_confidence']);self.assertFalse(result['changes_transcript'])
+        self.assertFalse(voice._recognition_review(normal,[dict(avg_logprob=float('nan'))])['flags'])
 
     def test_service_rejection_is_specific_sanitized_and_not_blindly_retried(self):
         class Rejected(Exception):

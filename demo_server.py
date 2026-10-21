@@ -3,12 +3,13 @@ import argparse
 import hashlib
 import json
 import re
+import secrets
 import sqlite3
 import time
 from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from sqlite_retrieval import ReadOnlyContentStore, guarded_preview, search_content
 from CORE.website_corpus import website_status, search_website
@@ -21,17 +22,29 @@ from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG
 from data_explorer import SourceExplorer
 from clarification_context import ClarificationContext, ClarificationConflict
+from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
+from release_runtime import LiveContentRuntime
+from website_retrieval import WebsiteRetriever
+from teacher_media import TeacherMedia, TeacherMediaError
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
 CLARIFICATION_ARTIFACT_SHA256 = {
     name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-    for name in ("clarification_context.py", "demo_server.py")
+    for name in ("clarification_context.py", "demo_server.py", "content_release.py", "release_runtime.py", "data_explorer.py", "teacher_media.py")
 }
 
 
-def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None):
+def _content_length(headers):
+    """Parse one bounded ASCII decimal field; invalid framing has no length."""
+    lengths = headers.get_all("Content-Length", [])
+    if len(lengths) != 1 or not re.fullmatch(r"[0-9]{1,10}", lengths[0]):
+        return None
+    return int(lengths[0])
+
+
+def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None, teacher_service=None):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
     database = Path(db_path or root / "runtime" / "content.db").resolve()
@@ -43,6 +56,11 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
     clarification_context = clarification_service if clarification_service is not None else ClarificationContext()
     explorer = SourceExplorer(root,content_database=database)
+    releases = ContentReleaseManager(root)
+    live_content = LiveContentRuntime(root, database, rag, explorer, content_policy,
+                                      manager=releases, clarification=clarification_context)
+    admin_token = secrets.token_urlsafe(32)
+    teachers = teacher_service if teacher_service is not None else TeacherMedia(root)
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -76,10 +94,10 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             # A close with unread incoming bytes can discard the JSON response
             # through a TCP reset (observed on Windows). Discard only a small,
             # explicitly framed remainder; never parse or execute rejected data.
-            lengths = self.headers.get_all("Content-Length", [])
-            if (self.command == "POST" and len(lengths) == 1 and lengths[0].isdigit()
-                    and not self.headers.get("Transfer-Encoding")):
-                remaining = int(lengths[0]) - getattr(self, "_body_bytes_read", 0)
+            length = _content_length(self.headers)
+            if (self.command == "POST" and length is not None
+                    and not self.headers.get_all("Transfer-Encoding", [])):
+                remaining = length - getattr(self, "_body_bytes_read", 0)
                 if 0 < remaining <= 65536:
                     try:
                         self.connection.settimeout(0.25)
@@ -99,12 +117,138 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             expected = root / "demo" / "audio"
             return path if path.parent == expected and path.is_file() else None
 
+        def admin_authorized(self):
+            supplied = self.headers.get('X-Admin-Token', '')
+            return supplied.isascii() and secrets.compare_digest(supplied, admin_token)
+
+        def teacher_answer(self, query, draft, database, rag):
+            """Explicit profile lookup has its own dated source bundle and TTS capability."""
+            if not content_policy.enabled:
+                return None
+            match = teachers.profile(query)
+            if match is None:
+                return None
+            result = content_policy.route(database, query, allow_draft=draft)
+            result.update(query=query, answer=None, citations=[], generated=False, llm_calls=0,
+                          related_sources=[], suggestions=[], clarification=None,
+                          teacher_media_bundle_id=match['bundle_id'])
+            if match['status'] == 'ambiguous':
+                names = match['candidates']
+                result.update(route='D', answer_kind='teacher_profile_clarification',
+                    reason_code='teacher_name_required',
+                    message='Ямар багшийн зурагтай танилцуулгыг үзэх вэ? Доорх нэрсийн албан эхтэй танилцуулга бэлэн байна. Энэ нь бүх багшийн жагсаалт биш.',
+                    suggestions=[name+' багшийн зурагтай танилцуулгыг үзье.' for name in names[:6]])
+            else:
+                card = match['profile']
+                result.update(route='A', answer_kind='official_teacher_profile',
+                    reason_code='source_bound_teacher_profile', answer=card['source_quote'],
+                    message='Албан сайтаас хадгалсан нэр, танилцуулга, зургийг үзүүлэв. Эхийн огноог нягтлаарай.',
+                    teacher_cards=[card], citations=[dict(document_id=card['teacher_id'],version=1,
+                        title=card['name']+' — багшийн албан танилцуулга',
+                        source_url_or_filename=card['source_url'],locator=card['source_locator'],
+                        retrieved_at=card['captured_utc'],source_html_sha256=card['source_html_sha256'],
+                        source_accepted_for_project=True,school_staff_approval=False,
+                        approval_status='draft',extraction_method='official_structured_teacher_record')])
+            return rag._remember(result, draft)
+
+        def admin_get(self, path):
+            if path == '/api/admin/state':
+                state = releases.state()
+                if state['active'] is None and not state.get('active_error'):
+                    try:
+                        with ReadOnlyContentStore(database) as store:
+                            content_counts = store.counts()
+                        website_counts = WebsiteRetriever(root, use_dense=False).status().get('counts', {})
+                        state['legacy'] = {'counts': {'content': content_counts, 'website': website_counts}}
+                    except (OSError, ValueError, sqlite3.Error):
+                        pass
+                return self.send_json(200, {**state, 'csrf_token': admin_token})
+            if path == '/api/admin/content':
+                if not self.admin_authorized():
+                    return self.error(403, 'Админ хуудсыг дахин нээж, мэдээллээ шинэчилнэ үү.')
+                query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                if set(query) != {'release_id'} or len(query['release_id']) != 1:
+                    raise ValueError('Нэг хувилбарын ID шаардлагатай.')
+                release_id = query['release_id'][0]
+                return self.send_json(200, {'release_id': release_id, 'content': releases.content(release_id)})
+            return self.error(404, 'Админ API олдсонгүй.')
+
+        def admin_post(self, path):
+            if not self.admin_authorized():
+                return self.error(403, 'Админ хуудсыг дахин нээж, мэдээллээ шинэчилнэ үү.')
+            if self.headers.get_content_type() != 'application/json':
+                raise ValueError('JSON өгөгдөл шаардлагатай.')
+            body = self.read_json(4 * 1024 * 1024)
+            operation = path.removeprefix('/api/admin/')
+            required = {
+                'stage': {'label', 'expected_active'},
+                'import-content': {'release_id', 'content'},
+                'import-website': {'release_id', 'snapshot_path'},
+                'validate': {'release_id'},
+                'publish': {'release_id', 'expected_active'},
+                'rollback': {'release_id', 'expected_active'},
+            }
+            if operation not in required:
+                return self.error(404, 'Админ үйлдэл олдсонгүй.')
+            allowed = required[operation] | ({'actor'} if operation in {'publish', 'rollback'} else set())
+            if not required[operation] <= set(body) or set(body) - allowed:
+                raise ValueError('Админ үйлдлийн талбарууд дутуу эсвэл илүү байна.')
+            if operation == 'stage':
+                result = releases.stage(body['label'], body['expected_active'])
+            elif operation == 'import-content':
+                result = releases.import_content(body['release_id'], body['content'])
+            elif operation == 'import-website':
+                result = releases.import_website(body['release_id'], body['snapshot_path'])
+            elif operation == 'validate':
+                result = releases.validate(body['release_id'])
+            else:
+                result = getattr(releases, operation)(body['release_id'], body['expected_active'],
+                                                      body.get('actor', 'local-admin'))
+            return self.send_json(200, {'result': result})
+
         def do_GET(self):
             if not self.valid_host():
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             if self.headers.get("Sec-Fetch-Site") == "cross-site":
                 return self.error(403, "Өөр сайтаас локал өгөгдөл уншихгүй.")
+            origin = self.headers.get('Origin')
+            port_number = self.server.server_address[1]
+            if origin and origin not in {f'http://127.0.0.1:{port_number}', f'http://localhost:{port_number}'}:
+                return self.error(403, 'Өөр сайтаас локал өгөгдөл уншихгүй.')
             path = unquote(urlsplit(self.path).path)
+            if path == '/api/teachers':
+                return self.send_json(200, {**teachers.status(), 'profiles': teachers.catalog()})
+            if path.startswith('/api/teacher-media/'):
+                identifier = path.removeprefix('/api/teacher-media/')
+                try:
+                    data, mime = teachers.media(identifier)
+                    return self.send_data(200, data, mime)
+                except KeyError:
+                    return self.error(404, 'Багшийн баталгаатай зураг олдсонгүй.')
+                except (TeacherMediaError, ValueError, OSError):
+                    return self.error(409, 'Зургийн эхийг шалгаж чадсангүй. Танилцуулгыг дахин нээнэ үү.')
+            if path in {'/admin', '/admin.html', '/admin.js', '/admin.css'}:
+                name = 'admin.html' if path in {'/admin', '/admin.html'} else path[1:]
+                file = (root / 'demo' / name).resolve()
+                if file.parent != root / 'demo' or not file.is_file():
+                    return self.error(404, 'Админ хуудас олдсонгүй.')
+                mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}[file.suffix]
+                return self.send_data(200, file.read_bytes(), mime + '; charset=utf-8')
+            if path.startswith('/api/admin/'):
+                try:
+                    return self.admin_get(path)
+                except ReleaseError as error:
+                    return self.error(error.status, str(error))
+                except (ValueError, OSError, KeyError, sqlite3.Error):
+                    return self.error(400, 'Хувилбарын мэдээллийг уншиж чадсангүй.')
+            if path == '/api/status' or path.startswith('/api/explorer'):
+                try:
+                    bundle = live_content.snapshot()
+                    database, rag, explorer = bundle.database, bundle.rag, bundle.explorer
+                    clarification_context = bundle.clarification
+                    website_database = bundle.website_database
+                except (ReleaseError, ValueError, OSError, sqlite3.Error):
+                    return self.error(503, 'Идэвхтэй эхийн хувилбарын шалгалт амжилтгүй. Админ хэсгээс хувилбараа шалгана уу.')
             if path in {"/data", "/data.html", "/data.css", "/data.js"}:
                 name = "data.html" if path in {"/data", "/data.html"} else path[1:]
                 file = (root / "demo" / name).resolve()
@@ -114,7 +258,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.send_data(200, file.read_bytes(), mime + "; charset=utf-8")
             if path == "/api/explorer":
                 try:
-                    return self.send_json(200, explorer.snapshot())
+                    return self.send_json(200, {**explorer.snapshot(), 'content_release': bundle.public()})
                 except (OSError,sqlite3.Error,ValueError,KeyError,TypeError):
                     return self.error(503, "Эхийн сан эсвэл явцын бүртгэлийг уншиж чадсангүй.")
             document = re.fullmatch(r"/api/explorer/document/((?:png|pdf)-[0-9a-f]{20})",path)
@@ -177,7 +321,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 except (OSError, sqlite3.Error, ValueError, KeyError):
                     content["message"] = "Эхлээд draft агуулгыг SQLite-д импортлоно."
                 try:
-                    website = website_status(root / "CORE/database/website.db")
+                    website = website_status(website_database)
                 except (OSError, sqlite3.Error, ValueError):
                     website = {"available": False, "pages": 0, "chunks": 0, "documents": 0,
                                "message": "Албан сайтын мэдээллийг эхлээд цуглуулна."}
@@ -193,6 +337,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     "mode": "local_development", "demo_protocol_version": 2, "readonly": False,
                     "content_database_readonly": True, "local_review_writes_supported": True,
                     "voice": voice_state, "content": content,
+                    "content_release": bundle.public(),
+                    "teacher_media": teachers.status(),
                     "audio_samples": samples,
                     "stt": {"wer_percent": 36.0, "cer_percent": 16.9, "verified_recordings": 13,
                             "historical_development_result": True, "production_accepted": False},
@@ -219,12 +365,11 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 raise PermissionError("Өөр сайтаас API дуудахгүй.")
             if self.headers.get("Sec-Fetch-Site") == "cross-site":
                 raise PermissionError("Өөр сайтаас API дуудахгүй.")
-            if self.headers.get("Transfer-Encoding"):
+            if self.headers.get_all("Transfer-Encoding", []):
                 raise ValueError("Content-Length бүхий хүсэлт шаардлагатай.")
-            raw_length = self.headers.get("Content-Length")
-            if not raw_length or not raw_length.isdigit():
+            length = _content_length(self.headers)
+            if length is None:
                 raise ValueError("Хүчинтэй Content-Length шаардлагатай.")
-            length = int(raw_length)
             if not 0 < length <= maximum:
                 raise ValueError(f"Өгөгдлийн хэмжээ 1–{maximum} byte байна.")
             self.connection.settimeout(15)
@@ -251,6 +396,15 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             if not self.valid_host():
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
             path = unquote(urlsplit(self.path).path)
+            if path.startswith('/api/admin/'):
+                try:
+                    return self.admin_post(path)
+                except ReleaseError as error:
+                    return self.error(error.status, str(error))
+                except PermissionError as error:
+                    return self.error(403, str(error))
+                except (ValueError, OSError, KeyError, TypeError, sqlite3.Error) as error:
+                    return self.error(400, str(error))
             if path not in {"/api/search", "/api/preview", "/api/website-search", "/api/route",
                             "/api/conversation/reset",
                             "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset", "/api/voice/correct",
@@ -265,7 +419,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 if path == "/api/conversation/reset":
                     if set(body) != {"clarification_ids"}:
                         raise ValueError("Зөвхөн clarification_ids жагсаалт өгнө.")
-                    return self.send_json(200, clarification_context.reset(body["clarification_ids"]))
+                    return self.send_json(200, live_content.snapshot().clarification.reset(body["clarification_ids"]))
                 if path == "/api/voice/correct":
                     if set(body) != {"text"}:
                         raise ValueError("Зөвхөн text талбар өгнө.")
@@ -290,9 +444,14 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.send_json(200, review.save_tts(
                         body["id"], body["listener"], body["overall"], body["intelligibility"],
                         body["pronunciation_errors"], body["confirmed"]))
+                bundle = live_content.snapshot()
+                database, rag = bundle.database, bundle.rag
+                clarification_context = bundle.clarification
                 if path == "/api/voice/speak":
-                    if set(body) - {"query", "allow_draft", "voice", "package_id", "response_id"}:
+                    if set(body) - {"query", "allow_draft", "voice", "package_id", "response_id", "release_token"}:
                         raise ValueError("Зөвшөөрөөгүй талбар байна.")
+                    if body.get('release_token') != bundle.token:
+                        return self.error(409, 'Мэдээллийн хувилбар солигдсон. Асуултаа дахин илгээнэ үү.')
                     query, draft = body.get("query"), body.get("allow_draft", False)
                     if not isinstance(query, str) or not query.strip() or len(query) > 1000 or type(draft) is not bool:
                         raise ValueError("Асуулт болон draft горим буруу.")
@@ -307,14 +466,30 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             current = rag.recall(response_id, query.strip(), current["package_id"], draft)
                         except ValueError as error:
                             return self.error(409, str(error))
+                    teacher_bundle = current.get('teacher_media_bundle_id')
+                    if teacher_bundle is not None:
+                        teacher_state = teachers.status()
+                        if not teacher_state.get('available') or teacher_bundle != teacher_state.get('bundle_id'):
+                            return self.error(409, 'Багшийн танилцуулгын эх өөрчлөгдсөн. Асуултаа дахин илгээнэ үү.')
                     spoken = spoken_text(current)
                     result = voice.synthesize(spoken, body.get("voice"))
+                    if not live_content.is_current(bundle):
+                        return self.error(409, 'Дуу бэлтгэх үед мэдээллийн хувилбар солигдсон. Асуултаа дахин илгээнэ үү.')
+                    if teacher_bundle is not None:
+                        teacher_state = teachers.status()
+                        if not teacher_state.get('available') or teacher_bundle != teacher_state.get('bundle_id'):
+                            return self.error(409, 'Дуу бэлтгэх үед багшийн эх өөрчлөгдсөн. Асуултаа дахин илгээнэ үү.')
+                    result['content_release'] = bundle.public()
+                    answer_rag=current.get('rag') or {}
+                    authored=answer_rag.get('answer_text_generated',current.get('generated',False))
                     result.update(route=current["route"], package_id=current["package_id"],
                                   spoken_text=spoken, citations=current["citations"],
-                                  text_generated=current.get("generated", False), llm_calls=0,
+                                  text_generated=authored, llm_calls=0,
+                                  answer_llm_calls=current.get('llm_calls',0),
+                                  answer_llm_role=answer_rag.get('llm_role','text_generation' if authored else 'none'),
                                   answer_kind=current.get("answer_kind"))
                     return self.send_json(200, result)
-                allowed = ({"query", "allow_draft", "clarification_id"} if path == "/api/route" else
+                allowed = ({"query", "allow_draft", "clarification_id", "transcription_id"} if path == "/api/route" else
                            {"query", "allow_draft", "limit"} if path in {"/api/search", "/api/website-search"} else
                            {"faq_id", "allow_draft"})
                 if set(body) - allowed:
@@ -332,6 +507,10 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     if path == "/api/route":
                         context_started = time.perf_counter()
                         raw_query = query.strip()
+                        input_lineage = ({'kind': 'typed', 'submitted_text': raw_query,
+                                          'manual_verification_claimed': False}
+                            if 'transcription_id' not in body else
+                            voice.transcription_lineage(body['transcription_id'], raw_query))
                         conversation = dict(raw_query=raw_query, resolved_query=raw_query,
                                             applied=False, reason="fresh_query", clarification_id=None)
                         if "clarification_id" in body:
@@ -350,7 +529,14 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                 token, raw_query, allow_draft=allow_draft,
                                 package_id=package_id, corpus_id=corpus_id)
                         context_elapsed = time.perf_counter() - context_started
-                        result = rag.route(database, conversation["resolved_query"], allow_draft=allow_draft)
+                        result = self.teacher_answer(conversation['resolved_query'], allow_draft, database, rag)
+                        if result is None:
+                            result = rag.route(database, conversation["resolved_query"], allow_draft=allow_draft)
+                            cards = teachers.attach(conversation['resolved_query'], result)
+                            if cards:
+                                result['teacher_cards'] = cards
+                                result['teacher_media_bundle_id'] = cards[0]['bundle_id']
+                                result = rag._remember(result, allow_draft)
                         context_started = time.perf_counter()
                         if "clarification_id" in body:
                             result_corpus = (result.get("rag") or {}).get("corpus_id")
@@ -361,9 +547,13 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             (context_elapsed + time.perf_counter() - context_started) * 1000, 3)
                         conversation["latency_scope"] = "clarification_package_corpus_checks_resolution_and_issue; excludes_rag_route_http_stt_tts"
                         result["conversation"] = conversation
+                        result['input_lineage'] = input_lineage
+                        if not live_content.is_current(bundle):
+                            raise ClarificationConflict('Хариулах үед мэдээллийн хувилбар солигдсон. Асуултаа дахин илгээнэ үү.')
+                        result['content_release'] = bundle.public()
                         return self.send_json(200, result)
                     if path == "/api/website-search":
-                        result = search_website(query.strip(), root / "CORE/database/website.db",
+                        result = search_website(query.strip(), bundle.website_database,
                                                 limit=limit, allow_draft=allow_draft or content_policy.enabled)
                         if content_policy.enabled and not allow_draft:
                             result.update(mode="official_website", source_accepted_for_project=True,
@@ -386,10 +576,14 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             except VoiceRuntimeError as error:
                 self.close_connection = True
                 return self.send_json(error.status, {"error": str(error), "code": error.code})
+            except TeacherMediaError:
+                return self.error(503, 'Багшийн эхийн санг шалгаж чадсангүй. Түр хүлээгээд дахин оролдоно уу.')
             except PermissionError as error:
                 return self.error(403, str(error))
             except ClarificationConflict as error:
                 return self.error(409, str(error))
+            except ReleaseError:
+                return self.error(503, 'Идэвхтэй эхийн хувилбарыг шалгаж чадсангүй. Админ хэсгээс шалгана уу.')
             except ValueError as error:
                 return self.error(400, str(error))
             except KeyError:

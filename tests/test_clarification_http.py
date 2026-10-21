@@ -178,6 +178,24 @@ class ClarificationHTTPTests(unittest.TestCase):
         self.assertIsNone(original['answer'])
         self.assertEqual(self.rag.routed[-1], (result['query'], False))
 
+    def test_payment_scope_reply_keeps_account_request_and_rejects_fee_substitution(self):
+        # Invented fee clauses have no account number. Scope clarification must
+        # retain the requested field, then decline to substitute a fee amount.
+        self.retriever.search = lambda query, limit=5: dict(
+            candidates=copy.deepcopy(self.retriever.sources),
+            corpus_id=self.retriever.corpus_id, backend='synthetic_fixture')
+        query = 'Бүртгэлийн мөнгийг ямар данс руу шилжүүлэх вэ?'
+        token, pending = self.pending(query)
+        self.assertTrue(all('данс руу шилжүүлэх' in choice for choice in pending['suggestions']))
+        status, result = self.route('Элсэлтийнх', token)
+        self.assertEqual(status, 200)
+        self.assertTrue(result['conversation']['applied'])
+        self.assertEqual(result['conversation']['resolved_query'], 'Элсэлтийн ' + query[:1].lower() + query[1:])
+        self.assertEqual(result['route'], 'E')
+        self.assertEqual(result['reason_code'], 'requested_attribute_not_supported')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['llm_calls'], 0)
+
     def test_supported_scope_reply_does_not_bypass_missing_amount_source_guard(self):
         self.retriever.sources[0]['text'] = 'Элсэлтийн бүртгэлийн ерөнхий мэдээлэл. Тестийн эх 2026.'
         self.retriever.sources[0]['excerpt'] = self.retriever.sources[0]['text']
@@ -381,7 +399,9 @@ class ClarificationHTTPTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn('12,345 төгрөг', result['answer'])
         expected_spoken = result['answer'].replace(
-            '12,345 төгрөг', 'арван хоёр мянга гурван зуун дөчин таван төгрөг')
+            '12,345 төгрөг', 'арван хоёр мянга гурван зуун дөчин таван төгрөг').replace(
+            ' (татсан: 2026-10-10) — эхийн мэдээлэл:', '.').replace(
+            '2026 оны', 'хоёр мянга хорин зургаан оны')
         self.assertEqual(spoken['spoken_text'], expected_spoken)
         self.assertEqual(spoken['citations'], result['citations'])
         self.assertEqual(len(self.rag.routed), routed)

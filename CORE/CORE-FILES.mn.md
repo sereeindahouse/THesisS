@@ -1,3 +1,81 @@
+<!-- core-next-files-20261021:start -->
+## Хамгийн сүүлийн код ба GitHub-д нийтлэх хувилбар
+
+**897 тест тэнцсэн код [чатад](http://127.0.0.1:8765/) ажиллаж байна.** Өмнө үлдсэн чиглэл–нэр, хичээл–онлайн хэлбэрийн хоёр omission ижил development багц дээр засагдсан: Gemma AI бүрэн8/8, best3 мөн8/8. Хүний шинэ accuracy биш; давталт/хамааралгүй хэсэг үлдсэн.
+
+- [evidence_contract.py](../evidence_contract.py): эхийн diagram-card болон компанийн гарчигтай дараагийн өгүүлбэрийн холбоог хадгална.
+- [source_fields.py](../source_fields.py): хоёр чиглэл–нэрийн холбоо, нэрлэсэн хичээлүүдийн хэрэгжсэн хэлбэрийг шаардана.
+- [test_structure_context.py](../tests/test_structure_context.py): өөр компанийн өгүүлбэр, үгүйсгэл, дутуу хос, budget-ийн15 control.
+- [RAG-ийг энгийнээр ойлгох](CONCEPTS.mn.md) · [Хэмжилт/хязгаар](ROADMAP-PROGRESS.mn.md).
+
+STT-ийн хамгаалалттай дөрвөн гаралтын туршилт WER бууруулаагүй тул нэвтрүүлээгүй. Raw WER36.02% хэвээр. Код GitHub-д нийтлэгдэхэд хувийн аудио, transcript, модель, DB, runtime үр дүн хамт орохгүй; q01–q03-ийн өмнө зөвшөөрсөн demo хувилбар л public.
+<!-- core-next-files-20261021:end -->
+
+<!-- rag-completeness-files-20261021:start -->
+## Одоогийн RAG засвар ба шалгах файлууд
+
+**882 тест, бодит 10 HTTP шалгалт тэнцсэн код [чатад](http://127.0.0.1:8765/) ачаалагдсан.** Ижил 8 асуултын Gemma хариултын бүрэн байдал AI development үнэлгээгээр 4/8→6/8; хүний шинэ accuracy биш. [Хэмжилт ба хязгаар](ROADMAP-PROGRESS.mn.md).
+
+| Файл | Энэ удаагийн өөрчлөлт |
+|---|---|
+| [evidence_contract.py](../evidence_contract.py) | Эхийн `•` жагсаалтын том үсэгтэй мөрийг шинэ гарчиг гэж таслахгүй |
+| [rag_runtime.py](../rag_runtime.py) | Онтой мэдээлэл дутвал шалгагдсан нэг/хоёр эхийн хэсгээс нэг удаа дахин сонгуулна |
+| [source_fields.py](../source_fields.py) | Хоёр төрлийн дадлага асуувал тус бүрийн нэрлэсэн жагсаалтыг шаардана; үгүйсгэлийг эерэг баталгаа болгохгүй |
+| [Туршилтын бүртгэл](../runtime/rag-completeness-20261021/README.mn.md) | Анхны ба дараах гаралт, AI үнэлгээ, регрессийн өртөг, бодит серверийн нотолгоо |
+
+Хүний өмнөх 49 event хадгалагдсан. Raw STT WER 36.02% хэвээр; энэ засварыг танилтын чанарын өсөлт гэж тооцохгүй. Доорх огноотой тестийн тоонууд өмнөх checkpoint-үүдийнх.
+<!-- rag-completeness-files-20261021:end -->
+
+<!-- human-feedback-files-20261021:start -->
+## Хүний дүн ба засварын одоогийн холбоос
+
+[Нэгтгэсэн дүн](ROADMAP-PROGRESS.mn.md): нэг хөгжүүлэгчийн12сонсгол,24хариулт,нэг task хадгалагдсан. Эх үнэлгээг засварын дараах шинэ үр дүнгээр дарж өөрчлөөгүй.
+[website_retrieval.py](../website_retrieval.py) нь exact search spelling alias хэрэглэнэ; query/raw STT хэвээр.
+[speech_text.py](../speech_text.py) нь зөвхөн ЕБС/ЕБС-ийн гэсэн2хэлбэрийг дуугаар бүтэн уншина.
+[manage_content_release.py](../tools/manage_content_release.py) дэх stage-code-upgrade нь хуучин sealed өгөгдлийг байтаар нь шалгаад шинэ ноорогт хуулна; validate/publish тусдаа. Автоматаар хуучин hash-ийг зөвшөөрөхгүй.
+<!-- human-feedback-files-20261021:end -->
+
+<!-- quality-media-files-20261021:start -->
+## Одоо ажиллаж буй зураг ба чанарын шалгалтын файлууд
+
+[Чат](http://127.0.0.1:8765/) · [Хүний үнэлгээ](http://127.0.0.1:8790/) · [Үнэлгээний заавар](HUMAN-QUALITY-CHECK.mn.md).
+Чатад «Соронзонболд багшийн зурагтай танилцуулга үзье» гэж асууна. Батчулуун багшийн зураг мөн бий. Хоёр хүний албан эхэд байх мэдээллийг л харуулна.
+
+| Файл | Бодит үүрэг |
+|---|---|
+| [teacher_media.py](../teacher_media.py) | Албан бүтэцтэй нэр–зураг холбоос, эх/зургийн SHA, огноо, хязгаарласан асуултын шалгалт; placeholder/буруу capture-д зураг өгөхгүй |
+| [demo_server.py](../demo_server.py), [чат](../demo/index.html) | Нэр тодруулах, зурагтай карт, эхийн холбоос, тухайн хариултын TTS |
+| [evaluate_llm_selection.py](../tools/evaluate_llm_selection.py) | Ижил frozen эх дээр Gemma ба LLM-гүй1/3 хэсгийн сонголтыг ижил guard-тай харьцуулна |
+| [human_quality_trial.py](../tools/human_quality_trial.py) | 24 хариултын арга нуусан үнэлгээ,12дуу,typed/raw/edited даалгавар; бодит хүний үр дүнг өөрөө нөхөхгүй |
+
+**841 тест PASS** нь ажиллагааны баталгаа; хариултын хүний accuracy биш. LLM-ийн жижиг туршилт Gemma-ийн давуу талыг батлаагүй. RawSTT WER36.02% хэвээр. [Дүн ба хязгаар](ROADMAP-PROGRESS.mn.md).
+<!-- quality-media-files-20261021:end -->
+
+<!-- delivery-files-20261021:start -->
+## 2026.10.21 — Шинээр хэрэгжүүлсэн гол файлууд
+
+| Хэрэгцээ | Файл | Одоо юу хийдэг вэ? |
+|---|---|---|
+| Мэдээлэл шинэчлэх | [ADMIN.cmd](ADMIN.cmd), [заавар](ADMIN-GUIDE.mn.md), [admin.js](../demo/admin.js) | Ноорог, эхтэй diff, нийтлэх, өмнөх хувилбарт буцаах |
+| Өгөгдлийн хувилбар | [content_release.py](../content_release.py), [release_runtime.py](../release_runtime.py) | Hash-тай sealed хоёрDB, atomic active pointer, хуучин хүсэлтийн хориг |
+| Командын шинэчлэлт | [manage_content_release.py](../tools/manage_content_release.py) | Stage/import/validate/publish/rollback |
+| STT эх ба засвар | [voice_runtime.py](../voice_runtime.py), [demo_server.py](../demo_server.py) | Серверийн transcriptionID-тай raw/edited lineage, асуулт бүрийн тусдаа бичвэр |
+| TTS унших хэлбэр | [speech_text.py](../speech_text.py), [харьцуулалт](../tools/evaluate_speech_delivery.py) | Хязгаарласан он/утас/мөнгөн дүн; дэлгэцийн эхийг өөрчлөхгүй |
+| Хүргэлтийн бэлэн байдал | [check_delivery_readiness.py](../tools/check_delivery_readiness.py) | Dependency/model SHA, эхийн integrity, public/private зам; network/inferenceгүй |
+
+[Бодит үр дүн, үлдсэн хязгаар](ROADMAP-PROGRESS.mn.md). Доорх огноотой тоонууд түүхэн checkpoint.
+<!-- delivery-files-20261021:end -->
+
+2026.10.16 STT: [offline comparison CLI](../tools/evaluate_stt_context.py),
+[туршилтын arms](../config/stt-context-development.json), [тест](../tests/test_stt_context.py).
+[voice_runtime.py](../voice_runtime.py) presence-only gate+loaded provenance;
+[voice collector](../tools/evaluate_voice_loop.py) хуучин STT code-г эхлэхээс өмнө хаана.
+
+2026.10.15 V6: [evidence_contract.py](../evidence_contract.py) exact span/context;
+[source_fields.py](../source_fields.py) literal field/scope/ambiguity;
+[rag_runtime.py](../rag_runtime.py) bounded replacement+active-ID guards.
+568 тест;40 observed development review ба хязгаар: [явц](ROADMAP-PROGRESS.mn.md).
+
 2026.10.15 нэмэлт: [clarification_context.py](../clarification_context.py) D тодруулгын
 богино хариуг зөвшөөрсөн сонголттой холбодог; [demo_server.py](../demo_server.py)
 API/эхийн binding-ийг дахин шалгана. [demo/index.html](../demo/index.html) raw ба
@@ -10,7 +88,7 @@ API/эхийн binding-ийг дахин шалгана. [demo/index.html](../de
 |---|---|---|
 | Demo | [demo_server.py](../demo_server.py), [интерфэйс](../demo/index.html) | Микрофон/файл, текст засвар, чиглүүлэгч, TTS, сонсголын нэг дэлгэц |
 | Нэг даралтын нээлт | [open_demo.py](../open_demo.py), [DEMO.cmd](../DEMO.cmd) | Сервер асаах/ашиглах, браузер нээх |
-| Эхийн атлас ба явц | [data_explorer.py](../data_explorer.py), [интерфэйс](../demo/data.html), [шалгуурын бүртгэл](../config/project-progress.json) | 77 эх, fact/FAQ, огноо/locator, зураг/PDF preview, техникийн явц |
+| Эхийн атлас ба явц | [data_explorer.py](../data_explorer.py), [интерфэйс](../demo/data.html), [шалгуурын бүртгэл](../config/project-progress.json) | 75 HTML+5 баримтын эх, fact/FAQ, огноо/locator, зураг/PDF preview, техникийн явц |
 | Веб эхийн сан | [website_corpus.py](website_corpus.py) | Crawl, snapshot/hash, SQLite, draft эхийн хайлт |
 | PDF/зургийн сонгосон эх | [document_corpus.py](document_corpus.py), [тест](../tests/test_document_corpus.py) | Эх файл/hash, хуудас/заалт, буулгалтын хувилбар |
 | Эхийн хамрах хүрээний хэмжилт | [evaluate_source_retrieval.py](../tools/evaluate_source_retrieval.py), [36 асуулт](../data/rag-source-dev-20261012.json) | Зорилтот хэсэг top1/top3/top5; accuracy биш |

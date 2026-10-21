@@ -7,6 +7,11 @@ import unittest
 from unittest.mock import patch
 from tools import evaluate_voice_loop as loop
 from tools.evaluate_answer_quality import RUNTIME_ARTIFACT_NAMES
+from voice_runtime import VOICE_ARTIFACT_NAMES
+
+
+def voice_hashes():
+    return {n:hashlib.sha256((loop.ROOT/n).read_bytes()).hexdigest() for n in VOICE_ARTIFACT_NAMES}
 
 
 class SyntheticLoopTests(unittest.TestCase):
@@ -40,15 +45,16 @@ class SyntheticLoopTests(unittest.TestCase):
         class Opener:
             def open(self,req,timeout):
                 path=req.full_url.split(':8765')[-1]
-                if path=='/api/status':value=dict(rag=dict(loaded_artifact_sha256=hashes),voice=dict(stt_ready=True))
+                if path=='/api/status':value=dict(rag=dict(loaded_artifact_sha256=hashes),voice=dict(stt_ready=True,loaded_artifact_sha256=voice_hashes()))
                 elif path=='/api/voice/transcribe':
                     self_payload=req.data;calls.append((path,self_payload,req.get_header('Content-type')))
-                    value=dict(text=raw)
+                    value=dict(text=raw,id='owned-stt-id')
                 elif path=='/api/route':
                     body=json.loads(req.data);calls.append((path,body))
                     typed=body['query']!=raw
                     value=dict(route='A' if typed else 'E',answer='100 оноо' if typed else None,
-                        message='Мэдээлэл олдсонгүй',response_id='typed-id' if typed else 'raw-id',package_id='pkg')
+                        message='Мэдээлэл олдсонгүй',response_id='typed-id' if typed else 'raw-id',package_id='pkg',
+                        content_release=dict(activation_token='active-release-token'))
                 elif path=='/api/voice/speak':
                     body=json.loads(req.data);calls.append((path,body));value=dict(audio_url='/api/voice/audio/answer')
                 elif path=='/api/voice/audio/answer':return io.BytesIO(b'mp3answer')
@@ -66,6 +72,7 @@ class SyntheticLoopTests(unittest.TestCase):
         self.assertEqual(result['completed_clips'],2)
         self.assertTrue(result['synthetic_voice']);self.assertFalse(result['human_voice'])
         self.assertFalse(result['own_training']);self.assertFalse(result['human_answer_review'])
+        self.assertEqual(result['runtime_preflight']['expected_voice_artifact_sha256'],voice_hashes())
         self.assertEqual(synthesized,[self.bundle['cases'][0]['query']]*2)
         self.assertTrue(all(r.get('reused_question_audio') for r in replay['cases']))
         self.assertEqual([r['input_wav_sha256'] for r in result['cases']],[r['input_wav_sha256'] for r in replay['cases']])
@@ -77,9 +84,12 @@ class SyntheticLoopTests(unittest.TestCase):
             self.assertIsNone(row['human_review'])
         for path,*detail in calls:
             if path=='/api/voice/transcribe':self.assertEqual(detail,[b'WAV','audio/wav'])
+            if path=='/api/route':
+                self.assertEqual(detail[0].get('transcription_id'),'owned-stt-id' if detail[0]['query']==raw else None)
             if path=='/api/voice/speak':
                 self.assertEqual(detail[0]['query'],raw)
                 self.assertEqual(detail[0]['response_id'],'raw-id')
+                self.assertEqual(detail[0]['release_token'],'active-release-token')
         original=(self.output/'results.json').read_bytes()
         with patch.object(loop.urllib.request,'build_opener',return_value=Opener()):
             with self.assertRaises(FileExistsError):loop.run(self.cases,self.output,'http://127.0.0.1:8765')
@@ -92,7 +102,7 @@ class SyntheticLoopTests(unittest.TestCase):
             def open(self,req,timeout):
                 self_path=req.full_url.split(':8765')[-1]
                 if self_path!='/api/status':raise AssertionError('Audio/question request before readiness')
-                return io.BytesIO(json.dumps(dict(rag=dict(loaded_artifact_sha256=hashes),voice=dict(stt_ready=False))).encode())
+                return io.BytesIO(json.dumps(dict(rag=dict(loaded_artifact_sha256=hashes),voice=dict(stt_ready=False,loaded_artifact_sha256=voice_hashes()))).encode())
         with patch.object(loop.urllib.request,'build_opener',return_value=Opener()),patch('voice_runtime.VoiceRuntime') as tts:
             with self.assertRaises(ValueError):loop.run(self.cases,self.output,'http://127.0.0.1:8765')
             tts.assert_not_called()
@@ -122,6 +132,27 @@ class SyntheticLoopTests(unittest.TestCase):
                     tts.assert_not_called()
                 self.assertEqual(len(requests),1)
                 self.assertEqual(requests[0].get_method(),'GET')
+                self.assertFalse(self.output.exists())
+
+    def test_stale_or_missing_voice_stt_import_blocks_even_when_rag_is_current(self):
+        rag={n:hashlib.sha256((loop.ROOT/n).read_bytes()).hexdigest() for n in RUNTIME_ARTIFACT_NAMES}
+        for name in VOICE_ARTIFACT_NAMES:
+            for failure in ('stale','missing'):
+                loaded=voice_hashes()
+                if failure=='stale':loaded[name]='0'*64
+                else:loaded.pop(name)
+                requests=[]
+                class Opener:
+                    def open(self,req,timeout):
+                        requests.append(req.full_url)
+                        if req.full_url!='http://127.0.0.1:8765/api/status':raise AssertionError('Audio before voice preflight')
+                        return io.BytesIO(json.dumps(dict(rag=dict(loaded_artifact_sha256=rag),
+                            voice=dict(stt_ready=True,loaded_artifact_sha256=loaded))).encode())
+                with self.subTest(name=name,failure=failure),patch.object(loop.urllib.request,'build_opener',return_value=Opener()),patch('voice_runtime.VoiceRuntime') as tts:
+                    with self.assertRaisesRegex(ValueError,'Stale voice/STT code'):
+                        loop.run(self.cases,self.output,'http://127.0.0.1:8765')
+                    tts.assert_not_called()
+                self.assertEqual(requests,['http://127.0.0.1:8765/api/status'])
                 self.assertFalse(self.output.exists())
 
 

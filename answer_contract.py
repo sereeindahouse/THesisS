@@ -1,7 +1,7 @@
 """Bounded answer contracts; these are not a semantic entailment classifier."""
 import re
 import unicodedata
-from speech_text import normalize_spoken_currency, remove_rendered_citations
+from speech_text import normalize_spoken_currency, normalize_spoken_notation, remove_rendered_citations
 
 MAX_SPEECH_CHARACTERS = 2000
 
@@ -13,11 +13,12 @@ def spoken_text(result):
         text = result['answer']
         if result.get('answer_kind') == 'rag_generated':
             text = remove_rendered_citations(text, len(result.get('citations', [])))
+        text = normalize_spoken_notation(text, official_extract=result.get('answer_kind') == 'official_website_extract')
         return normalize_spoken_currency(prefix + text)
     text = result.get('message', '')
     if result.get('clarification'):
         text += ' ' + result['clarification']['question']
-    return normalize_spoken_currency(text)
+    return normalize_spoken_currency(normalize_spoken_notation(text))
 
 
 def render_claims(claims):
@@ -125,22 +126,32 @@ def quantity_context_supported(statement, quote):
     return True
 
 
+def tuition_label_query(query):
+    """Recognise only an explicit tuition label, including its money alias."""
+    text = unicodedata.normalize('NFC', query).casefold()
+    return bool(re.search(r'\bсургалтын\s+(?:төлбөр(?:ийн|ийг)?|мөнгө(?:ний)?|мөнгийг)\b', text))
+
+
 def tuition_amount_query(query):
     text = unicodedata.normalize('NFC', query).casefold()
-    if not re.search(r'\bсургалтын\s+төлбөр(?:ийн|ийг)?\b', text):
+    # Colloquial "сургалтын мөнгө" still names tuition. Money alone, a
+    # scholarship stipend, another cost, or a negated/qualified tuition label
+    # must not acquire an annual tuition amount through this narrow lookup.
+    if not tuition_label_query(text):
         return False
     # Keep this vocabulary explicit: programmes, discounts, refund policy,
     # instalments, special student groups and live status require other evidence.
     words = set(re.findall(r'[^\W\d_]+', text))
-    allowed = set('сургалтын төлбөр төлбөрийн төлбөрийг хэд хэдэн төгрөг төгрөгөөр ₮ mnt '
+    allowed = set('сургалтын төлбөр төлбөрийн төлбөрийг мөнгө мөнгөний мөнгийг хэд хэдэн төгрөг төгрөгөөр ₮ mnt '
                   'жил жилийн жилд жилээр нэг сард сарын сараар сар бүр '
                   'оны онд он хичээлийн үү уу вэ бэ юм байна мөн зөв эсэхийг '
-                  'энэ тэр танай сургуулийн хэлээд өгөөч элсэлтийн хуудсан хуудасны хуудсанд дахь дээр гэсэн үг нь'.split())
+                  'энэ тэр танай сургуулийн хэлээд өгөөч элсэлтийн хуудсан хуудасны хуудсанд хуудсаар '
+                  'дахь дээр гэсэн үг нь дүн дүнг дүнгийн болдог гэж ойлгох'.split())
     return words <= allowed
 
 
 def tuition_period_notice(query, excerpt):
-    if ('сургалтын төлбөр' in query.casefold() and re.search(r'\b(?:сард|сарын|сараар|сар)\b', query.casefold())
+    if (tuition_amount_query(query) and re.search(r'\b(?:сард|сарын|сараар|сар)\b', query.casefold())
             and re.search(r'жилд|жилийн', excerpt.casefold())):
         return ('Энэ заалтад сургалтын төлбөрийг жилээр заасан. '
                 'Сарын төлбөрийн дүн, хуваарийг энд тодорхойлоогүй.')

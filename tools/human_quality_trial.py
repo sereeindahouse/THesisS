@@ -1,0 +1,593 @@
+"""Local human answer, critical-slot listening, and typed/raw/edited task pilot.
+
+This tool collects explicit human self-reports, never AI-filled human scores.
+Only the fixed local demo receives recordings; prepared TTS files are reused.
+Run with --run-dir runtime/<new-private-dir>. No public listener is opened.
+"""
+from datetime import datetime, timezone
+import argparse
+import copy
+import hashlib
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+from pathlib import Path
+import random
+import re
+import secrets
+import threading
+import time
+from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, urlsplit
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+import uuid
+
+
+ROOT = Path(__file__).resolve().parents[1]
+MAX_AUDIO = 8 * 1024 * 1024
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+class TrialConflict(ValueError):
+    pass
+
+
+class NoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        # A fixed loopback URL must never redirect a recording or request to another host.
+        return None
+
+
+class HumanTrial:
+    def __init__(self, run_dir, audio_results, review_file, upstream='http://127.0.0.1:8765'):
+        self.directory = Path(run_dir).resolve()
+        if ROOT.joinpath('runtime').resolve() not in self.directory.parents:
+            raise ValueError('Human records must remain in a private runtime subdirectory.')
+        self.directory.mkdir(parents=True, exist_ok=False)
+        self.audio_manifest = Path(audio_results).resolve()
+        raw = self.audio_manifest.read_bytes()
+        self.audio_manifest_sha = sha(raw)
+        bundle = json.loads(raw)
+        self.samples = {}
+        for case in bundle['cases']:
+            for audio in case['audio']:
+                if audio.get('success') is not True:
+                    continue
+                path = (self.audio_manifest.parent / audio['path']).resolve()
+                if not path.is_relative_to(self.audio_manifest.parent) or path.suffix != '.mp3':
+                    raise ValueError('Unsafe fixed listening path.')
+                identifier = sha((case['id'] + ':' + audio['voice'] + ':' + audio['variant']).encode())[:24]
+                self.samples[identifier] = dict(path=path, sha256=audio['sha256'],
+                    keys=list(case['critical_values']), reference=case['critical_values'],
+                    written=case['written'], condition=audio['variant'], voice=audio['voice'])
+                self.audio(identifier)
+        if not self.samples:
+            raise ValueError('Require frozen, successful listening audio.')
+        if upstream != 'http://127.0.0.1:8765':
+            raise ValueError('Only the fixed loopback demo may process recordings.')
+        self.upstream = upstream
+        self._opener = build_opener(ProxyHandler({}), NoRedirect())
+        self.review_file = Path(review_file).resolve()
+        self.review_sha = None
+        self.rows = None
+        self.sessions = {}
+        self.lock = threading.RLock()
+        self.token = secrets.token_hex(32)
+        self._write_new('manifest.json', dict(created_utc=utc(), audio_manifest_sha256=self.audio_manifest_sha,
+            listening_samples=len(self.samples), expected_answer_file=str(self.review_file.relative_to(ROOT)),
+            scores_fabricated=False, human_review_source='explicit_browser_self_report',
+            human_scores_observer_verified=False, public_server=False,
+            audio_reference_not_inferred_from_stt=True,
+            human_answer_or_listening_results_at_preparation=0))
+
+    def _write_new(self, name, value):
+        with (self.directory / name).open('x', encoding='utf-8', newline='\n') as stream:
+            json.dump(value, stream, ensure_ascii=False, indent=2)
+            stream.write('\n')
+
+    def _answers(self):
+        with self.lock:
+            return self._answers_locked()
+
+    def _answers_locked(self):
+        if self.rows is not None:
+            if sha(self.review_file.read_bytes()) != self.review_sha:
+                raise TrialConflict('Frozen answer review file changed; restart as a new study.')
+            return self.rows
+        if not self.review_file.is_file():
+            return []
+        raw = self.review_file.read_bytes()
+        value = json.loads(raw)
+        rows = value['rows']
+        forbidden = {'condition', 'model', 'route', 'llm_calls'}
+        if not isinstance(rows, list) or not rows or len(rows) > 100:
+            raise ValueError('Invalid answer review bundle.')
+        result = []
+        seen = set()
+        for row in rows:
+            if forbidden.intersection(row) or row['review_id'] in seen:
+                raise ValueError('Reviewer bundle must omit condition, model and route.')
+            seen.add(row['review_id'])
+            if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', row['review_id']):
+                raise ValueError('Invalid review ID.')
+            if not isinstance(row['query'], str) or not isinstance(row['required_facts'], list):
+                raise ValueError('Invalid reviewer reference.')
+            result.append({key: row.get(key) for key in
+                ('review_id', 'query', 'answer', 'abstention_reason', 'required_facts', 'source_refs',
+                 'answer_sources', 'reference_sources')})
+        self.review_sha = sha(raw)
+        self.rows = result
+        self._write_new('frozen-answer-review.json', dict(input_sha256=self.review_sha, bundle=value))
+        return result
+
+    def audio(self, identifier):
+        if identifier not in self.samples:
+            raise KeyError('Unknown fixed audio.')
+        sample = self.samples[identifier]
+        path = sample['path'].resolve(strict=True)
+        if not path.is_relative_to(self.audio_manifest.parent) or path.stat().st_size > MAX_AUDIO:
+            raise ValueError('Unsafe listening path.')
+        raw = path.read_bytes()
+        if sha(raw) != sample['sha256']:
+            raise TrialConflict('Fixed listening audio changed.')
+        return raw
+
+    def _session(self, sid):
+        if not isinstance(sid, str) or sid not in self.sessions:
+            raise KeyError('Start a consented session first.')
+        return self.sessions[sid]
+
+    def _event(self, session, kind, payload):
+        with self.lock:
+            number = session['events'] + 1
+            record = {**copy.deepcopy(payload), 'id': uuid.uuid4().hex, 'session_id': session['id'], 'kind': kind,
+                'saved_utc': utc(), 'previous_event_sha256': session['last_sha'],
+                'audio_manifest_sha256': self.audio_manifest_sha, 'answer_bundle_sha256': self.review_sha,
+                'human_observer_verified': False}
+            raw = (json.dumps(record, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
+            with (self.directory / f'{session["id"]}-{number:04d}-{kind}.json').open('xb') as stream:
+                stream.write(raw)
+            session['events'], session['last_sha'] = number, sha(raw)
+            return dict(saved=True, event_sha256=session['last_sha'], id=record['id'])
+
+    def start(self, body):
+        if not isinstance(body, dict) or set(body) != {'pseudonym', 'consent', 'audio_storage_consent', 'implementation_participation'}:
+            raise ValueError('Invalid consent fields.')
+        if (not isinstance(body['pseudonym'], str) or not re.fullmatch(r'P[0-9]{3,6}', body['pseudonym'])
+                or body['consent'] is not True or type(body['audio_storage_consent']) is not bool
+                or type(body['implementation_participation']) is not bool):
+            raise ValueError('Use P001 etc. and explicit consent choices.')
+        sid = uuid.uuid4().hex
+        order = list(self.samples)
+        random.Random(sid).shuffle(order)
+        session = dict(id=sid, events=0, last_sha=None, consent=copy.deepcopy(body),
+            listening_order=order, listening={}, reviews={}, tasks={})
+        self.sessions[sid] = session
+        self._event(session, 'consent', body)
+        return dict(session_id=sid)
+
+    def state(self, sid=None):
+        rows = self._answers()
+        session = self._session(sid) if sid else None
+        samples = session['listening_order'] if session else []
+        return dict(csrf_token=self.token, answer_ready=bool(rows), answer_bundle_sha256=self.review_sha,
+            answers=rows, listening=[dict(sample_id=identifier,
+                critical_fields=self.samples[identifier]['keys'], audio_sha256=self.samples[identifier]['sha256'],
+                audio_url='/api/listening/audio/' + identifier) for identifier in samples],
+            completed_listening=list(session['listening']) if session else [],
+            completed_reviews=list(session['reviews']) if session else [],
+            audio_storage_consent=session['consent']['audio_storage_consent'] if session else False,
+            reference_reveal_allowed=bool(session and len(session['listening']) == len(self.samples)),
+            initial_results_are_empty=True, local_audio_processing=True, answer_tts_online=True)
+
+    def review(self, body):
+        required = {'session_id', 'review_id', 'correctness', 'completeness', 'citation_support', 'reason'}
+        if not isinstance(body, dict) or set(body) != required:
+            raise ValueError('Invalid answer review fields.')
+        with self.lock:
+            session = self._session(body['session_id'])
+            rows = {row['review_id']: row for row in self._answers()}
+            if body['review_id'] not in rows:
+                raise ValueError('Unknown frozen answer review.')
+            if body['review_id'] in session['reviews']:
+                raise TrialConflict('Prior human judgment is immutable; start a separately identified review.')
+            for key in ('correctness', 'completeness', 'citation_support'):
+                if body[key] not in {'correct', 'partial', 'wrong', 'not_applicable'}:
+                    raise ValueError('Choose a judgment for every dimension.')
+            if not isinstance(body['reason'], str) or not 3 <= len(body['reason'].strip()) <= 1500:
+                raise ValueError('Add a concrete evidence reason.')
+            result = self._event(session, 'answer-review', dict(**body,
+                human_review_source='explicit_browser_self_report', implementation_participation=session['consent']['implementation_participation']))
+            session['reviews'][body['review_id']] = result['id']
+            return result
+
+    def listen(self, body):
+        required = {'session_id', 'sample_id', 'audio_sha256', 'heard_values', 'intelligibility',
+                    'naturalness', 'listened', 'playback_ended'}
+        if not isinstance(body, dict) or set(body) != required:
+            raise ValueError('Invalid critical-slot listening fields.')
+        with self.lock:
+            session = self._session(body['session_id'])
+            sample = self.samples.get(body['sample_id'])
+            if sample is None or sample['sha256'] != body['audio_sha256']:
+                raise ValueError('Require the exact frozen audio hash.')
+            if body['sample_id'] in session['listening']:
+                raise TrialConflict('Listening result already saved; previous text is not overwritten.')
+            if (body['listened'] is not True or body['playback_ended'] is not True
+                    or not isinstance(body['heard_values'], dict)
+                    or set(body['heard_values']) != set(sample['keys'])
+                    or any(not isinstance(v, str) or not 1 <= len(v.strip()) <= 200 for v in body['heard_values'].values())):
+                raise ValueError('Complete playback, confirm listening and type every heard value; use ? if unclear.')
+            for field in ('intelligibility', 'naturalness'):
+                if type(body[field]) is not int or not 1 <= body[field] <= 5:
+                    raise ValueError('Listening ratings must be integers 1–5.')
+            self.audio(body['sample_id'])
+            result = self._event(session, 'listening', dict(**body, human_review_source='explicit_browser_self_report',
+                condition_blinded_at_submission=True))
+            session['listening'][body['sample_id']] = result['id']
+            return dict(**result, reference_hidden_until_all_listening_complete=True)
+
+    def reveal(self, sid):
+        session = self._session(sid)
+        if len(session['listening']) != len(self.samples):
+            raise TrialConflict('Finish listening before revealing reference values.')
+        return [dict(sample_id=identifier, written=self.samples[identifier]['written'],
+            critical_values=self.samples[identifier]['reference']) for identifier in session['listening_order']]
+
+    def begin_task(self, body):
+        if not isinstance(body, dict) or set(body) != {'session_id', 'intended_request'}:
+            raise ValueError('Invalid task fields.')
+        session = self._session(body['session_id'])
+        text = body['intended_request']
+        if not isinstance(text, str) or not 3 <= len(text.strip()) <= 1000:
+            raise ValueError('First type the request you intend to make, before recording.')
+        task_id = uuid.uuid4().hex
+        task = dict(id=task_id, intended_request=text.strip(), transcript=None, results={}, audio_ids=set(),
+                    lock=threading.RLock(), observations=set(), synthesized=set())
+        session['tasks'][task_id] = task
+        self._event(session, 'task-start', dict(task_id=task_id, intended_request=text.strip(),
+            intent_entered_before_stt=True, asr_utterance_reference=None, human_utterance_reference_confirmed=False))
+        return dict(task_id=task_id)
+
+    def _task(self, sid, task_id):
+        session = self._session(sid)
+        if task_id not in session['tasks']:
+            raise KeyError('Unknown task in this session.')
+        return session, session['tasks'][task_id]
+
+    def _upstream(self, path, body=None, mime='application/json'):
+        headers = {'Origin': self.upstream}
+        if body is not None:
+            headers['Content-Type'] = mime
+        request = Request(self.upstream + path, data=body, headers=headers)
+        try:
+            with self._opener.open(request, timeout=240) as response:
+                raw = response.read(MAX_AUDIO + 1)
+                if len(raw) > MAX_AUDIO:
+                    raise ValueError('Upstream body exceeds fixed limit.')
+                return json.loads(raw) if response.headers.get_content_type() == 'application/json' else raw
+        except HTTPError as error:
+            # Do not expose arbitrary server internals or local filesystem paths.
+            raise ValueError(f'Local demo returned HTTP {error.code}; keep this attempt and retry when ready.') from None
+        except (URLError, TimeoutError) as error:
+            raise ValueError('Local demo is unavailable or timed out; this attempt remains recorded.') from None
+
+    def transcribe(self, sid, task_id, raw, mime):
+        _, task = self._task(sid, task_id)
+        with task['lock']:
+            return self._transcribe(sid, task_id, raw, mime)
+
+    def _transcribe(self, sid, task_id, raw, mime):
+        session, task = self._task(sid, task_id)
+        if not session['consent']['audio_storage_consent']:
+            raise ValueError('Audio storage consent was not given; use typed/review/listening sections.')
+        if task['transcript'] is not None:
+            raise TrialConflict('This task already has one recording; begin a new task to retry.')
+        if not raw or len(raw) > MAX_AUDIO or mime not in {'audio/wav', 'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-wav'}:
+            raise ValueError('Use a supported audio file up to 8 MiB.')
+        audio_name = session['id'] + '-' + task_id + '-' + uuid.uuid4().hex + '-input.audio'
+        with (self.directory/audio_name).open('xb') as stream:
+            stream.write(raw)
+        started = time.perf_counter()
+        try:
+            value = self._upstream('/api/voice/transcribe', raw, mime)
+        except ValueError as error:
+            self._event(session, 'task-error', dict(task_id=task_id, operation='transcribe', input_sha256=sha(raw),
+                audio_file=audio_name, input_mime=mime, error=str(error)))
+            raise
+        if value.get('kind') != 'stt' or not isinstance(value.get('text'), str):
+            raise ValueError('Upstream STT response is malformed.')
+        task['transcript'] = copy.deepcopy(value)
+        task['audio_ids'].add(value['id'])
+        self._event(session, 'task-stt', dict(task_id=task_id, uploaded_audio_sha256=sha(raw),
+            audio_file=audio_name, input_mime=mime,
+            actual_response=value, wall_seconds=time.perf_counter()-started,
+            asr_utterance_reference=None, human_utterance_reference_confirmed=False))
+        return dict(text=value['text'], transcription_id=value['id'], recognition_review=value.get('recognition_review'))
+
+    def route(self, body):
+        if not isinstance(body, dict) or set(body) != {'session_id', 'task_id', 'condition', 'edited_text', 'edit_confirmed'}:
+            raise ValueError('Invalid route task fields.')
+        _, task = self._task(body['session_id'], body['task_id'])
+        with task['lock']:
+            return self._route(body)
+
+    def _route(self, body):
+        session, task = self._task(body['session_id'], body['task_id'])
+        condition = body['condition']
+        if condition not in {'typed', 'raw', 'explicit-edited'}:
+            raise ValueError('Unknown task condition.')
+        if condition in task['results']:
+            raise TrialConflict('Task condition already submitted; preserve the first attempt.')
+        request = dict(query=task['intended_request'])
+        if condition != 'typed':
+            if task['transcript'] is None:
+                raise ValueError('Record or upload speech first.')
+            text = task['transcript']['text']
+            if condition == 'explicit-edited':
+                if (body['edit_confirmed'] is not True or not isinstance(body['edited_text'], str)
+                        or not 1 <= len(body['edited_text'].strip()) <= 1000):
+                    raise ValueError('Explicitly confirm the text you personally reviewed.')
+                text = body['edited_text'].strip()
+            elif body['edited_text'] is not None or body['edit_confirmed'] is not False:
+                raise ValueError('Raw condition must use the immutable server-owned STT text.')
+            request.update(query=text, transcription_id=task['transcript']['id'])
+        elif body['edited_text'] is not None or body['edit_confirmed'] is not False:
+            raise ValueError('Typed condition must use the original intended request.')
+        started = time.perf_counter()
+        try:
+            result = self._upstream('/api/route', json.dumps(request).encode())
+        except ValueError as error:
+            self._event(session, 'task-error', dict(task_id=task['id'], condition=condition, operation='route', error=str(error)))
+            raise
+        task['results'][condition] = dict(query=request['query'], result=copy.deepcopy(result))
+        self._event(session, 'task-route', dict(task_id=task['id'], condition=condition,
+            actual_sent_text=request['query'], explicit_edit_confirmed=condition == 'explicit-edited',
+            actual_response=result, wall_seconds=time.perf_counter()-started,
+            edited_intent_is_asr_gold=False))
+        return dict(condition=condition, answer=result.get('answer'), route=result.get('route'),
+            citations=result.get('citations'), input_lineage=result.get('input_lineage'))
+
+    def speak(self, body):
+        if not isinstance(body, dict) or set(body) != {'session_id', 'task_id', 'condition'}:
+            raise ValueError('Invalid synthesis task fields.')
+        _, task = self._task(body['session_id'], body['task_id'])
+        with task['lock']:
+            return self._speak(body)
+
+    def _speak(self, body):
+        session, task = self._task(body['session_id'], body['task_id'])
+        condition = body['condition']
+        if condition not in task['results']:
+            raise ValueError('Submit this task condition first.')
+        prior = task['results'][condition]
+        result = prior['result']
+        request = dict(query=prior['query'], allow_draft=False, voice='mn-MN-BataaNeural',
+            package_id=result['package_id'], release_token=result.get('content_release', {}).get('activation_token'))
+        if result.get('response_id'):
+            request['response_id'] = result['response_id']
+        started = time.perf_counter()
+        try:
+            audio = self._upstream('/api/voice/speak', json.dumps(request).encode())
+        except ValueError as error:
+            self._event(session, 'task-error', dict(task_id=task['id'], condition=condition, operation='speak', error=str(error)))
+            raise
+        if not re.fullmatch(r'[0-9a-f]{32}', audio.get('id', '')):
+            raise ValueError('Malformed bound TTS ID.')
+        task['audio_ids'].add(audio['id'])
+        task['synthesized'].add(condition)
+        self._event(session, 'task-tts', dict(task_id=task['id'], condition=condition,
+            actual_response=audio, wall_seconds=time.perf_counter()-started,
+            human_listened=None))
+        return dict(audio_url=f'/api/voice-audio/{audio["id"]}?session_id={session["id"]}')
+
+    def voice_audio(self, sid, identifier):
+        session = self._session(sid)
+        if not re.fullmatch(r'[0-9a-f]{32}', identifier) or not any(identifier in t['audio_ids'] for t in session['tasks'].values()):
+            raise KeyError('Audio does not belong to this study session.')
+        return self._upstream('/api/voice/audio/' + identifier)
+
+    def observe(self, body):
+        required = {'session_id', 'task_id', 'condition', 'task_success', 'heard_answer',
+                    'intelligibility', 'naturalness', 'tts_listened', 'notes'}
+        if not isinstance(body, dict) or set(body) != required:
+            raise ValueError('Invalid task observation fields.')
+        _, task = self._task(body['session_id'], body['task_id'])
+        with task['lock']:
+            return self._observe(body)
+
+    def _observe(self, body):
+        session, task = self._task(body['session_id'], body['task_id'])
+        if body['condition'] not in task['results'] or body['task_success'] not in {'yes', 'partial', 'no'}:
+            raise ValueError('Submit the condition before judging its task success.')
+        if type(body['tts_listened']) is not bool:
+            raise ValueError('Explicitly state whether you actually listened.')
+        if body['condition'] in task['observations']:
+            raise TrialConflict('Previous observation is immutable.')
+        if body['tts_listened'] and body['condition'] not in task['synthesized']:
+            raise ValueError('This condition has no synthesized audio to listen to.')
+        for key in ('heard_answer', 'notes'):
+            if not isinstance(body[key], str) or len(body[key]) > 1500:
+                raise ValueError('Invalid task note.')
+        if body['tts_listened'] and not body['heard_answer'].strip():
+            raise ValueError('After listening, type what you understood from the answer.')
+        for key in ('intelligibility', 'naturalness'):
+            rating = body[key]
+            if body['tts_listened']:
+                if type(rating) is not int or not 1 <= rating <= 5:
+                    raise ValueError('Choose listening scores only after listening.')
+            elif rating is not None:
+                raise ValueError('Unheard audio cannot receive listening ratings.')
+        result = self._event(session, 'task-observation', dict(**body,
+            human_review_source='explicit_browser_self_report', asr_wer_measured=False))
+        task['observations'].add(body['condition'])
+        return result
+
+
+PAGE = r'''<!doctype html><html lang="mn"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Чанарын бодит шалгалт</title><style>*{box-sizing:border-box}body{margin:0;background:#f2f5f1;color:#18342c;font:16px/1.6 system-ui}main{max-width:900px;margin:auto;padding:24px 18px}article,section{background:white;border:1px solid #d4ded6;padding:20px;border-radius:14px;margin:18px 0}h1{line-height:1.2}h2{font-size:22px}label{display:block;margin:12px 0}input:not([type=checkbox]),textarea,select{width:100%;font:inherit;padding:8px;border:1px solid #a8bdae;border-radius:6px}textarea{min-height:85px}button,a.button{font:inherit;background:#245942;color:white;padding:9px 15px;border:0;border-radius:7px;cursor:pointer;margin:5px 8px 5px 0}button:disabled{opacity:.5;cursor:default}audio{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}small,.muted{color:#547064}.error{color:#9c2430}.hidden{display:none}.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:180px}a{color:#245942}</style>
+<main><a href="http://127.0.0.1:8765/">← Чат</a><h1>Чанарыг хүнээр шалгах жижиг туршилт</h1>
+<p>Энд таны бодит үнэлгээг хадгална. Хувийн нэр, утас хэрэггүй. Аль нэг хэсгийг сонгоод завсарлаж болно. Энэ нь сургуулиар баталсан судалгааны дизайн биш.</p>
+<p>Микрофоны дуу энэ компьютерийн локал Whisper-д очиж локал файлд хадгалагдана; автоматаар устах хугацаа тохируулаагүй. «Хариуг сонсох» үед хариултын текст онлайн Edge/Microsoft TTS-д очно. Доорх бэлтгэсэн 12 дууг сонсоход шинээр сүлжээнд текст/бичлэг явуулахгүй.</p>
+<section id="start"><label>Оролцогчийн зохиомол ID (жишээ P001)<input id="pseudo" value="P001" maxlength="7"></label><label><input type="checkbox" id="consent"> Би энэ туршилтад сайн дураар оролцож, хариултаа локал файлд хадгалахыг зөвшөөрч байна.</label><label><input type="checkbox" id="audioConsent"> Шинээр бичсэн дуугаа локал хадгалж STT туршихыг зөвшөөрнө. Сонгохгүйгээр бусад хэсгийг хийж болно.</label><label><input type="checkbox" id="developer"> Би энэ системийг хөгжүүлэхэд оролцсон.</label><button id="begin">Эхлэх</button></section>
+<p id="status" role="status"></p><div id="workspace" class="hidden"><nav><a href="#listen">1. Дуу сонсох</a> · <a href="#answer">2. Хариулт үнэлэх</a> · <a href="#voice">3. Бодит асуулт</a></nav>
+<section id="listen"><h2>1. Он, тоо, нэрийг дуунаас ойлгох</h2><p>Эдгээр өгүүлбэр нь зохиомол туршилтын өгөгдөл. Сургуулийн бодит мэдээлэл биш. Текст, өмнөх/шинэ хувилбарын нэрийг түр нуусан. Сонссоноо бичнэ үү; ойлгомжгүй бол <b>?</b> гэж бич. Бүх дуу дууссаны дараа эх текстийг харуулна.</p><p id="listenProgress"></p><div id="listenCard"></div><div id="reveal"></div></section>
+<section id="answer"><h2>2. Эхтэй нь тулгаж хариултыг үнэлэх</h2><p>Зөв, дутуу, бурууг эхийн баримтаар дүгнэнэ. Хариулт үүсгэсэн арга, model-ийг нуусан. Та хөгжүүлэгч бол энэ нь хараат бус үнэлгээ гэж тооцогдохгүй.</p><p id="answerProgress"></p><div id="answerCard"></div><button id="refreshAnswers">Шинэ асуултын багцыг шалгах</button></section>
+<section id="voice"><h2>3. Бичсэн → raw STT → өөрөө зассан асуулт</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь яг тэр санаагаар ярьж туршина. Санаагаа бичсэн текст болон зассан STT нь аудиогийн батлагдсан reference болохгүй; энд WER тооцохгүй. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй.</p>
+<label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Зогсоож таних</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ нь ASR reference баталсан гэсэн үг биш.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div></div></section></div></main>
+<script>
+const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false;
+const words={year:'Он',phone:'Утасны цифр',name:'Нэр',negation:'Үгүйсгэсэн үг',amount:'Мөнгөн дүн',unit:'Мөнгөний нэгж'};
+function el(tag,text,parent){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.append(n);return n}
+function status(text,error=false){$('status').textContent=text;$('status').className=error?'error':''}
+async function api(path,body,extra={}){const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json','X-Trial-Token':token,...extra},body:body===undefined?undefined:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw Error(v.error||'Хүсэлт амжилтгүй');return v}
+async function action(fn){if(busy)return;busy=true;try{await fn()}catch(e){status(e.message,true)}finally{busy=false}}
+async function refresh(){state=await api('/api/state?'+(sid?'session_id='+sid:''));token=state.csrf_token;renderListening();renderAnswer()}
+$('begin').onclick=()=>action(async()=>{const v=await api('/api/start',{pseudonym:$('pseudo').value,consent:$('consent').checked,audio_storage_consent:$('audioConsent').checked,implementation_participation:$('developer').checked});sid=v.session_id;sessionStorage.setItem('humanTrialSession',sid);$('start').classList.add('hidden');$('workspace').classList.remove('hidden');status('Session эхэллээ. Үнэлгээ зөвхөн таны хадгалсан үйлдлээр бүртгэгдэнэ.');await refresh()});
+function rating(parent,label,values){const l=el('label',label,parent),s=el('select',undefined,l);el('option','Сонгоно уу',s).value='';for(const [value,text] of values)el('option',text,s).value=value;return s}
+const scale=[['1','1 — ойлгомжгүй / маш хиймэл'],['2','2'],['3','3'],['4','4'],['5','5 — бүрэн ойлгомжтой / жам ёсны']];
+function renderListening(){if(!sid)return;const remaining=state.listening.filter(x=>!state.completed_listening.includes(x.sample_id));$('listenProgress').textContent=`Хадгалсан ${state.completed_listening.length}/${state.listening.length}`;const box=$('listenCard');box.replaceChildren();if(!remaining.length){el('p','Бүх дууны хариулт хадгалагдлаа.',box);const b=el('button','Эх текстийг одоо харах',box);b.onclick=()=>action(async()=>{const v=await api('/api/reveal?session_id='+sid);$('reveal').replaceChildren();for(const r of v.references)el('p',r.written,$('reveal'));b.disabled=true});return}
+ const item=remaining[0],audio=el('audio',undefined,box);audio.controls=true;audio.src=item.audio_url;let ended=false;audio.onended=()=>{ended=true};const fields={};for(const key of item.critical_fields){const l=el('label',words[key]||key,box);fields[key]=el('input',undefined,l);fields[key].maxLength=200}const int=rating(box,'Үг, тоог ойлгосон байдал',scale),nat=rating(box,'Дууны жам ёсны байдал',scale);const l=el('label',undefined,box),confirm=el('input',undefined,l);confirm.type='checkbox';l.append(' Би энэ дууг бодитоор сонссон.');const save=el('button','Сонссон зүйлээ хадгалж дараагийн дуу',box);save.onclick=()=>action(async()=>{await api('/api/listen',{session_id:sid,sample_id:item.sample_id,audio_sha256:item.audio_sha256,heard_values:Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v.value])),intelligibility:Number(int.value),naturalness:Number(nat.value),listened:confirm.checked,playback_ended:ended});status('Сонсголын хариулт хадгалагдлаа.');await refresh()})}
+function sourceBlock(parent,title,refs){el('strong',title,parent);if(!refs?.length)el('p','Энэ хариултад эшилсэн эх байхгүй.',parent);for(const ref of refs||[]){if(ref.citation_number)el('p','Эшлэл ['+ref.citation_number+']',parent);el('blockquote',ref.quote,parent);if(/^https:\/\/nmct\.edu\.mn(?:\/|$)/.test(ref.url||'')){const a=el('a',ref.title||'Албан эх',parent);a.href=ref.url;a.target='_blank';a.rel='noreferrer'}}}
+function renderAnswer(){if(!sid)return;const box=$('answerCard');box.replaceChildren();const rows=state.answers.filter(x=>!state.completed_reviews.includes(x.review_id));$('answerProgress').textContent=`Хадгалсан ${state.completed_reviews.length}/${state.answers.length} · Хэсэгчлэн хадгалаад завсарлаж болно.`;if(!state.answer_ready){el('p','Шинэ асуултын гаралтын багц бэлтгэгдэж байна. Дуу болон бодит асуултын хэсгийг хийж болно.',box);return}if(!rows.length){el('p','Багцын бүх хариултыг үнэлсэн байна. Баярлалаа.',box);return}const row=rows[0];el('h3',row.query,box);el('strong','Системийн хариулт:',box);el('p',row.answer||row.abstention_reason||'Хариулт өгөөгүй.',box);const details=el('details',undefined,box);details.open=true;el('summary','Эхийн нотолгоог харьцуулах',details);sourceBlock(details,'Системийн хариулт бодитоор эшилсэн эх',row.answer_sources);el('hr',undefined,details);el('strong','Гаралтаас өмнө бэлтгэсэн шалгах мэдээлэл (хүн батлаагүй)',details);for(const fact of row.required_facts)el('p','• '+fact,details);sourceBlock(details,'Энэ шалгах мэдээллийн эх',row.reference_sources||row.source_refs);const options=[['correct','Зөв / бүрэн дэмжигдсэн'],['partial','Дутуу / хэсэгчлэн'],['wrong','Буруу / дэмжигдээгүй'],['not_applicable','Энэ тохиолдолд хамаарахгүй']];const c=rating(box,'Утгын зөв байдал',options),m=rating(box,'Шаардсан мэдээллийн бүрэн байдал',options),s=rating(box,'Системийн эшлэлийн нотолгоо',options);const l=el('label','Ямар баримтаар ингэж дүгнэв?',box),reason=el('textarea',undefined,l),b=el('button','Үнэлгээг хадгалах',box);b.onclick=()=>action(async()=>{await api('/api/review',{session_id:sid,review_id:row.review_id,correctness:c.value,completeness:m.value,citation_support:s.value,reason:reason.value});status('Хүний өөрийн үнэлгээг хадгаллаа.');await refresh()})}
+$('refreshAnswers').onclick=()=>action(refresh);
+$('taskBegin').onclick=()=>action(async()=>{const r=await api('/api/task/begin',{session_id:sid,intended_request:$('intent').value});taskId=r.task_id;$('intent').disabled=true;$('taskBegin').disabled=true;$('taskBody').classList.remove('hidden');$('record').disabled=!state.audio_storage_consent;$('upload').disabled=!state.audio_storage_consent;status('Санааг STT-ээс өмнө хадгаллаа. Бичсэн нөхцөлийг эхэлж илгээж болно.')});
+async function sendCondition(condition){const v=await api('/api/task/route',{session_id:sid,task_id:taskId,condition,edited_text:condition==='explicit-edited'?$('edited').value:null,edit_confirmed:condition==='explicit-edited'?$('editConfirmed').checked:false});renderResult(v);status(condition+' нөхцөлийн бодит гаралтыг хадгаллаа.')}
+$('typed').onclick=()=>action(async()=>{await sendCondition('typed');$('typed').disabled=true});$('rawSend').onclick=()=>action(async()=>{await sendCondition('raw');$('rawSend').disabled=true});$('editedSend').onclick=()=>action(async()=>{await sendCondition('explicit-edited');$('editedSend').disabled=true});
+async function transcribe(blob){$('recordStatus').textContent='Дууг локал Whisper таньж байна…';const mime=(blob.type||'audio/webm').split(';')[0];const r=await fetch('/api/task/transcribe',{method:'POST',headers:{'Content-Type':mime,'X-Trial-Token':token,'X-Session-Id':sid,'X-Task-Id':taskId},body:blob});const v=await r.json();if(!r.ok)throw Error(v.error||'STT алдаа');$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('record').disabled=true;$('upload').disabled=true;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Хэлсэн үгтэйгээ өөрөө тулгана уу.'}
+$('upload').onchange=()=>action(async()=>{const f=$('upload').files[0];if(f)await transcribe(f)});
+$('record').onclick=()=>action(async()=>{stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{stream.getTracks().forEach(t=>t.stop());action(()=>transcribe(new Blob(chunks,{type:recording.mimeType})));};recording.start();$('record').disabled=true;$('stop').disabled=false;$('recordStatus').textContent='Бичиж байна. Богино асуултаа хэлээд зогсооно уу.'});
+$('stop').onclick=()=>{if(recording?.state==='recording'){recording.stop();$('stop').disabled=true}};
+function renderResult(value){const box=el('article',undefined,$('taskResults'));el('h3',value.condition,box);el('p',value.answer||'Систем эхтэй хариулт өгөөгүй / тодруулга шаардсан.',box);const audio=el('audio',undefined,box);audio.controls=true;let listened=false;audio.onended=()=>{listened=true};const speak=el('button','Энэ хариуг сонсох (онлайн TTS)',box);speak.onclick=()=>action(async()=>{const v=await api('/api/task/speak',{session_id:sid,task_id:taskId,condition:value.condition});audio.src=v.audio_url;await audio.play()});const success=rating(box,'Таны асуух гэсэн зүйлийг шийдэж чадсан уу?',[['yes','Тийм'],['partial','Хэсэгчлэн'],['no','Үгүй']]);const l=el('label','Та хариултаас юу ойлгов? (сонссон бол сонссон зүйлээ)',box),heard=el('textarea',undefined,l);const int=rating(box,'Сонссон бол ойлгомж 1–5',scale),nat=rating(box,'Сонссон бол жам ёсны байдал 1–5',scale),n=el('label','Тэмдэглэл',box),notes=el('textarea',undefined,n);const save=el('button','Энэ нөхцөлийн ажиглалтыг хадгалах',box);save.onclick=()=>action(async()=>{await api('/api/task/observe',{session_id:sid,task_id:taskId,condition:value.condition,task_success:success.value,heard_answer:heard.value,tts_listened:listened,intelligibility:listened?Number(int.value):null,naturalness:listened?Number(nat.value):null,notes:notes.value});save.disabled=true;status('Бодит даалгаврын ажиглалт хадгалагдлаа.')})}
+window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});(async()=>{try{await refresh();if(sid){$('start').classList.add('hidden');$('workspace').classList.remove('hidden');status('Өмнөх session-ийн хадгалсан үнэлгээг үргэлжлүүлж байна.')}}catch(e){if(sid){sid='';sessionStorage.removeItem('humanTrialSession');await refresh();status('Шинэ серверийн session эхлүүлнэ үү.')}else status(e.message,true)}})();
+</script></html>'''
+
+
+def make_server(trial, port=8790):
+    class Handler(BaseHTTPRequestHandler):
+        protocol_version = 'HTTP/1.1'
+
+        def log_message(self, *args):
+            pass
+
+        def send(self, code, value=None, mime='application/json; charset=utf-8'):
+            raw = value if isinstance(value, bytes) else json.dumps(value or {}, ensure_ascii=False).encode()
+            self.send_response(code)
+            for key, value in [('Content-Type', mime), ('Content-Length', str(len(raw))),
+                    ('Cache-Control', 'no-store'), ('Connection', 'close'), ('Referrer-Policy', 'no-referrer'),
+                    ('X-Content-Type-Options', 'nosniff'), ('X-Frame-Options', 'DENY'),
+                    ('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")]:
+                self.send_header(key, value)
+            self.end_headers()
+            self.wfile.write(raw)
+            self.close_connection = True
+
+        def valid(self, post=False):
+            self.connection.settimeout(10)
+            host = f'127.0.0.1:{self.server.server_port}'
+            if (self.headers.get_all('Host', []) != [host] or len(self.headers.get_all('Origin', [])) > 1
+                    or self.headers.get('Origin') not in {None, 'http://' + host}
+                    or self.headers.get('Sec-Fetch-Site') == 'cross-site'):
+                self.send(403, {'error': 'Local same-origin trial only.'}); return False
+            lengths = self.headers.get_all('Content-Length', [])
+            if self.headers.get_all('Transfer-Encoding', []) or len(lengths) > 1:
+                self.send(400, {'error': 'Invalid request framing.'}); return False
+            if not post and lengths and not re.fullmatch(r'0+', lengths[0]):
+                self.send(400, {'error': 'GET requests cannot contain a body.'}); return False
+            if post:
+                supplied = self.headers.get('X-Trial-Token', '')
+                if (self.headers.get('Origin') != 'http://' + host or not supplied.isascii()
+                        or not secrets.compare_digest(supplied, trial.token)):
+                    self.send(403, {'error': 'Require local Origin and trial token.'}); return False
+            return True
+
+        def do_GET(self):
+            if not self.valid(): return
+            parsed = urlsplit(self.path)
+            query = parse_qs(parsed.query)
+            sid = query.get('session_id', [None])[0]
+            try:
+                if parsed.path == '/':
+                    return self.send(200, PAGE.encode(), 'text/html; charset=utf-8')
+                if parsed.path == '/api/state':
+                    return self.send(200, trial.state(sid))
+                if parsed.path == '/api/reveal':
+                    return self.send(200, dict(references=trial.reveal(sid)))
+                if re.fullmatch('/api/listening/audio/[0-9a-f]{24}', parsed.path):
+                    return self.send(200, trial.audio(parsed.path.rsplit('/', 1)[1]), 'audio/mpeg')
+                if re.fullmatch('/api/voice-audio/[0-9a-f]{32}', parsed.path):
+                    return self.send(200, trial.voice_audio(sid, parsed.path.rsplit('/', 1)[1]), 'audio/mpeg')
+                self.send(404, {'error': 'Unknown trial resource.'})
+            except TrialConflict as error:
+                self.send(409, {'error': str(error)})
+            except KeyError:
+                self.send(404, {'error': 'Unknown study session or sample.'})
+            except (ValueError, OSError) as error:
+                self.send(400, {'error': str(error)})
+
+        def do_POST(self):
+            if not self.valid(post=True): return
+            try:
+                length = self.headers.get('Content-Length', '')
+                audio = self.path == '/api/task/transcribe'
+                if not re.fullmatch(r'[0-9]{1,8}', length) or not 1 <= int(length) <= (MAX_AUDIO if audio else 32768):
+                    raise ValueError('Invalid body size.')
+                raw = self.rfile.read(int(length))
+                if len(raw) != int(length):
+                    raise ValueError('Incomplete request body.')
+                if audio:
+                    result = trial.transcribe(self.headers.get('X-Session-Id'), self.headers.get('X-Task-Id'),
+                        raw, self.headers.get_content_type())
+                else:
+                    if self.headers.get_content_type() != 'application/json':
+                        raise ValueError('JSON is required.')
+                    body = json.loads(raw)
+                    methods = {'/api/start': trial.start, '/api/review': trial.review, '/api/listen': trial.listen,
+                        '/api/task/begin': trial.begin_task, '/api/task/route': trial.route,
+                        '/api/task/speak': trial.speak, '/api/task/observe': trial.observe}
+                    if self.path not in methods:
+                        return self.send(404, {'error': 'Unknown trial action.'})
+                    result = methods[self.path](body)
+                self.send(200, result)
+            except TrialConflict as error:
+                self.send(409, {'error': str(error)})
+            except KeyError:
+                self.send(404, {'error': 'Unknown study session or item.'})
+            except (ValueError, TypeError, OSError) as error:
+                self.send(400, {'error': str(error)})
+
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+
+        def get_request(self):
+            connection, address = super().get_request()
+            connection.settimeout(10)
+            return connection, address
+    return Server(('127.0.0.1', port), Handler)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--run-dir', type=Path, required=True)
+    parser.add_argument('--audio-results', type=Path,
+        default=ROOT/'runtime/delivery-implementation-20261020/voice/paired-audio/results.json')
+    parser.add_argument('--review-file', type=Path,
+        default=ROOT/'runtime/quality-media-20261021/llm-comparison/human-review-v2.json')
+    parser.add_argument('--port', type=int, default=8790)
+    args = parser.parse_args()
+    if not 1 <= args.port <= 65535:
+        parser.error('Use a valid local port.')
+    trial = HumanTrial(args.run_dir, args.audio_results, args.review_file)
+    with make_server(trial, args.port) as server:
+        print(f'Human trial: http://127.0.0.1:{server.server_port}/', flush=True)
+        server.serve_forever()
+
+
+if __name__ == '__main__':
+    main()

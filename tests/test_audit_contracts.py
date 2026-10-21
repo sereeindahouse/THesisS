@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from test_rag_runtime import Policy, Retriever, Generator, SOURCE
 from rag_runtime import ChatRAG, GroundedGenerator, focused_extract
+from source_fields import registration_amount_query, registration_payment_query, detail_supported
 
 
 class AuditContracts(unittest.TestCase):
@@ -78,6 +79,70 @@ class AuditContracts(unittest.TestCase):
         self.assertEqual(result['reason_code'], 'requested_attribute_not_supported')
         self.assertIsNone(result['answer'])
         self.assertEqual(generator.calls, 0)
+
+    def test_unscoped_colloquial_payment_does_not_select_career_or_a_fee_account(self):
+        chat, retriever, generator = self.chat()
+        retriever.sources = [
+            dict(SOURCE, source_id='career', url='https://nmct.edu.mn/career-center',
+                 text='Дадлага хөтөлбөрийн жилийн хуваарь. Сакүра Сайэнс.'),
+            dict(SOURCE, source_id='admission', text='Бүртгэлийн хураамж 20,000 төгрөг. QPay QR кодоор төлнө.'),
+            dict(SOURCE, source_id='olympiad', url='https://nmct.edu.mn/olympiad',
+                 text='Бүртгэлийн хураамж 5,000 төгрөг. QPay QR кодоор төлнө.'),
+        ]
+        query = 'Бүртгэлийн мөнгийг ямар данс руу шилжүүлэх ёстой юм бол?'
+        result = chat.route(None, query)
+        self.assertEqual(result['route'], 'D')
+        self.assertEqual(result['reason_code'], 'registration_scope_ambiguous')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(generator.calls, 0)
+        for suggestion in result['suggestions']:
+            self.assertIn('данс руу шилжүүлэх', suggestion)
+            self.assertNotIn('хэд вэ?', suggestion)
+
+    def test_one_retrieved_scope_does_not_resolve_unscoped_payment(self):
+        chat, retriever, generator = self.chat()
+        retriever.sources[0].update(text='Бүртгэлийн хураамж 20,000 төгрөг. QPay QR кодоор төлнө.')
+        result = chat.route(None, 'Бүртгэлийн хураамжийг ямар данс руу төлөх вэ?')
+        self.assertEqual(result['route'], 'D')
+        self.assertEqual(result['reason_code'], 'registration_scope_ambiguous')
+        self.assertEqual(generator.calls, 0)
+
+    def test_colloquial_registration_amount_keeps_selected_scope(self):
+        chat, retriever, generator = self.chat()
+        retriever.sources = [dict(SOURCE, source_id='admission', text='Бүртгэлийн хураамж 20,000 төгрөг.'),
+            dict(SOURCE, source_id='olympiad', text='Бүртгэлийн хураамж 5,000 төгрөг.',
+                 url='https://nmct.edu.mn/olympiad')]
+        with patch.object(generator, 'generate', return_value=dict(generated=False, llm_calls=0,
+                claims=[], reason='insufficient_evidence')) as generate:
+            chat.route(None, 'Олимпиадын бүртгэлийн мөнгө хэд вэ?')
+        self.assertEqual({source['url'] for source in generate.call_args.args[1]}, {'https://nmct.edu.mn/olympiad'})
+
+    def test_payment_guard_does_not_capture_login_stipend_other_cost_or_negation(self):
+        for query in [
+            'Бүртгэлийн дансны нууц үгийг яаж сэргээх вэ?',
+            'Сарын мөнгийг ямар данс руу олгодог вэ?',
+            'Хоолны мөнгийг ямар данс руу шилжүүлэх вэ?',
+            'Дотуур байрны мөнгө хэд вэ?',
+            'Тэтгэлгийн бүртгэлийн мөнгийг ямар данс руу олгох вэ?',
+            'Бүртгэлийн мөнгө биш, хоолны мөнгө хэд вэ?',
+            'Бүртгэлийн мөнгийг буцааж авахад ямар данс хэрэгтэй вэ?',
+        ]:
+            with self.subTest(query=query):
+                self.assertFalse(registration_payment_query(query))
+                self.assertFalse(registration_amount_query(query))
+
+    def test_named_payment_account_cannot_be_replaced_by_fee_or_contact_phone(self):
+        chat, retriever, generator = self.chat()
+        retriever.sources[0].update(text='Бүртгэлийн хураамж 20,000 төгрөг. QPay QR кодоор төлнө. Утас 99112233.')
+        result = chat.route(None, 'Элсэлтийн бүртгэлийн мөнгийг ямар данс руу шилжүүлэх вэ?')
+        self.assertEqual(result['route'], 'E')
+        self.assertEqual(result['reason_code'], 'requested_attribute_not_supported')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(generator.calls, 0)
+        self.assertFalse(detail_supported('registration_payment_account', retriever.sources[0]['text']))
+        for account in ('Данс: 506011223344', 'Дансны дугаар: MN12 0000 1234 5678 90', '506011223344 тоот данс'):
+            with self.subTest(account=account):
+                self.assertTrue(detail_supported('registration_payment_account', account))
 
     def test_latency_contains_retrieval_and_generation(self):
         chat, retriever, generator = self.chat()

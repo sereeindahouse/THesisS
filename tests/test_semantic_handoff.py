@@ -30,6 +30,56 @@ class WebsiteHandoffTests(unittest.TestCase):
         self.assertEqual(g.calls,0);self.assertIsNone(value['answer'])
         self.assertIn('валютын ханш',value['message'])
 
+    def test_today_inflection_never_promotes_snapshot_to_current_menu(self):
+        c,r,g=self.chat('no_supported_question_match','Цэсийг сар бүр батлуулдаг. Нийтийн хоолны газар 200 суудалтай.')
+        value=c.route(None,'Нийтийн хоолны газрын өнөөдрийн цэс болон үнэ хэд вэ?')
+        self.assertIsNone(value['answer']);self.assertEqual(g.calls,0)
+        self.assertEqual(value['reason_code'],'requested_attribute_not_supported')
+        self.assertIn('өнөөдрийн бодит хоолны цэс',value['message'])
+
+    def test_today_base_word_and_inflected_form_both_keep_live_status_guard(self):
+        for query in ['Өнөөдөр бүртгэл нээлттэй юу?', 'Өнөөдрийн бүртгэлийн төлөв юу вэ?']:
+            c,r,g=self.chat('no_supported_question_match','Бүртгэл 2026 оны намар нээлттэй.')
+            value=c.route(None,query)
+            self.assertIsNone(value['answer']);self.assertEqual(g.calls,0)
+            self.assertEqual(value['reason_code'],'live_status_not_supported')
+
+    def test_relative_year_in_dated_article_is_not_live_state(self):
+        for relative in ['энэ жил','одоогоор']:
+            c,r,g=self.chat('no_supported_question_match','2025 оны мэдээ. Дадлагад 9 оюутан хамрагдсан.')
+            value=c.route(None,'2025 оны мэдээнд '+relative+' дадлагад хамрагдсан тоог юу гэжээ?')
+            self.assertEqual(g.calls,1)
+            self.assertNotEqual(value['reason_code'],'live_status_not_supported')
+
+    def test_dated_article_does_not_erase_explicit_live_question(self):
+        for phrase in ['өнөөдөр бүртгэл нээлттэй юу','яг одоо хэдэн сул орон тоо байна',
+                       'одоо элсэлт нээлттэй юу']:
+            c,r,g=self.chat('no_supported_question_match','2025 оны мэдээ. Бүртгэл нээлттэй.')
+            value=c.route(None,'2025 оны мэдээнд энэ жил гэсэн байна; '+phrase+'?')
+            self.assertEqual(g.calls,0)
+            self.assertEqual(value['reason_code'],'live_status_not_supported')
+
+    def test_quoted_article_clarification_does_not_offer_unrelated_faq(self):
+        c,r,g=self.chat('missing_entity','ARC болон Sakura.')
+        from unittest.mock import patch
+        original=c.policy.route
+        def policy(*args,**kwargs):
+            result=original(*args,**kwargs);result['citations']=[dict(title='Unrelated FAQ')];return result
+        with patch.object(c.policy,'route',side_effect=policy):
+            value=c.route(None,'«Хамтын ажиллагааны мэдээлэл» гэсэн мэдээнд хэн ирсэн бэ?')
+        self.assertEqual(value['route'],'D')
+        self.assertIn('огноо',value['message'])
+        self.assertIsNone(value['clarification'])
+        self.assertEqual(value['suggestions'],[])
+        self.assertEqual(value['citations'],[])
+        self.assertEqual(g.calls,0)
+
+    def test_accreditation_pending_year_is_not_final_decision_date(self):
+        c,r,g=self.chat('no_supported_question_match','2026\nМагадлан итгэмжлэлд дахин орж байна.')
+        value=c.route(None,'2026 оны магадлан итгэмжлэлийн эцсийн шийдвэр яг хэдэн сарын хэдний өдөр гарсан бэ?')
+        self.assertIsNone(value['answer']);self.assertEqual(g.calls,0)
+        self.assertEqual(value['reason_code'],'requested_attribute_not_supported')
+
     def test_generator_rechecks_selected_field_not_whole_page(self):
         import json
         from unittest.mock import patch

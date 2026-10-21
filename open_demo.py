@@ -17,7 +17,7 @@ PORT = 8765
 URL = f"http://127.0.0.1:{PORT}"
 
 
-def probe_demo(port=PORT, *, timeout=2.5):
+def probe_demo(port=PORT, *, timeout=8):
     """Return our status, None for an unused port; reject an unrelated service."""
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=timeout):
@@ -124,13 +124,16 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             cwd=root, stdin=subprocess.DEVNULL, stdout=output, stderr=errors,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
-    deadline = time.monotonic() + 8
+    # A published bundle verifies capture metadata and opens both SQLite files
+    # on its first request. Keep the identity checks, with a bounded cold-start
+    # budget instead of rejecting our healthy server during that verification.
+    deadline = time.monotonic() + 20
     try:
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            status = probe_demo(port, timeout=min(2.5, remaining / 2))
+            status = probe_demo(port, timeout=min(8, remaining / 2))
             if status is not None:
                 if not status["content"].get("available"):
                     raise RuntimeError("Сервер эхэлсэн ч SQLite агуулга уншигдсангүй.")
@@ -141,7 +144,7 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             if process.poll() is not None:
                 raise RuntimeError("Demo сервер эхлэхэд алдаа гарлаа. runtime/demo-server.stderr.log-ийг харна уу.")
             time.sleep(min(0.15, max(0, deadline - time.monotonic())))
-        raise RuntimeError("Demo сервер 8 секундэд бэлэн болсонгүй. runtime/demo-server.stderr.log-ийг харна уу.")
+        raise RuntimeError("Demo сервер 20 секундэд бэлэн болсонгүй. runtime/demo-server.stderr.log-ийг харна уу.")
     except Exception:
         if process.poll() is None:
             process.terminate()  # Only our newly started child; never an unrelated service.
@@ -156,13 +159,15 @@ def main():
         sys.stderr.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Дипломын локал demo-г браузерт нээх")
     parser.add_argument("--no-browser", action="store_true", help="Серверийг шалгаж, браузер нээхгүй")
-    parser.add_argument("--data", action="store_true", help="Эхийн сан ба төслийн явцыг нээх")
+    view = parser.add_mutually_exclusive_group()
+    view.add_argument("--data", action="store_true", help="Эхийн сан ба төслийн явцыг нээх")
+    view.add_argument("--admin", action="store_true", help="Локал мэдээлэл шинэчлэх хэсгийг нээх")
     args = parser.parse_args()
     try:
         result = start_or_reuse()
         print("Ажиллаж буй demo-г дахин ашиглав." if result["reused_server"] else "Demo серверийг эхлүүлэв.")
         print(f"Demo: {result['url']}")
-        browser_url = result["url"] + ("/data" if args.data else "")
+        browser_url = result["url"] + ("/admin" if args.admin else "/data" if args.data else "")
         if not args.no_browser and not webbrowser.open(browser_url, new=2):
             print("Браузер автоматаар нээгдсэнгүй. Дээрх хаягийг браузерт нээнэ үү.")
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:

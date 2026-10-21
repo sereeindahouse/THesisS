@@ -119,6 +119,12 @@
     const summary=$('progressSummary');summary.replaceChildren();
     const counts=element('div','progress-count-card'),figure=element('div','progress-number',done);figure.append(element('small','',` / ${milestones.length}`));const description=element('div');description.append(element('h2','','Ажиллах хувилбарын дууссан шалгуур'),element('p','',progress.scope_label||'Доорх ажлын жагсаалтын төлөв. Дипломын нийт хувь гэж үзэхгүй.'));counts.append(figure,description);
     const calendar=element('div','progress-calendar');[['Идэвхтэй хүрээ',progress.current_week||'Явцын бүртгэлээс харна'],['Ажиллах хувилбарын зорилт',date(progress.target_date||'2026-11-10')],['Үнэлгээний төлөв',progress.evaluation_label||'Ерөнхий зөв хариултын хувь батлагдаагүй']].forEach(([label,value])=>{const row=element('div');row.append(element('span','',label),element('strong','',str(value)));calendar.append(row);});summary.append(counts,calendar);
+    const latest=progress.latest_update;
+    if(latest && Array.isArray(latest.items) && latest.items.some(item=>typeof item==='string' && item.trim())){
+      const card=element('section','week-summary');card.style.gridColumn='1 / -1';card.style.marginBottom='0';
+      card.append(element('h2','',`${latest.date?date(latest.date)+' — ':''}${str(latest.title)||'Сүүлд дууссан ажил'}`));
+      const items=element('ul');latest.items.filter(item=>typeof item==='string' && item.trim()).forEach(item=>{const row=element('li');row.append(element('span','',item));items.append(row);});card.append(items);summary.append(card);
+    }
     const list=$('milestones');list.replaceChildren();
     milestones.forEach((m,index)=>{const status=milestoneState(m.state),card=element('article',`milestone ${status}`),content=element('div');content.append(element('h3','',m.label||`Шалгуур ${index+1}`),element('p','',str(m.detail)));
       if(m.evidence){const evidence=element('div','milestone-evidence',`Нотолгоо · ${str(m.evidence)}`);content.append(evidence);}

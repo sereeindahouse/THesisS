@@ -2834,5 +2834,868 @@
         "raw": "runtime/semantic-browser-qa-20261015.json"
       }
     }
+  },
+  "core_pipeline_quality_20261017": {
+    "scope": "Observed development; not independent/human/heldout accuracy.",
+    "rag": {
+      "cases": {
+        "pass": 24,
+        "partial": 0,
+        "fail": 0
+      },
+      "required_facts": {
+        "pass": 50,
+        "partial": 0,
+        "fail": 0
+      },
+      "presentation_relevance_partial": 4,
+      "verbatim_claims": 31,
+      "snapshot_citations": 19,
+      "route_counts": {
+        "C": 18,
+        "D": 3,
+        "E": 3
+      },
+      "llm_calls": 20
+    },
+    "stt": {
+      "baseline_wer": 0.3602150537634409,
+      "baseline_cer": 0.1689623507805326,
+      "candidate_wer": 0.510752688172043,
+      "candidate_cer": 0.2516069788797062,
+      "promoted": false
+    },
+    "tts": {
+      "provider_requests": 6,
+      "cache_hits": 6,
+      "decoded_clips": 12,
+      "provider_seconds_range": [
+        0.9216870999953244,
+        8.946283700002823
+      ],
+      "cache_seconds_range": [
+        0.055443899997044355,
+        0.11091389999637613
+      ],
+      "human_listening": false
+    },
+    "loaded_code_hashes": {
+      "rag_runtime.py": "f2eaa6ae7f6539e3189da1f6f1255ba841fe4fa3b31622661c7c52ace64c272c",
+      "source_fields.py": "051124d929fd2397e3acfd978ea03795ccb56f7fb5fac6ca1b09793615473249",
+      "answer_contract.py": "7da045b87f023c64703675e5a2a41db32d4e60d64ca92678134c3640cf0976d6",
+      "website_retrieval.py": "348580cc02e763fe3bcf5d5c64a67c1bf95c73b65c4aec9a4d14bde7965bf961",
+      "CORE/document_corpus.py": "afd087193ded4ea9c7305249715b51b727510556cf0264499745c942dd184102",
+      "CORE/client_tab_corpus.py": "4bd209350d7dd555a9b8c255f109064efda354b2154b993724b2ea079952def9",
+      "evidence_contract.py": "f7c4d77dea55bbf90d1f9300f30df016cfe2f09b5c1557d9ae457a19deaa8ce0",
+      "speech_text.py": "ca860cfe8f798c76e533bdeda91f0d0b4c614751cd4aa0a774e6656c477751b3",
+      "voice_runtime.py": "d4395379f74134449ff1920c658f7fee85b8bd6027c7d40e57c86b0ee7dd4bb0",
+      "stt_mn.py": "3d6f559e3c53c7886abf4f1129a6b089e94ca3f0f2d4784744b5f644cf9a6a45",
+      "clarification_context.py": "1500c6177e4faed87c1ecda00b5a12a6311976925afe559fc8a26aea8bf2481a",
+      "demo_server.py": "c6670c97549171a4ad16de9ea4d614e4e90e7264acce45e862ba49a42f1d79dd"
+    },
+    "local_tests": 651,
+    "public_export_run": 651,
+    "public_export_pass": 650,
+    "public_export_private_skip": 1,
+    "own_training": false,
+    "new_model_downloads": false,
+    "browser_visual_accepted": false,
+    "human_listening": false,
+    "github_publication_this_run": false
+  },
+  "core_finalization_20261017": {
+    "local_tests_passed": 705,
+    "local_tests_seconds": 91.453,
+    "first_independent_source_ai": {
+      "pass": 17,
+      "fail": 7
+    },
+    "observed_development_core": {
+      "pass": 24
+    },
+    "observed_development_presentation_partial": 9,
+    "previous_development_core": {
+      "pass": 24
+    },
+    "previous_required_facts": {
+      "pass": 50
+    },
+    "raw_stt_wer": 0.3602150537634409,
+    "raw_stt_improved": false,
+    "new_stt_candidates_promoted": 0,
+    "human_tts": {
+      "users": 1,
+      "clips": 6,
+      "intelligibility_mean": 4,
+      "pronunciation_mean": 4,
+      "naturalness_mean": 4.5,
+      "population_MOS": false,
+      "refined_pronunciation_human_retested": false
+    },
+    "public_https": {
+      "provider": "Cloudflare Quick Tunnel",
+      "actual_http_checks": 27,
+      "standard_tls_verified": true,
+      "temporary": true,
+      "private_authentication": true,
+      "certificate_installation_required": false,
+      "firewall_changed": false,
+      "permanent_hosting": false,
+      "actual_android_self_report": {
+        "source": "user_message_self_report",
+        "chat_worked": true,
+        "microphone_worked": true,
+        "audio_playback_worked": true,
+        "observer_verified": false,
+        "latency_measured": false,
+        "asr_accuracy_measured": false
+      }
+    },
+    "llm_role": "evidence_selection",
+    "human_answer_gold": false,
+    "own_training": false,
+    "new_model_downloads": false
+  },
+  "raw_asr_audit_20261018": {
+    "date": "2026-10-18",
+    "status": "raw_asr_unresolved",
+    "human_speakers": 1,
+    "human_recordings": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "baseline": {
+      "word_errors": 67,
+      "character_errors": 184,
+      "wer": 0.3602150537634409,
+      "cer": 0.1689623507805326
+    },
+    "candidate_count": 11,
+    "worse_count": 9,
+    "identical_metrics_count": 2,
+    "promoted_count": 0,
+    "candidates": {
+      "boundary_trim": {
+        "word_errors": 81,
+        "character_errors": 208,
+        "promoted": false
+      },
+      "source_fp32_int8": {
+        "word_errors": 80,
+        "character_errors": 195,
+        "promoted": false
+      },
+      "source_fp32_float32": {
+        "word_errors": 74,
+        "character_errors": 209,
+        "promoted": false
+      },
+      "saved_native_prefix": {
+        "word_errors": 168,
+        "character_errors": 899,
+        "promoted": false
+      },
+      "source_suppression": {
+        "word_errors": 67,
+        "character_errors": 184,
+        "promoted": false
+      },
+      "timestamps": {
+        "word_errors": 87,
+        "character_errors": 226,
+        "promoted": false
+      },
+      "waveform_padding": {
+        "word_errors": 76,
+        "character_errors": 204,
+        "promoted": false
+      },
+      "rover_consensus": {
+        "word_errors": 69,
+        "character_errors": 200,
+        "promoted": false
+      },
+      "length_1_2": {
+        "word_errors": 70,
+        "character_errors": 189,
+        "promoted": false
+      },
+      "beam_3": {
+        "word_errors": 67,
+        "character_errors": 184,
+        "promoted": false
+      },
+      "native_hf": {
+        "word_errors": 72,
+        "character_errors": 200,
+        "promoted": false
+      }
+    },
+    "rover_scope": "offline consensus of existing four models,13human only,no new inference/no complete19controls",
+    "paired_baseline_all19_texts_identical": true,
+    "independent_full_matrix_score_verified": true,
+    "own_training": false,
+    "new_model_downloads": 0,
+    "human_general_accuracy": false,
+    "local_tests": {
+      "run": 705,
+      "passed": 705,
+      "seconds": 87.842
+    },
+    "local_live": {
+      "actual_q01_stt": true,
+      "raw_route": "C",
+      "llm_calls": 1,
+      "bound_audio_decoded": true,
+      "audio_seconds": 74.688,
+      "noise_rejected_http": 400,
+      "stale_response_rejected_http": 409
+    },
+    "evidence_folder": "runtime/stt-final-push-20261017/"
+  },
+  "raw_asr_buzz_20261019": {
+    "date": "2026-10-19",
+    "scope": "Observed one-speaker13 development comparison; synthetic/nonspeech separate; not heldout/general accuracy.",
+    "model_repo": "BuzzASR/mongolian",
+    "model_revision": "185f1bf1f562ad4b1bdbfc71811fb165a9235416",
+    "bundle": "New pretrained source + native Mongolian tokenizer + repaired metadata + INT8 CT2; not a one-factor decoder ablation.",
+    "source_weight_bytes": 3080001376,
+    "source_weight_sha256": "f462f2725023a4948788ec707d39758d34ac341714c3133b2d46b0f4aeffd4a7",
+    "converted_weight_bytes": 1547750237,
+    "converted_weight_sha256": "ed7f0d86a66d692b52a47440000ac1784cb4682e0c1177bd5fc371ea55aa9407",
+    "stage_A_plan_sha256": "de8eeed2adb68f3dee8c97ef1729086cb13edd36df6d1e9da9308261043b0047",
+    "stage_B_binding_sha256": "4b90c9841040124d929700377be4532af1084c59cfbbe73d301d0312d9c5f37a",
+    "inputs": 19,
+    "human_utterances": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "baseline_human": {
+      "word_errors": 67,
+      "character_errors": 184,
+      "wer": 0.3602150537634409,
+      "cer": 0.1689623507805326
+    },
+    "candidate_human": {
+      "word_errors": 86,
+      "character_errors": 309,
+      "wer": 0.46236559139784944,
+      "cer": 0.2837465564738292
+    },
+    "synthetic": {
+      "utterances": 4,
+      "words": 34,
+      "characters": 192,
+      "baseline_word_errors": 2,
+      "baseline_character_errors": 8,
+      "candidate_word_errors": 12,
+      "candidate_character_errors": 19
+    },
+    "nonspeech": {
+      "utterances": 2,
+      "baseline_nonempty": 2,
+      "candidate_nonempty": 2,
+      "additional_nonempty_count": 0,
+      "hallucinations_resolved": false
+    },
+    "runtime_failures": 0,
+    "unsafe_output_rejections": 0,
+    "critical_regression_rows": 3,
+    "critical_regression_types": [
+      "previously correct year",
+      "company name",
+      "literal spoken amount"
+    ],
+    "same_source_waveforms_verified": 19,
+    "independent_matrix_scores_match": true,
+    "median_human_call_seconds": 12.525143700000172,
+    "latency_scope": "Single CPU run excluding initialization, not a repeated benchmark.",
+    "native_hf_two_clip_diagnostic_summary": "Эх FP16 жин ба INT8 хувилбарыг хоёр бичлэгээр тулгахад бүх text token ID, waveform болон анхны feature яг таарсан; эх загварт мөн буруу он гарсан. Энэ хоёр алдааны дан шалтгааныг INT8 гэж үзэх үндэсгүй. Native шалгалт санах ойн paging-д өртсөн тул хугацааг нь хэрэглээний хурд гэж тооцоогүй.",
+    "promotion_gates_passed": false,
+    "production_model_changed": false,
+    "raw_asr_improved": false,
+    "production_baseline_wer": 0.3602150537634409,
+    "production_baseline_cer": 0.1689623507805326,
+    "new_model_weight_downloads_authorized_and_completed": 1,
+    "offline_int8_conversions": 1,
+    "own_training": false,
+    "private_audio_upload": false,
+    "first_outputs_preserved": true,
+    "original_references_and_normalization_unchanged": true
+  },
+  "raw_asr_followups_20261019": {
+    "date": "2026-10-19",
+    "scope": "Already-observed one-speaker13 development, not heldout.",
+    "pause_partition": {
+      "inputs": 19,
+      "reference_words": 186,
+      "reference_characters": 1089,
+      "word_errors": 67,
+      "character_errors": 184,
+      "split_recordings": 1,
+      "all_original_samples_preserved": true,
+      "synthetic_word_errors": 2,
+      "synthetic_character_errors": 8,
+      "promoted": false
+    },
+    "native_nbest": {
+      "inputs": 19,
+      "native_hypotheses": 95,
+      "official_source_names": 12,
+      "speech_top1_parity": 17,
+      "selected_non_top1": 0,
+      "word_errors": 67,
+      "character_errors": 184,
+      "synthetic_word_errors": 2,
+      "synthetic_character_errors": 8,
+      "no_extra_source_name_hits_in_alternatives": true,
+      "whole_native_hypothesis_only": true,
+      "promoted": false
+    },
+    "reference_oracle_NOT_deployed": {
+      "minimum_word_errors": 58,
+      "word_denominator": 186,
+      "minimum_character_errors": 166,
+      "character_denominator": 1089,
+      "may_choose_different_ranks": true,
+      "reference_driven_post_output_analysis_only": true,
+      "not_actual_system_quality": true
+    },
+    "verification": {
+      "local_tests": 705,
+      "local_test_seconds": 81.228,
+      "actual_stt_rag_c_bound_tts_decode": true,
+      "gemma_calls": 1,
+      "answer_audio_seconds": 74.68800000000194,
+      "noise_rejected": true,
+      "stale_response_rejected": true,
+      "loaded_code_hashes": 12,
+      "new_human_review": false
+    },
+    "raw_asr_quality_goal_met": false,
+    "production_model_changed": false,
+    "own_training": false,
+    "private_audio_upload": false
+  },
+  "raw_asr_continuation_20261019": {
+    "date": "2026-10-19",
+    "status": "local_comparisons_complete_raw_quality_unresolved",
+    "observed_single_speaker_development_utterances": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "retained_raw_word_errors": 67,
+    "retained_raw_character_errors": 184,
+    "raw_asr_improved": false,
+    "removed_logical_file_bytes": 13400245037,
+    "disk_free_space_gain_separately_measured": false,
+    "buzz_large_artifacts_removed_at_user_request": true,
+    "small_negative_evidence_preserved": true,
+    "active_cafet_e5_gemma_sha_verified": true,
+    "immutable_roadmap_and_databases_unchanged": true,
+    "fixed_tempo09_word_character_errors": [
+      77,
+      222
+    ],
+    "fixed_tempo11_word_character_errors": [
+      79,
+      218
+    ],
+    "local_gemma_rank_attempts": 19,
+    "local_gemma_rank_changed": 0,
+    "local_gemma_rank_fallbacks": 0,
+    "native_hf_same_backend_baseline_word_character_errors": [
+      72,
+      200
+    ],
+    "entity_capped_trie_word_character_errors": [
+      73,
+      202
+    ],
+    "entity_capped_trie_accepted_word_character_errors": [
+      73,
+      202
+    ],
+    "entity_capped_trie_synthetic_word_character_errors": [
+      3,
+      9
+    ],
+    "entity_capped_trie_cap_control_ids": [
+      "silence-3s"
+    ],
+    "entity_capped_trie_critical_regression_row_count": 2,
+    "private_recording_ids_or_critical_values_published": false,
+    "all_candidate_promotion_gates_passed": false,
+    "production_algorithm_changed": false,
+    "unused_uniform_token_trie_candidate_calls": 0,
+    "new_training": 0,
+    "new_model_downloads": 0,
+    "private_audio_uploaded": false,
+    "public_tunnel_opened": false,
+    "local_test_count": 705,
+    "local_test_seconds": 89.627,
+    "pip_check_pass": true,
+    "loaded_code_hash_matches": 12,
+    "new_human_answer_or_listening_review": false,
+    "scope": "Development comparisons only. Test success is not ASR accuracy or thesis completion.",
+    "post_cleanup_live_full_voice_chain": true,
+    "post_cleanup_live_noise_rejected": true,
+    "post_cleanup_live_stale_response_rejected": true
+  },
+  "foundation_delivery_20261020": {
+    "date": "2026-10-20",
+    "deadline": "2026-11-10",
+    "deadline_scope": "Working full demo plus teacher-reviewable thesis draft",
+    "literature_original_papers": 26,
+    "literature_additional_unique_to_original": 30,
+    "literature_main_body_reviews_complete": 56,
+    "all_appendices_figures_or_experiments_verified": false,
+    "student_reading_confirmations_added": 0,
+    "wal_stale_search_bug_reproduced_and_fixed": true,
+    "new_wal_regression_tests": 4,
+    "module_tests_passed": 22,
+    "independent_module_review_passed": true,
+    "local_tests_passed": 709,
+    "local_test_seconds": 87.437,
+    "loaded_code_hash_matches": 12,
+    "functional_http_cases": 3,
+    "functional_http_routes": [
+      "C",
+      "D",
+      "D"
+    ],
+    "actual_live_llm_calls": 1,
+    "data_backup_files": 341,
+    "data_backup_bytes": 104464827,
+    "data_only_restore_verified": true,
+    "original_databases_modified": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "new_model_downloads": 0,
+    "new_training": 0,
+    "new_stt_inferences": 0,
+    "new_tts_requests": 0,
+    "new_human_quality_ratings": 0,
+    "public_tunnel_opened": false,
+    "admin_panel_implemented_in_this_phase": false,
+    "explicit_publish_rollback_implemented_in_this_phase": false,
+    "scope": "Completed reading, architecture decision, WAL fix and local verification. Not thesis completion or human answer accuracy.",
+    "private_recording_ids_or_critical_values_published": false
+  },
+  "delivery_implementation_20261021": {
+    "date": "2026-10-21",
+    "admin_panel_implemented": true,
+    "explicit_publish_rollback_implemented": true,
+    "local_tests_passed": 787,
+    "local_test_seconds": 149.976,
+    "independent_backend_tests_passed": 100,
+    "actual_release_http_requests": 23,
+    "original_databases_modified": false,
+    "loaded_code_hashes_matched": 15,
+    "new_alias_published_and_rollback_verified": true,
+    "stt_input_lineage_implemented": true,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "actual_speech_stt_inputs": 1,
+    "raw_and_edited_rag_tts_verified": true,
+    "live_answer_audio_decodes": 2,
+    "live_tts_provider_requests": 2,
+    "constructed_paired_audio_decodes": 12,
+    "new_human_quality_ratings": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "public_tunnel_opened": false,
+    "local_delivery_preflight_passed": true,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "browser_limitation": "CUA reports Browser is not available: iab",
+    "rag_new_wording_first_ai_review": {
+      "fail": 2,
+      "pass": 6
+    },
+    "rag_same8_development_ai_review": {
+      "pass": 8
+    },
+    "rag_development_not_human_accuracy": true,
+    "semantic_targeted_tests_passed": 165,
+    "launcher_active_bundle_cold_start_fixed": true,
+    "public_private_admin_route_boundary_checked": true,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "Local implementation and functional verification; not raw ASR gain, human quality or thesis completion."
+  },
+  "quality_media_20261021": {
+    "date": "2026-10-21",
+    "local_tests_passed": 841,
+    "local_test_seconds": 160.893,
+    "test_source_changed_during_run": false,
+    "independent_teacher_backend_tests_passed": 84,
+    "independent_human_trial_tests_passed": 21,
+    "actual_teacher_http_requests": 12,
+    "loaded_code_hashes_matched": 16,
+    "official_teacher_profile_count": 2,
+    "teacher_source_url": "https://nmct.edu.mn/departments/computer-science",
+    "teacher_source_capture_utc": "2026-10-21T04:06:02.530328+00:00",
+    "teacher_source_bundle_separate_from_rag_database": true,
+    "teacher_source_automatically_refreshed": false,
+    "teacher_profile_fields_quote_kind": "structured_teacher_fields",
+    "teacher_image_sha_and_source_binding_verified": true,
+    "teacher_wrong_response_tts_rejected": true,
+    "actual_teacher_answer_tts_provider_requests": 1,
+    "actual_teacher_answer_tts_decode_seconds": 3.792,
+    "image_generation_used": false,
+    "face_recognition_used": false,
+    "teacher_ui_renderer_checks_passed": 12,
+    "llm_comparison": {
+      "cases": 8,
+      "same_frozen_retrieval_and_common_renderer": true,
+      "human_quality_measured": false,
+      "actual_gemma_calls": 8,
+      "gemma": {
+        "ai_complete": 4,
+        "ai_partial": 3,
+        "ai_no_answer": 1,
+        "irrelevant_cases": 4,
+        "selection_render_median_ms": 1725.25
+      },
+      "lexical_best1": {
+        "ai_complete": 3,
+        "ai_partial": 3,
+        "ai_no_answer": 2,
+        "irrelevant_cases": 1,
+        "selection_render_median_ms": 6.9
+      },
+      "lexical_best3": {
+        "ai_complete": 5,
+        "ai_partial": 3,
+        "ai_no_answer": 0,
+        "irrelevant_cases": 7,
+        "selection_render_median_ms": 5.97
+      },
+      "gemma_quality_gain_established": false,
+      "scope": "Small selection-pipeline development comparison, not full-chat causal model ablation or human accuracy. All cases now observed; no tuning after outputs."
+    },
+    "human_trial": {
+      "answer_items": 24,
+      "constructed_listening_samples": 12,
+      "typed_raw_explicit_edited_tasks_ready": true,
+      "production_human_events_observed": 0,
+      "actual_user_study_completed": false,
+      "blind_condition_labels": true,
+      "fully_blind_guaranteed": false,
+      "developer_participation_self_report_is_not_independence_proof": true
+    },
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "new_stt_inferences_in_this_phase": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "original_databases_modified": false,
+    "original_roadmap_modified": false,
+    "public_tunnel_opened": false,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "Teacher source/image capability, measured selector comparison, runnable human trial. Not thesis completion or human/ASR quality improvement."
+  },
+  "human_feedback_20261021": {
+    "date": "2026-10-21",
+    "participant_sessions": 1,
+    "developer_self_report": true,
+    "independent_reviewer_established": false,
+    "raw_event_count": 49,
+    "answer_review_items": 24,
+    "unique_answer_questions": 8,
+    "constructed_listening_clips": 12,
+    "typed_raw_confirmed_tasks": 1,
+    "human_task_observations": 3,
+    "raw_human_records_modified": false,
+    "human_correctness_counts": {
+      "gemma_production_selector": {
+        "correct": 1,
+        "partial": 5,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 4,
+        "partial": 2,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 5,
+        "partial": 1,
+        "wrong": 2,
+        "not_applicable": 0
+      }
+    },
+    "human_completeness_counts": {
+      "gemma_production_selector": {
+        "correct": 1,
+        "partial": 5,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      }
+    },
+    "human_citation_support_counts": {
+      "gemma_production_selector": {
+        "correct": 2,
+        "partial": 4,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 4,
+        "partial": 3,
+        "wrong": 1,
+        "not_applicable": 0
+      }
+    },
+    "identical_visible_answer_pairs": 3,
+    "differently_rated_identical_pairs": 2,
+    "human_quality_gain_established": false,
+    "tts_critical_slots": {
+      "before_correct": 12,
+      "before_total": 14,
+      "after_correct": 11,
+      "after_total": 14
+    },
+    "tts_single_listener_descriptive_means": {
+      "before_intelligibility": 4.0,
+      "after_intelligibility": 3.3333333333333335,
+      "before_naturalness": 3.8333333333333335,
+      "after_naturalness": 3.0
+    },
+    "population_mos_or_significance_established": false,
+    "task_conditions": {
+      "typed": {
+        "route": "E",
+        "self_reported_success": "no"
+      },
+      "raw": {
+        "route": "C",
+        "self_reported_success": "partial"
+      },
+      "explicit_confirmed": {
+        "route": "C",
+        "self_reported_success": "yes"
+      }
+    },
+    "raw_equals_explicit_confirmed_text": true,
+    "actual_manual_text_edits": 0,
+    "actual_condition_order": [
+      "typed",
+      "explicit-edited",
+      "raw"
+    ],
+    "task_order_and_wording_confounds": true,
+    "actual_stt_inferences": 1,
+    "task_gemma_calls": 2,
+    "task_tts_requests": 4,
+    "task_new_tts_provider_requests": 2,
+    "task_tts_cache_hits": 2,
+    "new_audio_gold_confirmed": false,
+    "new_asr_wer_measured": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_improved": false,
+    "exact_search_spelling_fix_implemented": true,
+    "bounded_ebs_spoken_expansion_implemented": true,
+    "post_fix_human_listening_score": null,
+    "local_tests_passed": 855,
+    "local_test_seconds": 131.633,
+    "actual_live_post_fix_checks_passed": true,
+    "actual_live_post_fix_http_requests": 9,
+    "actual_live_post_fix_gemma_calls": 1,
+    "actual_after_tts_audio_decode_seconds": 7.1520000000000055,
+    "actual_after_tts_provider_requests": 1,
+    "installed_code_release_upgrade_staged_validated_and_published": true,
+    "old_release_seal_and_source_data_preserved": true,
+    "original_databases_modified": false,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "One developer self-report pilot, frozen original results and separate development fixes. Not independent gold, population accuracy/MOS, edit gain or raw ASR improvement."
+  },
+  "rag_completeness_20261021": {
+    "date": "2026-10-21",
+    "scope": "Observed-development fixes on the same 8 questions and frozen candidate sources; not held-out or post-fix human accuracy.",
+    "observed_development": true,
+    "held_out": false,
+    "frozen_original_references_and_candidates_preserved": true,
+    "original_human_event_count": 49,
+    "original_human_events_unchanged": true,
+    "post_fix_human_scores": null,
+    "fixes": [
+      "Preserve uppercase literal bullet rows in their original list span",
+      "One bounded retry from validated singleton/pair evidence options for missing requested markers",
+      "Require both separately labelled practice organization lists for an explicit two-category question"
+    ],
+    "original_ai_complete_partial_fail": {
+      "gemma": [
+        4,
+        3,
+        1
+      ],
+      "bm25_best1": [
+        3,
+        3,
+        2
+      ],
+      "bm25_best3": [
+        5,
+        3,
+        0
+      ]
+    },
+    "final_ai_complete_partial_fail": {
+      "gemma": [
+        6,
+        2,
+        0
+      ],
+      "bm25_best1": [
+        3,
+        2,
+        3
+      ],
+      "bm25_best3": [
+        6,
+        2,
+        0
+      ]
+    },
+    "final_structural_accepted": {
+      "gemma": 8,
+      "bm25_best1": 5,
+      "bm25_best3": 8
+    },
+    "final_all_literal_slots": {
+      "gemma": 6,
+      "bm25_best1": 3,
+      "bm25_best3": 6
+    },
+    "final_irrelevant_content_cases": {
+      "gemma": 3,
+      "bm25_best1": 1,
+      "bm25_best3": 7
+    },
+    "final_redundant_content_cases": {
+      "gemma": 1,
+      "bm25_best1": 0,
+      "bm25_best3": 3
+    },
+    "final_controlled_questions": 8,
+    "final_controlled_gemma_calls": 9,
+    "exact_claim_source_spans": {
+      "matched": 49,
+      "total": 49,
+      "semantic_correctness_implied": false
+    },
+    "ai_review_method": "Full source-grounded read of all24 V2 outputs; strict complete common_output equality for all24 final V3 outputs; no new human judgment.",
+    "best1_regression": "One incomplete answer becomes an abstention under the shared two-category completeness guard.",
+    "remaining_development_omissions": [
+      "Association of bottom-up/top-down quality flows with planning-reporting and monitoring-evaluation",
+      "Online modality of all three courses"
+    ],
+    "gemma_general_advantage_established": false,
+    "latency_improvement_established": false,
+    "local_tests_passed": 882,
+    "local_test_seconds": 169.776,
+    "code_changed_during_tests": false,
+    "actual_live_http_requests": 10,
+    "actual_live_gemma_calls": 3,
+    "loaded_code_hashes_match": 16,
+    "actual_live_tts_provider_requests": 1,
+    "actual_live_tts_decode_seconds": 27.576,
+    "old_response_id_rejected": true,
+    "teacher_image_and_faq_regressions_passed": true,
+    "unsupported_future_fee_not_answered": true,
+    "new_stt_inferences": 0,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_improved": false,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "rag_passages": 201,
+    "facts": 40,
+    "faqs": 30,
+    "separate_teacher_profiles": 2,
+    "new_content_imports": 0,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_visual_qa_performed": false,
+    "git_publication_performed": false
+  },
+  "structural_rag_stt_20261021": {
+    "date": "2026-10-21",
+    "scope": "Same8 observed-development questions; no post-fix human accuracy or held-out claim.",
+    "local_tests_passed": 897,
+    "local_test_seconds": 167.919,
+    "source_code_drift": false,
+    "gemma_ai_complete": 8,
+    "bm25_best1_ai_complete": 4,
+    "bm25_best3_ai_complete": 8,
+    "cases_per_arm": 8,
+    "gemma_irrelevant_cases": 2,
+    "gemma_redundant_cases": 2,
+    "bm25_best3_irrelevant_cases": 7,
+    "bm25_best3_redundant_cases": 3,
+    "final_controlled_gemma_calls": 9,
+    "exact_claims": 46,
+    "exact_claims_verified": 46,
+    "general_gemma_advantage_established": false,
+    "human_after_fix": null,
+    "original_human_events_preserved": 49,
+    "live_http_requests": 10,
+    "live_gemma_calls": 2,
+    "loaded_hashes_match": 16,
+    "live_tts_provider_requests": 1,
+    "live_tts_decode_seconds": 59.64,
+    "live_arc_year_explicit": true,
+    "yearless_arc_preserves_clarification": true,
+    "new_stt_inferences": 0,
+    "stt_fusion_word_errors_before": 67,
+    "stt_fusion_word_errors_after": 67,
+    "stt_fusion_character_errors_before": 184,
+    "stt_fusion_character_errors_after": 183,
+    "stt_fusion_substitutions": 1,
+    "stt_fusion_promoted": false,
+    "stt_fusion_is_raw_single_model_output": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "pipeline_13_cli_web_decodes_samplewise_equal": true,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "rag_passages": 201,
+    "facts": 40,
+    "faqs": 30,
+    "separate_teacher_profiles": 2,
+    "permanent_hosting_verified": false,
+    "other_computer_install_verified": false,
+    "visual_browser_qa_performed": false,
+    "publication_evidence_recorded_separately": true
   }
 }

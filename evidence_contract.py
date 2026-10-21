@@ -22,15 +22,27 @@ def _lines(text):
             for m in re.finditer(r'[^\n]+', text) if m.group().strip()]
 
 
+def _bullet_row(line):
+    # The captured source uses this literal bullet. Acronyms and punctuation
+    # inside its item are content, not a new uppercase heading/prose boundary.
+    return bool(re.match(r'^•\s+\S', line))
+
+
 def _prose(line):
     # Lists of requirements often omit punctuation. Never split them into
     # standalone answers, even when an individual row happens to be long.
-    if re.match(r'^\d{1,2}[.)]?\s+', line):
+    # A physical measurement/location can start an ordinary paragraph; it
+    # is not the index of a requirement list. Leading-zero and punctuated
+    # list labels stay lists, including long rows containing other amounts.
+    if _bullet_row(line):
+        return False
+    measurement_prose = re.match(r'^[1-9]\d?\s+(?:давх(?:ар|рын|арт|рыг)|м[²2])(?:\s|[,;:])', line)
+    if re.match(r'^\d{1,2}[.)]?\s+', line) and not measurement_prose:
         return False
     return not line.endswith('?') and (len(line) > 100 or line.endswith(('.', '!', '。')))
 
 
-def _spans(text):
+def _paragraph_spans(text):
     """Yield contiguous physical paragraphs with preceding heading/list text.
 
     Sentence punctuation is not a safe boundary: the same paragraph can contain
@@ -38,7 +50,7 @@ def _spans(text):
     """
     pending = []
     for line in _lines(text):
-        if pending and line[2].isupper():
+        if pending and line[2].isupper() and not _bullet_row(line[2]):
             yield pending[0][0], pending[-1][1]
             pending = []
         pending.append(line)
@@ -47,6 +59,117 @@ def _spans(text):
             pending = []
     if pending:
         yield pending[0][0], pending[-1][1]
+
+
+_BADGE_NUMBER = re.compile(r'\d[\d,.]*\+?')
+_BADGE_UNIT = re.compile(
+    r'(?:м[²2](?:\s+(?:нийт\s+)?талбай)?|(?:хүний\s+)?суудал|'
+    r'ном(?:,?\s+сурах\s+бичиг)?|хүн|оюутан|багш|минут|хоног)', re.I)
+
+_DIRECTION_LABEL = re.compile(
+    r'[^\W\d_]+(?:аас|ээс|оос|өөс)\s+(?:дээш|доош|баруун|зүүн|дотогш|гадагш)\s*[:：]?', re.I)
+_STRUCTURE_NEGATION = re.compile(
+    r'\bбиш\b|байхгүй|тодорхойгүй|(?:хэрэгж|явагд|урс|чиглэ|бай)[а-яёөү]*гүй\b', re.I)
+
+
+def direction_card_bindings(text):
+    """Physical direction-heading/name/prose triples, not inferred meanings.
+
+    Names and directions are read from the source. No domain, organisation or
+    expected flow-name pair is stored here; a bare direction mention is not a
+    binding. Only immediate short labels followed by a complete prose row count.
+    """
+    lines = _lines(text)
+    bindings = []
+    for index, (start, _, heading) in enumerate(lines[:-2]):
+        if not _DIRECTION_LABEL.fullmatch(heading):
+            continue
+        _, _, label = lines[index + 1]
+        _, end, description = lines[index + 2]
+        if (not 2 <= len(label) <= 100 or _prose(label)
+                or _DIRECTION_LABEL.fullmatch(label) or _bullet_row(label)
+                or not description.endswith(('.', '!', '。')) or len(description) < 24
+                or _STRUCTURE_NEGATION.search(label + '\n' + description)):
+            continue
+        bindings.append(dict(start=start, end=end, direction=heading.rstrip(':：').casefold(), label=label))
+    return bindings
+
+
+def _structural_spans(text, spans):
+    """Keep tightly adjacent source cards and same-entity paragraphs intact."""
+    combined = []
+    index = 0
+    while index < len(spans):
+        start, end = spans[index]
+        lines = _lines(text[start:end])
+        if index + 1 < len(spans):
+            next_start, next_end = spans[index + 1]
+            following = _lines(text[next_start:next_end])
+            # A legal company suffix is structure, not a particular partner.
+            # An intervening heading, another paragraph or explicit company
+            # name cannot be silently inherited through this pronoun link.
+            company_heading = bool(lines and re.fullmatch(
+                r'[A-Za-z0-9][A-Za-z0-9 &,./()\-]{0,90}\s+(?:Ltd\.?|Inc\.?|Corp\.?|LLC|PLC)', lines[0][2], re.I))
+            pronoun = (re.search(r'\bтус\s+компани[а-яёөү]*\b', following[0][2][:120], re.I)
+                       if len(following) == 1 else None)
+            prefix = following[0][2][:pronoun.start()] if pronoun else ''
+            same_company = (pronoun and following[0][2].endswith(('.', '!', '。'))
+                            and not re.search(r'[A-Za-z]|компани', prefix, re.I))
+            if company_heading and same_company and not text[end:next_start].strip():
+                combined.append((start, next_end))
+                index += 2
+                continue
+        combined.append((start, end))
+        index += 1
+    result = []
+    index = 0
+    while index < len(combined):
+        start, end = combined[index]
+        if index and index + 1 < len(combined):
+            previous_start, previous_end = combined[index - 1]
+            next_start, next_end = combined[index + 1]
+            intro = text[previous_start:previous_end]
+            bindings = direction_card_bindings(text[start:next_end])
+            prefix = text[end:next_start]
+            if (re.search(r'\b(?:хоёр|2)\s+(?:чиглэл|урсгал)[а-яёөү]*\b', intro, re.I)
+                    and not _STRUCTURE_NEGATION.search(intro)
+                    and len(bindings) == 2 and len({b['direction'] for b in bindings}) == 2
+                    and bindings[0]['start'] == 0 and bindings[0]['end'] == end - start
+                    and bindings[1]['end'] == next_end - start and not prefix.strip()):
+                result.append((start, next_end))
+                index += 2
+                continue
+        result.append((start, end))
+        index += 1
+    return result
+
+
+def _spans(text):
+    """Attach a trailing numeric measurement badge to its preceding prose.
+
+    The HTML text flattens a paragraph followed by its statistic card into
+    separate physical lines. A bare facility name or numbered list is not a
+    measurement badge. Moving this exact boundary keeps every nonspace source
+    character and does not rewrite quantities, clauses or conditions.
+    """
+    spans = list(_paragraph_spans(text))
+    adjusted = []
+    for start, end in spans:
+        if adjusted:
+            previous_start, previous_end = adjusted[-1]
+            previous_lines = _lines(text[previous_start:previous_end])
+            lines = _lines(text[start:end])
+            if (previous_lines and _prose(previous_lines[-1][2])
+                    and not text[previous_end:start].strip()
+                    and len(lines) >= 2 and _BADGE_NUMBER.fullmatch(lines[0][2])
+                    and _BADGE_UNIT.fullmatch(lines[1][2])):
+                badge_end = start + lines[1][1]
+                adjusted[-1] = (previous_start, badge_end)
+                remainder = text[badge_end:end]
+                start = badge_end + len(remainder) - len(remainder.lstrip())
+        if start < end:
+            adjusted.append((start, end))
+    yield from _structural_spans(text, adjusted)
 
 
 def _numbered_rows(text):
@@ -164,6 +287,42 @@ _ROLE_PATTERNS = {
 _ROMAN = {'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6',
           'VII': '7', 'VIII': '8', 'IX': '9', 'X': '10', 'XI': '11', 'XII': '12'}
 
+_ROLE_CONTEXT_STOP = set(('нийт тус бүр бүрээс бүрийн хэд хэдэн хэдийг ямар юу вэ бэ уу үү '
+    'болон ба буюу хамтад хэлээрэй мэдээлсэн мэдээлэл үзүүлэлт үзүүлэлтийг хүрээ '
+    'хэмжээ тоо тоог оны онд жил жилийн анх тусдаа тус бүр нь гэж гэсэн '
+    'сургууль сургуулийн хуудсанд танилцуулгад').split())
+_ROLE_CONTEXT_SUFFIXES = ('уудын', 'үүдийн', 'гийн', 'ийн', 'ын', 'ийг', 'аар', 'ээр', 'оор', 'өөр')
+
+
+def _role_context_tokens(text):
+    """Small lexical context check, not a parser or semantic completeness test."""
+    tokens = set()
+    for token in re.findall(r'[а-яёөү]+', text.casefold()):
+        if token in _ROLE_CONTEXT_STOP:
+            continue
+        for suffix in _ROLE_CONTEXT_SUFFIXES:
+            if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+                token = token[:-len(suffix)]
+                break
+        if len(token) >= 3 and token not in _ROLE_CONTEXT_STOP:
+            tokens.add(token[:4])
+    return tokens
+
+
+def _total_context_matches(query, available_text):
+    # A total on an unrelated nearby topic cannot create a requirement for
+    # another measure. Questions without an explicit object keep the strict
+    # old check. A 90-character local window is deliberately bounded.
+    # Bind the role to its own question clause, not another requested field
+    # later in a compound question (e.g. a programme's adoption history).
+    match = re.search(_ROLE_PATTERNS['total'], query, re.I)
+    clause = re.split(r'[,;?\n]|\b(?:болон|буюу)\b', query[match.end():], maxsplit=1)[0]
+    objects = _role_context_tokens(' '.join(clause.split()[:6]))
+    if not objects:
+        return True
+    return any(objects & _role_context_tokens(available_text[max(0, m.start()-90):m.end()+90])
+               for m in re.finditer(_ROLE_PATTERNS['total'], available_text, re.I))
+
 
 def _anchors(text):
     """Explicit numeric/code anchors only; this is not a Mongolian parser."""
@@ -185,6 +344,8 @@ def missing_query_markers(query, selected_text, available_text):
     missing = []
     for name, pattern in _ROLE_PATTERNS.items():
         if not (re.search(pattern, q) and re.search(pattern, available)):
+            continue
+        if name == 'total' and not _total_context_matches(query, available_text):
             continue
         # A table can express one value per course/person without repeating
         # "тус бүр". Preserve the entire table rather than demand that wording.
@@ -221,6 +382,64 @@ def _publication_years(unit):
     return years
 
 
+def _heading_boundary(line):
+    """Treat an unfinished physical line as a possible section boundary.
+
+    A long or omitted heading must still block inheritance from an older
+    section. Bare lines can also be unfinished prose, so this is deliberately
+    conservative: identifying a boundary does not make it usable name context.
+    """
+    company = (re.fullmatch(r'[A-Za-z0-9 &,./()\-]+', line)
+               and re.search(r'\b(?:Ltd|Inc|Co)\.$', line))
+    return bool(company or not line.endswith(('.', '!', '?', '。', '！', '？')))
+
+
+def _short_heading(unit):
+    """Recognize only an initial short physical heading, never body mentions."""
+    lines = _lines(unit.get('text', ''))
+    if not lines:
+        return None
+    line = lines[0][2]
+    if len(line) > 100 or len(line.split()) > 8 or not _heading_boundary(line):
+        return None
+    return line
+
+
+def _named_heading_context(query, expanded, units, known):
+    """Keep a named section's preceding heading when its body omits the name.
+
+    Only a query's literal Latin/code anchor is considered. The nearest
+    preceding heading must belong to the same source; another heading blocks
+    inheritance. This does not infer arbitrary Mongolian named entities.
+    """
+    required = {anchor for anchor in _anchors(query)
+                if re.fullmatch(r'[a-z][a-z0-9]*', anchor)}
+    missing = required - _anchors('\n'.join(known[sid]['text'] for sid in expanded))
+    context = []
+    for sid in expanded:
+        selected = known[sid]
+        # Possible section starts block inheritance even if they are too long
+        # to be trusted as a name heading. Check physical source lines too:
+        # oversized/unselectable units must not disappear as boundaries.
+        selected_lines = _lines(selected.get('text', ''))
+        if selected_lines and _heading_boundary(selected_lines[0][2]):
+            continue
+        quote, start = selected.get('quote'), selected.get('start')
+        if not isinstance(quote, str) or type(start) is not int:
+            continue
+        boundaries = [line for line in _lines(quote[:start]) if _heading_boundary(line[2])]
+        if not boundaries:
+            continue
+        heading_start, _, heading_text = boundaries[-1]
+        preceding = [unit for unit in units if unit['source_id'] == selected['source_id']
+                     and unit['start'] == heading_start and unit['end'] <= start
+                     and _short_heading(unit) == heading_text]
+        if preceding and missing & _anchors(heading_text):
+            heading = preceding[0]
+            context.append(heading['unit_id'])
+    return list(dict.fromkeys(context))
+
+
 def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, max_claims=3):
     """Resolve IDs into server-owned exact claims, preserving linked context.
 
@@ -254,6 +473,13 @@ def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, 
 
     if not all(append(sid) for sid in selected_ids):
         return result('unknown_evidence_unit')
+    named_context = _named_heading_context(query, expanded, units, known)
+    if named_context:
+        original_expanded = list(expanded)
+        expanded.clear()
+        visiting.clear()
+        if not all(append(sid) for sid in named_context + original_expanded):
+            return result('unknown_evidence_unit')
     # A question may name an announcement year while the answer states a later
     # start year. Retain that distinction by adding the same source's actual
     # publication heading, rather than discarding or replacing the year check.
@@ -291,4 +517,5 @@ def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, 
         return result('requested_evidence_markers_missing', missing_markers=missing)
     return result('verbatim_evidence_selection', accepted=True, claims=claims,
                   selected_unit_ids=expanded, context_expanded=expanded != selected_ids,
-                  publication_context_unit_ids=publication_context)
+                  publication_context_unit_ids=publication_context,
+                  named_heading_context_unit_ids=named_context)

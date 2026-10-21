@@ -62,6 +62,20 @@ class RAGHTTPTests(unittest.TestCase):
         self.assertEqual(status,409)
         self.assertFalse(self.voice.spoken)
 
+    def test_source_selection_is_not_reported_as_model_authored_tts_text(self):
+        from unittest.mock import patch
+        value=dict(query='Тест үү?',route='C',answer='Эхийн яг үг.',package_id='package',
+            generated=True,llm_calls=2,citations=[],answer_kind='rag_generated',
+            rag=dict(answer_text_generated=False,llm_role='evidence_selection'))
+        with patch.object(self.rag,'recall',return_value=value):
+            status,result=self.request('POST','/api/voice/speak',dict(query='Тест үү?',allow_draft=True,
+                voice='mn-MN-BataaNeural',package_id=self.package,response_id='a'*32))
+        self.assertEqual(status,200)
+        self.assertFalse(result['text_generated'])
+        self.assertEqual(result['answer_llm_calls'],2)
+        self.assertEqual(result['answer_llm_role'],'evidence_selection')
+        self.assertEqual(result['llm_calls'],0)
+
     def test_client_text_cannot_override_spoken_answer(self):
         status,_=self.request('POST','/api/voice/speak',dict(query='Тест үү?',allow_draft=True,
             package_id=self.package,response_id='a'*32,text='invented'))

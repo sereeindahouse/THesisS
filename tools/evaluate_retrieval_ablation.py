@@ -46,7 +46,7 @@ def evaluate(cases_path, output):
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),
         label_scope='Existing assistant development/tuning labels. One target URL+phrase, not exhaustive relevance judgements, not independent held-out or answer accuracy.',
         protocol=dict(modes=list(RANKING_MODES),rrf_k=RRF_K,anchor_weight=ANCHOR_COVERAGE_WEIGHT,category_weight=CATEGORY_WEIGHT,
-            common='Same eligible corpus, Mongolian lexical aliases, E5 prefixes/pooling, max two passages/page, overlap/news exclusion.',
+            common='Same eligible corpus, Mongolian lexical aliases, E5 prefixes/pooling, max two HTML/document parts plus two independent client fields per URL, overlap/news exclusion.',
             bm25='Positive lexical scores only; Mongolian normalized query/document terms.',
             e5='Dense scores; no lexical/topic abstention; local pinned model required.',
             rrf='Lexical positive ranks + dense ranks; no extra boosts or lexical/topic gates.',

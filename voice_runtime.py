@@ -5,18 +5,26 @@ only after a user supplies audio or asks for speech. Uploaded audio/transcripts
 stay in the ignored runtime directory and never become training references.
 """
 import asyncio
+from array import array
+from collections import OrderedDict
+import copy
 import hashlib
 import importlib.util
 import importlib.metadata
 import io
 import json
+import math
 import re
 import threading
+import sys
 import time
 import uuid
 import wave
 from datetime import datetime, timezone
 from pathlib import Path
+from types import MappingProxyType
+
+import stt_mn as _stt_mn
 
 
 MAX_AUDIO_BYTES = 8 * 1024 * 1024
@@ -28,6 +36,9 @@ DECODE_TIMEOUT_SECONDS = 15
 TTS_TIMEOUT_SECONDS = 25
 MAX_TTS_BYTES = 4 * 1024 * 1024
 MAX_SESSION_ITEMS = 40
+MAX_TTS_CACHE_ITEMS = 6
+MAX_TTS_CACHE_BYTES = 8 * 1024 * 1024
+TTS_CACHE_SECONDS = 300
 ALLOWED_VOICES = ("mn-MN-BataaNeural", "mn-MN-YesuiNeural")
 PINNED_SOURCE = "Cafet/whisper-small-mongolian"
 PINNED_REVISION = "d54c63a518d6dea7ab54a27c83d0b6b52bea3e9d"
@@ -36,6 +47,32 @@ EXPECTED_DECODING = dict(language="mn", task="transcribe", beam_size=5,
                          vad_filter=False, temperature=0.0,
                          without_timestamps=True,
                          condition_on_previous_text=False)
+_FIXED_DECODING = MappingProxyType(dict(EXPECTED_DECODING))
+_SPEECH_PRESENCE_OPTIONS = MappingProxyType(dict(
+    threshold=0.5, neg_threshold=None, min_speech_duration_ms=0,
+    max_speech_duration_s="Infinity", min_silence_duration_ms=2000, speech_pad_ms=400))
+VOICE_ARTIFACT_NAMES = ("voice_runtime.py", "stt_mn.py")
+
+
+def _imported_stt_sha256():
+    data = Path(_stt_mn.__file__).read_bytes()
+    # stt_mn may have been imported before this module. Fail closed if its
+    # already loaded functions differ from the source bytes being fingerprinted.
+    compiled = compile(data, _stt_mn.__file__, "exec")
+    functions = [item for item in compiled.co_consts if hasattr(item, "co_name")
+                 and item.co_name in {"load_choice", "main"}]
+    if not functions or any(getattr(getattr(_stt_mn, item.co_name, None), "__code__", None) != item
+                            for item in functions):
+        return None
+    return hashlib.sha256(data).hexdigest()
+
+
+# Capture once when these standard-library-only modules are imported. Status
+# must identify the loaded code, not re-label it with subsequently edited files.
+_LOADED_ARTIFACT_SHA256 = MappingProxyType({
+    "voice_runtime.py": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    "stt_mn.py": _imported_stt_sha256(),
+})
 ONLINE_NOTICE = "Сонгосон текстийг онлайн Edge TTS үйлчилгээнд илгээнэ; дууны файл STT-д локал боловсруулагдана."
 _ID = re.compile(r"[0-9a-f]{32}\Z")
 _FORMATS = {
@@ -160,6 +197,28 @@ def _waveform(pcm):
     return np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
 
 
+def _speech_presence_policy():
+    return dict(enabled=True, method="faster_whisper_packaged_Silero",
+                purpose="any_speech_presence_only", sampling_rate=SAMPLE_RATE,
+                options=dict(_SPEECH_PRESENCE_OPTIONS), calibrated_confidence=False,
+                crops_or_reorders_audio=False, downloads=False,
+                whisper_vad_filter=False)
+
+
+def _speech_presence(audio):
+    """Presence-only local gate; the caller retains the unchanged full array."""
+    try:
+        from faster_whisper.vad import VadOptions, get_speech_timestamps
+        options = dict(_SPEECH_PRESENCE_OPTIONS)
+        options["max_speech_duration_s"] = float("inf")
+        regions = get_speech_timestamps(audio, vad_options=VadOptions(**options), sampling_rate=SAMPLE_RATE)
+        if not isinstance(regions, list):
+            raise TypeError("Unexpected speech detector output")
+    except Exception as exc:
+        raise VoiceRuntimeError("speech_presence_failed", "Яриа байгаа эсэхийг шалгаж чадсангүй; түр хүлээгээд дахин оролдоно уу.", 503) from exc
+    return dict(_speech_presence_policy(), any_speech=bool(regions), region_count=len(regions))
+
+
 def _wav_bytes(pcm):
     output = io.BytesIO()
     with wave.open(output, "wb") as handle:
@@ -168,6 +227,32 @@ def _wav_bytes(pcm):
         handle.setframerate(SAMPLE_RATE)
         handle.writeframes(pcm)
     return output.getvalue()
+
+
+def _recognition_review(pcm, segments):
+    """Heuristic recording/decoder warnings; never a calibrated accuracy score."""
+    samples=array('h');samples.frombytes(pcm)
+    if sys.byteorder!='little':samples.byteswap()
+    rms=math.sqrt(sum(sample*sample for sample in samples)/len(samples))/32768 if samples else 0.0
+    clipping=sum(abs(sample)>=32700 for sample in samples)/len(samples) if samples else 0.0
+    flags=[]
+    if rms<0.01:flags.append('quiet_recording')
+    if clipping>0.01:flags.append('clipped_recording')
+    for name,threshold,label,direction in [
+        ('avg_logprob',-1.0,'low_decoder_score',-1),
+        ('no_speech_prob',0.6,'uncertain_speech',1),
+        ('compression_ratio',2.4,'repetitive_output',1)]:
+        if any(isinstance(row.get(name),(int,float)) and not isinstance(row[name],bool)
+               and math.isfinite(row[name]) and direction*row[name]>direction*threshold for row in segments):
+            flags.append(label)
+    notices={'quiet_recording':'Бичлэгийн дуу сул байна.',
+        'clipped_recording':'Бичлэгийн дуу хэт чанга, тасарсан байж болно.',
+        'low_decoder_score':'Танилтад эргэлзээтэй хэсэг байна.',
+        'uncertain_speech':'Яриа тод бус хэсэг байна.',
+        'repetitive_output':'Танилтад үг давтагдсан байж болно.'}
+    return dict(flags=flags,needs_extra_review=bool(flags),rms=round(rms,6),
+        clipping_fraction=round(clipping,6),heuristic=True,calibrated_confidence=False,
+        changes_transcript=False,message=' '.join(notices[flag] for flag in flags))
 
 
 async def _edge_audio(text, voice):
@@ -192,10 +277,28 @@ class VoiceRuntime:
         self._session = self.root / "runtime" / "voice-demo" / uuid.uuid4().hex
         self._model = None
         self._choice = None
+        self._loaded_model_fingerprint = None
         self._model_lock = threading.Lock()
         self._records_lock = threading.RLock()
         self._records = {}
+        # Keep the original STT result in memory, independently of mutable
+        # composer text and JSON artifacts. Only _save of a real STT record can
+        # establish this binding; the routing client never supplies raw_text.
+        self._transcription_texts = {}
         self._last_tts_attempt = None
+        self._tts_lock = threading.Lock()
+        self._tts_cache = OrderedDict()
+
+    def _stt_provenance(self):
+        loaded = self._model is not None
+        fingerprint = (copy.deepcopy(self._loaded_model_fingerprint) if loaded else
+                       dict(source_repo=PINNED_SOURCE, source_revision=PINNED_REVISION,
+                            model_sha256=PINNED_SHA256, device="cpu", compute_type="int8",
+                            actual_compute_type=None))
+        return dict(loaded_artifact_sha256=dict(_LOADED_ARTIFACT_SHA256),
+                    effective_decoding=dict(_FIXED_DECODING), model_loaded=loaded,
+                    model_fingerprint=fingerprint, model_fingerprint_verified=loaded,
+                    model_fingerprint_scope="verified_loaded_model" if loaded else "fixed_profile_not_loaded")
 
     def status(self):
         profile = self.root / "data" / "stt-model-choice.json"
@@ -209,7 +312,7 @@ class VoiceRuntime:
                 (directory / filename).is_file() for filename in ("model.bin", "config.json", "tokenizer.json", "download-manifest.json"))
         except (OSError, ValueError, KeyError, TypeError):
             pass
-        stt_ready = present and all(_has_module(name) for name in ("av", "numpy", "faster_whisper"))
+        stt_ready = present and all(_has_module(name) for name in ("av", "numpy", "faster_whisper", "onnxruntime"))
         tts_ready = _has_module("edge_tts")
         try:
             tts_version = importlib.metadata.version("edge-tts")
@@ -222,7 +325,8 @@ class VoiceRuntime:
                 "tts_package_version": tts_version,
                 "tts_ready_checks_dependencies_only": True,
                 "tts_last_attempt": last_tts, "model_files_present": present,
-                "model_loaded": self._model is not None,
+                **self._stt_provenance(),
+                "speech_presence": _speech_presence_policy(),
                 "model": PINNED_SOURCE, "revision": PINNED_REVISION,
                 "model_sha256": PINNED_SHA256, "local_files_only": True,
                 "device": "cpu", "compute_type": "int8",
@@ -240,12 +344,11 @@ class VoiceRuntime:
             return 0.0
         started = time.perf_counter()
         try:
-            from stt_mn import load_choice
-            choice, path = load_choice(self.root)
+            choice, path = _stt_mn.load_choice(self.root)
             if (choice.get("source_repo"), choice.get("source_revision"), choice.get("model_sha256")) != (
                     PINNED_SOURCE, PINNED_REVISION, PINNED_SHA256):
                 raise VoiceRuntimeError("stt_profile_changed", "Туршиж сонгосон Cafet моделийн хувилбар өөрчлөгдсөн байна.", 503)
-            if choice.get("decoding") != EXPECTED_DECODING or choice.get("device") != "cpu" or choice.get("compute_type") != "int8":
+            if choice.get("decoding") != dict(_FIXED_DECODING) or choice.get("device") != "cpu" or choice.get("compute_type") != "int8":
                 raise VoiceRuntimeError("stt_profile_changed", "Туршиж сонгосон STT тохиргоо өөрчлөгдсөн байна.", 503)
             from faster_whisper import WhisperModel
             model = WhisperModel(str(path), device="cpu", compute_type="int8", local_files_only=True)
@@ -257,8 +360,13 @@ class VoiceRuntime:
             raise VoiceRuntimeError("stt_model_missing", "Локал Cafet модель алга; CORE-ийн model setup зааврыг ашиглана уу.", 503) from exc
         except Exception as exc:
             raise VoiceRuntimeError("stt_model_verification", "Локал моделийн файл, checksum эсвэл runtime тохиргоог баталгаажуулж чадсангүй.", 503) from exc
+        self._choice = copy.deepcopy(choice)
+        self._loaded_model_fingerprint = dict(
+            source_repo=choice["source_repo"], source_revision=choice["source_revision"],
+            model_sha256=choice["model_sha256"], device=choice["device"],
+            compute_type=choice["compute_type"],
+            actual_compute_type=getattr(getattr(model, "model", None), "compute_type", "unknown"))
         self._model = model
-        self._choice = dict(choice)
         return time.perf_counter() - started
 
     def _safe_file(self, path):
@@ -295,7 +403,34 @@ class VoiceRuntime:
                         self._safe_file(path).unlink()
                 raise VoiceRuntimeError("voice_storage", "Demo-ийн түр файлыг хадгалж чадсангүй.", 503) from exc
             self._records[identifier] = (audio_path, info_path, mime)
+            if result.get('kind') == 'stt' and isinstance(result.get('text'), str):
+                self._transcription_texts[identifier] = result['text']
         return result
+
+    def transcription_lineage(self, identifier, query):
+        """Bind submitted text to this runtime's saved, unchanged STT output.
+
+        Sending or editing text is not a human-confirmed utterance reference.
+        A returned snapshot remains meaningful after a later session reset;
+        deleted IDs cannot establish new bindings.
+        """
+        self._validate_id(identifier)
+        if not isinstance(query, str) or not query.strip() or len(query) > MAX_TEXT_CHARACTERS:
+            raise VoiceRuntimeError('stt_lineage_query', 'Илгээх асуултын текст буруу байна.')
+        with self._records_lock:
+            record = self._records.get(identifier)
+            if record is None:
+                raise VoiceRuntimeError('stt_lineage_missing', 'Энэ session-ийн STT бичлэг олдсонгүй.', 404)
+            audio_path, info_path, _ = record
+            if not self._safe_file(audio_path).is_file() or not self._safe_file(info_path).is_file():
+                raise VoiceRuntimeError('stt_lineage_missing', 'Энэ session-ийн STT бичлэг устсан байна.', 404)
+            if identifier not in self._transcription_texts:
+                raise VoiceRuntimeError('stt_lineage_kind', 'Асуултыг зөвхөн STT бичлэгтэй холбоно.', 409)
+            raw = self._transcription_texts[identifier]
+            edited = query != raw
+            return dict(kind='edited_stt' if edited else 'raw_stt', transcription_id=identifier,
+                        raw_text=raw, submitted_text=query, edited=edited,
+                        manual_verification_claimed=False)
 
     def _check_capacity(self):
         with self._records_lock:
@@ -311,30 +446,45 @@ class VoiceRuntime:
             raise VoiceRuntimeError("audio_silent", "Бичлэгийн бүх sample тэг байна; микрофоноо шалгаж, дахин ярьж бичнэ үү.")
         audio = _waveform(pcm)
         decode_seconds = time.perf_counter() - decode_started
+        presence_started = time.perf_counter()
+        presence = _speech_presence(audio)
+        if not presence["any_speech"]:
+            raise VoiceRuntimeError("audio_no_speech", "Бичлэгээс яриа илэрсэнгүй. Микрофоноо шалгаж, дахин ярьж бичнэ үү.")
+        presence_seconds = time.perf_counter() - presence_started
         queued = time.perf_counter()
         with self._model_lock:
             queue_seconds = time.perf_counter() - queued
             load_seconds = self._load_model()
             started = time.perf_counter()
             try:
-                segments, _ = self._model.transcribe(audio, **dict(EXPECTED_DECODING))
-                rows = [{"start": float(segment.start), "end": float(segment.end),
-                         "text": segment.text.strip()} for segment in segments]
+                segments, _ = self._model.transcribe(audio, **dict(_FIXED_DECODING))
+                rows=[]
+                for segment in segments:
+                    row=dict(start=float(segment.start),end=float(segment.end),text=segment.text.strip())
+                    for name in ('avg_logprob','no_speech_prob','compression_ratio'):
+                        value=getattr(segment,name,None)
+                        row[name]=(float(value) if isinstance(value,(int,float)) and not isinstance(value,bool)
+                                   and math.isfinite(value) else None)
+                    rows.append(row)
             except Exception as exc:
                 raise VoiceRuntimeError("stt_failed", "STT дууг таньж чадсангүй; текстээ гараар оруулж үргэлжлүүлж болно.", 503) from exc
             elapsed = time.perf_counter() - started
             actual_compute = getattr(getattr(self._model, "model", None), "compute_type", "unknown")
         text = " ".join(row["text"] for row in rows).strip()
+        review=_recognition_review(pcm,rows)
         details = {"kind": "stt", "text": text, "segments": rows,
+                   "recognition_review": review,
                    "speech_text_available": bool(text),
-                   "message": ("STT текст гарлаа; хэлсэн үгтэйгээ нягталж засна уу." if text else
+                   "message": ((review['message']+' ' if review['message'] else '')+"STT текст гарлаа; хэлсэн үгтэйгээ нягталж засна уу." if text else
                                "Ярианы текст гарсангүй; өгүүлбэрээ гараар оруулах эсвэл дахин бичиж болно."),
                    "audio_seconds": len(pcm) / (SAMPLE_RATE * 2),
                    "decode_seconds": decode_seconds, "queue_wait_seconds": queue_seconds,
+                   "speech_presence": presence, "speech_presence_seconds": presence_seconds,
                    "model_load_seconds": load_seconds, "transcription_seconds": elapsed,
                    "input_sha256": hashlib.sha256(audio_bytes).hexdigest(),
                    "model": PINNED_SOURCE, "revision": PINNED_REVISION,
-                   "model_sha256": PINNED_SHA256, "decoding": dict(EXPECTED_DECODING),
+                   "model_sha256": PINNED_SHA256, "decoding": dict(_FIXED_DECODING),
+                   **self._stt_provenance(),
                    "device": "cpu", "compute_type": "int8", "actual_compute_type": actual_compute,
                    "local_files_only": True, "reference_confirmed": False,
                    "human_review_required": True, "fine_tuning_performed": False,
@@ -353,6 +503,43 @@ class VoiceRuntime:
             }
 
     def synthesize(self, text, voice):
+        if voice not in ALLOWED_VOICES:
+            raise VoiceRuntimeError('tts_voice','Bataa эсвэл Yesui монгол дууг сонгоно уу.')
+        if not isinstance(text,str) or not text.strip():
+            raise VoiceRuntimeError('tts_text_empty','Уншуулах текст хоосон байна.')
+        from speech_text import normalize_spoken_currency
+        text=normalize_spoken_currency(text.strip())
+        if len(text)>MAX_TEXT_CHARACTERS:
+            raise VoiceRuntimeError('tts_text_limit','Уншуулах текст 2000 тэмдэгтээс урт байна.')
+        # Cache exact text+voice only. Each response still receives a fresh
+        # private audio ID, so deleting one turn cannot invalidate another.
+        key=(voice,hashlib.sha256(text.encode('utf-8')).hexdigest())
+        with self._tts_lock:
+            self._check_capacity()
+            now=time.monotonic()
+            with self._records_lock:
+                for old in list(self._tts_cache):
+                    if now-self._tts_cache[old][0]>=TTS_CACHE_SECONDS:
+                        del self._tts_cache[old]
+                cached=self._tts_cache.get(key)
+                if cached:self._tts_cache.move_to_end(key)
+            if cached:
+                created,audio,details=cached
+                return self._save(audio,'audio/mpeg',dict(details,cache_hit=True,
+                    provider_request=False,cache_age_seconds=round(now-created,3),synthesis_seconds=0.0))
+            result=self._synthesize_uncached(text,voice)
+            audio,_=self.audio(result['id'])
+            names=('kind','voice','text','characters','service','online_notice',
+                   'audio_synthesized','text_generated','human_quality_accepted','llm_calls')
+            details={name:result[name] for name in names}
+            with self._records_lock:
+                self._tts_cache[key]=(time.monotonic(),audio,details)
+                while (len(self._tts_cache)>MAX_TTS_CACHE_ITEMS or
+                       sum(len(item[1]) for item in self._tts_cache.values())>MAX_TTS_CACHE_BYTES):
+                    self._tts_cache.popitem(last=False)
+            return result
+
+    def _synthesize_uncached(self, text, voice):
         self._check_capacity()
         if voice not in ALLOWED_VOICES:
             raise VoiceRuntimeError("tts_voice", "Bataa эсвэл Yesui монгол дууг сонгоно уу.")
@@ -393,6 +580,7 @@ class VoiceRuntime:
             raise VoiceRuntimeError(code, message, 503) from exc
         self._tts_attempt(voice, started, success=True)
         details = {"kind": "tts", "voice": voice, "text": text,
+                   "cache_hit": False, "provider_request": True,
                    "characters": len(text), "synthesis_seconds": time.perf_counter() - started,
                    "service": "online Edge TTS experiment", "online_notice": ONLINE_NOTICE,
                    "audio_synthesized": True, "text_generated": False,
@@ -433,6 +621,9 @@ class VoiceRuntime:
                     if path.exists():
                         self._safe_file(path).unlink()
                 del self._records[identifier]
+                self._transcription_texts.pop(identifier, None)
                 deleted.append(identifier)
+            if not self._records:
+                self._tts_cache.clear()
         return {"deleted_ids": deleted, "deleted_count": len(deleted),
                 "original_recordings_modified": False, "model_unloaded": False}

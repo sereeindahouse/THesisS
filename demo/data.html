@@ -23,6 +23,7 @@
       <button id="progressTab" class="nav-button" role="tab" aria-selected="false" aria-controls="progressView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">◷</span>Төслийн явц<span class="nav-arrow" aria-hidden="true">↗</span></button>
     </nav>
     <a href="/" class="chat-link"><span aria-hidden="true">↗</span> Мэдээллийн туслах руу</a>
+    <a id="localAdminLink" href="/admin" class="chat-link" hidden><span aria-hidden="true">↥</span> Мэдээлэл шинэчлэх</a>
     <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span>Локал өгөгдөл<small>Энэ харагдац хадгалсан эхийг уншина. Моделиор шинэ хариулт үүсгэхгүй.</small></div>
     <div class="sidebar-footer">Эх → хайлт → хариулт<small>Бүтээж буй системийн нотолгоо</small></div>
   </aside>
@@ -73,5 +74,6 @@
   </main>
 </div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>document.getElementById('localAdminLink').hidden=!['localhost','127.0.0.1','[::1]'].includes(location.hostname);</script>
 </body>
 </html>

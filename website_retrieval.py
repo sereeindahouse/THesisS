@@ -56,9 +56,16 @@ STEMS = {
 }
 SUFFIXES = ('уудаар', 'үүдээр', 'уудын', 'үүдийн', 'нууд', 'нүүд', 'уудаас',
             'үүдээс', 'ийн', 'ын', 'аар', 'ээр', 'оор', 'өөр', 'аас', 'ээс',
-            'оос', 'өөс', 'тай', 'тэй', 'той', 'ууд', 'үүд')
+            'оос', 'өөс', 'тай', 'тэй', 'той', 'ууд', 'үүд', 'энд', 'анд', 'онд', 'инд')
 NAV_LINES = {'Тэнхимүүд', 'Буцах', 'Бүгдийг харах', 'Нэвтрэх', 'Холбоосууд',
              'Удирдлага', 'MN MN', 'Нүүр', 'NM', 'CT', 'NMCT'}
+# Exact, reviewed search spellings only. Preserve the submitted query and source
+# text; this is neither general spell correction nor an ASR transcript edit.
+SEARCH_SPELLINGS = {
+    'шаардалага': 'шаардлага',
+    'шаардалагатай': 'шаардлагатай',
+    'шаардалагад': 'шаардлагад',
+}
 
 
 def search_terms(text):
@@ -67,6 +74,7 @@ def search_terms(text):
     for token in tokens:
         if token in STOPWORDS or (len(token) == 1 and not token.isdigit()):
             continue
+        token = SEARCH_SPELLINGS.get(token, token)
         token = {'зургаа':'зураг', 'зургийг':'зураг', 'зургийн':'зураг', 'зурагтай':'зураг', 'зурганд':'зураг'}.get(token, token)
         normalized = next((value for prefix, value in STEMS.items() if token.startswith(prefix)), token)
         if normalized == token:
@@ -77,6 +85,56 @@ def search_terms(text):
         if normalized not in STOPWORDS:
             result.append(normalized)
     return result
+
+
+_ROMAN_QUERY_CODES = {'I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'}
+_GENERIC_QUERY_CODES = {'NMCT','PDF','PNG','JPEG','JPG','MB','GB','HTTP','HTTPS'}
+
+
+def explicit_codes(text):
+    """Literal source acronyms, excluding file types and Roman labels."""
+    return {code.casefold() for code in re.findall(
+        r'(?<![A-Za-z0-9])[A-Z][A-Z0-9]{1,}(?![A-Za-z0-9])', text)
+        if code not in _ROMAN_QUERY_CODES | _GENERIC_QUERY_CODES}
+
+
+def single_query_code(query, known_codes=()):
+    """One literal acronym narrows topic, with corpus-backed case equivalence.
+
+    Multiple named codes may require complementary sources, so do not apply
+    this one-code gate to those questions. Lowercase words only count when an
+    uppercase acronym was observed in the corpus; arbitrary English words do
+    not become entities. This is a ranking guard, not entity recognition.
+    """
+    codes = explicit_codes(query)
+    codes.update(token.casefold() for token in re.findall(
+        r'(?<![A-Za-z0-9])[A-Za-z][A-Za-z0-9]{1,}(?![A-Za-z0-9])', query)
+        if token.casefold() in known_codes)
+    return next(iter(codes)) if len(codes) == 1 else None
+
+
+def preceding_entity_codes(text, start):
+    """Keep a cut company's local antecedent available to the topic guard.
+
+    Merged HTML can cut a sentence after its named company. Only a short
+    preceding slice of the same text is considered, and only with an explicit
+    company/organisation anaphor. A complete new line starts its own scope.
+    This context affects eligibility only; quoted text and offsets stay exact.
+    """
+    if not start or text[start-1] == '\n':
+        return set()
+    prefix = text[max(0, start-360):start].rsplit('\n', 1)[-1]
+    if not re.search(r'\b(?:тус|уг|тухайн)\s+(?:компан|байгууллаг)',
+                     prefix + ' ' + text[start:start+220], re.I):
+        return set()
+    return explicit_codes(prefix)
+
+
+def diversity_group(row):
+    # Hidden client fields have separate coordinate systems and independent
+    # subjects. HTML/CAD must not consume the budget for a different CAM field.
+    # At most two client fields and two other parts per URL are returned.
+    return row['url'], row.get('text_scope') == 'client_tab_field_excerpt'
 
 
 def _official(url):
@@ -157,7 +215,12 @@ class WebsiteRetriever:
     def _refresh(self):
         stat = self.database.stat()
         stamp = (stat.st_mtime_ns, stat.st_size, date.today().isoformat())
-        if stamp == self._stamp:
+        # Committed WAL transactions need not touch the main database file.
+        # Re-read a SQLite snapshot while a WAL exists rather than trusting
+        # filesystem timestamps (or comparing data_version across connections).
+        # Keep the fast metadata path for the normal rollback-journal corpus.
+        wal_active = self.database.with_name(self.database.name + '-wal').exists()
+        if stamp == self._stamp and not wal_active:
             return
         with closing(readonly(self.database)) as db:
             db.execute('BEGIN')
@@ -171,7 +234,7 @@ class WebsiteRetriever:
             document_rows, document_warnings = read_document_rows(db, run)
             client_rows, client_warnings = read_client_tab_rows(db, run)
         page_map = {(p['url'], p['version']): dict(p) for p in pages}
-        rows, seen = [], set()
+        rows, seen, context_codes = [], set(), {}
         for chunk in chunks:
             page = page_map[(chunk['url'], chunk['version'])]
             # Never fall back to full_text: its repeated nav/banner/footer can be stale.
@@ -203,6 +266,7 @@ class WebsiteRetriever:
                 page_years=sorted(set(re.findall(r'\b20\d{2}\b', page['text']))),
                 page_header=page['text'][:300], snapshot_only=True, validity_unknown=not bool(page['valid_from'] and page['valid_until']))
             rows.append(row)
+            context_codes[row['source_id']] = preceding_entity_codes(page['text'], start)
         # A client field inherits the captured HTML page's approval/validity
         # guard; extracting a hidden field cannot make a blocked page eligible.
         client_rows = [row for row in client_rows if (page := page_map.get((row['url'], row['version'])))
@@ -215,6 +279,7 @@ class WebsiteRetriever:
         self._document_warnings = document_warnings + client_warnings
         self._run = dict(run)
         self._rows = rows
+        self._context_codes = context_codes
         self._passages = [row['title'] + '\n' + _rank_text(row['text']) for row in rows]
         self._lexical_passages = [' '.join(search_terms(p)) for p in self._passages]
         self._body_terms = [set(search_terms(_rank_text(row['text']) + '\n' + row.get('source_locator', ''))) for row in rows]
@@ -224,8 +289,10 @@ class WebsiteRetriever:
             indexed_document_passages=len(document_rows), indexed_documents=len({r['url'] for r in document_rows}),
             indexed_client_tab_passages=len(client_rows), indexed_client_tab_pages=len({r['url'] for r in client_rows}))
         fingerprint = INDEX_VERSION + run['manifest_sha256'] + '|'.join(row['source_id'] for row in rows)
-        self._corpus_id = hashlib.sha256(fingerprint.encode()).hexdigest()
-        self._embeddings = None
+        corpus_id = hashlib.sha256(fingerprint.encode()).hexdigest()
+        if corpus_id != self._corpus_id:
+            self._embeddings = None
+        self._corpus_id = corpus_id
         self._stamp = stamp
 
     def status(self):
@@ -284,6 +351,14 @@ class WebsiteRetriever:
         with self._lock:
             self._refresh()
             query_terms = set(search_terms(query))
+            topic_texts = [row['text'] + '\n' + row.get('source_locator','') + '\n' + row['title']
+                          for row in self._rows]
+            known_codes = set().union(*(explicit_codes(text) for text in topic_texts))
+            known_codes.update(code for codes in getattr(self, '_context_codes', {}).values() for code in codes)
+            topic_codes = [(set(search_terms(text)) & known_codes)
+                           | getattr(self, '_context_codes', {}).get(row['source_id'], set())
+                           for row, text in zip(self._rows, topic_texts)]
+            query_code = single_query_code(query, known_codes)
             # Generic school words should not turn every unknown topic into a match.
             anchors = query_terms - {'сургууль', 'шинэ', 'монгол', 'nmct', 'шмтк', 'оюутан', 'сургалт'}
             anchors = {term for term in anchors if not re.fullmatch(r'(?:19|20)\d{2}', term)}
@@ -331,12 +406,17 @@ class WebsiteRetriever:
                 if mode != 'e5' and not fused[index]:
                     continue
                 row = self._rows[index]
+                # Apply eligibility after every scoring boost: a category match
+                # must never revive a different named topic. Ranking-only
+                # ablations retain their original ungated interpretation.
+                if mode == 'production' and query_code and query_code not in topic_codes[index]:
+                    continue
                 # Unknown topics must not acquire a nearest-neighbour answer merely
                 # because E5 always ranks something. At least one real anchor is required.
                 if mode == 'production' and anchors and not (anchors & self._body_terms[index]):
                     continue
-                # Two distinct parts per page are allowed; overlapping repeats are not.
-                same = [r for r in used if r['url'] == row['url']]
+                # Two HTML/document parts plus two independent client fields per page; no overlapping repeats.
+                same = [r for r in used if diversity_group(r) == diversity_group(row)]
                 # Normalized field offsets belong to one JSON locator, not the
                 # HTML page or another field which also starts at zero.
                 if len(same) >= 2 or any(r.get('text_scope') == row.get('text_scope')

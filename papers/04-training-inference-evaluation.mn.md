@@ -1,3 +1,25 @@
+## 2026.10.16 — багшийн шаардлага тодорсон, бодит тохиргооны харьцуулалт
+
+Хэрэглэгчийн илэрхий хариулт: «Тохиргоо, системийн сайжруулалт ба харьцуулалт».
+Энэ scope-д жинг fine-tuning хийх шаардлага нэмээгүй; багшийн гарын үсэгтэй
+баталгаа эсвэл диплом хүлээн авах баталгаа гэж тайлбарлахгүй. Доорх хуучин
+«тодорхойгүй» тэмдэглэл нь10.11-ний түүх. Cafet/Whisper-small-ийг локал inference-д
+ашиглаж, frozen13reference дээр beam5/hotwords/beam10 харьцуулсан:36.02/47.31/36.02%WER,
+16.90/23.05/16.90%CER. Муудсан/ижил хувилбарыг сайн болсон гэж нэрлэж нэвтрүүлээгүй.
+Шинэ any-speech gate (packaged Silero) яриагүй оролтыг Whisper-ээс өмнө зогсооно;
+ярианы бүтэн waveform ба ASR decoder хэвээр. Noise rejection, WER, synthetic short
+reply, хүний хэрэглээний амжилт нь тус тусдаа хэмжүүр. Owntraining/download0.
+
+Эхийн нягтлал: [faster-whisper1.2.1 prompt/decoder](https://github.com/SYSTRAN/faster-whisper/blob/v1.2.1/faster_whisper/transcribe.py),
+[тусдаа VAD](https://github.com/SYSTRAN/faster-whisper/blob/v1.2.1/faster_whisper/vad.py),
+[Whisper model limitations](https://github.com/openai/whisper/blob/main/model-card.md).
+Энэ нь шинэ бүтэн өгүүлэл уншсан тэмдэглэл биш. Багшид тайлбарлах бодит өгүүлбэр:
+«Бэлэн Монгол Whisper ашиглан ижил аудиод decoder-уудыг харьцуулж, муудсан
+тохиргоог хассан; яриагүй оролтын хамгаалалт, runtime provenance нэмээд өмнө/дараах
+HTTP үр дүнг хэмжсэн. Ярианы WER буурсан, өөрсдөө fine-tuning хийсэн гэж дүгнээгүй.»
+
+---
+
 # Чиний бичсэн transcript юу хийж байгаа вэ? — 2026.10.10
 
 Одоогийн ажил: бэлэн machine-learning моделийг ашиглаж хөгжүүлэлтийн үнэлгээ хийх. Өөрийн STT model training эсвэл fine-tuning хийгээгүй. Дахин команд ажиллуулах бүрд модель шинэ үг сурдаггүй; хадгалсан CSV/JSON-ийг зөв текстийн хэмжилтэд хэрэглэнэ.

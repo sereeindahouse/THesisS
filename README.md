@@ -1,4 +1,82 @@
+<!-- core-next-public-20261021:start -->
+## 2026-10-21 source checkpoint
+
+Current local verification: **897 tests passed**. Source selection preserves paired direction/name cards and same-company course delivery context. On the same8 observed-development questions, AI completeness is8/8 for Gemma and8/8 for the non-LLM best3 condition; relevance/repetition errors remain. These are not held-out human accuracy results.
+
+Raw Cafet STT remains WER36.02% on13 speaker-confirmed development utterances. A conservative offline four-ASR fusion trial kept67 word errors and reduced184 character errors to183; it was not promoted. No training/new model download. [Readable system explanation](CORE/CONCEPTS.mn.md).
+
+Private recordings, transcripts, runtime results, databases, teacher-photo assets and models remain local. Only the previously authorized q01–q03 demo samples are included. A public source checkout needs the documented model/data setup; this checkpoint is not a full clean-machine deployment.
+<!-- core-next-public-20261021:end -->
+
+<!-- delivery-navigation-20261021:start -->
+## 2026.10.21 — Ажиллаж буй demo, мэдээлэл шинэчлэх хэсэг
+
+[Чат](http://127.0.0.1:8765/) · [Admin](http://127.0.0.1:8765/admin) · [Явц](http://127.0.0.1:8765/data#progress).
+[CORE/ADMIN.cmd](CORE/ADMIN.cmd) админыг нэг даралтаар нээнэ.
+[Засах/нийтлэх/буцаах заавар](CORE/ADMIN-GUIDE.mn.md).
+Staging/publish/rollback, STT raw/edited холбоос, TTS он/утасны хэлбэржилт хэрэгжсэн;
+787 локал тест,23бодит releaseHTTP тэнцсэн. RawSTT WER36.02% хэвээр.
+Байнгын hosting, хүний хараат бус чанарын дүн хэмжсэн гэж тайлагнаагүй.
+<!-- delivery-navigation-20261021:end -->
+
+<!-- core-finalization-20261017:start -->
+## 2026.10.17 — Үндсэн урсгалын үргэлжлэл
+
+705 локал тест тэнцсэн. Стандарт нийтийн HTTPS-ийн27HTTP шалгалт, хэрэглэгчийн
+6TTS сонсголын үнэлгээ бүртгэгдсэн. Шинэ24 анхны AI17/7; засварын дараа24corepass,
+9presentation partial. Өмнөх24corepass/50facts50pass. Бүгд development; human gold биш.
+RawSTT WER36.02% хэвээр. [Дэлгэрэнгүй явц](CORE/ROADMAP-PROGRESS.mn.md).
+Браузерт сертификат суулгах шаардлагагүй; сервер ажиллаж байхад түр HTTPS ашиглана.
+<!-- core-finalization-20261017:end -->
+
+## 2026.10.17 — RAG, STT, TTS
+
+651локал тест PASS; хувийн өгөгдөлгүй export650PASS/1SKIP.
+Шинэ24 одоо observed development: AI core24pass/50facts50pass,4presentation partial;
+хүний accuracy биш. STT rawWER36.02% хэвээр; шинэ initial_prompt51.08%муудсан тул
+нэвтрүүлээгүй, recording/decoder review сануулга нэмсэн. TTS6first+6cachehit/12decode;
+давтан дуу0.055–0.111s (энэ6жишээ), хүний сонсгол хэмжээгүй. Gemma нь C-д эхийн
+ID сонгож, сервер үгчлэн харуулна; WhisperSTT, EdgeTTS тусдаа.
+[Явц ба хязгаар](CORE/ROADMAP-PROGRESS.mn.md) · [Урсгалын ойлголт](CORE/CONCEPTS.mn.md).
+Нийтийн HTTPS, бодит төхөөрөмж/хүний study, эцсийн дипломын хяналт үлдсэн.
+
+---
+
 # THesisS
+
+## 2026.10.16 — Whisper-ийн одоогийн сайжруулалт
+
+Cafet/Whisper-small хэвээр. Ижил13development бичлэгт baselineWER36.02/CER16.90%;
+hotwords47.31/23.05%муудсан,beam10ижил тул нэвтрүүлээгүй. Шинэ яриа байгаа эсэхийн
+локал gate нь аудиог тайрахгүй:17/17speech нэвтэрч,2/2nonspeech хориглогдсон;
+нэмэлт8богино/сулsynthetic speech нэвтэрсэн. Энэ нь WER сайжирсан гэсэн дүн биш.
+590локал тест PASS; loadedSTThash/fingerprint-ийг collector шалгана.
+Багшийн scope:тохиргоо/системийн сайжруулалт+харьцуулалт; өөрийн training/download0.
+Дэлгэрэнгүй: [явц](CORE/ROADMAP-PROGRESS.mn.md). Доорх нь өмнөх checkpoint-ийн түүх.
+
+---
+
+## 2026.10.15 — тасарсан таван алхмын үргэлжлэл, эцсийн локал V6
+
+**568 автомат тест PASS; серверийн10 loaded hash диск/freeze-тэй таарсан.**
+Observed development AI review: **24 =21 зөв/3 дутуу/0 алдаатай;16 =16 overall pass**.
+16-ийн required facts **40 pass/2 partial/2 fail** тул16/16-г100% accuracy гэж нэрлэхгүй.
+Reviewer засварт оролцсон; human_review=null. Хоёр багц хоёулаа development.
+
+Ижил4 синтетик WAV-аар STT→typed/raw RAG→хариултын TTS/decode **4/4**;
+typed smoke4/4, raw анхны шалгуур2/4. Koha→«ков/коо» үед автоматаар сольж
+хариулахгүй, D тодруулга өгсөн. Хоёр corrected бүтэн query-г илэрхий сонгосныг
+дуурайлган шалгахад2/2 номын тоо/он гарсан; хүний туршилт биш.
+
+Таван алхмаас1/2/3/5 дууссан;4-ийн аудио дууссан, шинэ browser visual/playback
+шалгалт URL-ийг итгэлтэй тогтоож чадаагүй Computer Use хоригт үлдсэн.
+Бүх5-ыг бүрэн дууссан гэж үзэхгүй. Чанарын үлдэгдэл, түүхий нотолгоо ба дараагийн
+ажил: [явцын үндсэн бүртгэл](CORE/ROADMAP-PROGRESS.mn.md).
+Week3 engineering6/6, operational checklist5/8 хэвээр; дипломын хувь биш.
+Шинэ модель таталт/өөрийн training/commit/push хийгээгүй; анхны roadmap хэвээр.
+Доорх хуучин тоо/untuned тэмдэглэлүүд нь тухайн checkpoint-ийн түүх.
+
+---
 
 ## Week4: эхийн өргөтгөл ба шинэ асуултын үнэлгээ — 2026.10.15
 
@@ -126,11 +204,11 @@ python demo_server.py
 **http://127.0.0.1:8765** нээнэ. `Ctrl+C` серверийг зогсооно. Шинэ clone-д DB үүсгэх эхний алхам:
 
 ```powershell
-py -3.11 import_content.py import data/content-draft-v1.json --allow-draft
+py -3.11 import_content.py import data/content-draft-v2-20261015.json --allow-draft
 py -3.11 demo_server.py
 ```
 
-Бичгэн demo, SQLite, BM25-д Python standard library хангалттай. Дууны урсгалд `requirements.txt`-ийн сангууд ба локал Cafet жин хэрэгтэй; байгаа жинг дахин татахгүй. Агуулга **зургаан эх, 10 fact, таван FAQ бүхий draft**. «Холбоо барих утас хэд вэ?» гэж хайгаад draft горимыг илэрхий сонгож, candidate-ийн ноорог хариултыг үзэж болно. Ердийн горим хэрэглэгчийн зөвшөөрсөн албан эхийн бодлогыг мөрдөнө;
+Бичгэн demo, SQLite, BM25-д Python standard library хангалттай. Дууны урсгалд `requirements.txt`-ийн сангууд ба локал Cafet жин хэрэгтэй; байгаа жинг дахин татахгүй. Шинэ clone-ийн v2 багц **14 эхийн хувилбар, 40 fact, 30 FAQ бүхий draft**. Launcher мөн v2-г сонгоно. «Холбоо барих утас хэд вэ?» гэж хайгаад draft горимыг илэрхий сонгож, candidate-ийн ноорог хариултыг үзэж болно. Ердийн горим хэрэглэгчийн зөвшөөрсөн албан эхийн бодлогыг мөрдөнө;
 хуучин draft metadata нь сургуулийн ажилтны баталгаа биш. Ойролцоо FAQ олдох нь асуултад зөв хариулж чадсаны баталгаа биш. [Дэлгэрэнгүй demo/хайлтын заавар](reports/system/SQLITE-SEARCH.mn.md).
 
 ## Ажиллаж буй хэсэг ба үр дүн
@@ -185,7 +263,7 @@ TTS нь онлайн Edge үйлчилгээний community client-ийн ту
 
 26 өгүүллийг бүгдийг бүтнээр уншиж байж код эхлэх шаардлагагүй. Гол 20-ын асуудал/арга/үнэлгээ/хязгаар/төслийн шийдвэрийг тэмдэглэж, ашиглаж буй аргын эхийг гүн уншина. Зургаан нэмэлт эхийг хэрэгцээгээр сонгоно. Ассистентийн эхийн шалгалтыг суралцагчийн бүтэн уншлага гэж тооцохгүй.
 
-BM25/E5 арга ба хязгаарлалтыг [хайлтын тэмдэглэл](papers/05-retrieval-method-notes.mn.md), эшлэл/хариултын үнэлгээ ба UI-ийн шийдвэрийг [ALCE/RAGAs/Human–AI тэмдэглэл](papers/06-evaluation-interface-method-notes.mn.md)-тэй холбосон. Энэ demo дээр шинэ training, LLM эсвэл автомат judge ажиллуулаагүй.
+BM25/E5 арга ба хязгаарлалтыг [хайлтын тэмдэглэл](papers/05-retrieval-method-notes.mn.md), эшлэл/хариултын үнэлгээ ба UI-ийн шийдвэрийг [ALCE/RAGAs/Human–AI тэмдэглэл](papers/06-evaluation-interface-method-notes.mn.md)-тэй холбосон. Demo-ийн C замд локал Gemma бодитоор эхийн хэсэг сонгодог. Өөрийн модель сургаагүй; AI оношлогоог хүний gold үнэлгээ гэж тооцохгүй.
 
 ## Repository-д багтсан өгөгдөл
 

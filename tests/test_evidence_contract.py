@@ -14,6 +14,234 @@ def choose(query, text):
 
 
 class EvidenceContractTests(unittest.TestCase):
+    def test_uppercase_acronym_bullets_keep_the_complete_headed_list(self):
+        for acronym in ('PQR LLC', 'KLM ХК', 'XYZ НҮТББ'):
+            text = ('Туршилтын байгууллагууд:\n• Alpha Ltd\n• Beta Joint\n• ' + acronym
+                    + '\nЭдгээр байгууллага нь зохиомол жагсаалтын тайлбар юм.')
+            units = evidence_units([source(text)])
+            self.assertEqual(len(units), 1)
+            self.assertEqual(units[0]['text'], text)
+            self.assertEqual(text[units[0]['start']:units[0]['end']], text)
+            selected = resolve_evidence_selection('Байгууллагуудыг бүгдийг жагсаана уу.',
+                                                 [units[0]['unit_id']], units)
+            self.assertTrue(selected['accepted'])
+            self.assertEqual(selected['claims'][0]['text'], text)
+
+    def test_period_ending_bullets_do_not_finish_a_list_early(self):
+        text = ('Туршилтын хөтөлбөрүүд:\n• Alpha Ltd.\n• beta joint.\n• SIGMA PLC.\n'
+                'Тус бүрийн зорилгыг дараа нь дэлгэрүүлэн тайлбарлана.')
+        units = evidence_units([source(text)])
+        self.assertEqual(len(units), 1)
+        self.assertEqual(units[0]['text'], text)
+        self.assertTrue(all(name in units[0]['text'] for name in ('Alpha Ltd.', 'beta joint.', 'SIGMA PLC.')))
+
+    def test_real_uppercase_heading_still_ends_a_bullet_list(self):
+        text = ('Туршилтын байгууллагууд:\n• Alpha Ltd.\n• SIGMA PLC\n'
+                'ХОЛБОО БАРИХ\nДараагийн хэсэгт өөр сэдвийн мэдээлэл байна.')
+        units = evidence_units([source(text)])
+        self.assertEqual(len(units), 2)
+        self.assertEqual(units[0]['text'], 'Туршилтын байгууллагууд:\n• Alpha Ltd.\n• SIGMA PLC')
+        self.assertTrue(units[1]['text'].startswith('ХОЛБОО БАРИХ\n'))
+        self.assertNotIn('ХОЛБОО БАРИХ', units[0]['text'])
+        for unit in units:
+            self.assertEqual(text[unit['start']:unit['end']], unit['text'])
+
+    def test_oversized_bullet_list_is_omitted_whole_without_partial_answer(self):
+        heading = 'Туршилтын бүрэн жагсаалт:\n'
+        items = '\n'.join('• ABC' + str(i) + ' байгууллагын урт туршилтын нэр.' for i in range(8))
+        text = heading + items + '\nДАРААГИЙН ХЭСЭГ\nЭнэ бол өөр сэдвийн тусдаа тайлбар юм.'
+        units = evidence_units([source(text)], max_characters=110)
+        self.assertEqual(len(units), 1)
+        self.assertTrue(units[0]['text'].startswith('ДАРААГИЙН ХЭСЭГ'))
+        self.assertNotIn('ABC', units[0]['text'])
+        self.assertEqual(text[units[0]['start']:units[0]['end']], units[0]['text'])
+
+    def test_inline_bullet_character_is_ordinary_prose_not_a_list_row(self):
+        text = ('Энэ өгүүлбэрийн дундах • тэмдэг нь жагсаалтын мөр биш.\n'
+                'Дараагийн өгүүлбэр нь тусдаа ердийн тайлбар юм.')
+        units = evidence_units([source(text)])
+        self.assertEqual(len(units), 2)
+        self.assertEqual(units[0]['text'], text.splitlines()[0])
+        self.assertEqual(units[1]['text'], text.splitlines()[1])
+
+    def test_trailing_measurement_badge_belongs_to_preceding_prose(self):
+        for number, label in (('812.4', 'м² нийт талбай'), ('2840+', 'ном, сурах бичиг'),
+                              ('275', 'хүний суудал')):
+            text = ('ӨМНӨХ ХЭСЭГ\nЭнэ хэсгийн үндсэн тайлбарыг эх сурвалжид нийтэлсэн байна.\n'
+                    + number + '\n' + label + '\n'
+                    'ДАРААГИЙН ХЭСЭГ\nЭнэ бол өөр объектын тухай тусдаа тайлбар юм.')
+            units = evidence_units([source(text)])
+            self.assertTrue(units[0]['text'].endswith(number + '\n' + label))
+            self.assertTrue(units[1]['text'].startswith('ДАРААГИЙН ХЭСЭГ'))
+            self.assertEqual(text[units[0]['start']:units[0]['end']], units[0]['text'])
+            self.assertEqual(''.join(text.split()), ''.join(''.join(u['text'] for u in units).split()))
+
+    def test_numeric_floor_prose_finishes_before_library_badge(self):
+        for opening in ('7 давхарт', '12 давхрын', '25 м²'):
+            text = ('Номын сан\n' + opening + ' байрлах орчинд уншлагын үйлчилгээг явуулж байна. '
+                    'Нэг оюутанд 4.1–8.3 ном ногдож байна.\n'
+                    '2840+\nном, сурах бичиг\nСПОРТЫН ТАНХИМ\nСпортын тусдаа танхимыг ашиглаж байна.')
+            units = evidence_units([source(text)])
+            self.assertTrue(units[0]['text'].endswith('2840+\nном, сурах бичиг'))
+            self.assertTrue(units[1]['text'].startswith('СПОРТЫН ТАНХИМ'))
+
+    def test_numeric_requirement_rows_keep_heading_and_conditions(self):
+        for label in ('01', '1.', '1)'):
+            text = ('ДЭВШИН СУРАЛЦАХ ШААРДЛАГА\n' + label + ' давхрын байрлал нь 25 м² талбайтай. '
+                    'Энэ нь шаардлагын мөрийг дуусгах эсвэл гол нөхцөлийг хасах үндэс болохгүй.\n'
+                    '02 Дүнгийн голч 3.5-аас багагүй байх\n03 Сахилгын зөрчилгүй байх')
+            units = evidence_units([source(text)])
+            self.assertEqual(len(units), 1)
+            self.assertEqual(units[0]['text'], text)
+
+    def test_numbered_list_and_bare_facility_label_are_not_shifted(self):
+        for label in ('Лаборатори', 'Анги танхим', 'Бүртгэлийн алхам', 'Хөтөлбөр'):
+            text = ('Өмнөх мэдээллийг тусдаа өгүүлбэрээр тайлбарласан байна.\n'
+                    '02\n' + label + '\nДараагийн хөтөлбөрийн тайлбарыг энд өгсөн байна.')
+            units = evidence_units([source(text)])
+            self.assertNotIn('02', units[0]['text'])
+            self.assertTrue(units[1]['text'].startswith('02\n'))
+
+    def test_badge_without_preceding_prose_is_not_shifted(self):
+        text = '812.4\nм² нийт талбай\nТанхимын мэдээлэл\nЭнэ бол танхимын тухай үндсэн тайлбар юм.'
+        self.assertEqual(evidence_units([source(text)])[0]['text'], text)
+
+    def test_measurement_badge_still_respects_oversized_unit_policy(self):
+        text = 'Тайлбар ' + 'өгөгдөл ' * 12 + 'дуусна.\n812.4\nм² нийт талбай\nДараагийн мэдээлэл.'
+        units = evidence_units([source(text)], max_characters=120)
+        self.assertFalse(any('812.4' in u['text'] for u in units))
+
+    def test_unrelated_area_total_does_not_require_a_book_total_word(self):
+        text = ('Номын сан\nНэг оюутанд 4.1–8.3 ном ногдож, 2460 номтой байна.\n'
+                + 'Спортын талбайн талаар тусдаа мэдээлэл өгсөн. ' * 4
+                + '\nСпортын заалны нийт талбай 801 м² байна.')
+        units = evidence_units([source(text)])
+        selected = next(u for u in units if '2460' in u['text'])
+        result = resolve_evidence_selection('Номын сангийн нийт номын үзүүлэлтийг хэлээрэй.',
+                                            [selected['unit_id']], units)
+        self.assertTrue(result['accepted'])
+        self.assertNotIn('801', result['claims'][0]['text'])
+
+    def test_same_object_total_is_still_required_after_context_filter(self):
+        units = evidence_units([source('Нийт 168 оюутан суралцаж байна.\nНэгдүгээр курс 31 оюутантай.')])
+        selected = units[-1]
+        result = resolve_evidence_selection('Нийт хэдэн оюутан, нэгдүгээр курс хэд вэ?',
+                                            [selected['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('total', result['missing_markers'])
+
+    def test_objectless_total_keeps_strict_check(self):
+        self.assertIn('total', missing_query_markers('Нийт хэд вэ?', '31 оюутан.',
+                                                    'Нийт 168 оюутан.\n31 оюутан.'))
+
+    def test_named_section_heading_is_added_to_selected_body(self):
+        text = ('ZXQ Research Co., Ltd\nТус байгууллага технологийн чиглэлээр үйл ажиллагаа явуулдаг.\n'
+                'Хамтын ажиллагааны хүрээнд 2033 онд гурван хичээлийг онлайнаар хэрэгжүүлсэн.\n'
+                'Мөн оюутнууд ярилцлагад амжилттай оролцсон байна.')
+        units = evidence_units([source(text)])
+        selected = units[-1]
+        result = resolve_evidence_selection('ZXQ компанийн гурван хичээл, ярилцлагын явц?',
+                                            [selected['unit_id']], units)
+        self.assertTrue(result['accepted'])
+        self.assertEqual(len(result['named_heading_context_unit_ids']), 1)
+        self.assertEqual(len(result['claims']), 3)
+        self.assertTrue(result['claims'][0]['text'].startswith('ZXQ Research'))
+        self.assertEqual(text[units[0]['start']:units[0]['end']], result['claims'][0]['text'])
+
+    def test_different_nearest_section_heading_blocks_named_context(self):
+        text = ('ZXQ Research\nЭнэ байгууллага сургалт явуулдаг.\n'
+                'BCD Institute\nӨөр байгууллагын тусдаа хөтөлбөрийг танилцуулсан.\n'
+                'Хөтөлбөр 12 хоног үргэлжилдэг.')
+        units = evidence_units([source(text)])
+        result = resolve_evidence_selection('ZXQ хөтөлбөр хэд хоног вэ?',
+                                            [units[-1]['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_long_or_many_word_section_heading_blocks_older_named_context(self):
+        headings = [
+            'BCD институтын тусдаа мэргэжил дээшлүүлэх сургалтын зохион байгуулалт '
+            'болон хамрагдах хүмүүсийн нөхцөлийн дэлгэрэнгүй танилцуулга',
+            'BCD one two three four five six seven eight nine',
+        ]
+        for heading in headings:
+            with self.subTest(heading=heading):
+                text = ('ZXQ Research\nБайгууллага технологийн судалгаа явуулдаг.\n'
+                        + heading + '\nСургалт 19 хоног үргэлжилдэг.')
+                units = evidence_units([source(text)])
+                result = resolve_evidence_selection('ZXQ сургалт хэд хоног вэ?',
+                                                    [units[-1]['unit_id']], units)
+                self.assertFalse(result['accepted'])
+                self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_oversized_omitted_heading_still_blocks_older_named_context(self):
+        heading = 'BCD институтын тусдаа сургалтын танилцуулга ' + 'дэлгэрэнгүй ' * 100
+        text = ('ZXQ Research\nБайгууллага технологийн судалгаа явуулдаг.\n'
+                + heading + '\nСургалт 19 хоног үргэлжилдэг.')
+        units = evidence_units([source(text)])
+        self.assertFalse(any(heading in unit['text'] for unit in units))
+        result = resolve_evidence_selection('ZXQ сургалт хэд хоног вэ?',
+                                            [units[-1]['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_selected_long_section_start_cannot_inherit_older_name(self):
+        heading = ('BCD институтын тусдаа мэргэжил дээшлүүлэх сургалтын зохион '
+                   'байгуулалт болон хамрагдах хүмүүсийн дэлгэрэнгүй танилцуулга')
+        text = ('ZXQ Research\nБайгууллага технологийн судалгаа явуулдаг.\n'
+                + heading)
+        units = evidence_units([source(text)])
+        result = resolve_evidence_selection('ZXQ сургалтын танилцуулга?',
+                                            [units[-1]['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_company_heading_with_period_remains_valid_local_context(self):
+        text = ('ZXQ Research Co., Ltd.\nБайгууллага технологийн судалгаа явуулдаг.\n'
+                'Сургалт 19 хоног үргэлжилдэг.')
+        units = evidence_units([source(text)])
+        result = resolve_evidence_selection('ZXQ сургалт хэд хоног вэ?',
+                                            [units[-1]['unit_id']], units)
+        self.assertTrue(result['accepted'])
+        self.assertEqual(result['claims'][0]['text'], units[0]['text'])
+        self.assertEqual(len(result['named_heading_context_unit_ids']), 1)
+
+    def test_named_context_cannot_be_borrowed_from_other_source(self):
+        units = evidence_units([source('ZXQ Research\nБайгууллага сургалт явуулдаг.'),
+                                source('Хөтөлбөр 12 хоног үргэлжилдэг.', 'other')])
+        result = resolve_evidence_selection('ZXQ хөтөлбөр хэд хоног вэ?',
+                                            [units[-1]['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_selected_new_section_cannot_inherit_previous_organisation(self):
+        for heading in ('BCD Institute', 'Өөр тусдаа хөтөлбөр'):
+            units = evidence_units([source('ZXQ Research\nБайгууллага сургалт явуулдаг.\n'
+                                          + heading + '\nӨөр сургалт 12 хоног үргэлжилдэг.')])
+            result = resolve_evidence_selection('ZXQ сургалт хэд хоног вэ?',
+                                                [units[-1]['unit_id']], units)
+            self.assertFalse(result['accepted'])
+            self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_body_latin_mention_cannot_be_inherited_as_heading(self):
+        units = evidence_units([source('Энэ мэдээнд ZXQ байгууллагын тухай дурдсан байна.\n'
+                                      'Дараагийн тусдаа сургалт 12 хоног үргэлжилдэг.')])
+        result = resolve_evidence_selection('ZXQ хөтөлбөр хэд хоног вэ?',
+                                            [units[-1]['unit_id']], units)
+        self.assertFalse(result['accepted'])
+        self.assertIn('anchor:zxq', result['missing_markers'])
+
+    def test_named_context_keeps_claim_and_character_budgets(self):
+        units = evidence_units([source('ZXQ Research\nБайгууллага сургалт явуулдаг.\n'
+                                      'Сургалт 12 хоног үргэлжилдэг.')])
+        selected = [units[-1]['unit_id']]
+        self.assertEqual(resolve_evidence_selection('ZXQ сургалт?', selected, units,
+                                                    max_claims=1)['reason'],
+                         'evidence_context_exceeds_claim_budget')
+        self.assertEqual(resolve_evidence_selection('ZXQ сургалт?', selected, units,
+                                                    max_characters=30)['reason'],
+                         'evidence_selection_exceeds_budget')
+
     def test_quantity_roles_are_copied_together_with_nonfixture_amounts(self):
         text = ('Хуваарилалт\n2031–2032 оны хичээлийн жилд мэргэжил тус бүрээс 4, '
                 'нийт 24 оюутан хамрагдана.')

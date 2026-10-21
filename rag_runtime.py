@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections import Counter, OrderedDict
 from copy import deepcopy
+from itertools import combinations
 import json
 import hashlib
 import re
@@ -19,10 +20,12 @@ from uuid import uuid4
 from llm_runtime import LLMRuntime, _json_object
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, resolve_evidence_selection
-from source_fields import ambiguity, requested_detail, detail_supported, DETAIL_LABELS, field_extract, registration_amount_query, department_evidence_sources
+from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
+    field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
+    field_evidence_requirements, missing_field_evidence)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
-    quantity_context_supported, tuition_amount_query, tuition_period_notice)
+    quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
 
 # Capture import-time bytes, not files reread after a running server is edited.
 # Import retrieval first so its document/client dependencies are loaded before
@@ -42,6 +45,9 @@ Do not fill the available selection slots. Exclude background, adjacent programm
 and duplicate information even when the same topic words occur.
 Do not write an answer or paraphrase. The server displays the selected original
 text verbatim. Select all complementary units needed for every part of the question.
+An event announcement or encouragement does not answer its location, activities,
+skills, conditions or future plans. Select the sentences stating the requested
+details. Do not borrow a missing detail from a different event or programme.
 Keep scope: per-program vs total, planned vs completed, yearly vs monthly, and
 eligibility for a named pathway. Select a heading/condition unit when a list needs it.
 Related information is not an answer: a capacity is not opening hours, and a
@@ -61,8 +67,86 @@ def normalized(text):
     return " ".join(text.split())
 
 
+def article_evidence_sources(query, sources):
+    """Bind a literal quoted news title to one retrieved page, when unique.
+
+    Titles/headers identify the page, not body mentions or shared navigation.
+    Ambiguous titles and explicit comparisons keep their original candidates.
+    This is an identity screen, not proof that the page answers the question.
+    """
+    if (not re.search(r'мэдээ|нийтлэл',query.casefold())
+            or re.search(r'харьцуул|ялгаа|хоёр\s+мэдээ|хоёул',query.casefold())):
+        return sources
+    def key(value):
+        value=re.sub(r'(?<!\w)хөтөлбөр(?!\w)','',value.casefold())
+        return re.sub(r'[\W_]+',' ',value).strip()
+    titles=[key(next(part for part in match if part)) for match in re.findall(
+        r'«([^»]{8,180})»|“([^”]{8,180})”|"([^"]{8,180})"',query)]
+    def headings(source):
+        values=[source.get('title',''),source.get('page_header','').split('\n')[0]]
+        for line in source.get('text','').splitlines()[:8]:
+            line=line.strip()
+            if len(line)<=160 and (line.isupper() or re.fullmatch(
+                r'[«“"][^»”"]{5,140}[»”"]\s*(?:хөтөлбөр\s*)?(?:[-–—]\s*)?(?:\d{4})?',line,re.I)):
+                values.append(line)
+        return [key(value) for value in values]
+    matched={source['url'] for source in sources if any(
+        title in heading for title in titles for heading in headings(source))}
+    return [source for source in sources if source['url'] in matched] if len(matched)==1 else sources
+
+
 def numbers(text):
     return set(re.findall(r"\d+(?:[.,]\d+)*", text))
+
+
+def year_evidence_sources(query, sources):
+    """Keep evidence covering every requested year group, across passages.
+
+    A written year interval is one inseparable scope: its endpoint years must
+    occur together in a source. Separately asked historical years may occur in
+    complementary passages. The selection's existing marker guard still requires
+    every requested available year in the displayed claims.
+    """
+    matches = list(re.finditer(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query))
+    if not matches:
+        return sources
+    groups = []
+    for index, match in enumerate(matches):
+        if index and re.fullmatch(r'\s*[–—-]\s*', query[matches[index-1].end():match.start()]):
+            groups[-1].add(match.group())
+        else:
+            groups.append({match.group()})
+    covered, kept = set(), []
+    for source in sources:
+        available = set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)',
+            source['text'] + ' ' + source.get('title', '') + ' ' + source.get('page_header', '')))
+        matching = {index for index, group in enumerate(groups) if group <= available}
+        if matching:
+            covered.update(matching)
+            kept.append(source)
+    return kept if covered == set(range(len(groups))) else []
+
+
+def dated_news_evidence_sources(query,sources):
+    """Honor an article publication month/day only in a displayed date line."""
+    if not re.search(r'мэдээ|нийтлэл',query,re.I):return sources
+    names=('нэгдүгээр','хоёрдугаар','гуравдугаар','дөрөвдүгээр','тавдугаар','зургадугаар',
+           'долдугаар','наймдугаар','есдүгээр','аравдугаар','арван нэгдүгээр','арван хоёрдугаар')
+    month_numbers={name:i+1 for i,name in enumerate(names)}
+    months='(?:'+'|'.join(sorted(map(re.escape,names),key=len,reverse=True))+r'|\d{1,2})'
+    pattern=r'(?<!\d)((?:19|20)\d{2})\s+оны\s+('+months+r')\s+сарын(?:\s+(\d{1,2})(?:-(?:ны|ний))?)?'
+    wanted=list(re.finditer(pattern,query,re.I))
+    if len(wanted)!=1:return sources
+    year,month,day=wanted[0].groups();month=month_numbers.get(month.casefold(),month)
+    matched=set()
+    for source in sources:
+        lines=(source.get('page_header','')+'\n'+source.get('text','')).splitlines()[:9]
+        for line in lines:
+            found=re.fullmatch(pattern+r'(?:\s+\d+\s+үзсэн)?',line.strip(),re.I)
+            if not found:continue
+            sy,sm,sd=found.groups();sm=month_numbers.get(sm.casefold(),sm)
+            if sy==year and int(sm)==int(month) and (day is None or sd==day):matched.add(source['url'])
+    return [source for source in sources if source['url'] in matched] if matched else sources
 
 
 def official(url):
@@ -96,6 +180,56 @@ def focused_extract(query, sources):
     from website_retrieval import search_terms
     q = query.casefold()
     terms = set(search_terms(query))
+    # A named department's inventory and per-session capacity can already be
+    # one complete source paragraph. Copy that paragraph, not its page header
+    # or neighbouring mission. This rule supplies no names or answer values.
+    lab_inventory = re.search(r'ямар(?:\s+\w+){0,4}\s+лаборатор|лаборатор\w*\s+(?:нэр|жагсаалт)', q)
+    session_capacity = (re.search(r'нэг\s+удаа(?:д)?', q) and 'оюутан' in terms
+                        and re.search(r'хэд|тоо|багтаамж', q)
+                        and re.search(r'ажиллах|ажилладаг|багтах|багтаах', q))
+    if (lab_inventory and session_capacity and q.count('тэнхим') == 1
+            and not re.search(r'\d|харьцуул|ялгаа|хооронд|бусад|тэнхимүүд|'
+                              r'бүх\s+тэнхим|хоёр\s+тэнхим|өөр\s+тэнхим|эсвэл|'
+                              r'зөвхөн|дангаар|\bбиш\b|бүү|битгий|байхгүй|'
+                              r'гадаад|шилжин|элсэгч|хөгжлийн\s+бэрхшээл|'
+                              r'өнөө|одоо|энэ\s+жил|ирэх\s+жил|өнгөрсөн', q)):
+        query_phrase = ' ' + ' '.join(search_terms(query)) + ' '
+        matching = {}
+        generic = {'тэнхим', 'инженер', 'сургууль', 'шинэ', 'монгол', 'nmct', 'шмтк'}
+        for source in sources:
+            title_terms = search_terms(source.get('title', ''))
+            if ('тэнхим' in title_terms and set(title_terms) - generic
+                    and ' ' + ' '.join(title_terms) + ' ' in query_phrase):
+                matching.setdefault(tuple(title_terms), []).append(source)
+        if len(matching) == 1:
+            candidates = {}
+            field_words = set(search_terms('лаборатори үндсэн нэр нэрийг нэрлэ нэрлэнэ нэрлэж '
+                'жагсаалт жагсаалтыг нэг удаа удаад оюутан ажиллах ажилладаг багтах багтаах '
+                'багтаамж тоо тоог танилцуулсан мэдээлсэн дурдсан'))
+            for source in next(iter(matching.values())):
+                for unit in evidence_units([source]):
+                    paragraph = unit['text']
+                    # Remaining query words must describe these two fields.
+                    # A source's inventory modifier (e.g. its written count)
+                    # is allowed verbatim; an extra applicant/course/lab scope
+                    # cannot be silently dropped by this combined lookup.
+                    inventory_words = set()
+                    for match in re.finditer(r'гэсэн\s+([^\n.!?]{1,60}?)\s+лаборатор', paragraph, re.I):
+                        inventory_words.update(search_terms(match.group(1)))
+                    extra = terms - set(search_terms(source.get('title', ''))) - field_words
+                    if extra - inventory_words:
+                        continue
+                    if (len(re.findall(r'лаборатор\w*', paragraph, re.I)) >= 2
+                            and re.search(r'лаборатор\w*[^.!?\n]*(?:,|болон|гэсэн)', paragraph, re.I)
+                            and re.search(r'нэг\s+удаа(?:д)?\s+\d+(?:\s*[–—-]\s*\d+)?\s+'
+                                          r'оюутан\w*\s+(?:(?:ажиллах|багтах|багтаах)\s+боломжтой|'
+                                          r'ажилладаг)(?![а-яёөү])', paragraph, re.I)
+                            and not re.search(r'боломжгүй|ажилладаггүй|боломжтой\s+(?:биш|эсэх)|'
+                                              r'тодорхойгүй', paragraph, re.I)):
+                        candidates.setdefault(paragraph, source)
+            if len(candidates) == 1:
+                paragraph, source = next(iter(candidates.items()))
+                return source, paragraph
     for source in sources:
         text = source['text']
         visual = source.get('text_scope') == 'document_visual_excerpt'
@@ -200,22 +334,31 @@ class GroundedGenerator(LLMRuntime):
                   "model": self.model or None, "reason": "provider_unavailable"}
 
         def finish(reason):
+            attempts = result.get('selection_attempts', [])
+            if attempts and attempts[-1].get('status') == 'pending':
+                attempts[-1].update(status=reason,
+                    latency_ms=round((time.perf_counter()-attempt_started)*1000, 2))
+            marker_repair = result.get('marker_selection_repair', {})
+            if marker_repair.get('status') == 'attempting':
+                marker_repair['status'] = 'accepted' if result.get('generated') else reason
             result.update(reason=reason, latency_ms=round((time.perf_counter() - started) * 1000, 2))
             return result
 
         if not sources:
             return finish("no_evidence")
         original_source_ids = [source['source_id'] for source in sources]
-        sources = department_evidence_sources(query, sources)
+        sources = department_evidence_sources(query, sources, all_attributes=True)
         if [source['source_id'] for source in sources] != original_source_ids:
             result['department_scope_filter'] = dict(before=original_source_ids,
                 after=[source['source_id'] for source in sources], mechanism='literal_named_department_title')
-        requested_years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
-        if requested_years:
-            sources = [source for source in sources if requested_years <= set(re.findall(
-                r"(?:19|20)\d{2}", source["text"] + " " + source.get("title", "") + " " + source.get("page_header", "")))]
-            if not sources:
-                return finish("requested_year_not_supported")
+        prior_article_sources=[source['source_id'] for source in sources]
+        sources=dated_news_evidence_sources(query,article_evidence_sources(query,sources))
+        if [source['source_id'] for source in sources]!=prior_article_sources:
+            result['article_scope_filter']=dict(before=prior_article_sources,
+                after=[source['source_id'] for source in sources],mechanism='literal_article_title_or_publication_date')
+        sources = year_evidence_sources(query, sources)
+        if not sources:
+            return finish("requested_year_not_supported")
         if not self.status()["available"]:
             return finish("provider_unavailable")
         if not self._chat_lock.acquire(blocking=False):
@@ -226,6 +369,7 @@ class GroundedGenerator(LLMRuntime):
                 return finish("no_complete_evidence_units")
             schema = deepcopy(SCHEMA)
             selection_labels = {f'u{number+1}':unit['unit_id'] for number,unit in enumerate(units)}
+            allowed_selection_labels = set(selection_labels)
             stable_to_label = {sid:label for label,sid in selection_labels.items()}
             schema["properties"]["unit_ids"]["items"]["enum"] = list(selection_labels)
             result["answer_mode"] = "source_preserving_selection"
@@ -233,6 +377,9 @@ class GroundedGenerator(LLMRuntime):
             result["answer_text_generated"] = False
             result["evidence_unit_count"] = len(units)
             result["evidence_units"]=[{key:u.get(key) for key in ('unit_id','source_id','text','start','end','context_unit_ids')} for u in units]
+            requirements = field_evidence_requirements(query)
+            if requirements:
+                result['requested_fields'] = [field['name'] for field in requirements]
             payload = {"model": self.model, "stream": False, "format": schema,
                        "keep_alive": "5m", "messages": [
                            {"role":"system","content":SYSTEM},
@@ -242,42 +389,211 @@ class GroundedGenerator(LLMRuntime):
                             "EVIDENCE_UNITS":[dict(unit_id=stable_to_label[u['unit_id']],source_id=u['source_id'],text=u['text'],
                                                    requires=[stable_to_label[sid] for sid in u.get('context_unit_ids',[])]) for u in units]},ensure_ascii=False)}],
                        "options":{"temperature":0,"seed":42,"num_ctx":8192,"num_predict":300}}
-            result["llm_calls"] = 1
+            if requirements:
+                data = json.loads(payload['messages'][1]['content'])
+                data['REQUESTED_FIELDS'] = [dict(name=f['name'], requested=f['label']) for f in requirements]
+                payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
             try:
-                response = self._request("POST", "/api/chat", payload, 60)
-                result['provider_usage'] = {key: response[key] for key in
-                    ('prompt_eval_count', 'eval_count', 'total_duration', 'load_duration', 'prompt_eval_duration', 'eval_duration')
-                    if isinstance(response.get(key), (int, float)) and not isinstance(response.get(key), bool)
-                    and response[key] >= 0}
-                if response.get("done") is not True or response.get("done_reason") == "length":
-                    return finish("incomplete_generation")
-                proposal = _json_object(response["message"]["content"])
-                if set(proposal) != {"insufficient","unit_ids"} or type(proposal["insufficient"]) is not bool:
-                    return finish("invalid_generation")
-                selected = proposal["unit_ids"]
-                if not isinstance(selected,list) or any(not isinstance(x,str) for x in selected):
-                    return finish("invalid_generation")
-                result['model_selection_ids'] = selected[:3]
-                if any(label not in selection_labels for label in selected):
-                    return finish('unknown_evidence_unit')
-                selected = [selection_labels[label] for label in selected]
-                result["proposed_unit_ids"] = selected[:3]
-                if proposal["insufficient"]:
-                    if selected:
+                # A bounded literal subject/attribute screen detects omissions;
+                # it is not a semantic correctness judge. Repair replaces the
+                # whole selection rather than appending to unrelated background.
+                marker_repair = False
+                marker_repair_options = set()
+                for attempt in range(2):
+                    attempt_started = time.perf_counter()
+                    remaining = 100 - (attempt_started - started)
+                    if remaining <= 0:
+                        return finish('generation_deadline_exceeded')
+                    attempt_record = dict(attempt=attempt+1, status='pending')
+                    result.setdefault('selection_attempts', []).append(attempt_record)
+                    result['llm_calls'] += 1
+                    response = self._request("POST", "/api/chat", payload, min(60, remaining))
+                    usage = {key: response[key] for key in
+                        ('prompt_eval_count', 'eval_count', 'total_duration', 'load_duration', 'prompt_eval_duration', 'eval_duration')
+                        if isinstance(response.get(key), (int, float)) and not isinstance(response.get(key), bool)
+                        and response[key] >= 0}
+                    result.setdefault('provider_usage_by_attempt', []).append(usage)
+                    totals = result.setdefault('provider_usage', {})
+                    for key, value in usage.items():
+                        totals[key] = totals.get(key, 0) + value
+                    if response.get("done") is not True or response.get("done_reason") == "length":
+                        return finish("incomplete_generation")
+                    proposal = _json_object(response["message"]["content"])
+                    attempt_record['proposal'] = deepcopy(proposal)
+                    if set(proposal) != {"insufficient","unit_ids"} or type(proposal["insufficient"]) is not bool:
                         return finish("invalid_generation")
-                    return finish("insufficient_evidence")
-                if not 1 <= len(selected) <= 3:
-                    return finish("invalid_generation")
-                resolved = resolve_evidence_selection(query, selected, units, max_characters=1800, max_claims=6)
-                if not resolved["accepted"]:
-                    result['selection_diagnostics']={key:value for key,value in resolved.items() if key not in {'claims','accepted'}}
-                    return finish(resolved["reason"])
+                    selected = proposal["unit_ids"]
+                    if not isinstance(selected,list) or any(not isinstance(x,str) for x in selected):
+                        return finish("invalid_generation")
+                    result['model_selection_ids'] = selected[:3]
+                    if any(label not in allowed_selection_labels for label in selected):
+                        return finish('unknown_evidence_unit')
+                    selected = [selection_labels[label] for label in selected]
+                    result["proposed_unit_ids"] = selected[:3]
+                    if proposal["insufficient"]:
+                        if selected:
+                            return finish("invalid_generation")
+                        return finish("insufficient_evidence")
+                    if not 1 <= len(selected) <= (2 if marker_repair else 3):
+                        return finish("invalid_generation")
+                    if marker_repair and (len(set(selected)) != len(selected)
+                            or frozenset(selected) not in marker_repair_options):
+                        return finish('invalid_evidence_selection')
+                    resolved = resolve_evidence_selection(query, selected, units, max_characters=1800, max_claims=6)
+                    if not resolved["accepted"]:
+                        result['selection_diagnostics']={key:value for key,value in resolved.items() if key not in {'claims','accepted'}}
+                        attempt_record['diagnostics'] = deepcopy(result['selection_diagnostics'])
+                        if (resolved['reason'] == 'requested_evidence_markers_missing'
+                                and not requirements and not attempt):
+                            # Complete single units or complementary pairs may
+                            # replace a literal omission. A pair must retain at
+                            # least one initial ID. Every exact option passes the
+                            # original resolver/final guards; a union of allowed
+                            # IDs is not itself an allowed selection.
+                            missing_markers = resolved.get('missing_markers', [])
+                            options, limit_reason = [], None
+                            if len(units) > 64:
+                                limit_reason = 'unit_limit'
+                            elif missing_markers:
+                                initial_ids = set(selected)
+                                unit_ids = [unit['unit_id'] for unit in units]
+                                selections = [[sid] for sid in unit_ids]
+                                selections.extend(list(pair) for pair in combinations(unit_ids, 2)
+                                                  if initial_ids.intersection(pair))
+                                for candidate_ids in selections:
+                                    candidate = resolve_evidence_selection(query, candidate_ids, units,
+                                        max_characters=1800, max_claims=6)
+                                    if not candidate['accepted']:
+                                        continue
+                                    candidate_text = '\n'.join(claim['text'] for claim in candidate['claims'])
+                                    if compound_exam_duration(query) and not both_exam_durations_supported(candidate_text):
+                                        continue
+                                    detail = requested_detail(query)
+                                    if detail and not detail_supported(detail, candidate_text, query=query):
+                                        continue
+                                    attribute = interview_attribute(query)
+                                    if attribute in ATTRIBUTE_LABELS and not supports_interview_attribute(query, candidate_text):
+                                        continue
+                                    if len(render_claims(candidate['claims'])[0]) > MAX_SPEECH_CHARACTERS:
+                                        continue
+                                    options.append(candidate_ids)
+                                    if len(options) > 32:
+                                        limit_reason = 'option_limit'
+                                        break
+                            observed_option_count = len(options)
+                            if limit_reason:
+                                options = []  # Never offer an arbitrary truncated search result.
+                            option_labels = [[stable_to_label[sid] for sid in option] for option in options]
+                            pool_ids = {sid for option in options for sid in option}
+                            pool = [stable_to_label[unit['unit_id']] for unit in units if unit['unit_id'] in pool_ids]
+                            result['marker_selection_repair'] = dict(missing_markers=missing_markers,
+                                candidate_unit_ids=[selection_labels[label] for label in pool],
+                                candidate_selection_ids=pool,
+                                admissible_unit_id_options=options, admissible_selection_options=option_labels,
+                                observed_option_count=observed_option_count, maximum_units=64, maximum_options=32,
+                                status=('not_attempted_' + limit_reason if limit_reason else
+                                        'attempting' if options else 'not_attempted_no_admissible_option'))
+                            attempt_record.update(model_selection_ids=proposal['unit_ids'],
+                                selected_unit_ids=selected, status='omitted_requested_markers',
+                                latency_ms=round((time.perf_counter()-attempt_started)*1000, 2))
+                            if not pool:
+                                return finish(resolved['reason'])
+                            marker_repair = True
+                            marker_repair_options = {frozenset(option) for option in options}
+                            result['selection_repair_reason'] = 'literal_requested_marker_omission'
+                            result['selection_repair_minimum_units'] = min(map(len, options))
+                            data = json.loads(payload['messages'][1]['content'])
+                            data['EVIDENCE_UNITS'] = [unit for unit in data['EVIDENCE_UNITS'] if unit['unit_id'] in pool]
+                            data['ADMISSIBLE_SELECTION_OPTIONS'] = option_labels
+                            allowed_selection_labels = set(pool)
+                            items = dict(type='string', enum=pool)
+                            payload['format']['properties']['unit_ids'] = dict(anyOf=[
+                                dict(type='array', maxItems=0, items=items),
+                                dict(type='array', minItems=1, maxItems=2, items=items)])
+                            data['SELECTION_REPAIR'] = dict(previous_unit_ids=proposal['unit_ids'],
+                                missing_markers=missing_markers, candidate_unit_ids=pool,
+                                minimum_distinct_units=min(map(len, options)), maximum_distinct_units=2,
+                                instruction='Choose exactly ONE of ADMISSIBLE_SELECTION_OPTIONS as the complete replacement selection, '
+                                            'or return insufficient=true with an empty selection. '
+                                            'Do not combine options, add background units or invent an answer.')
+                            payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
+                            continue
+                        # A valid exact-span selection can omit a requested code
+                        # as well as its facet. It may be replaced once; it is
+                        # never rendered or exempted from the marker guard.
+                        if (resolved['reason'] != 'requested_evidence_markers_missing'
+                                or not requirements or attempt):
+                            return finish(resolved["reason"])
+                        texts = [unit['text'] for unit in units if unit['unit_id'] in selected]
+                    else:
+                        texts = [claim['text'] for claim in resolved['claims']]
+                    missing = missing_field_evidence(requirements, texts)
+                    attempt_record.update(
+                        model_selection_ids=proposal['unit_ids'], selected_unit_ids=resolved.get('selected_unit_ids', selected),
+                        missing_fields=missing, status='omitted_requested_fields' if missing else 'accepted',
+                        latency_ms=round((time.perf_counter()-attempt_started)*1000, 2))
+                    if not missing:
+                        if not resolved['accepted']:
+                            return finish(resolved['reason'])
+                        break
+                    result['missing_requested_fields'] = missing
+                    if attempt:
+                        return finish('requested_fields_not_in_selection')
+                    candidates = {field['name']:[stable_to_label[u['unit_id']] for u in units
+                        if field['name'] not in missing_field_evidence(requirements, [u['text']])]
+                        for field in requirements}
+                    if any(not values for values in candidates.values()):
+                        return finish('requested_fields_not_in_evidence')
+                    result['selection_repair_reason'] = 'literal_requested_field_omission'
+                    data = json.loads(payload['messages'][1]['content'])
+                    pool = set(label for labels in candidates.values() for label in labels)
+                    # Restrict a repair to substantive units that matched an
+                    # explicit requested facet. Dependencies remain server-owned
+                    # and every replacement still passes all original guards.
+                    # Calculate how many distinct substantive units are needed
+                    # to cover these literal facets, without any answer values.
+                    covers = {label:frozenset(name for name, labels in candidates.items() if label in labels)
+                              for label in pool}
+                    states = {frozenset(): 0}
+                    for cover in covers.values():
+                        for covered, count in list(states.items()):
+                            if count < 3:
+                                joined = covered | cover
+                                states[joined] = min(states.get(joined, 4), count+1)
+                    minimum = states.get(frozenset(candidates))
+                    if minimum is None:
+                        return finish('requested_fields_exceed_selection_budget')
+                    if minimum == 1:
+                        # A complete literal match already exists in one unit.
+                        # Reoffering a partial unit can repeat the same omission;
+                        # keep all complete alternatives for the model to judge.
+                        pool = {label for label, cover in covers.items()
+                                if cover == frozenset(candidates)}
+                        candidates = {name: [label for label in labels if label in pool]
+                                      for name, labels in candidates.items()}
+                    data['EVIDENCE_UNITS'] = [unit for unit in data['EVIDENCE_UNITS'] if unit['unit_id'] in pool]
+                    allowed_selection_labels = pool
+                    items = dict(type='string', enum=sorted(pool))
+                    payload['format']['properties']['unit_ids'] = dict(anyOf=[
+                        dict(type='array', maxItems=0, items=items),
+                        dict(type='array', minItems=minimum, maxItems=3, items=items)])
+                    result['selection_repair_minimum_units'] = minimum
+                    data['SELECTION_REPAIR'] = dict(previous_unit_ids=proposal['unit_ids'],
+                        missing_fields=missing, candidate_unit_ids=candidates, minimum_distinct_units=minimum,
+                        instruction='Return a complete replacement selection of at most three units answering EVERY requested field. '
+                                    'A candidate for one field cannot replace a different field. Choose complementary units for all fields. '
+                                    'Replace background units; do not simply append. Keep original names, conditions and units.')
+                    payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
                 claims = resolved["claims"]
+                if requirements:
+                    result['missing_requested_fields'] = []
+                    result['field_screen_semantic_correctness_proven'] = False
+                result.pop('selection_diagnostics', None)
                 selected_text = '\n'.join(claim['text'] for claim in claims)
                 if compound_exam_duration(query) and not both_exam_durations_supported(selected_text):
                     return finish('requested_field_not_in_selection')
                 detail = requested_detail(query)
-                if detail and not detail_supported(detail, selected_text):
+                if detail and not detail_supported(detail, selected_text, query=query):
                     return finish('requested_field_not_in_selection')
                 attribute = interview_attribute(query)
                 if attribute in ATTRIBUTE_LABELS and not supports_interview_attribute(query, selected_text):
@@ -289,6 +605,7 @@ class GroundedGenerator(LLMRuntime):
                     return finish("answer_exceeds_speech_budget")
                 result.update(claims=claims, generated=True, selected_unit_ids=resolved['selected_unit_ids'],
                     publication_context_unit_ids=resolved.get('publication_context_unit_ids', []),
+                    named_heading_context_unit_ids=resolved.get('named_heading_context_unit_ids', []),
                     semantic_correctness_proven=False)
                 return finish("source_preserving_selection")
             except Exception:
@@ -318,6 +635,8 @@ class ChatRAG:
         with self._lock:
             totals = dict(self._totals)
         return {"enabled": self.policy.enabled, "provider": provider,
+                "llm_role": "evidence_selection", "model_authored_answer_text": False,
+                "stt_by_llm": False, "tts_by_llm": False,
                 "loaded_artifact_sha256": dict(RUNTIME_ARTIFACT_SHA256),
                 "retrieval": self.retriever.status(), "training_performed": False,
                 "session_totals": totals, "counters_reset_on_server_restart": True,
@@ -376,17 +695,29 @@ class ChatRAG:
         result = self.policy.route(database, query, allow_draft=allow_draft)
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
+        # A quoted news title is not a request to choose among unrelated FAQ
+        # partnerships. Preserve the ambiguity, ask for the article identity,
+        # and offer no canonical FAQ click that would replace the request.
+        if (self.policy.enabled and result.get('reason_code')=='missing_entity'
+                and re.search(r'мэдээ|нийтлэл',query.casefold())
+                and re.search(r'[«“"].{3,}?[»”"]',query)):
+            result.update(route='D',message='Тухайн мэдээний огноо эсвэл албан холбоосыг нэмж өгнө үү. '
+                          'Аль үйл явдлын төлөөлөгчдийг асуусныг тодруулж байж хариулна.',
+                          clarification=None,citations=[])
+            return self._remember(result,allow_draft)
         if result.get("answer"):
             return result
         # A FAQ's year coverage is not the website's year coverage. Allow only
         # absence (not rejected/expired/partial/exact matches) to reach web evidence.
-        # All requested years must still match the same candidate below.
-        tuition_handoff = (result.get('reason_code') in {'unmatched_numeric_constraints', 'unsupported_year'}
+        # Every requested year group must still have matching web evidence below.
+        tuition_handoff = ((result.get('reason_code') in {'unmatched_numeric_constraints', 'unsupported_year'}
+                            or (result.get('reason_code') == 'constrained_wording_not_exact'
+                                and re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query)))
                            and tuition_amount_query(query) and not result.get('exact_matches'))
         year_handoff = (result.get('reason_code') == 'unsupported_year' and not result.get('exact_matches')
-                        and ('сургалтын төлбөр' not in query.casefold() or tuition_amount_query(query))
+                        and (not tuition_label_query(query) or tuition_amount_query(query))
                         and bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query)))
-        broader_handoff = (not result.get('exact_matches') and 'сургалтын төлбөр' not in query.casefold() and
+        broader_handoff = (not result.get('exact_matches') and not tuition_label_query(query) and
             ((result.get('reason_code') == 'constrained_wording_not_exact' and
               bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query))) or
              (result.get('reason_code') == 'unmatched_numeric_constraints' and bool(re.search(r'\d',query)))))
@@ -439,22 +770,38 @@ class ChatRAG:
                                "Энэ асуултад хариулах тодорхой мэдээлэл хадгалсан эхээс олдсонгүй. "
                                "Мэргэжил, хөтөлбөрийн нэр эсвэл оноо нэмж асуугаарай. Доорх сэдвүүдээс мөн сонгож болно."))
         # Dates in a historical snapshot cannot establish current registration.
-        live = bool(re.search(r"өнөөдөр|яг одоо|одоогоор|энэ жил|одоо.*(?:бүртг|нээлт|элс)|бүртг.*(?:одоо|нээлт)", query.casefold()))
+        live_query=query.casefold()
+        if (re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)',live_query)
+                and re.search(r'мэдээнд|мэдээний|нийтлэлд|нийтлэлийн|эхэд',live_query)):
+            # "This year" inside an explicitly dated article refers to its
+            # reporting frame. Explicit today/now/registration requests below
+            # still retain the live-state guard, even when a date is supplied.
+            live_query=re.sub(r'\b(?:энэ\s+жил|одоогоор)\b','',live_query)
+        live = bool(re.search(r"өнөөдөр|өнөөдр\w*|яг одоо|одоогоор|энэ жил|одоо.*(?:бүртг|нээлт|элс)|бүртг.*(?:одоо|нээлт)", live_query))
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
-        evidence = [s for s in candidates if not years or years <= set(re.findall(
-            r"(?:19|20)\d{2}", s["text"] + ' ' + s.get('title','') + ' ' + s.get('page_header','')))]
+        evidence = year_evidence_sources(query, candidates)
+        evidence=dated_news_evidence_sources(query,article_evidence_sources(query,evidence))
+        before_department = [source['source_id'] for source in evidence]
+        evidence = department_evidence_sources(query, evidence, all_attributes=True)
+        if [source['source_id'] for source in evidence] != before_department:
+            result['rag']['department_scope_filter'] = dict(before=before_department,
+                after=[source['source_id'] for source in evidence], mechanism='literal_named_department_title')
         numeric_handoff = broader_handoff and not tuition_handoff and result['faq_scope_handoff']['reason_code'] == 'unmatched_numeric_constraints'
         def numeric_values(text):
             return {re.sub(r'[,]', '', n) for n in re.findall(r'\d+(?:,\d{3})*', text)}
-        requested_numbers = numeric_values(query)
+        requested_numbers = numeric_values(query) - years
         if numeric_handoff:
             evidence = [source for source in evidence if requested_numbers <= numeric_values(source['text'] + ' ' + source.get('page_header',''))]
         if requested_detail(query) == 'current_exchange_rate':
             result.update(reason_code='requested_attribute_not_supported',
                 message='Хадгалсан мэдээ өнөөдрийн валютын ханшийг батлахгүй. Мэдээний ойролцоо хөрвүүлсэн дүнг өнөөдрийн яг ханш гэж орлуулахгүй. Огноотой ханшийг банкны албан эхээс шалгана уу.')
             result['rag']['reason']='current_exchange_rate_not_available'
+        elif requested_detail(query) == 'current_cafeteria_menu':
+            result.update(reason_code='requested_attribute_not_supported',
+                message='Хадгалсан эх өнөөдрийн бодит хоолны цэс болон үнийг тогтоохгүй. Доорх албан эх эсвэл сургуультай холбогдож тухайн өдрийн мэдээллийг шалгана уу.')
+            result['rag']['reason']='current_menu_not_available'
         elif live:
-            result.update(message="Хадгалсан эх нь өнөөдрийн бүртгэл, сул орон тооны төлөвийг батлахгүй. "
+            result.update(message="Хадгалсан эх нь өнөөдрийн мэдээлэл, бүртгэл, сул орон тооны бодит төлөвийг батлахгүй. "
                           "Доорх албан эхийн огноог шалгах эсвэл сургуультай холбогдоорой.",
                           reason_code="live_status_not_supported")
         elif numeric_handoff and not evidence:
@@ -483,7 +830,9 @@ class ChatRAG:
             # Registration is shared terminology for admission and olympiads.
             # Keep these source scopes separate before any generative answer.
             q = query.casefold()
-            if 'бүртгэ' in q and re.search(r'хураамж|төлбөр', q) and re.search(r'хэд|төгрөг|үнэ', q):
+            legacy_fee_scope = ('бүртгэ' in q and re.search(r'хураамж|төлбөр', q)
+                                and re.search(r'хэд|төгрөг|үнэ', q))
+            if registration_payment_query(query) or legacy_fee_scope:
                 def fee_scope(source):
                     path = urlsplit(source['url']).path
                     if path == '/olympiad' or path.startswith('/olympiad/'):
@@ -491,12 +840,20 @@ class ChatRAG:
                     if path == '/elselt' or path.startswith('/elseltiin-juram/'):
                         return 'admission'
                     return None
-                scopes = {fee_scope(source) for source in evidence} - {None}
                 selected = 'olympiad' if 'олимпиад' in q else 'admission' if 'элс' in q else None
-                if selected is None and len(scopes) > 1:
+                # Retrieval rank is not permission to assume which registration
+                # the user meant, even if just one known fee scope was found.
+                if selected is None:
+                    choices = ['Элсэлтийн бүртгэлийн хураамж хэд вэ?', 'Олимпиадын бүртгэлийн хураамж хэд вэ?']
+                    if not registration_amount_query(query):
+                        # Choosing a registration must not silently turn an
+                        # account/payment question into an amount question.
+                        original = query[:1].lower() + query[1:]
+                        choices = [scope + ' ' + original for scope in ('Элсэлтийн', 'Олимпиадын')]
+                        choices = [choice for choice in choices if len(choice) <= 1000]
                     result.update(route='D', reason_code='registration_scope_ambiguous',
                         message='Элсэлтийн болон олимпиадын бүртгэлийн хураамж өөр. Аль бүртгэлийн тухай асууж байна вэ?',
-                        suggestions=['Элсэлтийн бүртгэлийн хураамж хэд вэ?', 'Олимпиадын бүртгэлийн хураамж хэд вэ?'])
+                        suggestions=choices)
                     result['rag']['reason'] = 'clarify_registration_scope'
                     return self._remember(result, allow_draft)
                 if selected:
@@ -507,7 +864,7 @@ class ChatRAG:
                         return self._remember(result, allow_draft)
             detail = requested_detail(query)
             if detail:
-                evidence = [source for source in evidence if detail_supported(detail, source['text'])]
+                evidence = [source for source in evidence if detail_supported(detail, source['text'], query=query)]
                 if not evidence:
                     result.update(reason_code='requested_attribute_not_supported',
                         message='Энэ хайлтаар олдсон эхэд ' + DETAIL_LABELS[detail] +
@@ -591,6 +948,6 @@ class ChatRAG:
                               "school_staff_approval": False} for sid in cited]
                 result.update(route="C", answer=answer, citations=citations, generated=True,
                               c_enabled=True, answer_kind="rag_generated", reason_code="source_grounded_generation",
-                              message="Асуултад хамаарах эхийн хэсгүүдийг үг өөрчлөхгүй нэгтгэн үзүүлэв. Эхийн огноо, нөхцөлийг нягтлаарай.",
+                              message="Сонгосон эхийн хэсгүүдийг үг өөрчлөхгүй нэгтгэн үзүүлэв. Эхийн огноо, нөхцөлийг нягтлаарай.",
                               suggestions=[], related_sources=[])
         return self._remember(result, allow_draft)

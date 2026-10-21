@@ -4,7 +4,8 @@ Exact lookups copy clauses; they are not a general semantic entailment model.
 These rules are development changes. Unrecognised questions still use RAG.
 """
 import re
-from answer_contract import tuition_amount_query
+from answer_contract import tuition_amount_query, tuition_label_query
+from evidence_contract import direction_card_bindings
 
 _FIRST = r'(?<!\w)(?:1-р|нэгдүгээр|i)\s+курс'
 _SECOND = r'(?<!\w)(?:2-р|хоёрдугаар|ii)\s+курс'
@@ -25,6 +26,12 @@ _SCOPE_GENERIC = frozenset('''энэ тэр аль ямар юу вэ бэ уу 
 үргэлжилдэг үргэлжилнэ вэ хоног хоногийн өдөр өдрийн хугацаа хугацааг
 сарын дүн хэмжээ эхлэх олгох зарласан есдүгээр наймдугаар дөрөвдүгээр
 болон ба тус бүр хувьд нь n jlpt eju'''.split())
+_SCOPE_GENERIC = _SCOPE_GENERIC | frozenset('''багш багшийн багштай сургалт сургалтын
+амьжиргаа амьжиргааны зардал зардлыг бүх даах даадаг хариуцдаг санхүүжүүлэх
+санхүүжүүлдэг төлөх төлдөг төлнө хамрах хамардаг'''.split())
+_SCOPE_GENERIC = _SCOPE_GENERIC | frozenset('''нийт үндсэн туслах цагийн доктор
+магистр бүрэлдэхүүн бүрэлдэхүүнтэй ажилладаг бүрэн хувь хувийг хувиар
+санхүүжилт санхүүжилтийн'''.split())
 _SCOPE_SUFFIXES = ('гийн', 'ийн', 'ын', 'аар', 'ээр', 'оор', 'өөр', 'аас', 'ээс', 'оос', 'өөс')
 
 
@@ -58,21 +65,64 @@ def _department_names(sources):
     return names
 
 
-def department_evidence_sources(query, sources):
-    """Keep one literally named department's staff evidence, when unambiguous.
+_PROGRAM_GENERIC_WORDS = frozenset(('ямар', 'аль', 'энэ', 'тэр', 'ашигладаг', 'ашиглаж',
+                                   'ашиглах', 'ашигласан', 'ашиглагддаг', 'хэрэглэдэг',
+                                   'хэрэглэж', 'хэрэглэх', 'одоогийн', 'байгаа', 'шинэ',
+                                   'хуучин', 'суурилуулсан', 'нэвтрүүлсэн', 'номын',
+                                   'сангийн', 'олон', 'улсын', 'болон', 'ба', 'мөн'))
+
+
+def _program_name_key(name):
+    return re.sub(r'-(?:ийн|ын|гийн|ыг|ийг)$', '', name.casefold())
+
+
+def _queried_library_program(query, conjunction_only=False):
+    prefix = r'(?:болон|\bба\b|\bмөн\b)\s+' if conjunction_only else r'(?<!\w)'
+    pattern = prefix + r'(?P<name>[\w.+-]+)\s+программ?\w*'
+    for match in re.finditer(pattern, query, re.I):
+        if match['name'].casefold() not in _PROGRAM_GENERIC_WORDS:
+            return match['name'], match.start('name'), match.end('name')
+    if not conjunction_only:
+        # A literal Latin name may be followed directly by its use/start verb.
+        match = re.search(r'(?<!\w)(?P<name>[A-Za-z][A-Za-z0-9.+-]+)\s+(?:ашигл|нэвтрүүл|хэрэгл)', query)
+        if match:
+            return match['name'], match.start('name'), match.end('name')
+    return None
+
+
+def _library_program_names(sources):
+    names = []
+    for source in sources:
+        text = source['text']
+        if not re.search(r'номын\s+сан', text + '\n' + source.get('title', ''), re.I):
+            continue
+        # Only literal labelled names from these supplied sources. No fuzzy
+        # matching, spelling aliases, transliteration or default programme.
+        for match in re.finditer(r'(?<!\w)([A-Za-z][A-Za-z0-9.+-]+|[А-ЯӨҮЁ][а-яөүё0-9.+-]+)'
+                                 r'\s+(?:олон\s+улсын\s+)?программ?\w*', text):
+            name = match.group(1)
+            if name.casefold() not in _PROGRAM_GENERIC_WORDS and name not in names:
+                names.append(name)
+    return names
+
+
+def department_evidence_sources(query, sources, *, all_attributes=False):
+    """Keep one literally named department's evidence, when unambiguous.
 
     Only supplied source titles identify departments. This bounded lexical
     filter does not infer names from body text, URLs, dates or retrieval rank.
     Generic, comparative and multiple-department questions retain every source.
     """
     q = query.casefold()
-    if ('тэнхим' not in q or not re.search(r'багш|эрхлэгч', q)
+    if ('тэнхим' not in q or not (all_attributes or re.search(r'багш|эрхлэгч', q))
             or re.search(r'харьцуул|тэнхимүүд|бүх\s+тэнхим|бусад\s+тэнхим|өөр\s+тэнхим|хоёр\s+тэнхим', q)):
         return sources
     query_words = _scope_words(query)
     matches = {}
     for source in sources:
-        title = source.get('title', '')
+        # Extracted client fields add a method suffix to the same page title.
+        # That suffix is metadata, never part of the department's name.
+        title = source.get('title', '').split(' — ', 1)[0]
         if not isinstance(title, str) or 'тэнхим' not in title.casefold():
             continue
         named_words = {word for word in _scope_words(title) if not word.startswith('инженер')}
@@ -86,22 +136,163 @@ def department_evidence_sources(query, sources):
     title, urls = next(iter(matches.items()))
     return [source for source in sources
             if source.get('url') in urls
-            or ' '.join(source.get('title', '').casefold().split()) == title]
+            or ' '.join(source.get('title', '').split(' — ', 1)[0].casefold().split()) == title]
+
+
+_REGISTRATION_FINANCIAL_EXCLUSIONS = re.compile(r'\b(?:биш|бус)\b|буцаа|хөнгөл|тэтгэл|цалин|дотуур\s+байр|хоол')
 
 
 def registration_amount_query(query):
     q = query.casefold()
-    return bool(re.search(r'бүртгэ|элс', q) and re.search(r'хураамж|бүртгэ\w*\s+төлбөр', q)
+    if _REGISTRATION_FINANCIAL_EXCLUSIONS.search(q):
+        return False
+    return bool(re.search(r'бүртгэ|элс', q) and re.search(r'хураамж|бүртгэ\w*\s+(?:төлбөр|мөнгө(?:ний)?|мөнгийг)', q)
                 and re.search(r'хэд|төгрөг|үнэ|хэмжээ', q))
+
+
+def registration_payment_query(query):
+    """A fee amount/payment request, not a login account or arbitrary money.
+
+    Admission and olympiad both have registration payments. An unscoped payment
+    request needs clarification even if retrieval happens to rank only one of
+    them. Negative/other-cost clauses retain their separate evidence needs.
+    """
+    q = query.casefold()
+    if _REGISTRATION_FINANCIAL_EXCLUSIONS.search(q):
+        return False
+    fee_label = (re.search(r'бүртгэ|элс', q)
+                 and re.search(r'хураамж|бүртгэ\w*\s+(?:төлбөр|мөнгө(?:ний)?|мөнгийг)', q))
+    return bool(fee_label and (registration_amount_query(query)
+                or re.search(r'данс|шилжүүл|банк|апп|\bqr\b|төл(?:өх|өхдөө|ж|нө|бөл)', q)))
+
+
+
+# Facility names and measurement roles describe scope, not stored answer values.
+_FACILITY_KINDS = (
+    ('сургалтын анги', r'сургалтын\s+анги|анги\s*танхим'),
+    ('лекцийн танхим', r'лекцийн\s+танхим'),
+    ('лаборатори', r'лаборатор\w*'),
+    ('хоолны танхим', r'нийтийн\s+хоолны\s+газ(?:ар|р)|хоолны\s+(?:танхим|газ(?:ар|р))|цайны\s+газ(?:ар|р)'),
+    ('бүжгийн танхим', r'бүжгийн\s+танхим'),
+    ('спорт заал', r'спорт(?:ын)?\s+(?:заал|танхим)|биеийн\s+тамирын\s+(?:заал|танхим)'),
+    ('хурлын өрөө', r'хурлын\s+(?:өрөө|танхим)'),
+    ('уншлагын танхим', r'уншлагын\s+танхим'),
+)
+
+
+def _facility_capacity_types(sources):
+    """Identify capacities only when a facility label precedes a seat count."""
+    kinds = set()
+    for source in sources:
+        text = source['text'].casefold()
+        for seat in re.finditer(r'\d[\d,.]*\s*(?:хүний\s*)?суудал', text):
+            preceding = text[max(0, seat.start() - 260):seat.start()]
+            candidates = [(m.end(), label) for label, pattern in _FACILITY_KINDS
+                          for m in re.finditer(pattern, preceding)]
+            if candidates:
+                kinds.add(max(candidates)[1])
+    return kinds
+
+
+def _number_measurements(query, sources):
+    """For one bare query number, find distinct literal source measurement roles.
+
+    This recognises a small set of explicit units. It never guesses a role for
+    an unlabelled number or treats a repeated copy of the same unit as ambiguity.
+    """
+    numbers = re.findall(r'(?<![\w.,])\d+(?:[.,]\d+)*(?![\w.,])', query)
+    if len(set(numbers)) != 1:
+        return set()
+    number = numbers[0]
+    by_unit = {}
+    unit_patterns = (
+        ('талбай (м²)', r'^\s*(?:м²|м2|m²|m2|квадрат\s+метр|метр\s+квадрат)'),
+        ('суудлын тоо', r'^\s*(?:хүний\s*)?суудал'),
+        ('хүний тоо', r'^\s*(?:хүн|оюутан|багш)(?![а-яөүё])'),
+        ('номын тоо', r'^\s*(?:ном(?:той|ыг|ын)?|сурах\s+бичиг)(?![а-яөүё])'),
+        ('мөнгөн дүн', r'^\s*(?:₮|төгрөг|иен|доллар)(?![а-яөүё])'),
+        ('хугацаа', r'^\s*(?:минут|цаг|хоног)(?![а-яөүё])'),
+    )
+    for source in sources:
+        text = source['text'].casefold()
+        for occurrence in re.finditer(r'(?<![\d.,])' + re.escape(number) + r'(?![\d.,])', text):
+            following = text[occurrence.end():occurrence.end() + 50]
+            for label, pattern in unit_patterns:
+                if re.search(pattern, following):
+                    before = text[max(0, occurrence.start() - 120):occurrence.start()]
+                    after = text[occurrence.end():occurrence.end() + 120]
+                    nearby = [(len(before) - match.end(), kind)
+                              for kind, facility in _FACILITY_KINDS
+                              for match in re.finditer(facility, before)]
+                    nearby += [(match.start(), kind)
+                               for kind, facility in _FACILITY_KINDS
+                               for match in re.finditer(facility, after)]
+                    kind = min(nearby)[1] if nearby else None
+                    by_unit.setdefault(label, set()).add(kind)
+    roles = set()
+    for label, kinds in by_unit.items():
+        known = kinds - {None}
+        # A truncated copy that omits the facility name is not evidence of a
+        # second object. Only multiple explicit objects make one unit ambiguous.
+        if len(known) > 1:
+            roles.update(label + ' / ' + kind for kind in known)
+        else:
+            roles.add(label)
+    return roles
 
 
 def ambiguity(query, sources):
     q = query.casefold()
     text = '\n'.join(s['text'].casefold() for s in sources)
-    if ('тэнхим' in q and 'эрхлэгч' in q and re.search(r'нэр|имэйл|мэйл|утас', q)
+    if _competition_rank_query(query) and not _detail_names(query):
+        return ('Аль оюутан эсвэл багийн, ямар тэмцээний дүнг асууж байна вэ? '
+                'Тэмцээний нэр, оролцогч болон он/огноог тодруулна уу.', [])
+    programme=re.search(r'(?<!\w)([\w-]{3,})\s+хөтөлбөр',q)
+    if (programme and programme[1] not in {'манай','тухайн','ямар','энэ','тэр','бүх'}
+            and re.search(r'хот|байршил|хаана',q) and re.search(r'уулзалт|арга\s+хэмжээ',q)
+            and not re.search(r'харьцуул|хотуудад|бүх|тус\s+бүр|хоёул|#\s*\d|'
+                              r'сарын\s+\d|\d{4}[-./]\d{1,2}[-./]\d{1,2}',q)):
+        pages={source.get('url') for source in sources if source.get('url')
+               and re.search(r'(?<!\w)'+re.escape(programme[1])+r'(?!\w)',source.get('title',''),re.I)}
+        if len(pages)>1:
+            return ('Энэ хөтөлбөрийн өөр өөр уулзалтын мэдээ байна. Аль удаагийн уулзалтыг асууж байна вэ? '
+                    'Мэдээний огноо, дугаар эсвэл холбоосыг нэмж өгнө үү.',[])
+    if re.search(r'номын\s+сан', q):
+        requested_program = _queried_library_program(query, conjunction_only=True)
+        known_programs = _library_program_names(sources)
+        if (requested_program and known_programs
+                and _program_name_key(requested_program[0]) not in {_program_name_key(name) for name in known_programs}):
+            name, start, end = requested_program
+            return ('Номын сангийн программын «' + name + '» гэсэн нэрийг шалгана уу. '
+                    'Эхэд ' + ', '.join('«' + value + '»' for value in known_programs[:3])
+                    + ' гэж бичсэн байна. Тэр программыг асууж байна уу?',
+                    [query[:start] + value + query[end:] for value in known_programs[:3]])
+    # A generic room is not interchangeable with a classroom, lecture hall,
+    # or cafeteria. Require multiple observed capacity kinds before asking.
+    if ('танхим' in q and re.search(r'суудал|хэдэн\s+хүн|багтаамж', q)
+            and not any(re.search(pattern, q) for _, pattern in _FACILITY_KINDS)
+            and not re.search(r'харьцуул|бүх|төрөл\s+бүр|тус\s+бүр', q)):
+        kinds = _facility_capacity_types(sources)
+        if len(kinds) > 1:
+            return ('Аль танхимын суудлын тоог асууж байна вэ? Эхэд '
+                    + ', '.join(sorted(kinds)) + ' гэсэн өөр төрлийн орчин байна.', [])
+    # A bare displayed number can refer to distinct units on the same page.
+    # Asking for one interpretation would hide the unresolved measurement.
+    if (re.search(r'үзүүлэлт|тоо|гэсэн|юуны|юуг', q)
+            and not re.search(r'м²|м2|квадрат|суудал|талбай|төгрөг|иен|минут|хоног', q)
+            and not any(re.search(pattern, q) for _, pattern in _FACILITY_KINDS)
+            and not re.search(r'харьцуул|бүх|ялга|хоёул', q)):
+        roles = _number_measurements(q, sources)
+        if len(roles) > 1:
+            return ('Тэр тоо эхэд өөр өөр хэмжигдэхүүнээр давтагдсан байна: '
+                    + ', '.join(sorted(roles)) + '. Аль нэгж эсвэл аль орчны үзүүлэлтийг асууж байна вэ?', [])
+    if ('тэнхим' in q and
+            (('эрхлэгч' in q and re.search(r'нэр|имэйл|мэйл|утас', q))
+             or (re.search(r'багш', q) and re.search(r'хэд|тоо', q)))
             and not _literal_scope(query, sources)):
         names = _department_names(sources)
-        return ('Аль тэнхимийн эрхлэгчийн нэр, холбоо барих мэдээлэл хэрэгтэй вэ?'
+        return (('Аль тэнхимийн багшийн тоог асууж байна вэ?' if 'багш' in q else
+                 'Аль тэнхимийн эрхлэгчийн нэр, холбоо барих мэдээлэл хэрэгтэй вэ?')
                 + (' ' + '; '.join(names[:5]) + '.' if names else ''), [])
     japan = bool(re.search(r'япон', q))
     pathway = bool(re.search(r'дадлаг|дэвшин|суралц|аялал|ажил(?:лах|д|длах)|танилцах', q))
@@ -111,7 +302,7 @@ def ambiguity(query, sources):
             and not pathway and not multiple and not _literal_scope(query, sources)):
         return ('Япон руу явах аль замыг асууж байна вэ: танилцах хөтөлбөр, дадлага, '
                 'дэвшин суралцах эсвэл ажиллах уу? Хугацаа, хэлний шаардлага нь замаасаа хамаарна.', [])
-    if ('тэтгэл' in q and re.search(r'курс|хамрагд|хамрагдах|шаардлаг|нөхцөл|дүн|хэмжээ|хугацаа|эхлэх|хэзээ|хэд', q)
+    if ('тэтгэл' in q and re.search(r'курс|хамрагд|хамрагдах|шаардлаг|нөхцөл|дүн|хэмжээ|хугацаа|эхлэх|хэзээ|хэд|зардал|зардлыг|даах|даадаг|санхүүж', q)
             and not multiple and not _literal_scope(query, sources)):
         return ('Аль тэтгэлэгт хөтөлбөрийн тухай асууж байна вэ? Тэтгэлгийн нэрийг нэмж асууна уу; '
                 'хамрагдах курс, нөхцөл нь хөтөлбөрөөсөө хамаарна.', [])
@@ -134,7 +325,7 @@ def ambiguity(query, sources):
                 ['Элсэлтийн бичгийн шалгалт хэдэн минут вэ?', 'Ярилцлагын шалгалт хэдэн минут вэ?',
                  'Олимпиадын шалгалт хэдэн минут вэ?'])
     if ('шалгалт' in q and re.search(r'дүн|хариу', q) and
-            not re.search(r'элс|ярилцлаг|олимпиад|бичгийн', q)):
+            not re.search(r'элс|ярилцлаг|олимпиад|бичгийн|түвшин\s+тогтоо\w*', q)):
         return ('Элсэлтийн шалгалтын дүн үү, эсвэл олимпиадын дүн үү? Аль оныг сонирхож байна вэ?',
                 ['2026 оны элсэлтийн нэгдсэн дүнг хаана зарлах вэ?',
                  '2026 оны олимпиадын дүнг хаана зарлах вэ?'])
@@ -153,9 +344,118 @@ def ambiguity(query, sources):
     return None
 
 
+def enrollment_consequence_query(query):
+    """Identify a missed-contract consequence, not enrolment confirmation."""
+    q = query.casefold()
+    return bool(re.search(r'элс', q) and 'гэрээ' in q
+                and re.search(r'ирээгүй|байгуулаагүй|хугацаа\w*.{0,25}(?:алд|хоцор)|'
+                              r'хүчингүй|татгалз|дараагийн\s+шалгуулагч', q))
+
+
+def enrollment_consequence_supported(query, text):
+    q, value = query.casefold(), text.casefold()
+    if not ('гэрээ' in value and re.search(r'байгуулаагүй|ирээгүй', value)
+            and re.search(r'эрхийн\s+бич\w*.{0,35}хүчингүй|суралцахаас\s+татгалзсан', value)):
+        return False
+    if 'хүндэтгэх шалтгаантай' in q and 'хүндэтгэх шалтгаангүй' in value:
+        return False
+    if 'дараагийн' in q and not (re.search(r'дараагийн\s+шалгуулагч', value)
+            and 'хүсэлт' in value and re.search(r'элсүүлж\s+болно', value)):
+        return False
+    return True
+
+
+_WEEK_DAYS = ('даваа', 'мягмар', 'лхагва', 'пүрэв', 'баасан', 'бямба', 'ням')
+_HOUR_VALUE = r'\d{1,2}[:.]\d{2}|\d+\s*цагаас|\d+\s*цаг\s+хүртэл'
+
+
+def _library_opening_hours_supported(text, query):
+    """A library label must own its schedule; office hours cannot substitute."""
+    wanted = {day for day in _WEEK_DAYS if re.search(r'(?<!\w)' + day + r'(?!\w)', query.casefold())}
+    lines = re.split(r'\n|(?<=[.!?])\s+', text.casefold())
+    for index, line in enumerate(lines):
+        if not re.search(r'номын\s+сан', line):
+            continue
+        # A short, explicit library heading may own its next schedule rows.
+        rows = [line]
+        if len(line.split()) <= 5:
+            for row in lines[index + 1:index + 10]:
+                if not row.strip():
+                    continue
+                if (any(day in row for day in _WEEK_DAYS) or 'өдөр бүр' in row
+                        or re.fullmatch(r'\s*(?:ажлын\s+цаг|цагийн\s+хуваарь)\s*[:—-]?\s*', row)):
+                    rows.append(row)
+                else:
+                    break
+        covered = set()
+        for row in rows:
+            if re.search(r'тодорхойгүй|мэдээлээгүй|батлаагүй|төлөвлө|магадгүй', row):
+                continue
+            if not (re.search(_HOUR_VALUE, row) or re.search(r'амарна|ажиллахгүй|хаалттай', row)):
+                continue
+            days = {day for day in _WEEK_DAYS if re.search(r'(?<!\w)' + day + r'(?!\w)', row)}
+            for left, right in re.findall('(' + '|'.join(_WEEK_DAYS) + r')\s*[–—-]\s*(' + '|'.join(_WEEK_DAYS) + ')', row):
+                start, end = _WEEK_DAYS.index(left), _WEEK_DAYS.index(right)
+                if start <= end:
+                    days.update(_WEEK_DAYS[start:end + 1])
+            if re.search(r'өдөр\s+бүр', row):
+                days.update(_WEEK_DAYS)
+            covered.update(days)
+        if covered and (not wanted or wanted <= covered):
+            return True
+    return False
+
+
+def _equipment_identity_supported(text, query):
+    """Require the requested identity labels with the actual equipment."""
+    q = query.casefold()
+    anchors = {word.casefold() for word in re.findall(r'(?<!\w)[A-Za-z][A-Za-z0-9-]{1,}(?!\w)', query)}
+    manufacturer = 'үйлдвэрлэгч' in q
+    model = bool(re.search(r'загвар', q))
+    for clause in re.split(r'\n|(?<=[.!?])\s+', text.casefold()):
+        if (any(not re.search(r'(?<!\w)' + re.escape(anchor) + r'(?!\w)', clause) for anchor in anchors)
+                or not re.search(r'машин|тоног\s+төхөөрөмж|\bcnc\b|токарь|фрезер', clause)
+                or re.search(r'тодорхойгүй|мэдээлээгүй|батлаагүй|магадгүй|байхгүй|таамаг', clause)):
+            continue
+        if manufacturer and not re.search(r'үйлдвэрлэгч\s*(?:нь\s*)?[:—-]?\s*'
+                r'(?!тодорхой|мэдээлэл|загвар|дугаар)[a-zа-яөүё][a-zа-яөүё0-9&.-]{2,}', clause):
+            continue
+        if model:
+            match = re.search(r'загвар(?:ын\s+дугаар)?\s*(?:нь\s*)?[:№—-]?\s*([a-z0-9][a-z0-9_/-]{1,30})(?!\w)', clause)
+            if not match or not re.search(r'\d', match[1]):
+                continue
+        return True
+    return False
+
+
 def requested_detail(query):
     """Return a narrow missing-field screen, not an automatic truth label."""
     q = query.casefold()
+    if enrollment_consequence_query(query):
+        return 'enrollment_contract_consequence'
+    if (re.search(r'номын\s+сан', q)
+            and re.search(r'нээлттэй|ажилла\w*|цагийн\s+хуваарь|нээгд|нээдэг|нээх|хаадаг|хаах|хаагд|хэд\s+цаг', q)
+            and re.search(r'өдр|гараг|хэдээс|хэд\s+хүртэл|цагийн\s+хуваарь', q)):
+        return 'library_opening_hours'
+    if (re.search(r'машин|тоног\s+төхөөрөмж|\bcnc\b|токарь|фрезер', q)
+            and re.search(r'үйлдвэрлэгч|загвар(?:ын)?\s+дугаар|яг\s+загвар', q)):
+        return 'equipment_identity'
+    if _competition_rank_query(query) and re.search(r'эцсийн|эцэслэсэн|батлагдсан',q):
+        return 'competition_final_rank'
+    if 'патент' in q and re.search(r'дугаар|бүртгэлийн\s+(?:код|id)|идентификатор', q):
+        return 'patent_registration_identifier'
+    if ('сургалт' in q and re.search(r'төлбөр|хураамж|үнэ', q)
+            and (re.search(r'нэг\s+(?:оролцогч|хүн)|(?:оролцогч|хүн)\w*\s+(?:тутам|бүр)', q)
+                 or re.search(r'богино\s+хугацаа|зуны\s+сургалт|сургалт\w*\s+нэг\s+удаа', q))):
+        return 'short_training_participant_fee'
+    if (re.search(r'хоолны\s+(?:газ(?:ар|р)|танхим)|цайны\s+газ(?:ар|р)|нийтийн\s+хоол', q)
+            and re.search(r'цэс|үнэ|ямар\s+хоол', q)
+            and re.search(r'өнөөдр|яг\s+одоо|одоогийн|энэ\s+өдрийн', q)):
+        return 'current_cafeteria_menu'
+    if ('магадлан' in q and 'итгэмжл' in q
+            and re.search(r'эцсийн\s+шийдвэр|шийдвэр.{0,20}(?:гарсан|гаргасан|батлагдсан)', q)
+            and re.search(r'хэдэн\s+сар|хэдний|огноо|хэзээ|ямар\s+өдөр', q)):
+        return 'accreditation_final_decision_date'
     if ('ханш' in q and re.search(r'өнөөдр|яг одоо|одоогийн|одоог|бодит цаг', q)):
         return 'current_exchange_rate'
     if ('лаборатор' in q and re.search(r'нээлттэй|ажиллах цаг|цагийн хуваарь|хэдээс|хэд хүртэл', q)
@@ -168,6 +468,8 @@ def requested_detail(query):
         return 'guaranteed_salary'
     if re.search(r'элсэлтийн\s+(?:алб|комисс)', q) and re.search(r'утас|имэйл|мэйл', q):
         return 'admission_office_contact'
+    if registration_payment_query(query) and 'данс' in q:
+        return 'registration_payment_account'
     if registration_amount_query(query):
         return 'registration_amount'
     if 'эсс' in q and re.search(r'фонт|пункт|үсгийн хэмжээ', q):
@@ -179,7 +481,7 @@ def requested_detail(query):
     if ('долоо хоног' in q and re.search(r'цаг|минут', q)
             and re.search(r'хөтөлбөр|хичээл|үзэх|судлах', q)):
         return 'course_weekly_hours'
-    if 'сургалтын төлбөр' in q and re.search(r'хувааж|хуваар|хуваан|сар бүр.*төл|сараар.*төл', q):
+    if tuition_label_query(q) and re.search(r'хувааж|хуваар|хуваан|сар бүр.*төл|сараар.*төл', q):
         return 'tuition_instalments'
     if ('олимпиад' in q and re.search(r'хөнгөлөлт|50', q) and
             re.search(r'таван жил|5 жил|тасралтгүй|сунга|жил бүр', q)):
@@ -188,11 +490,20 @@ def requested_detail(query):
 
 
 DETAIL_LABELS = {
+    'enrollment_contract_consequence': 'гэрээ байгуулах хугацааг алдсан нөхцөл, элсэх эрхийн үр дагавар',
+    'library_opening_hours': 'номын сангийн тухайн өдрийн нээх, хаах цаг',
+    'equipment_identity': 'тухайн тоног төхөөрөмжийн үйлдвэрлэгч, загварын тодорхой мэдээлэл',
+    'competition_final_rank': 'тухайн оролцогчийн тухайн тэмцээнд бодитоор эзэлсэн эцсийн байр',
+    'patent_registration_identifier': 'тухайн төслийн патентын бүртгэлийн дугаар',
+    'short_training_participant_fee': 'тухайн богино сургалтын нэг оролцогчийн төлбөр',
+    'current_cafeteria_menu': 'өнөөдрийн хоолны цэс, үнэ',
+    'accreditation_final_decision_date': 'магадлан итгэмжлэлийн эцсийн шийдвэр гарсан огноо',
     'current_exchange_rate': 'өнөөдрийн бодит валютын ханш',
     'laboratory_opening_hours': 'лабораторийн нээлттэй өдөр, цагийн хуваарь',
     'appeal_deadline': 'давж заалдах/гомдол гаргах хугацаа',
     'guaranteed_salary': 'баталгаатай олгох цалингийн хэмжээ, нөхцөл',
     'registration_amount': 'бүртгэлийн хураамжийн дүн',
+    'registration_payment_account': 'бүртгэлийн төлбөр шилжүүлэх банкны дансны дугаар',
     'admission_office_contact': 'элсэлтийн алба/комиссын холбоо барих мэдээлэл',
     'essay_font': 'эссэний фонт, үсгийн пунктын шаардлага',
     'photo_file_size': 'цээж зургийн файлын MB хэмжээний хязгаар',
@@ -203,15 +514,163 @@ DETAIL_LABELS = {
 }
 
 
-def detail_supported(field, text):
+def _competition_rank_query(query):
+    q = query.casefold()
+    rank = re.search(r'хэддүгээр|ямар\s+байр', q)
+    event = re.search(r'тэмцээн|уралдаан|олимпиад', q)
+    participant = re.search(r'баг|оюут|сурагч', q) and 'эзэл' in q
+    return bool(rank and (event or participant))
+
+
+def _quoted_detail_names(query):
+    return [next(value for value in match.groups() if value) for match in
+            re.finditer(r'«([^»]+)»|“([^”]+)”|"([^"\n]+)"', query)]
+
+
+def _detail_names(query):
+    """Literal names, not aliases/NER: quotes, Latin tokens, initials and labelled names."""
+    names = _quoted_detail_names(query)
+    generic = {'final','rank','result','team','competition','patent','registration','number',
+               'id','fee','training','course','participant','манай','тухайн','ямар','энэ','тэр'}
+    names += re.findall(r'(?<!\w)[A-Za-z][A-Za-z0-9:+_-]{1,}(?!\w)', query)
+    names += re.findall(r'(?<!\w)[А-ЯӨҮЁ]\.\s*[А-ЯӨҮЁ][а-яөүё]{2,}', query)
+    names += re.findall(r'(?<!\w)([А-ЯӨҮЁ][а-яөүё]{2,})\s+(?:баг|төсөл|тэмцээн|уралдаан|сургалт)', query)
+    names += re.findall(r'(?<!\w)([А-ЯӨҮЁ][а-яөүё]{2,})\s+(?:муж|аймаг|хот|улс)',query)
+    return sorted({re.sub(r'\s+', ' ', value.casefold()).strip()
+                   for value in names if value.casefold() not in generic})
+
+
+def _detail_scope_matches(query, clause):
+    if not query:
+        return True
+    normalized = re.sub(r'\s+', ' ', clause.casefold())
+    if any(not re.search(r'(?<!\w)' + re.escape(name) + r'(?!\w)', normalized)
+           for name in _detail_names(query)):
+        return False
+    years = set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query))
+    return years <= set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', clause))
+
+
+_DETAIL_UNCERTAIN = (r'төлөвлө|зорилоо|оролцохоор|оролцоно|оролцох\s+болно|'
+    r'эзлэх|эзэлнэ|шалгарах|бүртгүүлэх|бүртгүүлнэ|олгогдоогүй|аваагүй|'
+    r'эзлээгүй|эзлээгүй|шалгараагүй|бүртгэгдээгүй|төлөөгүй|авах\s+боломж|'
+    r'тодорхойгүй|магадгүй|болзошгүй|таамаг|цуурхал|мэдээлээгүй|хэрэв|'
+    r'\b(?:биш|үгүй|эсэх)\b|эзэлсэн\s+бол\b|гэж.{0,30}болохгүй')
+
+
+def _completed_detail_supported(field, text, query):
+    # These observed-development screens bind one explicit field/value and
+    # the query's literal names/year in one clause. Unknown forms abstain.
+    clauses = re.split(r'\n|;|(?<=[.!?])\s+|\b(?:боловч|харин)\b|(?<!\d),(?!\d)', text.casefold())
+    for clause in clauses:
+        if re.search(_DETAIL_UNCERTAIN, clause) or not _detail_scope_matches(query, clause):
+            continue
+        if field == 'competition_final_rank':
+            ordinal = (r'(?:\d{1,3}\s*-?\s*(?:р|дугаар|дүгээр)|'
+                r'[ivxlcdm]+\s*(?:дугаар|дүгээр)?|нэгдүгээр|хоёрдугаар|гуравдугаар|'
+                r'дөрөвдүгээр|тавдугаар|зургадугаар|долдугаар|наймдугаар|есдүгээр|аравдугаар|тусгай)')
+            if re.search(r'(?<!\w)' + ordinal + r'\s+байр\w*\s+(?:эзэлсэн|эзэллээ|эзлэв|эзлэн|шалгарсан|шалгарлаа|орсон|орлоо|хүртсэн|хүртлээ)(?!\w)', clause):
+                return True
+        elif field == 'patent_registration_identifier':
+            for match in re.finditer(r'патент\w*\s+(?:албан\s+ёсны\s+)?(?:бүртгэлийн\s+)?'
+                    r'(?:дугаар|№)\s*(?:нь\s*)?[:№#-]?\s*([a-zа-яөүё0-9][a-zа-яөүё0-9/-]{2,35})(?!\w)', clause):
+                identifier = match[1]
+                if (re.search(r'\d', identifier) and not re.fullmatch(r'(?:19|20)\d{2}', identifier)
+                        and not re.fullmatch(r'(?:19|20)\d{2}[-/]\d{1,2}[-/]\d{1,2}', identifier)):
+                    return True
+        elif field == 'short_training_participant_fee':
+            if (re.search(r'сургалт', clause) and re.search(r'төлбөр|хураамж|үнэ', clause)
+                    and re.search(r'нэг\s+(?:оролцогч|хүн)|(?:оролцогч|хүн)\w*\s+(?:тутам|бүр)', clause)
+                    and re.search(r'\d+(?:[.,]\d+)*\s*(?:төгрөг|₮)', clause)
+                    and not re.search(r'жилд|жилийн\s+төлбөр|хичээлийн\s+жил|олимпиад|элсэлтийн', clause)):
+                return True
+    return False
+
+
+_DECISION_DATE = (
+    r'(?<!\d)(?:(?:19|20)\d{2}\s*(?:оны?\s*)?'
+    r'(?:\d{1,2}|[а-яөүё]+(?:дугаар|дүгээр))\s*сарын\s*\d{1,2}'
+    r'|(?:19|20)\d{2}[-./]\d{1,2}[-./]\d{1,2})(?!\d)'
+    r'(?:-(?:ний|ны|нд))?(?:\s*өдөр)?'
+)
+_ACCREDITATION_DECISION = (
+    r'(?:(?:байгууллагын|хөтөлбөрийн)\s+)?(?:дахин\s+)?'
+    r'магадлан\s+итгэмжлэл(?:ийн|д|ийг)?\s+'
+    r'(?:эцсийн\s+)?шийдвэр(?:ийг|ийн|ээр)?'
+)
+_COMPLETED_DECISION = r'(?:гарсан|гарав|гаргасан|гаргав|батлагдсан|батлагдав|баталсан)(?![а-яөүё])'
+
+
+def _accreditation_decision_date_supported(text, query=None):
+    """Bind a date to the completed decision, rather than a nearby event.
+
+    Co-occurrence of accreditation, a date and a completed verb is insufficient:
+    a meeting/publication date can otherwise leak into a missing decision date.
+    Only the explicit local subject/date/predicate forms below are recognised.
+    Unrecognised prose remains unsupported; this is not semantic entailment.
+    """
+    q = (query or '').casefold()
+    for clause in re.split(r'\n|;|(?<=[.!?])\s+|\b(?:боловч|харин)\b', text.casefold()):
+        if re.search(r'гараагүй|гаргаагүй|батлагдаагүй|батлаагүй|'
+                     r'гарах|гарна|орж\s+байна|явагдаж|төлөвлө|хүлээгд|'
+                     r'нийтэл|нийтлэгд|шинэчил|тодорхойгүй|магадгүй|болзошгүй|'
+                     r'байхгүй|мэдээлээгүй|нотлогдоогүй|цуурхал|таамаг|худал|'
+                     r'(?:гарсан|баталсан|батлагдсан)\s+бол\b|'
+                     r'\b(?:биш|үгүй|эсэх)\b|гэж.{0,35}болохгүй', clause):
+            continue
+        patterns = (
+            _ACCREDITATION_DECISION + r'\s*[:—-]?\s*' + _DECISION_DATE
+            + r'\s+(?:албан\s+ёсоор\s+)?' + _COMPLETED_DECISION,
+            _DECISION_DATE + r'\s+' + _ACCREDITATION_DECISION
+            + r'\s+(?:албан\s+ёсоор\s+)?' + _COMPLETED_DECISION,
+            _ACCREDITATION_DECISION + r'\s+' + _COMPLETED_DECISION
+            + r'\s+огноо\s*[:—-]?\s*' + _DECISION_DATE,
+        )
+        for pattern in patterns:
+            match = re.search(pattern, clause)
+            if match:
+                # Scope must belong to this decision, not a neighbouring event
+                # in the same sentence. Do not silently drop query qualifiers.
+                decision = match.group()
+                if ('байгууллаг' in q and 'байгууллаг' not in decision
+                        or 'хөтөлбөр' in q and 'хөтөлбөр' not in decision
+                        or 'дахин' in q and 'дахин' not in decision):
+                    continue
+                requested_years = set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', q))
+                decision_years = set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', decision))
+                if not requested_years or requested_years <= decision_years:
+                    return True
+    return False
+
+
+def detail_supported(field, text, query=None):
     # Require the requested field together with its value/condition in a clause.
     # Nearby programme duration, A4 format and word count are not substitutes.
+    if field == 'enrollment_contract_consequence':
+        return enrollment_consequence_supported(query or '', text)
+    if field == 'library_opening_hours':
+        return _library_opening_hours_supported(text, query or '')
+    if field == 'equipment_identity':
+        return _equipment_identity_supported(text, query or '')
+    if field in {'competition_final_rank', 'patent_registration_identifier', 'short_training_participant_fee'}:
+        return _completed_detail_supported(field, text, query)
     if field == 'registration_amount':
         return bool(re.search(r'бүртгэлийн\s+хураамж\w*[:\s]*\d+(?:[.,]\d+)*\s*(?:төгрөг|₮)', text.casefold()))
+    if field == 'registration_payment_account':
+        # A fee amount, QPay mention or contact phone is not a bank account.
+        # Require an account label next to its literal digits (or IBAN).
+        q = text.casefold()
+        return bool(re.search(r'\bданс(?:ны\s+дугаар)?\s*[:№#]?\s*(?:mn\s*)?\d[\d -]{5,32}\d\b', q)
+                    or re.search(r'\b\d[\d -]{5,32}\d\s*(?:тоот\s+|дугаартай\s+)?данс', q))
+    if field == 'current_cafeteria_menu':
+        # This captured corpus has no live, date-bound menu/price evidence tool.
+        return False
     if field == 'current_exchange_rate':
         # A captured conversion, even with a date or the word "today", cannot
         # establish a live rate. This application has no live FX evidence tool.
         return False
+    if field == 'accreditation_final_decision_date':
+        return _accreditation_decision_date_supported(text, query)
     for clause in re.split(r'\n|(?<=[.!?])\s+', text.casefold()):
         if (field == 'laboratory_opening_hours' and 'лаборатор' in clause
                 and re.search(r'нээлттэй|ажилла(?:х|на|даг)|цагийн хуваарь', clause)
@@ -248,6 +707,422 @@ def detail_supported(field, text):
     return False
 
 
+_ROMAN_MONTHS = ('I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII')
+_ROMAN_MONTH_PATTERN = '(?:' + '|'.join(sorted(_ROMAN_MONTHS, key=len, reverse=True)) + ')'
+_MONTH_DASH = r'\s*[-–—−]\s*'
+
+
+def _requested_schedule_ranges(query):
+    if not ('сар' in query.casefold() and re.search(r'хуваарь|төлөвлө', query, re.I)):
+        return []
+    pattern = r'(?<!\w)(' + _ROMAN_MONTH_PATTERN + ')' + _MONTH_DASH + '(' + _ROMAN_MONTH_PATTERN + r')(?!\w)'
+    ranges = []
+    for match in re.finditer(pattern, query, re.I):
+        start, end = (_ROMAN_MONTHS.index(value.upper()) + 1 for value in match.groups())
+        # A reversed or year-crossing range needs a separate interpretation.
+        if start <= end and (start, end) not in ranges:
+            ranges.append((start, end))
+    return ranges if len(ranges) >= 2 else []
+
+
+def field_evidence_requirements(query):
+    """Describe a few explicitly requested facets, without storing answers.
+
+    This development omission screen recognises literal paired subjects and
+    requested measurement roles. It does not infer intent for arbitrary prose,
+    certify semantic completeness, or add evidence to a model's selection.
+    The returned descriptors are JSON-safe for logging and prompt guidance.
+    """
+    q = query.casefold()
+    if re.search(r'зөвхөн|дангаар|хэрэггүй|хас(?:а|ч|на|ах)|бүү|битгий|'
+                 r'асуугаагүй|сонирхохгүй|ялгаагүй|\bбиш\b', q):
+        return []
+    paired = bool(re.search(r'болон|\bба\b|тус\s+бүр|харьцуул|ялга|хоёул|,|\bмөн\b|\bөөр\b', q))
+    requirements = []
+
+    def add(name, label, aliases, kind, **extra):
+        requirements.append(dict(name=name, label=label, aliases=aliases, type=kind, **extra))
+
+    # These descriptors ask for source structure, not any particular direction,
+    # flow name, course title, partner or delivery-mode answer.
+    if (re.search(r'\b(?:хоёр|2)\s+урсгал\w*', q)
+            and 'чиглэл' in q and re.search(r'нэр\w*', q)):
+        add('flow_direction_name_pair', 'хоёр урсгалын чиглэл–нэрийн тусдаа холбоо',
+            [], 'direction_name_pair')
+    if ('хичээл' in q and re.search(r'нэрл\w*|ямар\s+хичээл\w*', q)
+            and re.search(r'ямар\s+(?:хэлбэр|горим|арга)\w*|хэрхэн\s+хэрэгжүүл', q)):
+        count_match = re.search(r'\b(нэг|хоёр|гурван|дөрвөн|таван|зургаан|[1-6])\s+хичээл\w*', q)
+        counts = dict(нэг=1, хоёр=2, гурван=3, дөрвөн=4, таван=5, зургаан=6)
+        count = (counts.get(count_match[1], int(count_match[1]) if count_match[1].isdigit() else None)
+                 if count_match else None)
+        add('course_names_delivery_form', 'асуусан хичээлийн нэрс ба тэдгээрийн сургалтын хэлбэр',
+            [r'хичээл\w*'], 'course_delivery_form', requested_count=count,
+            named_anchors=sorted(set(token.casefold() for token in re.findall(r'(?<![A-Za-z])[A-Za-z][A-Za-z0-9]+', query))))
+
+    # Separately asked historical years need complementary evidence. A written
+    # academic interval stays a single scope in the existing year filter.
+    years = sorted(set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', q)))
+    if (paired and len(years) > 1
+            and not re.search(r'(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2}', q)):
+        for year in years:
+            add('explicit_year_' + year, year + ' оны асуусан үйл явдал',
+                [r'(?<!\d)' + year + r'(?!\d)'], 'explicit_marker')
+
+    # These are two categories explicitly named by the user, not inferred
+    # organisation names. A keyword mention alone cannot supply a list field.
+    practice_fields = (
+        ('practice_industrial_organisations', 'үйлдвэрлэлийн дадлагын байгууллагын жагсаалт',
+         r'үйлдвэрлэлийн\s+дадлаг\w*'),
+        ('practice_introductory_organisations', 'танилцах дадлагын байгууллагын жагсаалт',
+         r'танилцах\s+дадлаг\w*'),
+    )
+    if (paired and re.search(r'байгууллаг\w*|жагсаа\w*', q)
+            and all(re.search(pattern, q) for _, _, pattern in practice_fields)):
+        for name, label, pattern in practice_fields:
+            add(name, label, [pattern], 'labelled_list',
+                excluded_aliases=[other for other_name, _, other in practice_fields if other_name != name])
+
+    if re.search(r'мэдээ|нийтлэл',q):
+        if re.search(r'түвшин\s+тогтоо\w*',q):
+            if 'хэл' in q and 'түвшинчил' in q:
+                add('news_levelled_languages','түвшинчилж ордог хэлний хичээлүүд',[r'хэл\w*'],
+                    'news_field',predicate_aliases=[r'түвшинчил\w*'])
+            if re.search(r'математик|физик',q) and re.search(r'юунд|ашигла',q):
+                add('news_placement_baseline','шалгалтын дүнгийн гарааны үнэлгээний үүрэг',
+                    [r'математик\w*|физик\w*'],'news_field',predicate_aliases=[r'гарааны\s+үнэлгээ'])
+                add('news_placement_use','дүнг хичээл, заах арга, хөтөлбөрт ашиглах',
+                    [r'математик\w*|физик\w*'],'news_field',
+                    predicate_aliases=[r'төлөвлөлт|заах\s+арга|хөтөлбөр\w*\s+сайжруул'])
+        if re.search(r'хичээл\w*\s+гадна',q) and re.search(r'юу|ямар',q):
+            add('news_complementary_activities','хичээлээс гаднах үйл ажиллагаа',
+                [r'компани\w*|байгууллаг\w*|соёл\w*|уламжлал\w*|аялал\w*|үзмэр\w*'],
+                'news_field',predicate_aliases=[r'танилц\w*|аял\w*|зочил\w*|туршлага\w*|үзэ\w*'])
+        grove=bool(re.search(r'(?<!\w)төгөл(?:ийн|ийг|д|тэй|өөс|өөр|үүд)?(?!\w)',q))
+        activity=grove or re.search(r'ямар\s+ажил|ажил\s+хий',q)
+        if re.search(r'(?<!\w)хаана(?!\w)', q):
+            add('news_activity_location','үйл ажиллагаа болсон байршил',
+                [r'аймаг\w*|муж\w*|сум\w*|дүүрэг\w*|хот\w*|хүрээлэн\w*|талбай\w*|гол\w*|сургуул\w*|коллеж\w*'],
+                'news_field',predicate_aliases=[r'байрл\w*|хураа\w*|ажилл\w*|байгуул\w*|тар[ьи]\w*|болсон|болов|болжээ'])
+        if grove and re.search(r'ямар|байгуул|тарь',q):
+            add('news_grove_activity','байгуулсан төгөл, хийсэн ажил',[r'төгөл\w*'],
+                'news_field',predicate_aliases=[r'байгуул\w*|тар[ьи]\w*'])
+        if 'цаашид' in q and 'уламжлал' in q:
+            add('news_future_tradition','цаашид хийх уламжлал',[r'уламжлал\w*'],
+                'news_field',predicate_aliases=[r'цаашид|тогтмол|жил\s+бүр|улирал\s+бүр|болох\w*'])
+        if activity and 'ямар ажил' in q:
+            add('news_work_activity','ямар ажил хийсэн',[r'ажил\w*|хураа\w*|тар[ьи]\w*'],
+                'news_field',predicate_aliases=[r'хураа\w*|ажилла\w*|гүйцэтгэ\w*|хий\w*'])
+        if activity and re.search(r'чадвар|үнэт\s+зүйл',q):
+            add('news_work_learning','ажлаас олсон чадвар, үнэт зүйл',
+                [r'чадвар\w*|үнэ\s*цэн\w*|хариуцлаг\w*|үнэт\s+зүйл'],
+                'news_field',predicate_aliases=[r'мэдэр\w*|эзэмш\w*|ойлго\w*|сурч|олго\w*'])
+        if re.search(r'ямар|мэдлэг|чадвар|чиглэл',q):
+            for quoted in re.finditer(r'[«“"]([^»”"]{3,100})[»”"]\s+сургалт\w*',q):
+                add('news_training_content','нэрлэсэн сургалтын мэдлэг, чадвар',
+                    [re.escape(quoted[1])],'news_field',predicate_aliases=[r'мэдлэг|чадвар|арга\s+хэмжээ'])
+
+    for start, end in _requested_schedule_ranges(query):
+        roman_start, roman_end = _ROMAN_MONTHS[start - 1], _ROMAN_MONTHS[end - 1]
+        interval = '(?:' + roman_start + _MONTH_DASH + roman_end + '|' + str(start) + _MONTH_DASH + str(end) + ')'
+        add('schedule_months_' + str(start) + '_' + str(end),
+            roman_start + '–' + roman_end + ' сарын төлөвлөсөн ажил',
+            [r'(?<!\w)' + interval + r'(?:-р)?\s*сар(?:д|ын)?(?!\w)'], 'schedule',
+            month_start=start, month_end=end)
+
+    if (paired and 'мониторинг' in q and 'үнэлгээ' in q
+            and re.search(r'ялга|харьцуул|зорил|давтамж|тайлбар|тодорхойл', q)):
+        subjects = (
+            ('monitoring', 'мониторинг', [r'мониторинг(?:ийн|ийг|оор)?']),
+            ('evaluation', 'үнэлгээ', [r'үнэлгээ(?:ний|г|гээр)?']),
+        )
+        for name, label, aliases in subjects:
+            add(name + '_definition', label + 'ийн зорилго, тайлбар', aliases, 'definition',
+                predicate_aliases=[r'зорилготой|зорилгоор|чиглэ\w*|хяна\w*|үнэлж|сайжруул\w*|дэмжин\s+зөвл'])
+            if 'давтамж' in q or re.search(r'хэр\s+ойрхон|хэдийд|үе\s+тутам', q):
+                add(name + '_frequency', label + 'ийн давтамж', aliases, 'definition',
+                    predicate_aliases=[r'өдөр\s+тут\w*|өдөр\s+бүр|байнг\w*|тасралтгүй|'
+                                       r'давтамж\w*|хугацааны\s+давтамж|тогтмол|сар\s+бүр|жил\s+бүр|улирал\s+тутам'])
+
+    if (paired and re.search(r'(?<!\w)cad(?!\w)', q) and re.search(r'(?<!\w)cam(?!\w)', q)
+            and re.search(r'чадвар|зорил|холб|ялга|харьцуул|эзэмш|зориул', q)):
+        for name in ('cad', 'drafter', 'cam'):
+            if re.search(r'(?<!\w)' + name + r'(?!\w)', q):
+                add(name + '_objective', name.upper() + ' хэрэглэсэн чадвар, зорилт',
+                    [r'(?<!\w)' + name + r'(?!\w)'], 'objective',
+                    predicate_aliases=[r'эзэмшүүл\w*|эзэмших|чадвар\w*.{0,30}олго\w*|сургах|технолог\w*.{0,30}эзэмш'],
+                    excluded_aliases=[] if 'клуб' in q else [r'клуб\w*'])
+
+    classroom = bool(re.search(r'сургалтын\s+анги|ердийн\s+анги|анги\s*танхим', q))
+    if (paired and classroom and 'лаборатор' in q and re.search(r'суудал|багтаамж', q)
+            and re.search(r'өрөө|танхим|хэдэн\s+анги', q)):
+        for name, label, aliases in (
+            ('classroom', 'анги танхим', [r'(?:сургалтын\s+)?анги\s*танхим\w*|сургалтын\s+анги\w*|ердийн\s+анги\w*']),
+            ('laboratory', 'лаборатори', [r'лаборатор\w*']),
+        ):
+            add(name + '_rooms', label + 'ын өрөөний тоо', aliases, 'measurement',
+                object=name, units=[r'\d+\s*(?:анги(?:\s*танхим)?|өрөө|танхим|лаборатор\w*)'])
+            add(name + '_seats', label + 'ын суудлын тоо', aliases, 'measurement',
+                object=name, units=[r'\d+(?:[.,]\d+)*\s*(?:хүний\s*)?суудал'])
+
+    library = bool(re.search(r'номын\s+сан', q))
+    program = _queried_library_program(query) if library else None
+    software_year = (library and (program or re.search(r'программ?', q))
+                     and re.search(r'(?<!\w)(?:он(?:ы|ыг|оос|оор|д|доо)?|'
+                                   r'жил(?:ийн|ийг|ээс|ээр|д|дээ)?|хэзээ(?:нээс)?)(?!\w)', q)
+                     and re.search(r'ашигл\w*.{0,20}эхэл|нэвтрүүл|хэрэгл\w*.{0,20}эхэл', q))
+    stock_matches = list(re.finditer(r'номын\s+(?:нийт\s+)?(?:тоо|үзүүлэлт)|нийт\s+ном|хэдэн\s+ном', q))
+    stock_requested = any(not re.search(r'нэг\s+оюутанд|оюутан\s+тутам|ногдох',
+                                       re.split(r'болон|\bба\b|,', q[:match.start()])[-1])
+                          for match in stock_matches)
+    ratio_requested = bool(re.search(r'нэг\s+оюутанд|оюутан\s+тутам|ногдох', q))
+    if paired and software_year and (stock_requested or ratio_requested):
+        if stock_requested:
+            add('library_stock_total', 'номын сангийн нийт номын тоо', [r'ном(?:,?\s+сурах\s+бичиг)?'], 'library_stock')
+        name = _program_name_key(program[0]) if program else None
+        add('library_software_start_year', 'номын сангийн программ ашиглаж эхэлсэн он',
+            [r'(?<!\w)' + re.escape(name) + r'(?!\w)'] if name else [r'программ?\w*'],
+            'software_start_year', program_name=name)
+        if ratio_requested:
+            add('library_per_student_ratio', 'нэг оюутанд ногдох номын хэмжээ', [r'ном'], 'library_ratio')
+
+    named_acronym = bool(re.search(r'(?<!\w)[A-Z][A-Z0-9]{1,7}(?!\w)', query))
+    if (paired and named_acronym and 'хичээл' in q and re.search(r'ажлын\s+ярилцлаг', q)
+            and re.search(r'хамт|компани|түнш', q)
+            and re.search(r'явц|дурд|хэрэгж|сайжруул|амжилт|оролц|хичээл', q)):
+        add('course_content', 'хамтын ажиллагааны хичээл, хэрэгжилт', [r'хичээл\w*'], 'course',
+            predicate_aliases=[r'хэрэгжүүл\w*|сайжруул\w*|заа(?:х|сан|даг|ж)\w*|онлайн\w*'])
+        add('job_interview_progress', 'ажлын ярилцлагын явц', [r'ажлын\s+ярилцлаг\w*'], 'progress',
+            predicate_aliases=[r'оролц\w*|тэнц\w*|эхэл\w*|дуус\w*|амжилт\w*|үргэлжил\w*'])
+    return requirements
+
+
+def _definition_regions(text, requirement, requirements):
+    """Keep a labelled definition apart from the other subject's definition."""
+    labels = [alias for item in requirements if item['type'] == 'definition' for alias in item['aliases']]
+    starts = []
+    for label in labels:
+        for match in re.finditer(label, text, re.I):
+            line_start = text.rfind('\n', 0, match.start()) + 1
+            line_end = text.find('\n', match.end())
+            line_end = len(text) if line_end < 0 else line_end
+            before, after = text[line_start:match.start()].strip(), text[match.end():line_end].strip()
+            if not before and (not after or re.match(r'^(?:нь|бол|гэдэг|гэж|[:—-])(?:\s|$)', after)):
+                starts.append((match.start(), match.end(), label))
+    starts = sorted(set(starts))
+    for start, end, label in starts:
+        if label not in requirement['aliases']:
+            continue
+        next_subject = min((a for a, _, other in starts if a > start and other not in requirement['aliases']), default=len(text))
+        yield text[start:min(next_subject, end + 650)]
+
+
+def _measurement_present(text, requirement):
+    # A count may share its line with a label; a seat count may instead follow
+    # that label. The nearest explicit facility wins, so a lecture hall's seats
+    # cannot fill a laboratory omission. Never combine separate selected units.
+    objects = [
+        ('classroom', r'(?:сургалтын\s+)?анги\s*танхим\w*|сургалтын\s+анги\w*|ердийн\s+анги\w*'),
+        ('laboratory', r'лаборатор\w*'),
+        ('library', r'номын\s+сан\w*'),
+        ('hub', r'(?<!\w)hub(?:\s+center)?(?!\w)'),
+    ] + [(label, pattern) for label, pattern in _FACILITY_KINDS
+         if label not in {'сургалтын анги', 'лаборатори'}]
+    anchors = [(match.start(), match.end(), name) for name, pattern in objects
+               for match in re.finditer(pattern, text, re.I)]
+    for unit in requirement['units']:
+        for value in re.finditer(unit, text, re.I):
+            inline = [anchor for anchor in anchors if value.start() <= anchor[0] < value.end()]
+            preceding = [anchor for anchor in anchors if anchor[1] <= value.start()
+                         and value.start() - anchor[1] <= 300]
+            candidates = inline or preceding
+            if candidates and max(candidates, key=lambda anchor: anchor[0])[2] == requirement['object']:
+                return True
+    return False
+
+
+def _schedule_present(text, requirement):
+    """Match a requested month row inside one explicitly labelled schedule.
+
+    This recognises a table's label/range/task structure, not whether its task
+    is the right real-world activity. Source IDs, expected tasks and years are
+    deliberately absent. A date mentioned in an article is not a schedule row.
+    """
+    labels = []
+    for line in re.finditer(r'[^\n]+', text):
+        value = line.group().strip()
+        heading = re.fullmatch(r'[\w\s–—-]{0,65}(?:хуваарь|төлөвлөгөө)\s*[:：]?', value, re.I)
+        inline = re.match(r'^[\w\s–—-]{0,65}(?:хуваарь|төлөвлөгөө)\s*[:：]', value, re.I)
+        if heading or inline:
+            labels.append(line.start() + (heading.end() if heading else inline.end()))
+    if not labels:
+        return False
+    any_month = '(?:' + _ROMAN_MONTH_PATTERN + r'|\d{1,2})'
+    next_interval = re.compile(r'(?<!\w)' + any_month + _MONTH_DASH + any_month + r'(?:-р)?\s*сар(?:д|ын)?(?!\w)', re.I)
+    for alias in requirement['aliases']:
+        for match in re.finditer(alias, text, re.I):
+            preceding_labels = [position for position in labels if position <= match.start()]
+            if not preceding_labels:
+                continue
+            before = text[max(preceding_labels):match.start()]
+            if re.search(r'нийтэл|нийтлэгд|мэдээний\s+огноо', before, re.I):
+                continue
+            following = text[match.end():]
+            other = next_interval.search(following)
+            if other:
+                following = following[:other.start()]
+            rows = [row.strip(' \t:：—–-.,;') for row in following.splitlines()
+                    if row.strip(' \t:：—–-.,;')]
+            # A table index and a later unrelated paragraph cannot fill an
+            # empty task cell. The first actual row must itself be substantive.
+            if not rows or re.fullmatch(r'[\d\W]+', rows[0]):
+                continue
+            task = rows[0]
+            if (len(re.findall(r'[^\W\d_]', task, re.UNICODE)) >= 4
+                    and not re.search(r'байхгүй|тодорхойгүй|төлөвлөөгүй|нийтэл|мэдээний\s+огноо', task, re.I)):
+                return True
+    return False
+
+
+def _library_stock_present(text):
+    integer = r'(?:\d{1,3}(?:,\d{3})+|\d+)\+?'
+    pattern = r'(?<![\w\d.,–—-])' + integer + r'(?![\d.,–—-])\s*ном(?:,?\s+сурах\s+бичиг)?(?:той)?(?!\w)'
+    for match in re.finditer(pattern, text, re.I):
+        # Keep a per-student amount separate even if its number is an integer.
+        start = max(text.rfind('\n', 0, match.start()), text.rfind('. ', 0, match.start())) + 1
+        end = text.find('\n', match.end())
+        clause = text[start:end if end >= 0 else len(text)]
+        preceding = text[:start].strip().splitlines()
+        per_student_heading = bool(preceding and re.fullmatch(r'нэг\s+оюутанд|оюутан\s+тутамд?', preceding[-1].strip(), re.I))
+        if not per_student_heading and not re.search(r'нэг\s+оюут|оюутанд|ногд|ноогд|тутам', clause, re.I):
+            return True
+    return False
+
+
+def _library_software_year_present(text, requirement):
+    for clause in re.split(r'\n|(?<=[.!?])\s+', text):
+        if not (re.search(r'программ?\w*', clause, re.I)
+                and any(re.search(alias, clause, re.I) for alias in requirement['aliases'])
+                and re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', clause)):
+            continue
+        name = requirement.get('program_name')
+        if name and not re.search(r'(?<!\w)' + re.escape(name) + r'\s+(?:олон\s+улсын\s+)?программ?\w*', clause, re.I):
+            continue
+        if re.search(r'ашиглаагүй|нэвтрүүлээгүй|эхлээгүй|төлөвлө|\bбиш\b', clause, re.I):
+            continue
+        if (re.search(r'(?:19|20)\d{2}\s+оноос.{0,45}(?:ашигл|хэрэгл)', clause, re.I)
+                or re.search(r'нэвтрүүл\w*|(?:ашигл|хэрэгл)\w*.{0,20}эхэл', clause, re.I)):
+            return True
+    return False
+
+
+def _library_ratio_present(text):
+    for clause in re.split(r'\n|(?<=[.!?])\s+', text):
+        if (re.search(r'нэг\s+оюутанд|оюутан\s+тутамд?', clause, re.I)
+                and re.search(r'\d+(?:[.,]\d+)?(?:\s*[-–—]\s*\d+(?:[.,]\d+)?)?\s*ном', clause, re.I)
+                and re.search(r'ногд|ноогд', clause, re.I)):
+            return True
+    return False
+
+
+def _labelled_list_present(text, requirement):
+    """A requested label with its own immediately following captured list rows.
+
+    This detects a bounded structural omission, not the truth/exhaustiveness of
+    the organisations or the semantic meaning of arbitrary prose.
+    """
+    lines = [line.strip() for line in text.splitlines()]
+    for index, line in enumerate(lines):
+        if (len(line) > 160 or not any(re.search(alias, line, re.I) for alias in requirement['aliases'])
+                or any(re.search(alias, line, re.I) for alias in requirement.get('excluded_aliases', []))
+                or re.search(r'\bбиш\b|(?<!\w)(?:хий|явуул|явагд|хамрагд|бай)[а-яёөү]*гүй(?!\w)', line, re.I)):
+            continue
+        following = index + 1
+        while following < len(lines) and not lines[following]:
+            following += 1
+        if following < len(lines) and re.match(r'^(?:•\s+\S|\d{1,2}[.)]\s+\S)', lines[following]):
+            return True
+    return False
+
+
+def _course_delivery_form_present(text, requirement):
+    # The named source section and its own course clause must stay together.
+    # Another selected company's online paragraph cannot fill this field.
+    if any(not re.search(r'(?<![A-Za-z0-9])' + re.escape(anchor) + r'(?![A-Za-z0-9])', text, re.I)
+           for anchor in requirement['named_anchors']):
+        return False
+    mode = r'онлайнаар|цахимаар|танхимаар|биечлэн|хосолсон\s+хэлбэрээр|зайнаас'
+    for clause in re.split(r'\n|[;；]|(?<=[.!?])\s+', text):
+        courses = list(re.finditer(r'хичээл\w*', clause, re.I))
+        titles = re.findall(r'[“"«]([^”"»\n]+)[”"»]', clause)
+        needed = requirement.get('requested_count') or 1
+        if (not courses or len(set(title.strip().casefold() for title in titles)) < needed
+                or not re.search(r'хэрэгжүүл\w*|явагд\w*|явуул\w*|заа(?:сан|даг|ж|х)\w*', clause, re.I)
+                or re.search(r'\bбиш\b|байхгүй|тодорхойгүй|эсэх|магадгүй|'
+                             r'(?:хэрэгж|явуул|явагд|заа|бай)[а-яёөү]*гүй\b', clause, re.I)):
+            continue
+        for form in re.finditer(mode, clause, re.I):
+            preceding = [course for course in courses if course.end() <= form.start()]
+            if not preceding:
+                continue
+            between = clause[preceding[-1].end():form.start()]
+            if (len(between) <= 120 and not re.search(
+                    r'тэмцээн|өдөрлөг|уулзалт|ярилцлага|бүртгэл', between, re.I)):
+                return True
+    return False
+
+
+def missing_field_evidence(requirements, units_or_text):
+    """Return absent facet names, checking each selected unit independently.
+
+    Literal labels and local predicate/measurement markers only screen known
+    omissions. A successful match is not proof of truth, scope or completeness.
+    """
+    texts = [units_or_text] if isinstance(units_or_text, str) else list(units_or_text)
+    if not all(isinstance(text, str) for text in texts):
+        raise TypeError('Supply selected evidence text strings.')
+    missing = []
+    for requirement in requirements:
+        found = False
+        for text in texts:
+            if requirement['type'] == 'explicit_marker':
+                found = any(re.search(alias, text, re.I) for alias in requirement['aliases'])
+            elif requirement['type'] == 'direction_name_pair':
+                found = len({item['direction'] for item in direction_card_bindings(text)}) == 2
+            elif requirement['type'] == 'course_delivery_form':
+                found = _course_delivery_form_present(text, requirement)
+            elif requirement['type'] == 'labelled_list':
+                found = _labelled_list_present(text, requirement)
+            elif requirement['type'] == 'schedule':
+                found = _schedule_present(text, requirement)
+            elif requirement['type'] == 'library_stock':
+                found = _library_stock_present(text)
+            elif requirement['type'] == 'software_start_year':
+                found = _library_software_year_present(text, requirement)
+            elif requirement['type'] == 'library_ratio':
+                found = _library_ratio_present(text)
+            elif requirement['type'] == 'measurement':
+                found = _measurement_present(text, requirement)
+            else:
+                if requirement['type'] == 'definition':
+                    regions = _definition_regions(text, requirement, requirements)
+                else:
+                    # Do not let another sentence's objective or progress verb
+                    # support a mere keyword mention in this sentence.
+                    regions = [clause for clause in re.split(r'\n|(?<=[.!?])\s+', text)
+                               if any(re.search(alias, clause, re.I) for alias in requirement['aliases'])]
+                for region in regions:
+                    if (any(re.search(alias, region, re.I) for alias in requirement['predicate_aliases'])
+                            and not any(re.search(alias, region, re.I) for alias in requirement.get('excluded_aliases', []))
+                            and not re.search(r'\bбиш\b|(?:эзэмшүүл|оролц|хэрэгжүүл|сайжруул|чиглэ|үнэл|тэнц|олго|мэдэр|байгуул|ажилла)\w*гүй', region, re.I)):
+                        found = True
+                        break
+            if found:
+                break
+        if not found:
+            missing.append(requirement['name'])
+    return missing
+
+
 def field_extract(query, sources):
     """Select literal spans by the requested field and source section labels.
 
@@ -272,6 +1147,11 @@ def field_extract(query, sources):
             if match and len(match.group()) <= 1500:
                 return source, match.group()
         if visual:
+            if enrollment_consequence_query(query):
+                if enrollment_consequence_supported(query, text):
+                    return source, text
+                # A generic confirmation/payment clause is a different field.
+                continue
             if ('гадаад' in q and re.search(r'ебс|ерөнхий боловсрол|суурь боловсрол', q)
                     and re.search(r'баримт|тодорхойлолт', q) and not re.search(r'их сургууль|дадлага', q)
                     and text.startswith('Гадаад оронд ерөнхий боловсрол')):
@@ -300,6 +1180,7 @@ def field_extract(query, sources):
             elif ('элс' in q and re.search(r'нэгдсэн дүн|дүнг.*зарла|дүнгээ', q)):
                 match = re.search(r'Шалгалтын нэгдсэн дүнг[^\n]+', text)
             elif ('элс' in q and re.search(r'баталгааж|гэрээ', q) and not registration_amount_query(query)
+                    and not enrollment_consequence_query(query)
                     and text.startswith('Элсэгч сургуулиас товлосон')):
                 return source, text
             elif 'олимпиад' in q:

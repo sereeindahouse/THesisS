@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-15",
+  "updated_date": "2026-10-21",
   "target_date": "2026-11-10",
-  "scope_label": "11.10-ны ажиллах хувилбарын 8 инженерийн шалгуур. Ижил жинтэй тоолол; дипломын нийт хувь, ажлын цаг, чанарын оноо биш.",
-  "current_week": "Хуваариар2-р долоо хоног; Week3 техникийн6/6 дууссан. Week4-ийн эх/facts/FAQ бэлэн; шинэ асуултын хариултын чанарын засвар үргэлжилж байна.",
-  "status_basis": "2026.10.15-ны 494 тест, frozen-code шинэ16 AI оношлогоо, 4 синтетик дууны урсгал; runtime бэлэн байдал тусдаа.",
+  "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
+  "current_week": "10.21: Үлдсэн хоёр RAG omission-ийг зассан код чатад ажиллаж байна;897тест тэнцсэн. STTfusion WER бууруулаагүй тул нэвтрүүлээгүй.",
+  "status_basis": "897tests PASS; same8 observed-development AI completeness8/8 Gemma and best3; no post-fix human accuracy or raw STT gain.",
   "milestones": [
     {
       "id": "schema",
@@ -42,7 +42,7 @@
       "id": "grounded-rag",
       "label": "Эхтэй Gemma хариулт ба fallback",
       "state": "done",
-      "detail": "Gemma эхийн хэсгийн ID сонгож сервер үгчлэн харуулна. Шинэ16 AI шалгалт5/6/5; холбоос/үгчлэн тааралт нь бүрэн зөв хариултыг батлахгүй.",
+      "detail": "Gemma эхийнIDсонгож,серверүгчлэнхаруулна. Ижил8development AIбүрэн8/8;best3мөн8/8. Давталт/хамааралгүйхэсэгүлдсэн;хүнийшинэgoldбиш.",
       "evidence": [
         "rag_runtime.py",
         "tools/evaluate_answer_quality.py"
@@ -52,7 +52,7 @@
       "id": "voice-stability",
       "label": "Дууны урсгалын тогтвортой ажиллагаа",
       "state": "in_progress",
-      "detail": "STT→хариулт→TTS холбогдсон; шинэ2асуулт×2хоолой4/4decode, мөнгөн дүнгийн speech normalization. Хүний дуудлагын чанар, бодит төхөөрөмжийн тогтвортой байдал үлдсэн.",
+      "detail": "Нэг хөгжүүлэгч12дуу/1task үнэлсэн; criticalslot12/14→11/14, raw/баталсан текст ижил. Шинэ ЕБС уншлагын хүний дахин оноо null. RawWER36.02% хэвээр; өргөн судалгаа үлдсэн.",
       "evidence": [
         "voice_runtime.py",
         "requirements.txt"
@@ -62,29 +62,33 @@
       "id": "inspection-ui",
       "label": "Чат, эхийн сан ба явцыг харах",
       "state": "done",
-      "detail": "Чатны урсгал, эхийн атлас, сэдэв/төрлөөр шүүх, бүтэн хадгалсан текст, баримтын preview, явцын дэлгэц.",
+      "detail": "Чат, эхийн атлас/явц, локал admin; албан эхийн хоёр багшийн зураг/үүрэг/огноо. STT raw/зассан оролт тусдаа.",
       "evidence": [
         "demo/index.html",
         "demo/data.html",
-        "data_explorer.py"
+        "data_explorer.py",
+        "teacher_media.py",
+        "tools/human_quality_trial.py"
       ]
     },
     {
       "id": "delivery-repro",
       "label": "API, шинэчлэлт, сэргээх ба дахин гаргах",
       "state": "in_progress",
-      "detail": "Хоёр SQLite backup, хувилбартай импорт, idempotence/FK шалгалт; шинэ clone v2 facts/FAQ багцыг ашиглана. Бүтэн private corpus болон deployment/restore/device шалгалт үлдсэн.",
+      "detail": "Staging/diff/validate/publish/rollback+локал admin, explicit installed-code upgrade хэрэгжсэн. Хуучин seal/data хэвээр; шинэкодод дахин validate/publish. Байнгынhost/clean-machine install үлдсэн.",
       "evidence": [
-        "demo_server.py",
-        "tools/install_release_models.py",
-        "CORE/WEBSITE-DATA.mn.md"
+        "content_release.py",
+        "release_runtime.py",
+        "demo/admin.html",
+        "CORE/ADMIN-GUIDE.mn.md",
+        "tools/check_delivery_readiness.py"
       ]
     },
     {
       "id": "device",
       "label": "HTTPS, таблет, бодит орчин",
-      "state": "todo",
-      "detail": "Зориулсан төхөөрөмж, HTTPS микрофон, бодит хэрэглэгчийн хугацаа/даалгаврын шалгалт хийгдээгүй.",
+      "state": "in_progress",
+      "detail": "СтандартHTTPS+27HTTPшалгалтPASS. Хэрэглэгч нэг утсан дээр чат/микрофон/дуу ажилласныг баталсан. Суурь functional pilot дууссан; өргөн бодит орчны даалгавар/хугацааны судалгаа үлдсэн.",
       "evidence": [
         "CORE/ROADMAP-PROGRESS.mn.md"
       ]
@@ -160,7 +164,7 @@
       "id": "rq",
       "label": "Судалгааны асуулт ба арга",
       "state": "in_progress",
-      "detail": "RQ, тусдаа correctness/support/completeness/тодруулгын rubric, frozen reference + код/эхийн hash, typed/raw/STT synthetic харьцуулалт бэлтгэсэн. Эцсийн хүний protocol үлдсэн.",
+      "detail": "RQ/rubric/frozen source ба64observed development case; typed/raw/explicit-edited counterbalance хоосон protocol/forms бэлэн. N/power болон бодит human outcomes батлагдаагүй.",
       "evidence": [
         "data/answer-week04-dev-20261014.json",
         "tools/evaluate_answer_quality.py",
@@ -178,7 +182,7 @@
       "id": "unseen",
       "label": "Шинэ асуултын хараат бус үнэлгээ",
       "state": "in_progress",
-      "detail": "Анхны24 одоо development20/3/1 (анх8/6/10). Код/reference царцаасан шинэ16 анхны AI probe5/6/5; бүх raw хадгалсан. Хүний final gold/accuracy биш.",
+      "detail": "Source-onlyAIшинэ24first17/7, дараахobserveddevelopment24corepass9presentationpartial; originalfirstrawunchanged. Хүнийgold/ерөнхийaccuracy биш.",
       "evidence": [
         "data/answer-untuned-20261015.json",
         "docs/experiments/rag-integration-20261012.json"
@@ -197,31 +201,32 @@
     {
       "id": "usability",
       "label": "Бодит хэрэглэгчийн туршилт",
-      "state": "todo",
-      "detail": "Ойлгомжтой хэрэглээ, зорилтот төхөөрөмж дээрх даалгаврын амжилт.",
+      "state": "in_progress",
+      "detail": "Нэгхүн6TTSclip-ийгүнэлжхадгалсан; бүрэндаалгаврын/өргөнхэрэглэгчийнсудалгааүлдсэн.",
       "evidence": []
     },
     {
       "id": "thesis",
       "label": "Дипломын үр дүн, хэлэлцүүлэг, бичвэр",
-      "state": "todo",
-      "detail": "Бүтэн дүгнэлт/хязгаарлалтыг нотолгоотой бичих ажил.",
+      "state": "in_progress",
+      "detail": "10бүлэгтэй private Markdown эхнийноорог бэлэн; template/identity/finalhumanresults ба удирдагчийн хяналт үлдсэн.",
       "evidence": []
     }
   ],
   "limitations": [
-    "Шинэ16 AI оношлогоо5зөв/6дутуу/5алдаа: эх сонголт, бүрэн хариулах, хоёрдмол асуулт тодруулах ажил үлдсэн; бүх31claim үгчлэн байсан нь correctness биш.",
+    "10.15-ны шинэ16-ийн анхны AI оношлогоо5зөв/6дутуу/5алдаа байсан; энэ багц одоо засварт ашигласан development. Үгчлэн эх хуулсан нь зөв хариултын баталгаа биш; хүний бие даасан хариултын үнэлгээ үлдсэн.",
     "5/8 нь тогтоосон инженерийн checklist-ийн тоолол; нийт дипломын 62.5% гэсэн утгагүй.",
     "Моделиудын бэлэн жинг ашигласан; өөрийн ASR/LLM сургалт хийгээгүй.",
     "Автомат тест болон Support@k нь хариултын correctness хувь биш.",
     "Анхны roadmap болон өмнөх өдрийн түүхэн evidence өөрчлөгдөөгүй."
   ],
-  "evaluation_label": "AI оношлогоо: development24=20 зөв/3 дутуу/1 алдаа; шинэ16=5/6/5. Хүний accuracy биш; шинэ асуултын чанар хангалттай батлагдаагүй.",
+  "evaluation_label": "Ижил8development асуултын AI бүрэн байдал Gemma8/8,best1 4/8,best3 8/8. Давталт/хамааралгүй агуулга үлдсэн; хүний шинэ accuracy биш.",
   "week04": {
     "state": "in_progress",
-    "development_cases": 40,
+    "development_cases": 88,
+    "development_cases_basis": "Энэ үеийн сонгосон4багц:24+16+24+24. Бүгд одоо ажигласан development; төслийн бүх unique асуултын тоо, heldout үнэлгээ биш.",
     "synthetic_clips": 12,
-    "scope": "Хязгаарласан эх/facts/FAQ,40 development query, RQ/protocol,24untuned AI probe бэлэн. Хүний үнэлгээ ба илэрсэн утгын алдааг засах ажил үлдсэн.",
+    "scope": "Хуучин24+16,10.16-ны24 болон10.17-ны source-only шинэ24 бүгд одоо observed development. 10.17-ны анхныAI17/7; засварын дараа24corepass,9presentation/relevance partial. Өмнөх24:50/50fact,4presentation partial. Стандарт publicHTTPS27шалгалт,1хүний6TTSүнэлгээ,утасны чат/микрофон/дууны functional pilot батлагдсан. Хүний бие даасан хариултын үнэлгээ,өргөн төхөөрөмж/хугацааны судалгаа үлдсэн.",
     "source_extension_done": true,
     "curation_done": true,
     "untuned_ai_probe_done": true,
@@ -501,6 +506,1029 @@
         "Human answer/voice usability evaluation",
         "Real typed/raw/edited-STT and HTTPS/device acceptance"
       ]
+    },
+    "development_followup": {
+      "scope": "Observed development after all24and16 exposed; implementation-participating AI review, not human/general/heldout accuracy.",
+      "local_only": true,
+      "git_checkpoint_unchanged": "479cbc2c944a616c9b2d288750bd6f7d8ec7c2ae",
+      "steps": {
+        "1_bugfix": "done",
+        "2_server_correspondence": "done",
+        "3_development_remeasurement": "done",
+        "4_voice_browser": "audio_done_browser_blocked",
+        "5_evidence_docs": "done"
+      },
+      "tests": {
+        "run": 568,
+        "passed": 568,
+        "seconds": 52.893,
+        "raw": "runtime/continuation-five-20261015/tests-v6-final.txt"
+      },
+      "code_freeze_files": 14,
+      "loaded_hashes_match_disk_and_freeze": 10,
+      "live_http_checks": 23,
+      "development24": {
+        "overall": {
+          "pass": 21,
+          "partial": 3,
+          "fail": 0
+        },
+        "required_facts": {
+          "pass": 29
+        },
+        "routes": {
+          "C": 13,
+          "A": 1,
+          "D": 4,
+          "E": 6
+        },
+        "llm_calls": 14
+      },
+      "development16": {
+        "overall": {
+          "pass": 16,
+          "partial": 0,
+          "fail": 0
+        },
+        "required_facts": {
+          "pass": 40,
+          "partial": 2,
+          "fail": 2
+        },
+        "routes": {
+          "C": 11,
+          "D": 2,
+          "E": 3
+        },
+        "llm_calls": 14,
+        "remaining_ancillary_ids": [
+          "semantic-unseen04-13",
+          "semantic-unseen04-15",
+          "semantic-unseen04-16"
+        ],
+        "first_run_fact_regressions_preserved": true
+      },
+      "synthetic_voice": {
+        "clips": 4,
+        "decoded": 4,
+        "same_wav_hashes": true,
+        "typed_frozen_smoke_pass": 4,
+        "raw_frozen_smoke_pass": 2,
+        "raw_routes": {
+          "D": 4
+        },
+        "simulated_explicit_corrected_query_pass": 2,
+        "wer": 0.058823529411764705,
+        "cer": 0.041666666666666664,
+        "human_voice": false,
+        "human_listening": false,
+        "asr_improvement_claimed": false
+      },
+      "provenance": {
+        "generated_claims_exact": 45,
+        "generated_quotes_exact": 45,
+        "deterministic_extracts_exact": 1,
+        "evidence_offsets": 372,
+        "retrieved_sources": 184,
+        "original_frozen_inputs_unchanged": 9,
+        "db_fk_errors": 0
+      },
+      "browser": {
+        "new_execution": false,
+        "block": "Computer Use could not establish current browser URL with sufficient confidence; app input stopped.",
+        "static_http_is_browser_qa": false
+      },
+      "video": {
+        "saved_auto_transcript_read": true,
+        "prior_selected_frames_reviewed": true,
+        "continuous_full_watch": false,
+        "automatic_selftest_attributed_to_video": false
+      },
+      "human_reviewed_cases": 0,
+      "own_training": false,
+      "new_model_downloads": false,
+      "evidence_folder": "runtime/continuation-five-20261015/",
+      "remaining": [
+        "Browser visual/mobile/playback acceptance",
+        "New independent human-labelled answer evaluation",
+        "Real typed/raw/explicit-edited speech and user tasks",
+        "Private-corpus reproduction/restore/deployment/HTTPS/device",
+        "Thesis writing"
+      ]
     }
+  },
+  "stt_development_followup": {
+    "date": "2026-10-16",
+    "teacher_scope": "Тохиргоо, системийн сайжруулалт ба харьцуулалт",
+    "fine_tuning_required_for_confirmed_scope": false,
+    "own_training": false,
+    "new_model_downloads": false,
+    "model": "Cafet/whisper-small-mongolian",
+    "eligible_human_references": 13,
+    "word_denominator": 186,
+    "character_denominator": 1089,
+    "baseline": {
+      "word_errors": 67,
+      "character_errors": 184,
+      "wer": 0.3602150537634409,
+      "cer": 0.1689623507805326
+    },
+    "tested_arms": {
+      "school_hotwords": {
+        "word_errors": 88,
+        "character_errors": 251,
+        "promoted": false,
+        "reason": "worse"
+      },
+      "beam10": {
+        "word_errors": 67,
+        "character_errors": 184,
+        "promoted": false,
+        "reason": "identical outputs; no benefit"
+      }
+    },
+    "live_presence_gate": {
+      "enabled": true,
+      "existing_packaged_model": "Silero via faster-whisper1.2.1",
+      "audio_cropping": false,
+      "speech_accepted": 17,
+      "speech_tested": 17,
+      "nonspeech_rejected": 2,
+      "nonspeech_tested": 2,
+      "nonzero_noise_before_http": 200,
+      "nonzero_noise_after_http": 400,
+      "whisper_loaded_after_nonspeech": false,
+      "human_wer_improvement_claimed": false
+    },
+    "extra_short_quiet_synthetic": {
+      "accepted": 8,
+      "tested": 8,
+      "clip_seconds": 1.872,
+      "subsecond_input_tested": false,
+      "raw_exact_words": 4,
+      "raw_wrong_words": 4,
+      "human_study": false
+    },
+    "loaded_voice_hashes": 2,
+    "rag_hashes": 8,
+    "local_tests": {
+      "run": 590,
+      "passed": 590,
+      "seconds": 51.542
+    },
+    "reference_status": "13confirmed/6pending/q05excluded; no references changed",
+    "scope": "Observed one-speaker development, not heldout/human-general accuracy. Raw text preserved; guard does not fix speech recognition.",
+    "evidence_folder": "runtime/stt-improvement-20261016/"
+  },
+  "core_quality_20261017": {
+    "own_training": false,
+    "rag": {
+      "cases": {
+        "pass": 24,
+        "partial": 0,
+        "fail": 0
+      },
+      "required_facts": {
+        "pass": 50,
+        "partial": 0,
+        "fail": 0
+      },
+      "presentation_relevance_partial": 4,
+      "verbatim_claims": 31,
+      "snapshot_citations": 19,
+      "route_counts": {
+        "C": 18,
+        "D": 3,
+        "E": 3
+      },
+      "llm_calls": 20
+    },
+    "stt": {
+      "baseline_wer": 0.3602150537634409,
+      "baseline_cer": 0.1689623507805326,
+      "candidate_wer": 0.510752688172043,
+      "candidate_cer": 0.2516069788797062,
+      "promoted": false
+    },
+    "tts": {
+      "provider_requests": 6,
+      "cache_hits": 6,
+      "decoded_clips": 12,
+      "provider_seconds_range": [
+        0.9216870999953244,
+        8.946283700002823
+      ],
+      "cache_seconds_range": [
+        0.055443899997044355,
+        0.11091389999637613
+      ],
+      "human_listening": false
+    },
+    "independent_human_accuracy": null
+  },
+  "core_finalization_20261017": {
+    "local_tests_passed": 705,
+    "local_tests_seconds": 91.453,
+    "first_independent_source_ai": {
+      "pass": 17,
+      "fail": 7
+    },
+    "observed_development_core": {
+      "pass": 24
+    },
+    "observed_development_presentation_partial": 9,
+    "previous_development_core": {
+      "pass": 24
+    },
+    "previous_required_facts": {
+      "pass": 50
+    },
+    "raw_stt_wer": 0.3602150537634409,
+    "raw_stt_improved": false,
+    "new_stt_candidates_promoted": 0,
+    "human_tts": {
+      "users": 1,
+      "clips": 6,
+      "intelligibility_mean": 4,
+      "pronunciation_mean": 4,
+      "naturalness_mean": 4.5,
+      "population_MOS": false,
+      "refined_pronunciation_human_retested": false
+    },
+    "public_https": {
+      "provider": "Cloudflare Quick Tunnel",
+      "actual_http_checks": 27,
+      "standard_tls_verified": true,
+      "temporary": true,
+      "private_authentication": true,
+      "certificate_installation_required": false,
+      "firewall_changed": false,
+      "permanent_hosting": false,
+      "actual_android_self_report": {
+        "source": "user_message_self_report",
+        "chat_worked": true,
+        "microphone_worked": true,
+        "audio_playback_worked": true,
+        "observer_verified": false,
+        "latency_measured": false,
+        "asr_accuracy_measured": false
+      }
+    },
+    "llm_role": "evidence_selection",
+    "human_answer_gold": false,
+    "own_training": false,
+    "new_model_downloads": false
+  },
+  "raw_asr_audit_20261018": {
+    "date": "2026-10-18",
+    "status": "raw_asr_unresolved",
+    "human_speakers": 1,
+    "human_recordings": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "baseline": {
+      "word_errors": 67,
+      "character_errors": 184,
+      "wer": 0.3602150537634409,
+      "cer": 0.1689623507805326
+    },
+    "candidate_count": 11,
+    "worse_count": 9,
+    "identical_metrics_count": 2,
+    "promoted_count": 0,
+    "candidates": {
+      "boundary_trim": {
+        "word_errors": 81,
+        "character_errors": 208,
+        "promoted": false
+      },
+      "source_fp32_int8": {
+        "word_errors": 80,
+        "character_errors": 195,
+        "promoted": false
+      },
+      "source_fp32_float32": {
+        "word_errors": 74,
+        "character_errors": 209,
+        "promoted": false
+      },
+      "saved_native_prefix": {
+        "word_errors": 168,
+        "character_errors": 899,
+        "promoted": false
+      },
+      "source_suppression": {
+        "word_errors": 67,
+        "character_errors": 184,
+        "promoted": false
+      },
+      "timestamps": {
+        "word_errors": 87,
+        "character_errors": 226,
+        "promoted": false
+      },
+      "waveform_padding": {
+        "word_errors": 76,
+        "character_errors": 204,
+        "promoted": false
+      },
+      "rover_consensus": {
+        "word_errors": 69,
+        "character_errors": 200,
+        "promoted": false
+      },
+      "length_1_2": {
+        "word_errors": 70,
+        "character_errors": 189,
+        "promoted": false
+      },
+      "beam_3": {
+        "word_errors": 67,
+        "character_errors": 184,
+        "promoted": false
+      },
+      "native_hf": {
+        "word_errors": 72,
+        "character_errors": 200,
+        "promoted": false
+      }
+    },
+    "rover_scope": "offline consensus of existing four models,13human only,no new inference/no complete19controls",
+    "paired_baseline_all19_texts_identical": true,
+    "independent_full_matrix_score_verified": true,
+    "own_training": false,
+    "new_model_downloads": 0,
+    "human_general_accuracy": false,
+    "local_tests": {
+      "run": 705,
+      "passed": 705,
+      "seconds": 87.842
+    },
+    "local_live": {
+      "actual_q01_stt": true,
+      "raw_route": "C",
+      "llm_calls": 1,
+      "bound_audio_decoded": true,
+      "audio_seconds": 74.688,
+      "noise_rejected_http": 400,
+      "stale_response_rejected_http": 409
+    },
+    "evidence_folder": "runtime/stt-final-push-20261017/"
+  },
+  "raw_asr_buzz_20261019": {
+    "date": "2026-10-19",
+    "scope": "Observed one-speaker13 development comparison; synthetic/nonspeech separate; not heldout/general accuracy.",
+    "model_repo": "BuzzASR/mongolian",
+    "model_revision": "185f1bf1f562ad4b1bdbfc71811fb165a9235416",
+    "bundle": "New pretrained source + native Mongolian tokenizer + repaired metadata + INT8 CT2; not a one-factor decoder ablation.",
+    "source_weight_bytes": 3080001376,
+    "source_weight_sha256": "f462f2725023a4948788ec707d39758d34ac341714c3133b2d46b0f4aeffd4a7",
+    "converted_weight_bytes": 1547750237,
+    "converted_weight_sha256": "ed7f0d86a66d692b52a47440000ac1784cb4682e0c1177bd5fc371ea55aa9407",
+    "stage_A_plan_sha256": "de8eeed2adb68f3dee8c97ef1729086cb13edd36df6d1e9da9308261043b0047",
+    "stage_B_binding_sha256": "4b90c9841040124d929700377be4532af1084c59cfbbe73d301d0312d9c5f37a",
+    "inputs": 19,
+    "human_utterances": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "baseline_human": {
+      "word_errors": 67,
+      "character_errors": 184,
+      "wer": 0.3602150537634409,
+      "cer": 0.1689623507805326
+    },
+    "candidate_human": {
+      "word_errors": 86,
+      "character_errors": 309,
+      "wer": 0.46236559139784944,
+      "cer": 0.2837465564738292
+    },
+    "synthetic": {
+      "utterances": 4,
+      "words": 34,
+      "characters": 192,
+      "baseline_word_errors": 2,
+      "baseline_character_errors": 8,
+      "candidate_word_errors": 12,
+      "candidate_character_errors": 19
+    },
+    "nonspeech": {
+      "utterances": 2,
+      "baseline_nonempty": 2,
+      "candidate_nonempty": 2,
+      "additional_nonempty_count": 0,
+      "hallucinations_resolved": false
+    },
+    "runtime_failures": 0,
+    "unsafe_output_rejections": 0,
+    "critical_regression_rows": 3,
+    "critical_regression_types": [
+      "previously correct year",
+      "company name",
+      "literal spoken amount"
+    ],
+    "same_source_waveforms_verified": 19,
+    "independent_matrix_scores_match": true,
+    "median_human_call_seconds": 12.525143700000172,
+    "latency_scope": "Single CPU run excluding initialization, not a repeated benchmark.",
+    "native_hf_two_clip_diagnostic_summary": "Эх FP16 жин ба INT8 хувилбарыг хоёр бичлэгээр тулгахад бүх text token ID, waveform болон анхны feature яг таарсан; эх загварт мөн буруу он гарсан. Энэ хоёр алдааны дан шалтгааныг INT8 гэж үзэх үндэсгүй. Native шалгалт санах ойн paging-д өртсөн тул хугацааг нь хэрэглээний хурд гэж тооцоогүй.",
+    "promotion_gates_passed": false,
+    "production_model_changed": false,
+    "raw_asr_improved": false,
+    "production_baseline_wer": 0.3602150537634409,
+    "production_baseline_cer": 0.1689623507805326,
+    "new_model_weight_downloads_authorized_and_completed": 1,
+    "offline_int8_conversions": 1,
+    "own_training": false,
+    "private_audio_upload": false,
+    "first_outputs_preserved": true,
+    "original_references_and_normalization_unchanged": true
+  },
+  "raw_asr_followups_20261019": {
+    "date": "2026-10-19",
+    "scope": "Already-observed one-speaker13 development, not heldout.",
+    "pause_partition": {
+      "inputs": 19,
+      "reference_words": 186,
+      "reference_characters": 1089,
+      "word_errors": 67,
+      "character_errors": 184,
+      "split_recordings": 1,
+      "all_original_samples_preserved": true,
+      "synthetic_word_errors": 2,
+      "synthetic_character_errors": 8,
+      "promoted": false
+    },
+    "native_nbest": {
+      "inputs": 19,
+      "native_hypotheses": 95,
+      "official_source_names": 12,
+      "speech_top1_parity": 17,
+      "selected_non_top1": 0,
+      "word_errors": 67,
+      "character_errors": 184,
+      "synthetic_word_errors": 2,
+      "synthetic_character_errors": 8,
+      "no_extra_source_name_hits_in_alternatives": true,
+      "whole_native_hypothesis_only": true,
+      "promoted": false
+    },
+    "reference_oracle_NOT_deployed": {
+      "minimum_word_errors": 58,
+      "word_denominator": 186,
+      "minimum_character_errors": 166,
+      "character_denominator": 1089,
+      "may_choose_different_ranks": true,
+      "reference_driven_post_output_analysis_only": true,
+      "not_actual_system_quality": true
+    },
+    "verification": {
+      "local_tests": 705,
+      "local_test_seconds": 81.228,
+      "actual_stt_rag_c_bound_tts_decode": true,
+      "gemma_calls": 1,
+      "answer_audio_seconds": 74.68800000000194,
+      "noise_rejected": true,
+      "stale_response_rejected": true,
+      "loaded_code_hashes": 12,
+      "new_human_review": false
+    },
+    "raw_asr_quality_goal_met": false,
+    "production_model_changed": false,
+    "own_training": false,
+    "private_audio_upload": false
+  },
+  "raw_asr_continuation_20261019": {
+    "date": "2026-10-19",
+    "status": "local_comparisons_complete_raw_quality_unresolved",
+    "observed_single_speaker_development_utterances": 13,
+    "reference_words": 186,
+    "reference_characters": 1089,
+    "retained_raw_word_errors": 67,
+    "retained_raw_character_errors": 184,
+    "raw_asr_improved": false,
+    "removed_logical_file_bytes": 13400245037,
+    "disk_free_space_gain_separately_measured": false,
+    "buzz_large_artifacts_removed_at_user_request": true,
+    "small_negative_evidence_preserved": true,
+    "active_cafet_e5_gemma_sha_verified": true,
+    "immutable_roadmap_and_databases_unchanged": true,
+    "fixed_tempo09_word_character_errors": [
+      77,
+      222
+    ],
+    "fixed_tempo11_word_character_errors": [
+      79,
+      218
+    ],
+    "local_gemma_rank_attempts": 19,
+    "local_gemma_rank_changed": 0,
+    "local_gemma_rank_fallbacks": 0,
+    "native_hf_same_backend_baseline_word_character_errors": [
+      72,
+      200
+    ],
+    "entity_capped_trie_word_character_errors": [
+      73,
+      202
+    ],
+    "entity_capped_trie_accepted_word_character_errors": [
+      73,
+      202
+    ],
+    "entity_capped_trie_synthetic_word_character_errors": [
+      3,
+      9
+    ],
+    "entity_capped_trie_cap_control_ids": [
+      "silence-3s"
+    ],
+    "entity_capped_trie_critical_regression_row_count": 2,
+    "private_recording_ids_or_critical_values_published": false,
+    "all_candidate_promotion_gates_passed": false,
+    "production_algorithm_changed": false,
+    "unused_uniform_token_trie_candidate_calls": 0,
+    "new_training": 0,
+    "new_model_downloads": 0,
+    "private_audio_uploaded": false,
+    "public_tunnel_opened": false,
+    "local_test_count": 705,
+    "local_test_seconds": 89.627,
+    "pip_check_pass": true,
+    "loaded_code_hash_matches": 12,
+    "new_human_answer_or_listening_review": false,
+    "scope": "Development comparisons only. Test success is not ASR accuracy or thesis completion.",
+    "post_cleanup_live_full_voice_chain": true,
+    "post_cleanup_live_noise_rejected": true,
+    "post_cleanup_live_stale_response_rejected": true
+  },
+  "foundation_delivery_20261020": {
+    "date": "2026-10-20",
+    "deadline": "2026-11-10",
+    "deadline_scope": "Working full demo plus teacher-reviewable thesis draft",
+    "literature_original_papers": 26,
+    "literature_additional_unique_to_original": 30,
+    "literature_main_body_reviews_complete": 56,
+    "all_appendices_figures_or_experiments_verified": false,
+    "student_reading_confirmations_added": 0,
+    "wal_stale_search_bug_reproduced_and_fixed": true,
+    "new_wal_regression_tests": 4,
+    "module_tests_passed": 22,
+    "independent_module_review_passed": true,
+    "local_tests_passed": 709,
+    "local_test_seconds": 87.437,
+    "loaded_code_hash_matches": 12,
+    "functional_http_cases": 3,
+    "functional_http_routes": [
+      "C",
+      "D",
+      "D"
+    ],
+    "actual_live_llm_calls": 1,
+    "data_backup_files": 341,
+    "data_backup_bytes": 104464827,
+    "data_only_restore_verified": true,
+    "original_databases_modified": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "new_model_downloads": 0,
+    "new_training": 0,
+    "new_stt_inferences": 0,
+    "new_tts_requests": 0,
+    "new_human_quality_ratings": 0,
+    "public_tunnel_opened": false,
+    "admin_panel_implemented_in_this_phase": false,
+    "explicit_publish_rollback_implemented_in_this_phase": false,
+    "scope": "Completed reading, architecture decision, WAL fix and local verification. Not thesis completion or human answer accuracy.",
+    "private_recording_ids_or_critical_values_published": false
+  },
+  "delivery_implementation_20261021": {
+    "date": "2026-10-21",
+    "admin_panel_implemented": true,
+    "explicit_publish_rollback_implemented": true,
+    "local_tests_passed": 787,
+    "local_test_seconds": 149.976,
+    "independent_backend_tests_passed": 100,
+    "actual_release_http_requests": 23,
+    "original_databases_modified": false,
+    "loaded_code_hashes_matched": 15,
+    "new_alias_published_and_rollback_verified": true,
+    "stt_input_lineage_implemented": true,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "actual_speech_stt_inputs": 1,
+    "raw_and_edited_rag_tts_verified": true,
+    "live_answer_audio_decodes": 2,
+    "live_tts_provider_requests": 2,
+    "constructed_paired_audio_decodes": 12,
+    "new_human_quality_ratings": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "public_tunnel_opened": false,
+    "local_delivery_preflight_passed": true,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "browser_limitation": "CUA reports Browser is not available: iab",
+    "rag_new_wording_first_ai_review": {
+      "fail": 2,
+      "pass": 6
+    },
+    "rag_same8_development_ai_review": {
+      "pass": 8
+    },
+    "rag_development_not_human_accuracy": true,
+    "semantic_targeted_tests_passed": 165,
+    "launcher_active_bundle_cold_start_fixed": true,
+    "public_private_admin_route_boundary_checked": true,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "Local implementation and functional verification; not raw ASR gain, human quality or thesis completion."
+  },
+  "latest_update": {
+    "date": "2026-10-21",
+    "title": "Үлдсэн хоёр RAG omission засагдсан;897тест тэнцсэн",
+    "items": [
+      "Diagram-ийн чиглэл–нэр, компанийн хичээл–хэлбэрийн холбоог хадгалсан. Ижил8development асуултын GemmaAI бүрэн8/8;best3мөн8/8.",
+      "Бодит10HTTP,16loadedSHA,59.640секундын TTSdecode тэнцсэн. ARC-ийн онгүй асуултад тодруулга хэвээр.",
+      "STTfusion67→67word,184→183characteredit;WERбуураагүй тул нэвтрүүлээгүй. RawWER36.02%хэвээр.",
+      "Хүний өмнөх49event өөрчлөгдөөгүй. Шинэ хүний accuracy,байнгынhosting,cleaninstall гэж тооцоогүй."
+    ]
+  },
+  "quality_media_20261021": {
+    "date": "2026-10-21",
+    "local_tests_passed": 841,
+    "local_test_seconds": 160.893,
+    "test_source_changed_during_run": false,
+    "independent_teacher_backend_tests_passed": 84,
+    "independent_human_trial_tests_passed": 21,
+    "actual_teacher_http_requests": 12,
+    "loaded_code_hashes_matched": 16,
+    "official_teacher_profile_count": 2,
+    "teacher_source_url": "https://nmct.edu.mn/departments/computer-science",
+    "teacher_source_capture_utc": "2026-10-21T04:06:02.530328+00:00",
+    "teacher_source_bundle_separate_from_rag_database": true,
+    "teacher_source_automatically_refreshed": false,
+    "teacher_profile_fields_quote_kind": "structured_teacher_fields",
+    "teacher_image_sha_and_source_binding_verified": true,
+    "teacher_wrong_response_tts_rejected": true,
+    "actual_teacher_answer_tts_provider_requests": 1,
+    "actual_teacher_answer_tts_decode_seconds": 3.792,
+    "image_generation_used": false,
+    "face_recognition_used": false,
+    "teacher_ui_renderer_checks_passed": 12,
+    "llm_comparison": {
+      "cases": 8,
+      "same_frozen_retrieval_and_common_renderer": true,
+      "human_quality_measured": false,
+      "actual_gemma_calls": 8,
+      "gemma": {
+        "ai_complete": 4,
+        "ai_partial": 3,
+        "ai_no_answer": 1,
+        "irrelevant_cases": 4,
+        "selection_render_median_ms": 1725.25
+      },
+      "lexical_best1": {
+        "ai_complete": 3,
+        "ai_partial": 3,
+        "ai_no_answer": 2,
+        "irrelevant_cases": 1,
+        "selection_render_median_ms": 6.9
+      },
+      "lexical_best3": {
+        "ai_complete": 5,
+        "ai_partial": 3,
+        "ai_no_answer": 0,
+        "irrelevant_cases": 7,
+        "selection_render_median_ms": 5.97
+      },
+      "gemma_quality_gain_established": false,
+      "scope": "Small selection-pipeline development comparison, not full-chat causal model ablation or human accuracy. All cases now observed; no tuning after outputs."
+    },
+    "human_trial": {
+      "answer_items": 24,
+      "constructed_listening_samples": 12,
+      "typed_raw_explicit_edited_tasks_ready": true,
+      "production_human_events_observed": 0,
+      "actual_user_study_completed": false,
+      "blind_condition_labels": true,
+      "fully_blind_guaranteed": false,
+      "developer_participation_self_report_is_not_independence_proof": true
+    },
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "new_stt_inferences_in_this_phase": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "original_databases_modified": false,
+    "original_roadmap_modified": false,
+    "public_tunnel_opened": false,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "Teacher source/image capability, measured selector comparison, runnable human trial. Not thesis completion or human/ASR quality improvement."
+  },
+  "human_feedback_20261021": {
+    "date": "2026-10-21",
+    "participant_sessions": 1,
+    "developer_self_report": true,
+    "independent_reviewer_established": false,
+    "raw_event_count": 49,
+    "answer_review_items": 24,
+    "unique_answer_questions": 8,
+    "constructed_listening_clips": 12,
+    "typed_raw_confirmed_tasks": 1,
+    "human_task_observations": 3,
+    "raw_human_records_modified": false,
+    "human_correctness_counts": {
+      "gemma_production_selector": {
+        "correct": 1,
+        "partial": 5,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 4,
+        "partial": 2,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 5,
+        "partial": 1,
+        "wrong": 2,
+        "not_applicable": 0
+      }
+    },
+    "human_completeness_counts": {
+      "gemma_production_selector": {
+        "correct": 1,
+        "partial": 5,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      }
+    },
+    "human_citation_support_counts": {
+      "gemma_production_selector": {
+        "correct": 2,
+        "partial": 4,
+        "wrong": 2,
+        "not_applicable": 0
+      },
+      "bm25_best_1_units": {
+        "correct": 3,
+        "partial": 4,
+        "wrong": 1,
+        "not_applicable": 0
+      },
+      "bm25_best_3_units": {
+        "correct": 4,
+        "partial": 3,
+        "wrong": 1,
+        "not_applicable": 0
+      }
+    },
+    "identical_visible_answer_pairs": 3,
+    "differently_rated_identical_pairs": 2,
+    "human_quality_gain_established": false,
+    "tts_critical_slots": {
+      "before_correct": 12,
+      "before_total": 14,
+      "after_correct": 11,
+      "after_total": 14
+    },
+    "tts_single_listener_descriptive_means": {
+      "before_intelligibility": 4.0,
+      "after_intelligibility": 3.3333333333333335,
+      "before_naturalness": 3.8333333333333335,
+      "after_naturalness": 3.0
+    },
+    "population_mos_or_significance_established": false,
+    "task_conditions": {
+      "typed": {
+        "route": "E",
+        "self_reported_success": "no"
+      },
+      "raw": {
+        "route": "C",
+        "self_reported_success": "partial"
+      },
+      "explicit_confirmed": {
+        "route": "C",
+        "self_reported_success": "yes"
+      }
+    },
+    "raw_equals_explicit_confirmed_text": true,
+    "actual_manual_text_edits": 0,
+    "actual_condition_order": [
+      "typed",
+      "explicit-edited",
+      "raw"
+    ],
+    "task_order_and_wording_confounds": true,
+    "actual_stt_inferences": 1,
+    "task_gemma_calls": 2,
+    "task_tts_requests": 4,
+    "task_new_tts_provider_requests": 2,
+    "task_tts_cache_hits": 2,
+    "new_audio_gold_confirmed": false,
+    "new_asr_wer_measured": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_improved": false,
+    "exact_search_spelling_fix_implemented": true,
+    "bounded_ebs_spoken_expansion_implemented": true,
+    "post_fix_human_listening_score": null,
+    "local_tests_passed": 855,
+    "local_test_seconds": 131.633,
+    "actual_live_post_fix_checks_passed": true,
+    "actual_live_post_fix_http_requests": 9,
+    "actual_live_post_fix_gemma_calls": 1,
+    "actual_after_tts_audio_decode_seconds": 7.1520000000000055,
+    "actual_after_tts_provider_requests": 1,
+    "installed_code_release_upgrade_staged_validated_and_published": true,
+    "old_release_seal_and_source_data_preserved": true,
+    "original_databases_modified": false,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_rendering_verified": false,
+    "private_recording_ids_or_critical_values_published": false,
+    "scope": "One developer self-report pilot, frozen original results and separate development fixes. Not independent gold, population accuracy/MOS, edit gain or raw ASR improvement."
+  },
+  "rag_completeness_20261021": {
+    "date": "2026-10-21",
+    "scope": "Observed-development fixes on the same 8 questions and frozen candidate sources; not held-out or post-fix human accuracy.",
+    "observed_development": true,
+    "held_out": false,
+    "frozen_original_references_and_candidates_preserved": true,
+    "original_human_event_count": 49,
+    "original_human_events_unchanged": true,
+    "post_fix_human_scores": null,
+    "fixes": [
+      "Preserve uppercase literal bullet rows in their original list span",
+      "One bounded retry from validated singleton/pair evidence options for missing requested markers",
+      "Require both separately labelled practice organization lists for an explicit two-category question"
+    ],
+    "original_ai_complete_partial_fail": {
+      "gemma": [
+        4,
+        3,
+        1
+      ],
+      "bm25_best1": [
+        3,
+        3,
+        2
+      ],
+      "bm25_best3": [
+        5,
+        3,
+        0
+      ]
+    },
+    "final_ai_complete_partial_fail": {
+      "gemma": [
+        6,
+        2,
+        0
+      ],
+      "bm25_best1": [
+        3,
+        2,
+        3
+      ],
+      "bm25_best3": [
+        6,
+        2,
+        0
+      ]
+    },
+    "final_structural_accepted": {
+      "gemma": 8,
+      "bm25_best1": 5,
+      "bm25_best3": 8
+    },
+    "final_all_literal_slots": {
+      "gemma": 6,
+      "bm25_best1": 3,
+      "bm25_best3": 6
+    },
+    "final_irrelevant_content_cases": {
+      "gemma": 3,
+      "bm25_best1": 1,
+      "bm25_best3": 7
+    },
+    "final_redundant_content_cases": {
+      "gemma": 1,
+      "bm25_best1": 0,
+      "bm25_best3": 3
+    },
+    "final_controlled_questions": 8,
+    "final_controlled_gemma_calls": 9,
+    "exact_claim_source_spans": {
+      "matched": 49,
+      "total": 49,
+      "semantic_correctness_implied": false
+    },
+    "ai_review_method": "Full source-grounded read of all24 V2 outputs; strict complete common_output equality for all24 final V3 outputs; no new human judgment.",
+    "best1_regression": "One incomplete answer becomes an abstention under the shared two-category completeness guard.",
+    "remaining_development_omissions": [
+      "Association of bottom-up/top-down quality flows with planning-reporting and monitoring-evaluation",
+      "Online modality of all three courses"
+    ],
+    "gemma_general_advantage_established": false,
+    "latency_improvement_established": false,
+    "local_tests_passed": 882,
+    "local_test_seconds": 169.776,
+    "code_changed_during_tests": false,
+    "actual_live_http_requests": 10,
+    "actual_live_gemma_calls": 3,
+    "loaded_code_hashes_match": 16,
+    "actual_live_tts_provider_requests": 1,
+    "actual_live_tts_decode_seconds": 27.576,
+    "old_response_id_rejected": true,
+    "teacher_image_and_faq_regressions_passed": true,
+    "unsupported_future_fee_not_answered": true,
+    "new_stt_inferences": 0,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_improved": false,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "rag_passages": 201,
+    "facts": 40,
+    "faqs": 30,
+    "separate_teacher_profiles": 2,
+    "new_content_imports": 0,
+    "stable_hosting_verified": false,
+    "clean_machine_install_verified": false,
+    "browser_visual_qa_performed": false,
+    "git_publication_performed": false
+  },
+  "structural_rag_stt_20261021": {
+    "date": "2026-10-21",
+    "scope": "Same8 observed-development questions; no post-fix human accuracy or held-out claim.",
+    "local_tests_passed": 897,
+    "local_test_seconds": 167.919,
+    "source_code_drift": false,
+    "gemma_ai_complete": 8,
+    "bm25_best1_ai_complete": 4,
+    "bm25_best3_ai_complete": 8,
+    "cases_per_arm": 8,
+    "gemma_irrelevant_cases": 2,
+    "gemma_redundant_cases": 2,
+    "bm25_best3_irrelevant_cases": 7,
+    "bm25_best3_redundant_cases": 3,
+    "final_controlled_gemma_calls": 9,
+    "exact_claims": 46,
+    "exact_claims_verified": 46,
+    "general_gemma_advantage_established": false,
+    "human_after_fix": null,
+    "original_human_events_preserved": 49,
+    "live_http_requests": 10,
+    "live_gemma_calls": 2,
+    "loaded_hashes_match": 16,
+    "live_tts_provider_requests": 1,
+    "live_tts_decode_seconds": 59.64,
+    "live_arc_year_explicit": true,
+    "yearless_arc_preserves_clarification": true,
+    "new_stt_inferences": 0,
+    "stt_fusion_word_errors_before": 67,
+    "stt_fusion_word_errors_after": 67,
+    "stt_fusion_character_errors_before": 184,
+    "stt_fusion_character_errors_after": 183,
+    "stt_fusion_substitutions": 1,
+    "stt_fusion_promoted": false,
+    "stt_fusion_is_raw_single_model_output": false,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "raw_stt_cer_percent": 16.89623507805326,
+    "raw_stt_improved": false,
+    "pipeline_13_cli_web_decodes_samplewise_equal": true,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "rag_passages": 201,
+    "facts": 40,
+    "faqs": 30,
+    "separate_teacher_profiles": 2,
+    "permanent_hosting_verified": false,
+    "other_computer_install_verified": false,
+    "visual_browser_qa_performed": false,
+    "publication_evidence_recorded_separately": true
   }
 }

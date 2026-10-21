@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="mn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Мэдээллээ шинэчлэх · ШМТК</title>
+  <link rel="stylesheet" href="/admin.css">
+  <script src="/admin.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Үндсэн агуулгад очих</a>
+<header class="header">
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">▤</span><span>ШМТК · Мэдээллийн туслах<small>МЭДЭЭЛЭЛ ШИНЭЧЛЭХ</small></span></a>
+  <nav aria-label="Үндсэн холбоос"><a href="/">← Чат</a><a href="/data">Эхийн сан ↗</a></nav>
+</header>
+<main id="main" class="shell">
+  <section class="intro">
+    <div><p class="eyebrow">ЭХЭЭ ШИНЭЧИЛЖ, ХАРИУЛТАА НЯГТЛАХ</p><h1>Шинэ мэдээллээ<br><em>шалгаж нийтэлье.</em></h1><p class="lede">Эхлээд тусдаа ноорог бэлтгэнэ. Өөрчлөлтөө нягталж нийтлэхэд чат шинэ хувилбарыг ашиглана.</p></div>
+    <aside class="active-card" aria-labelledby="activeTitle"><span class="eyebrow" id="activeTitle">ЧАТЫН ОДООГИЙН МЭДЭЭЛЭЛ</span><strong id="activeLabel">Уншиж байна…</strong><p id="activeVersion" class="small"></p><div id="activeCounts" class="count-row"></div><button id="refreshButton" type="button" class="text-button">↻ Төлөвийг дахин унших</button></aside>
+  </section>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <div id="errorNotice" class="notice error" role="alert" hidden></div>
+  <div id="activeErrorNotice" class="notice error" role="alert" hidden></div>
+  <div id="staleNotice" class="notice warning" hidden>Энэ хооронд өөр хувилбар идэвхжсэн байна. «Төлөвийг дахин унших» дарж өөрчлөлтийг нягталсны дараа үргэлжлүүлээрэй.</div>
+  <div id="workArea" class="workspace" hidden>
+    <aside class="versions" aria-labelledby="versionsTitle"><div class="section-heading"><h2 id="versionsTitle">Миний хувилбарууд</h2><span id="releaseCount" class="small"></span></div><p class="small muted">Нооргоо сонгоод үргэлжлүүлээрэй.</p><div id="releaseList" class="release-list"></div><p id="emptyReleases" class="empty">Одоогоор ноорог алга. Эхний алхмаас шинэ хувилбар бэлтгээрэй.</p></aside>
+    <div class="steps">
+      <section class="step" aria-labelledby="prepareTitle"><div class="step-heading"><span class="step-number">1</span><div><h2 id="prepareTitle">Шинэ хувилбар бэлтгэх</h2><p>Одоогийн мэдээллээс тусдаа ноорог үүсгэнэ.</p></div></div><form id="stageForm"><label for="releaseLabel">Ямар шинэчлэлт хийх вэ?</label><div class="input-action"><input id="releaseLabel" maxlength="120" required placeholder="Жишээ: Элсэлтийн мэдээллийн шинэчлэлт"><button id="stageButton" type="submit" class="primary">Ноорог бэлтгэх</button></div></form></section>
+      <section id="editStep" class="step" aria-labelledby="editTitle"><div class="step-heading"><span class="step-number">2</span><div><h2 id="editTitle">Мэдээллээ оруулах</h2><p id="selectedDescription">Эхлээд ноорог бэлтгэх эсвэл жагсаалтаас сонгоорой.</p></div></div>
+        <div id="editorArea" hidden>
+          <div id="sealedNote" class="inline-note" hidden>Энэ хувилбарыг шалгаж түгжсэн. Засвар хийхдээ эхний алхмаас шинэ ноорог бэлтгээрэй.</div>
+          <section id="faqEditor" hidden aria-labelledby="faqEditorTitle"><div class="section-heading"><h3 id="faqEditorTitle">Тогтмол асуулт, хариулт</h3><button id="loadContentButton" type="button" class="text-button">Сангаас унших</button></div><p class="small muted">Одоо байгаа хариултаа засна. Эхийн бүртгэл, холбоосыг доороос нягтлаарай.</p><label for="faqSelect">Засах асуулт</label><select id="faqSelect"><option value="">Асуултаа сонгоорой</option></select><form id="faqForm" hidden><label for="faqQuestion">Асуулт</label><input id="faqQuestion" maxlength="2000" required><label for="faqAnswer">Хариулт</label><textarea id="faqAnswer" rows="5" maxlength="12000" required></textarea><label for="faqAliases">Өөрөөр асуух хувилбарууд <span class="muted">· мөр бүрд нэг</span></label><textarea id="faqAliases" rows="2" maxlength="12000"></textarea><div id="faqRefs" class="reference-note"></div><label class="check-label"><input id="faqReviewed" type="checkbox"><span>Засварын агуулгыг тулгуур эхтэй нь нягталсан.</span></label><label for="faqNotes">Засварын тайлбар</label><input id="faqNotes" maxlength="4000"><div class="button-row"><button id="saveFaqButton" type="submit" class="secondary">Ноорогт хадгалах</button><span class="small muted">Хадгалсны дараа 3-р алхмаар шалгана.</span></div></form></section>
+          <details class="import-details"><summary>Бэлэн эх, файл оруулах</summary><div class="import-body"><form id="contentForm"><h3>FAQ ба баримтын файл</h3><p class="small muted">Эхийн бүртгэл, баримт, FAQ-тай төслийн JSON багцыг оруулна. Файлыг сонгоход агуулгын тоог урьдчилан харуулна.</p><label for="contentFile">JSON файл</label><input id="contentFile" type="file" accept="application/json,.json"><p id="contentPreview" class="small"></p><button id="importContentButton" type="submit" class="secondary" disabled>Файлыг ноорогт оруулах</button></form><form id="websiteForm"><h3>Хадгалсан вэб эх</h3><p class="small muted">Энэ компьютерт байгаа цуглуулагчийн snapshot хавтсыг ашиглана.</p><label for="snapshotPath">Snapshot хавтасны зам</label><input id="snapshotPath" maxlength="1200" required placeholder="CORE/website/snapshots/…" autocomplete="off"><button id="importWebsiteButton" type="submit" class="secondary">Вэб эхийг ноорогт оруулах</button></form></div></details>
+        </div>
+      </section>
+      <section id="reviewStep" class="step" aria-labelledby="reviewTitle"><div class="step-heading"><span class="step-number">3</span><div><h2 id="reviewTitle">Шалгах, нийтлэх</h2><p>Шинэчлэл ямар эх, хариултад нөлөөлөхийг нягтлаарай.</p></div></div><div class="button-row"><button id="validateButton" type="button" class="secondary" disabled>Өөрчлөлтийг шалгах</button><span id="validationStatus" class="small muted">Ноорог сонгоогүй.</span></div><div id="reviewResult" hidden><div id="validationSummary" class="validation-summary"></div><div id="countChanges" class="changes-grid"></div><div id="sourceChanges" class="source-changes"></div><p class="review-limit">Энэ шалгалт файл, холбоос, хувилбарын бүтцийг шалгана. Хариултын утга, он, тоо зөв эсэхийг эхтэй нь харьцуулж нягтлаарай.</p><div class="publish-area"><label for="actor">Шинэчилсэн хүний нэр</label><input id="actor" maxlength="100" placeholder="Таны нэр" autocomplete="name"><label class="check-label"><input id="reviewedCheckbox" type="checkbox"><span>Өөрчлөлтийг эхтэй нь тулгаж нягталсан.</span></label><div class="button-row"><button id="publishButton" type="button" class="primary" disabled>Чатад нийтлэх</button><button id="rollbackButton" type="button" class="secondary" hidden disabled>Энэ хувилбарт буцаах</button></div><p id="publishHelp" class="small muted"></p></div></div></section>
+    </div>
+  </div>
+  <footer>ШМТК · Эх → хайлт → хариулт <span>Шинэ хувилбар нийтлэх бүрд өмнөх мэдээллээ хадгална.</span></footer>
+</main>
+</body>
+</html>

@@ -40,7 +40,7 @@ def contract_check(case, response):
 
 
 def run(cases_path,output_dir,base_url,reuse_audio=None):
-    from voice_runtime import VoiceRuntime, ALLOWED_VOICES, _decode_pcm, _wav_bytes
+    from voice_runtime import VoiceRuntime, ALLOWED_VOICES, VOICE_ARTIFACT_NAMES, _decode_pcm, _wav_bytes
     from score import score
     from tools.evaluate_answer_quality import RUNTIME_ARTIFACT_NAMES, sha as file_sha
     parts=urlsplit(base_url)
@@ -68,11 +68,15 @@ def run(cases_path,output_dir,base_url,reuse_audio=None):
 
     names=RUNTIME_ARTIFACT_NAMES
     expected={n:file_sha(ROOT/n) for n in names}
-    if any(value is None for value in expected.values()):
+    expected_voice={n:file_sha(ROOT/n) for n in VOICE_ARTIFACT_NAMES}
+    if any(value is None for value in (*expected.values(), *expected_voice.values())):
         raise ValueError('Runtime fingerprint requires all required local code files.')
     status=request('/api/status')
     if any(status.get('rag',{}).get('loaded_artifact_sha256',{}).get(n)!=v for n,v in expected.items()):
         raise ValueError('Stale demo code; restart before voice collection.')
+    loaded_voice=status.get('voice',{}).get('loaded_artifact_sha256')
+    if not isinstance(loaded_voice,dict) or any(loaded_voice.get(n)!=v for n,v in expected_voice.items()):
+        raise ValueError('Stale voice/STT code; restart before voice collection.')
     if status.get('voice',{}).get('stt_ready') is not True:
         raise ValueError('Local STT dependencies/model are missing; use the existing project setup before voice collection.')
     previous=None
@@ -88,8 +92,9 @@ def run(cases_path,output_dir,base_url,reuse_audio=None):
         independent_held_out_evaluation=False,own_training=False,
         reuse_audio_from=str(reuse_audio) if reuse_audio else None,
         previous_run_sha256=file_sha(reuse_audio/'results.json') if reuse_audio else None,
-        runtime_preflight=dict(status=status,matched=True,expected_artifact_sha256=expected),
-        artifact_sha256={n:file_sha(ROOT/n) for n in (*names,'voice_runtime.py','tools/evaluate_voice_loop.py','score.py')},
+        runtime_preflight=dict(status=status,matched=True,expected_artifact_sha256=expected,
+            expected_voice_artifact_sha256=expected_voice),
+        artifact_sha256={n:file_sha(ROOT/n) for n in (*names,*VOICE_ARTIFACT_NAMES,'tools/evaluate_voice_loop.py','score.py')},
         warnings=['Synthetic TTS is not a natural speaker/noise/device benchmark.',
                   'WER/CER compare input TTS text to raw STT; numbers unchanged.',
                   'Pattern/route smoke checks do not prove semantic correctness.'],cases=[])
@@ -132,11 +137,15 @@ def run(cases_path,output_dir,base_url,reuse_audio=None):
                 row['typed_smoke']=contract_check(case,row['typed_response'])
                 if not raw.strip():
                     raise ValueError('STT returned empty text.')
-                response=request('/api/route',dict(query=raw,allow_draft=False))
+                raw_request=dict(query=raw,allow_draft=False)
+                if row['transcription'].get('id'):
+                    raw_request['transcription_id']=row['transcription']['id']
+                response=request('/api/route',raw_request)
                 row['raw_response']=response
                 row['raw_smoke']=contract_check(case,response)
                 row['answer_tts']=request('/api/voice/speak',dict(query=raw,
-                    allow_draft=False,voice=voice,package_id=response['package_id'],response_id=response['response_id']))
+                    allow_draft=False,voice=voice,package_id=response['package_id'],response_id=response['response_id'],
+                    release_token=(response.get('content_release') or {}).get('activation_token')))
                 sound=request(row['answer_tts']['audio_url'],binary=True)
                 (output_dir/(stem+'-answer.mp3')).write_bytes(sound)
                 row.update(answer_audio_sha256=sha(sound),answer_audio_seconds=audio_duration(sound),

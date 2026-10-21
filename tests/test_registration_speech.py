@@ -11,6 +11,25 @@ STEPS = ('1. Бүртгүүлэх\nМэдээллээ бөглөнө.\n2. Хур
          '3. Хувийн хэсэг\nБүртгэлийн мэдээллээ харна.')
 
 
+class HumanListeningFeedbackTests(unittest.TestCase):
+    def test_official_header_caption_is_not_read_but_year_and_condition_remain(self):
+        text = ('2030–2031 оны элсэлтийн журам (татсан: 2030-05-07) — эхийн мэдээлэл:\n\n'
+                'QR код ашиглан 20,000 төгрөг төлнө. Хугацаа хэтэрвэл эрх хүчингүй болно.')
+        result = dict(answer=text, answer_kind='official_website_extract')
+        spoken = spoken_text(result)
+        self.assertIn('2030–2031 оны элсэлтийн журам.', spoken)
+        self.assertIn('кью ар код', spoken)
+        self.assertIn('хорин мянган төгрөг', spoken)
+        self.assertIn('Хугацаа хэтэрвэл эрх хүчингүй болно.', spoken)
+        self.assertNotIn('татсан:', spoken)
+        self.assertNotIn('эхийн мэдээлэл:', spoken)
+        self.assertEqual(result['answer'], text)
+
+    def test_source_body_dates_and_other_codes_are_not_rewritten(self):
+        text = 'Эхэд (татсан: 2030-05-07) гэсэн тэмдэглэл бий. QPay, QR-125, 99112233.'
+        self.assertEqual(spoken_text(dict(answer=text, answer_kind='rag_generated', citations=[])), text)
+
+
 class RegistrationProcessTests(unittest.TestCase):
     def chat(self, text):
         retriever, generator = Retriever(), Generator()

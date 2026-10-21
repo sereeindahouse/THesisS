@@ -258,3 +258,56 @@ __pycache__/
 !/tests/test_scope_fields.py
 !/tests/test_semantic_handoff.py
 !/data/answer-semantic-unseen-20261015.json
+
+# Offline STT decoder experiments; manifests/audio/results remain private.
+!/config/stt-context-development.json
+!/tools/evaluate_stt_context.py
+!/tests/test_stt_context.py
+
+# Private data recovery, explicit study preparation, and temporary device gateway.
+!/tools/manage_snapshot.py
+!/tests/test_manage_snapshot.py
+!/tools/prepare_user_study.py
+!/tests/test_user_study.py
+!/tools/serve_device_demo.py
+!/tests/test_device_gateway.py
+!/tests/test_demo_framing.py
+!/config/stt-prompt-development.json
+
+# Temporary authenticated public HTTPS and explicit school-text listening trials.
+!/tools/serve_public_demo.py
+!/tools/start_public_demo.py
+!/tools/tts_listening_trial.py
+!/tests/test_public_demo.py
+!/tests/test_public_launcher.py
+!/tests/test_tts_listening_trial.py
+!/tests/test_development_scope_20261017.py
+
+# Local content release tooling and UI; staged databases, tokens and recordings stay private.
+!/content_release.py
+!/release_runtime.py
+!/tools/manage_content_release.py
+!/tools/evaluate_speech_delivery.py
+!/tests/test_content_release.py
+!/tests/test_content_release_http.py
+!/tests/test_speech_delivery.py
+!/tests/test_transcription_lineage.py
+!/tests/test_transcription_lineage_http.py
+!/demo/admin.html
+!/demo/admin.js
+!/demo/admin.css
+!/CORE/ADMIN.cmd
+!/CORE/ADMIN-GUIDE.mn.md
+!/tools/check_delivery_readiness.py
+!/tests/test_delivery_readiness.py
+
+# Source-bound teacher media and explicit quality trials; photos/results/ratings remain local.
+!/teacher_media.py
+!/tests/test_teacher_media.py
+!/tests/test_teacher_media_http.py
+!/tools/evaluate_llm_selection.py
+!/tests/test_llm_selection_comparison.py
+!/tools/human_quality_trial.py
+!/tests/test_human_quality_trial.py
+!/CORE/HUMAN-QUALITY-CHECK.mn.md
+!/tests/test_structure_context.py
