@@ -452,5 +452,80 @@ class EvidenceContractTests(unittest.TestCase):
         self.assertEqual(result['reason'], 'evidence_context_exceeds_claim_budget')
 
 
+class PhysicalPredecessorFilteringTests(unittest.TestCase):
+    """Invented paragraphs: dependency safety, not empirical school facts."""
+    first = 'OMEGA Research\nOMEGA хөтөлбөрийн үндсэн чиглэлийг энд танилцуулсан.'
+    second = 'DELTA Research\nDELTA хөтөлбөрийн үндсэн чиглэлийг энд танилцуулсан.'
+    tail = 'Мөн энэ хөтөлбөрийн дадлага 43 хоног үргэлжилдэг.'
+
+    def test_oversized_physical_predecessor_cannot_link_tail_to_older_subject(self):
+        middle = 'DELTA Research\n' + 'Өөр хөтөлбөрийн дэлгэрэнгүй мэдээллийг тусад нь тайлбарласан болно. ' * 22
+        self.assertGreater(len(middle), 900)
+        text = self.first + '\n' + middle + '\n' + self.tail
+        rows = evidence_units([source(text)])
+        self.assertEqual([row['text'] for row in rows], [self.first])
+        self.assertFalse(any('43 хоног' in row['text'] for row in rows))
+        for row in rows:
+            self.assertEqual(row['quote'][row['start']:row['end']], row['text'])
+
+    def test_short_or_template_paragraph_remains_a_dependency_boundary(self):
+        for omitted in ('X.', 'Шаблон.', 'Template.'):
+            with self.subTest(omitted=omitted):
+                rows = evidence_units([source(self.first + '\n' + omitted + '\n' + self.tail)])
+                self.assertEqual([row['text'] for row in rows], [self.first])
+
+    def test_whitespace_only_gap_keeps_immediate_retained_continuation(self):
+        text = self.first + '\n\n  \n\t' + self.tail
+        rows = evidence_units([source(text)])
+        self.assertEqual(rows[-1]['context_unit_ids'], [rows[0]['unit_id']])
+        value = resolve_evidence_selection('OMEGA хөтөлбөрийн дадлага хэд хоног вэ?',
+                                            [rows[-1]['unit_id']], rows)
+        self.assertTrue(value['accepted'])
+        self.assertEqual([claim['text'] for claim in value['claims']], [self.first, self.tail])
+
+    def test_retained_new_subject_is_the_predecessor_not_older_subject(self):
+        rows = evidence_units([source(self.first + '\n' + self.second + '\n' + self.tail)])
+        self.assertEqual(rows[-1]['context_unit_ids'], [rows[1]['unit_id']])
+        wrong = resolve_evidence_selection('OMEGA хөтөлбөрийн дадлага хэд хоног вэ?',
+                                            [rows[-1]['unit_id']], rows)
+        right = resolve_evidence_selection('DELTA хөтөлбөрийн дадлага хэд хоног вэ?',
+                                            [rows[-1]['unit_id']], rows)
+        self.assertFalse(wrong['accepted'])
+        self.assertTrue(right['accepted'])
+        self.assertEqual([claim['text'] for claim in right['claims']], [self.second, self.tail])
+
+    def test_source_change_never_inherits_previous_source_even_for_same_url(self):
+        for url in ('https://example.edu/page', 'https://example.edu/other'):
+            with self.subTest(url=url):
+                rows = evidence_units([source(self.first), source(self.tail, 'two', url)])
+                self.assertEqual(rows[-1]['context_unit_ids'], [])
+                value = resolve_evidence_selection('OMEGA хөтөлбөрийн дадлага хэд хоног вэ?',
+                                                    [rows[-1]['unit_id']], rows)
+                self.assertFalse(value['accepted'])
+
+    def test_omitted_conditional_cannot_leave_an_unqualified_following_claim(self):
+        condition = 'Хэрэв оролцогч шаардлага хангавал ' + 'нэмэлт нөхцөлүүдийг тусад нь нягтална. ' * 30
+        following = 'Оролцогч 87 нэгжийн дэмжлэг авах боломжтой.'
+        rows = evidence_units([source(self.first + '\n' + condition + '\n' + following)])
+        self.assertEqual([row['text'] for row in rows], [self.first])
+
+    def test_dropped_dependent_chain_stops_at_new_independent_paragraph(self):
+        middle = 'DELTA Research\n' + 'Өөр хөтөлбөрийн тухай дэлгэрэнгүй тайлбарласан болно. ' * 24
+        independent = 'SIGMA хөтөлбөрийн сургалт 61 хоног үргэлжилдэг.'
+        next_tail = 'Мөн тухайн хөтөлбөрийн дадлага 19 хоног үргэлжилдэг.'
+        rows = evidence_units([source(self.first + '\n' + middle + '\n' + self.tail + '\n'
+                                     + 'Үүнээс 7 хоногийг бэлтгэлд зарцуулдаг.' + '\n'
+                                     + independent + '\n' + next_tail)])
+        self.assertEqual([row['text'] for row in rows], [self.first, independent, next_tail])
+        self.assertEqual(rows[-1]['context_unit_ids'], [rows[1]['unit_id']])
+
+    def test_trimmed_initial_template_does_not_break_retained_following_context(self):
+        explanation = 'Энэ хэсэгт судалгааны хөтөлбөрийн бодит тайлбарыг нийтэлсэн байна.'
+        text = '0 хөтөлбөр\n0 багш\n' + explanation + '\n' + self.tail
+        rows = evidence_units([source(text)])
+        self.assertEqual([row['text'] for row in rows], [explanation, self.tail])
+        self.assertEqual(rows[-1]['context_unit_ids'], [rows[0]['unit_id']])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -1,3 +1,9 @@
+<!-- extractive-method-20261022:start -->
+## 2026.10.22 — Хэрэгжүүлсэн аргын нэршил
+
+Одоогийн C зам нь retrieval-augmented extractive QA: BM25/E5/RRF→Gemma evidence-unit ID selection→server verbatim rendering. Gemma-ийн гаралт шинэ хариултын өгүүлбэр биш, бүтэцтэй ID сонголт. Lewis-ийн генератив RAG-Sequence/RAG-Token-ийг хуулж хэрэгжүүлсэн буюу end-to-end сургасан гэж бичихгүй. «RAG-ийн эх хайж ашиглах зарчимд тулгуурласан, LLM-ийн эх сонголттой хосолсон хайлтын систем» гэсэн хүрээтэй тайлагнана. Модель илүү их дуудах нь өөрөө хувь нэмэр биш; LLM-гүй сонголттой чанар/бүрэн байдал/хугацааг харьцуулсан сөрөг дүнг хадгална. Энэ өдөр анхны өгүүллийг шинээр бүхэлд нь уншаагүй; өмнөх уншлагын хамрах хүрээ доор хэвээр.
+<!-- extractive-method-20261022:end -->
+
 # RAG — төслийн аргын холбоо, 2026.10.10
 
 Эх: Patrick Lewis et al., Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. [arXiv2005.11401v4](https://arxiv.org/html/2005.11401v4). Abstract, §1, §2.1–2.4, §4.5 retrieval ablations/index hot-swapping хэсгийн текстийг нягталсан. Бүх хавсралт/benchmark-ийг дахин туршаагүй; хэрэглэгч уншиж дууссан гэж бүртгэхгүй.

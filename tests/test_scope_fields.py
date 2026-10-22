@@ -668,5 +668,93 @@ class NewsFacetTests(unittest.TestCase):
         self.assertIsNone(requested_detail(query))
 
 
+class PresentationClauseCompletenessTests(unittest.TestCase):
+    paired_query = 'Мониторинг болон үнэлгээний зорилго, давтамжийг харьцуул.'
+
+    def test_extra_explanation_and_brevity_do_not_erase_explicit_fields(self):
+        expected = field_evidence_requirements(self.paired_query)
+        self.assertEqual(len(expected), 4)
+        for suffix in (
+            'Нэмэлт тайлбар хэрэггүй.',
+            'Илүү тайлбар шаардлагагүй.',
+            'Дэлгэрэнгүй тайлбар бүү нэм.',
+            'Урт тайлбар битгий нэм.',
+            'Зөвхөн энэ хоёрыг тайлбарла.',
+            'Зөвхөн эдгээр хоёрын талаар тайлбарла.',
+            'Зөвхөн товчхон хариул.',
+            'Товчхон тайлбарла.',
+        ):
+            with self.subTest(suffix=suffix):
+                query = self.paired_query + ' ' + suffix
+                original = query
+                self.assertEqual(field_evidence_requirements(query), expected)
+                self.assertEqual(query, original)
+
+    def test_inline_presentation_suffix_does_not_disable_missing_field_screen(self):
+        expected = field_evidence_requirements(self.paired_query)
+        for query in (
+            self.paired_query.rstrip('.') + ', нэмэлт тайлбар хэрэггүй.',
+            self.paired_query.rstrip('.') + ' нэмэлт тайлбар хэрэггүй',
+            'Нэмэлт тайлбар хэрэггүй; ' + self.paired_query,
+        ):
+            with self.subTest(query=query):
+                requirements = field_evidence_requirements(query)
+                self.assertEqual(requirements, expected)
+                only_monitoring = 'Мониторинг\nӨдөр тутмын үйл ажиллагааг хянаж, дэмжин зөвлөх зорилготой.'
+                self.assertEqual(missing_field_evidence(requirements, only_monitoring),
+                                 ['evaluation_definition', 'evaluation_frequency'])
+
+    def test_only_these_two_retains_the_request_verb(self):
+        query = 'Мониторинг болон үнэлгээ. Зөвхөн энэ хоёрыг тайлбарла.'
+        self.assertEqual([item['name'] for item in field_evidence_requirements(query)],
+                         ['monitoring_definition', 'evaluation_definition'])
+
+    def test_presentation_clause_applies_to_other_evidence_structures(self):
+        for query in (
+            'Хоёр урсгалын чиглэл ба нэрийг тайлбарла.',
+            'CAD болон CAM-ыг ямар өөр чадвар эзэмшүүлэх зорилттой холбосон бэ?',
+            'III–IV болон VII–VIII сарын хуваарьт ямар ажил төлөвлөсөн бэ?',
+            'Үйлдвэрлэлийн дадлагын болон танилцах дадлагын байгууллагуудыг жагсаа.',
+        ):
+            with self.subTest(query=query):
+                expected = field_evidence_requirements(query)
+                self.assertTrue(expected)
+                self.assertEqual(field_evidence_requirements(query + ' Нэмэлт тайлбар хэрэггүй.'), expected)
+
+    def test_actual_exclusion_is_not_removed_with_presentation_clause(self):
+        for query in (
+            self.paired_query + ' Үнэлгээ хэрэггүй.',
+            self.paired_query + ' Зөвхөн мониторингийн зорилгыг хэл.',
+            self.paired_query + ' Үнэлгээний нэмэлт тайлбар хэрэггүй.',
+            self.paired_query + ' Мониторинг биш, үнэлгээг тайлбарла.',
+            self.paired_query + ' Нэмэлт тайлбар хэрэггүй. Үнэлгээг хас.',
+            self.paired_query + ' Зөвхөн энэ хоёрыг тайлбарла. Үнэлгээ сонирхохгүй.',
+            'Зөвхөн III–IV сарын хуваарийг хэл, VII–VIII хэрэггүй. Нэмэлт тайлбар хэрэггүй.',
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(field_evidence_requirements(query), [])
+
+    def test_brevity_does_not_invent_a_second_subject(self):
+        for query in (
+            'Мониторингийн зорилгыг товчхон хэлнэ үү.',
+            'Мониторингийн зорилго юу вэ? Нэмэлт тайлбар хэрэггүй.',
+            'Зөвхөн мониторингийн зорилго хэл; үнэлгээ хэрэггүй.',
+        ):
+            with self.subTest(query=query):
+                self.assertEqual(field_evidence_requirements(query), [])
+
+    def test_one_of_two_or_only_one_facet_remains_a_scope_restriction(self):
+        for suffix in (
+            'Зөвхөн энэ хоёрын нэгийг тайлбарла.',
+            'Зөвхөн эдгээр 2-ын нэгийг тайлбарла.',
+            'Зөвхөн энэ хоёрын аль нэгийг тайлбарла.',
+            'Зөвхөн тэр хоёрын эхнийхийг тайлбарла.',
+            'Зөвхөн эдгээр хоёрын сүүлийнхийг тайлбарла.',
+            'Зөвхөн энэ хоёрын давтамжийг хэл.',
+        ):
+            with self.subTest(suffix=suffix):
+                self.assertEqual(field_evidence_requirements(self.paired_query + ' ' + suffix), [])
+
+
 if __name__ == '__main__':
     unittest.main()

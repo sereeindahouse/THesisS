@@ -725,6 +725,50 @@ def _requested_schedule_ranges(query):
     return ranges if len(ranges) >= 2 else []
 
 
+def _field_intent_without_presentation_clauses(query):
+    """Ignore bounded answer-format instructions, never a named-field exclusion.
+
+    This local detection view does not rewrite the user's submitted query.
+    Unknown negative/restrictive clauses remain intact for the conservative
+    exclusion guard below. In particular, a subject-qualified request such as
+    'үнэлгээний нэмэлт тайлбар хэрэггүй' is not a presentation-only clause.
+    """
+    q = query.casefold()
+    extra_explanation = (
+        r'(?:нэмэлт|илүү|урт|дэлгэрэнгүй)\s+тайлбар(?:ыг)?\s+'
+        r'(?:хэрэггүй|шаардлагагүй|бүү\s+нэм|битгий\s+нэм)'
+    )
+    # Keep delimiters: commas can also express a genuinely requested pair.
+    clauses = re.split(r'([.!?;,\n])', q)
+    for index in range(0, len(clauses), 2):
+        clause = clauses[index]
+        stripped = clause.strip()
+        if re.fullmatch(extra_explanation, stripped):
+            clauses[index] = ''
+            continue
+        if re.fullmatch(r'(?:зөвхөн|дангаар)\s+(?:товч(?:хон)?|богино(?:хон)?)\s+'
+                        r'(?:хариул(?:на\s+уу)?|тайлбарла(?:на\s+уу)?|хэл(?:нэ\s+үү)?)', stripped):
+            clauses[index] = re.sub(r'(?<!\w)(?:зөвхөн|дангаар)\s+', '', clause, count=1)
+            continue
+        # "Only these two, explain them" keeps both named subjects. Restrict
+        # this to a complete presentation suffix, so "one of these two" or
+        # "only these two's frequency" cannot erase a real scope restriction.
+        both_reference = (r'(?:хоёр(?:ыг)?|хоёуланг(?:\s+нь)?|хоёрын\s+талаар|'
+                          r'2(?:-?ыг)?|2-?ын\s+талаар)')
+        presentation_verb = (r'(?:(?:товч(?:хон)?|тус\s+бүр|тус\s+тус)\s+)?'
+                             r'(?:тайлбарла(?:на\s+уу)?|хэл(?:нэ\s+үү)?|'
+                             r'хариул(?:на\s+уу)?)')
+        clause = re.sub(r'(?<!\w)зөвхөн\s+(?=(?:энэ|эдгээр|тэр)\s+' +
+                        both_reference + r'\s+' + presentation_verb + r'\s*$)', '', clause)
+        # Also recognise an unpunctuated format suffix after an explicit
+        # request verb, without swallowing a subject-qualified exclusion.
+        clause = re.sub(r'(?P<request>(?<!\w)(?:харьцуул|тайлбарла|хэлнэ\s+үү|'
+                        r'өгнө\s+үү|хариул)(?:на\s+уу)?)\s+' + extra_explanation + r'\s*$',
+                        r'\g<request>', clause)
+        clauses[index] = clause
+    return ''.join(clauses)
+
+
 def field_evidence_requirements(query):
     """Describe a few explicitly requested facets, without storing answers.
 
@@ -733,8 +777,8 @@ def field_evidence_requirements(query):
     certify semantic completeness, or add evidence to a model's selection.
     The returned descriptors are JSON-safe for logging and prompt guidance.
     """
-    q = query.casefold()
-    if re.search(r'зөвхөн|дангаар|хэрэггүй|хас(?:а|ч|на|ах)|бүү|битгий|'
+    q = _field_intent_without_presentation_clauses(query)
+    if re.search(r'зөвхөн|дангаар|хэрэггүй|хас(?:а|ч|на|ах)|\bхас\b|бүү|битгий|'
                  r'асуугаагүй|сонирхохгүй|ялгаагүй|\bбиш\b', q):
         return []
     paired = bool(re.search(r'болон|\bба\b|тус\s+бүр|харьцуул|ялга|хоёул|,|\bмөн\b|\bөөр\b', q))
@@ -742,6 +786,8 @@ def field_evidence_requirements(query):
 
     def add(name, label, aliases, kind, **extra):
         requirements.append(dict(name=name, label=label, aliases=aliases, type=kind, **extra))
+
+    requirements.extend(_school_founding_requirements(q))
 
     # These descriptors ask for source structure, not any particular direction,
     # flow name, course title, partner or delivery-mode answer.
@@ -1086,6 +1132,8 @@ def missing_field_evidence(requirements, units_or_text):
         for text in texts:
             if requirement['type'] == 'explicit_marker':
                 found = any(re.search(alias, text, re.I) for alias in requirement['aliases'])
+            elif requirement['type'] == 'school_founding_event':
+                found = _school_founding_fields_present(text, requirement)
             elif requirement['type'] == 'direction_name_pair':
                 found = len({item['direction'] for item in direction_card_bindings(text)}) == 2
             elif requirement['type'] == 'course_delivery_form':
@@ -1211,3 +1259,127 @@ def field_extract(query, sources):
         if match and len(match.group()) <= 1500:
             return source, match.group()
     return None
+
+
+def _school_founding_requirements(query):
+    """Explicit school founding event facets; never store an answer value.
+
+    This is a bounded event contract, not a general relation/entailment model.
+    Its requested facets must coexist in one positive founding-event clause.
+    """
+    if (not re.search(r'сургуул\w*|коллеж\w*|коосэн\w*', query)
+            or not re.search(r'байгуулагд\w*|үүсгэн\s+байгуул\w*', query)):
+        return []
+    facets = []
+    if re.search(r'хэзээ|хэдийд|огноо|хэдэн\s+он|байгуулагд\w*\s+оныг|хэдэн\s+сарын|хэдэнд|өдөр', query):
+        facets.append('date' if re.search(r'огноо|сарын|хэдэнд|өдөр', query) else 'year')
+    if re.search(r'хэдэн\s+(?:оюутан|суралцагч)|(?:оюутан|суралцагч)\w*\s+(?:тоо|хэд)', query):
+        facets.append('students')
+    if re.search(r'хэдэн\s+бүлэг|бүлг\w*\s+(?:тоо|хэд)', query):
+        facets.append('groups')
+    labels = dict(date='сургууль байгуулагдсан он, сар, өдөр', year='сургууль байгуулагдсан он',
+                  students='байгуулагдах үеийн анхны оюутны тоо', groups='байгуулагдах үеийн бүлгийн тоо')
+    school = re.search(r'сургуул\w*|коллеж\w*|коосэн\w*', query)
+    subject_terms = re.findall(r'[a-zа-яёөү]+', query[:school.start()])
+    subject_terms = [term for term in subject_terms if term not in
+                     {'манай', 'тус', 'энэ', 'тэр', 'надад', 'тэгвэл', 'анх'}]
+    return [dict(name='school_founding_' + facet, label=labels[facet], aliases=[],
+                 type='school_founding_event', facet=facet, required_event_facets=facets,
+                 subject_terms=subject_terms)
+            for facet in facets]
+
+
+def _school_founding_event_records(text):
+    """Yield local positive school-founding clauses and their own year heading.
+
+    A publication date, scholarship nomination, programme launch, another
+    paragraph's counts or a plan to found a school cannot establish this event.
+    Physical year/heading adjacency is used, not a year anywhere in the page.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    completed = r'үүсгэн\s+байгуул(?:ж|сан|жээ|ав)(?![а-яёөү])|байгуулагд(?:сан|жээ|ав)(?![а-яёөү])'
+    school_noun = r'(?<![а-яёөү])(?:сургуулийг|сургууль|коллеж(?:ийг)?|коосэн(?:ийг|г)?)(?![а-яёөү])'
+    # This deliberately accepts a small literal grammar. Unknown event links
+    # abstain rather than borrow a neighbouring predicate's date or counts.
+    calendar_word = (r'оны|онд|он|сарын|сар|өдөр|өдрийн|нд|ны|ний|анх|албан|ёсоор|'
+                     r'нэгдүгээр|хоёрдугаар|гуравдугаар|дөрөвдүгээр|тавдугаар|зургадугаар|'
+                     r'долдугаар|наймдугаар|есдүгээр|аравдугаар|арван|нэг|хоёрдугаар')
+    for index, line in enumerate(lines):
+        for clause in re.split(r'(?<=[.!?。])\s+|[;；]', line):
+            verb = re.search(completed, clause, re.I)
+            if not verb:
+                continue
+            schools = list(re.finditer(school_noun, clause[:verb.start()], re.I))
+            if not schools:
+                continue
+            school = schools[-1]
+            between = clause[school.end():verb.start()]
+            active = verb.group().casefold().startswith('үүсгэн')
+            accusative = (school.group().casefold().endswith(('ийг', 'энг'))
+                          or bool(re.match(r'[”"»]?[-–]?ийг\b', between, re.I)))
+            if active != accusative:
+                continue
+            # A date before the school name is permitted only if it is a
+            # calendar prefix. "published on DATE ... school" is not that.
+            prefix = clause[:school.start()]
+            named = re.findall(r'[a-zа-яёөү]+', prefix.casefold())
+            between_words = re.findall(r'[а-яёөү]+', between.casefold())
+            allowed = calendar_word + r'|ийг|анхны|эхний|оюутан\w*|суралцагч\w*|бүлэг\w*'
+            if any(not re.fullmatch(allowed, word) for word in between_words):
+                continue
+            if re.search(r'нийтэл|мэдээ|төлөвлө|байгаагүй|\bбиш\b|худал|магадгүй|'
+                         r'байгуулагдаагүй|тодорхойгүй|дараах|дараа\s+нь|өнгөрсний|тэтгэл|'
+                         r'нэр\s+дэвш|уулзалт|хожим|одоогийн|өнөөдөр|хэрэв|тохиолдолд|'
+                         r'няцаа|таамаг|батлагдаагүй', clause, re.I):
+                continue
+            if re.search(r'сургуул\w*|коллеж\w*|коосэн\w*', clause[verb.end():], re.I):
+                # A following intake naming another school cannot fill this
+                # founding event. Unknown cross-subject prose stays excluded.
+                continue
+            # Do not import later/current counts into the founding event.
+            clause = re.split(r'\b(?:харин|өнөөдөр|хожим|одоогийн)\b|дараа\s+нь', clause, maxsplit=1, flags=re.I)[0]
+            if not re.search(completed, clause, re.I):
+                continue
+            event_prefix = clause[:verb.end()]
+            years = re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', event_prefix)
+            year = len(set(years)) == 1
+            if not years:
+                # Only an immediately preceding year, optionally followed by
+                # a short founding heading, may supply a timeline year.
+                preceding = lines[max(0, index-2):index]
+                if preceding and re.fullmatch(r'(?:19|20)\d{2}', preceding[-1]):
+                    year = True
+                elif (len(preceding) == 2 and re.fullmatch(r'(?:19|20)\d{2}', preceding[0])
+                      and len(preceding[1]) <= 90 and re.search(r'байгуулагд\w*|үүсгэн\s+байгуул\w*', preceding[1], re.I)):
+                    year = True
+            # Dates must qualify the founding predicate, not a later conjunct.
+            month_day = bool(re.search(r'(?<!\d)(?:0?[1-9]|1[0-2])\s+сарын\s+(?:0?[1-9]|[12]\d|3[01])(?!\d)(?:-\w+)?\s*(?:өдөр|нд|ны|ний)?', event_prefix, re.I)
+                             or re.search(r'(?<!\d)(?:19|20)\d{2}[./-](?:0?[1-9]|1[0-2])[./-](?:0?[1-9]|[12]\d|3[01])(?!\d)', event_prefix))
+            numeric_dates = re.findall(r'(?<!\d)(\d{1,2})\s+сарын\s+(\d{1,2})(?!\d)', event_prefix)
+            numeric_dates += re.findall(r'(?<!\d)(?:19|20)\d{2}[./-](\d{1,2})[./-](\d{1,2})(?!\d)', event_prefix)
+            # Bound calendar validation too: February may have 29 days when
+            # its year is supplied by a heading; impossible dates never count.
+            limits = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+            if any(not (1 <= int(month) <= 12 and 1 <= int(day) <= limits[int(month)-1])
+                   for month, day in numeric_dates):
+                month_day = False
+            initial = re.search(r'анхны|эхний', clause, re.I)
+            initial_part = clause[initial.start():] if initial else ''
+            # Intake after the founding predicate needs an explicit school
+            # teaching/start predicate; a scholarship's "first students" is
+            # a different relation even within the same physical sentence.
+            intake_linked = bool(initial and (initial.end() <= verb.start()
+                                 or re.search(r'хичээлл\w*|суралц\w*', initial_part, re.I)))
+            students = bool(intake_linked and re.search(r'(?<!\d)\d+\s+(?:оюутан|суралцагч)\w*', initial_part, re.I))
+            groups = bool(intake_linked and re.search(r'(?<!\d)\d+\s+бүлэг\w*', initial_part, re.I))
+            yield dict(year=year, date=year and month_day, students=students, groups=groups,
+                       subject_prefix=named)
+
+
+def _school_founding_fields_present(text, requirement):
+    # All asked fields must be supported by the same event region. Separate
+    # schools/events cannot each supply one convenient number.
+    subject = requirement.get('subject_terms', [])
+    return any((not subject or record['subject_prefix'][-len(subject):] == subject)
+               and all(record.get(facet, False) for facet in requirement['required_event_facets'])
+               for record in _school_founding_event_records(text))

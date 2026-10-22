@@ -3865,5 +3865,59 @@
     ],
     "browser_scope": "Teacher card, source atlas and read-only admin observed and screenshotted before Work disabled browser control; final audio was verified through explicit backend APIs.",
     "no_production_code_fixes_made_by_this_audit": true
+  },
+  "audit_fixes_20261022": {
+    "date": "2026-10-22",
+    "scope": "Observed development audit regression; not human accuracy or a general entailment proof.",
+    "local_tests_passed": 949,
+    "local_test_seconds": 129.069,
+    "audit_defects_fixed": [
+      "physical_line_boundaries",
+      "presentation_completeness_bypass",
+      "context_across_omitted_paragraph"
+    ],
+    "founding_event_guard": true,
+    "constructed_probes_passed": 30,
+    "source_answer_values_hardcoded": false,
+    "actual_api_queries": 26,
+    "route_counts": {
+      "C": 16,
+      "D": 3,
+      "A": 3,
+      "E": 4
+    },
+    "gemma_calls": 19,
+    "exact_claims": 34,
+    "loaded_hash_count": 16,
+    "tts_decode_seconds": 24.36,
+    "old_response_status": 409,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "new_stt_inferences": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "new_human_score": null,
+    "human_events_preserved": 49,
+    "index_before": 201,
+    "index_after": 196,
+    "html_after": 145,
+    "document_passages": 21,
+    "client_passages": 30,
+    "strict_incomplete_edges_before": 26,
+    "strict_incomplete_edges_after": 0,
+    "original_inventory_cut_count_33_contains_7_newline_false_positives": true,
+    "html_unique_character_coverage_lost": 5530,
+    "html_nonspace_coverage_lost": 4876,
+    "raw_databases_unchanged": true,
+    "content_facts": 40,
+    "content_faqs": 30,
+    "explicit_index_migration_validated": true,
+    "first_sakura_abstention_regression_preserved_and_repaired": true,
+    "remaining": [
+      "Irrelevant/duplicate answer content",
+      "Independent human quality evaluation",
+      "Raw STT errors",
+      "Stable hosting and clean-machine deployment",
+      "Final thesis format and supervisor review"
+    ]
   }
 }

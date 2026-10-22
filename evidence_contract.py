@@ -110,6 +110,11 @@ def _structural_spans(text, spans):
             # name cannot be silently inherited through this pronoun link.
             company_heading = bool(lines and re.fullmatch(
                 r'[A-Za-z0-9][A-Za-z0-9 &,./()\-]{0,90}\s+(?:Ltd\.?|Inc\.?|Corp\.?|LLC|PLC)', lines[0][2], re.I))
+            # A complete captured window can start at the company's explicit
+            # descriptive sentence rather than its separate legal-name line.
+            # Accept only a literal initial Latin name + "компани нь" lead.
+            company_heading = company_heading or bool(len(lines) == 1 and re.match(
+                r'^[A-Za-z][A-Za-z0-9 &./()\-]{1,90}\s+компани\s+нь\b', lines[0][2], re.I))
             pronoun = (re.search(r'\bтус\s+компани[а-яёөү]*\b', following[0][2][:120], re.I)
                        if len(following) == 1 else None)
             prefix = following[0][2][:pronoun.start()] if pronoun else ''
@@ -194,7 +199,7 @@ def _overlap(left, right):
 
 
 def _continues_previous(text):
-    return bool(re.match(r'\s*(?:үүнээс|энэ|тус|мөн|харин|гэхдээ|ийм|тийм)\b', text, re.I))
+    return bool(re.match(r'\s*(?:үүнээс|энэ|тус|мөн|харин|гэхдээ|ийм|тийм|тухайлбал)\b', text, re.I))
 
 
 def _explicit_conditional(text):
@@ -244,22 +249,31 @@ def evidence_units(sources, max_characters=900):
         if not isinstance(sid, str) or not isinstance(text, str) or sid in seen:
             continue
         seen.add(sid)
-        for start, end in _spans(text):
-            start = _after_template_counters(text, start, end)
+        previous_physical = None
+        for physical_start, end in _spans(text):
+            start = _after_template_counters(text, physical_start, end)
             span = text[start:end]
+            previous = previous_physical
+            # Record every physical paragraph before filtering. An omitted
+            # paragraph remains a boundary; it is never replaced by the last
+            # older selectable unit of the source.
+            previous_physical = dict(start=physical_start, end=end,
+                                     conditional=_explicit_conditional(span), unit=None)
             if not 12 <= len(span) <= max_characters:
                 continue
-            units.append(dict(unit_id=_unit_id(sid, start, end, span), source_id=sid,
-                              text=span, start=start, end=end, quote=text,
-                              url=source.get('url'), context_unit_ids=[]))
-    # Obvious paragraph continuations retain their immediately preceding
-    # source context. Dependencies are resolved server-side, never retyped.
-    previous_by_source = {}
-    for unit in units:
-        previous = previous_by_source.get(unit['source_id'])
-        if previous and (_continues_previous(unit['text']) or _explicit_conditional(previous['text'])):
-            unit['context_unit_ids'] = [previous['unit_id']]
-        previous_by_source[unit['source_id']] = unit
+            unit = dict(unit_id=_unit_id(sid, start, end, span), source_id=sid,
+                        text=span, start=start, end=end, quote=text,
+                        url=source.get('url'), context_unit_ids=[])
+            if previous and (_continues_previous(span) or previous['conditional']):
+                # A dependent paragraph without its physical predecessor is
+                # not a standalone claim. Keep it out of the selectable pool
+                # rather than attach it across omitted text or a trimmed prefix.
+                if (previous['unit'] is None or start != physical_start
+                        or text[previous['end']:physical_start].strip()):
+                    continue
+                unit['context_unit_ids'] = [previous['unit']['unit_id']]
+            units.append(unit)
+            previous_physical['unit'] = unit
     kept = []
     for unit in units:
         if _orphan_list(unit['text']):

@@ -1,7 +1,7 @@
 """Constructed structural controls, not empirical school facts or human gold."""
 import unittest
 
-from evidence_contract import direction_card_bindings, evidence_units
+from evidence_contract import direction_card_bindings, evidence_units, resolve_evidence_selection
 from source_fields import field_evidence_requirements, missing_field_evidence
 
 
@@ -81,6 +81,38 @@ class StructureContextTests(unittest.TestCase):
     def test_flow_or_course_name_only_query_adds_no_new_field(self):
         for query in ['Хоёр урсгалын нэрийг хэлнэ үү.', 'ZXQ компанийн гурван хичээлийг нэрлэнэ үү.']:
             self.assertEqual(field_evidence_requirements(query), [])
+
+    def test_company_description_and_example_keep_literal_name_context(self):
+        lead='ZXQ Internet компани нь үүлэн серверийн үйлчилгээ үзүүлдэг байгууллага юм.'
+        link='Тэнхим нь тус компанитай хамтын ажиллагаагаа эхлүүлж, сургалт явуулдаг.'
+        example='Тухайлбал, компанийн экспертүүдтэй хамтран уг хичээлийг 7 жил амжилттай хэрэгжүүлсэн.'
+        intake='Мөн 2043 оны зун 5 оюутан уг компанид дадлага хийсэн.'
+        text='\n'.join([lead,link,example,intake])
+        rows=units(text)
+        selected=next(row for row in rows if row['text']==intake)
+        result=resolve_evidence_selection('ZXQ Internet хичээл хэдэн жил хэрэгжсэн, 2043 онд хэдэн оюутан дадлага хийсэн бэ?',
+                                         [selected['unit_id']],rows)
+        self.assertTrue(result['accepted'],result)
+        self.assertEqual(len(result['claims']),3)
+        self.assertTrue(all(claim['text'] in text for claim in result['claims']))
+        self.assertIn('ZXQ Internet',result['claims'][0]['text'])
+
+    def test_company_description_does_not_merge_another_named_actor(self):
+        lead='ZXQ Internet компани нь үүлэн серверийн үйлчилгээ үзүүлдэг байгууллага юм.'
+        other='OTHER компани нь тус компанитай хамтран сургалт явуулсан.'
+        self.assertFalse(any('ZXQ' in row['text'] and 'OTHER' in row['text'] for row in units(lead+'\n'+other)))
+
+    def test_example_cannot_jump_over_an_omitted_physical_paragraph(self):
+        lead='ZXQ Internet компани нь үүлэн серверийн үйлчилгээ үзүүлдэг байгууллага юм.'
+        omitted='OTHER-ийн өөр үйл ажиллагааны дэлгэрэнгүй тайлбар. '*30
+        example='Тухайлбал, уг компанийн сургалтад 5 оюутан хамрагдсан.'
+        self.assertFalse(any(row['text']==example for row in units('\n'.join([lead,omitted,example]))))
+
+    def test_company_description_with_intervening_heading_is_not_merged(self):
+        lead='ZXQ Internet компани нь үүлэн серверийн үйлчилгээ үзүүлдэг байгууллага юм.'
+        following='Тэнхим нь тус компанитай хамтран сургалт явуулдаг.'
+        self.assertFalse(any('ZXQ' in row['text'] and following in row['text']
+                             for row in units(lead+'\nӨӨР БАЙГУУЛЛАГА\n'+following)))
 
 
 if __name__ == '__main__':

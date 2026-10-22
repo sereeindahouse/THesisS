@@ -7,7 +7,8 @@ from unittest.mock import patch
 
 import test_website_corpus as corpus_tests
 from CORE.website_corpus import import_snapshot
-from website_retrieval import WebsiteRetriever, search_terms, single_query_code, diversity_group, preceding_entity_codes
+from website_retrieval import (WebsiteRetriever, search_terms, single_query_code,
+    diversity_group, preceding_entity_codes, _complete_line_bounds, SOURCE_BOUNDARY_CONTEXT)
 
 
 class RetrievalTests(unittest.TestCase):
@@ -189,7 +190,7 @@ class RetrievalTests(unittest.TestCase):
         continuation=next(s for s in found if s['source_id']=='continuation')
         self.assertEqual(continuation['text'],text[continuation['start_offset']:continuation['end_offset']])
 
-    def test_imported_cut_html_uses_antecedent_for_lowercase_query_only_as_scope(self):
+    def test_imported_cut_html_restores_complete_company_paragraph(self):
         text='ALFA компани систем хөгжүүлдэг. '+('тайлбар '*25)+'Тус компанитай хамтран '+('ажил '*20)+'Ярилцлагад оюутнууд оролцсон.'
         import_snapshot(self.db,self.helper.capture('run2',text=text))
         with closing(sqlite3.connect(self.db)) as db:
@@ -202,9 +203,96 @@ class RetrievalTests(unittest.TestCase):
         result=self.retriever.search('alfa компанийн ярилцлагын явц?')
         self.assertEqual(len(result['candidates']),1)
         row=result['candidates'][0]
-        self.assertNotIn('ALFA',row['text'])
+        self.assertIn('ALFA',row['text'])
+        self.assertEqual(row['start_offset'], full.index('ALFA'))
         self.assertEqual(row['text'],full[row['start_offset']:row['end_offset']])
         self.assertFalse(row['query_answer_support_established'])
+
+    def test_long_physical_paragraph_restores_both_cut_words_and_final_condition(self):
+        paragraph = 'Өргөдөл: ' + ('мэдээлэл ' * 60) + 'боловч баримт дутуу бол хүлээн авахгүй.'
+        text = 'Гарчиг\n' + paragraph + '\nДараагийн хэсэг'
+        start, end = text.index('мэдээлэл') + 213, text.index('боловч') + 8
+        bounds = _complete_line_bounds(text, start, end)
+        self.assertEqual(text[slice(*bounds)], paragraph)
+        self.assertTrue(text[slice(*bounds)].endswith('хүлээн авахгүй.'))
+        self.assertLessEqual(bounds[1] - bounds[0], end - start + 2 * SOURCE_BOUNDARY_CONTEXT)
+
+    def test_unicode_character_offsets_do_not_become_utf8_byte_offsets(self):
+        paragraph = '  Өөрийн нэрийг зөв бичнэ 😀: e\u0301, Монгол үг.  '
+        text = 'Өмнөх мөр\n' + paragraph + '\nТөгсгөл'
+        start, end = text.index('нэрийг') + 2, text.index('Монгол') + 3
+        bounds = _complete_line_bounds(text, start, end)
+        self.assertEqual(text[slice(*bounds)], paragraph.strip())
+        self.assertEqual(bounds[0], text.index('Өөрийн'))
+        self.assertNotEqual(bounds[0], len(text[:bounds[0]].encode('utf-8')))
+        self.assertIn('e\u0301', text[slice(*bounds)])
+
+    def test_complete_final_word_restored_at_page_end_without_newline(self):
+        text = 'Гарчиг\nЭлсэлтийн хураамжийг төлөөгүй бол бүртгэл баталгаажихгүй.'
+        bounds = _complete_line_bounds(text, text.index('хураамж') + 3, len(text) - 5)
+        self.assertEqual(text[slice(*bounds)], text.split('\n')[1])
+        self.assertEqual(bounds[1], len(text))
+
+    def test_context_budget_includes_exact_edge_and_omits_one_character_beyond(self):
+        prefix, suffix = 'Өмнө\n', '\nДараа'
+        paragraph = 'а' * (SOURCE_BOUNDARY_CONTEXT + 30)
+        text = prefix + paragraph + suffix
+        line_start = len(prefix)
+        at_limit = line_start + SOURCE_BOUNDARY_CONTEXT
+        self.assertEqual(_complete_line_bounds(text, at_limit, at_limit + 10)[0], line_start)
+        # The incomplete line cannot be retained merely by rounding to a word.
+        self.assertIsNone(_complete_line_bounds(text, at_limit + 1, at_limit + 11))
+
+    def test_overlong_interior_line_is_omitted_without_truncated_sentence(self):
+        text = 'Гарчиг\n' + 'уртүг' * 1000 + '\nБүрэн сүүлийн өгүүлбэр.'
+        self.assertIsNone(_complete_line_bounds(text, 1800, 2700))
+        bounds = _complete_line_bounds(text, len(text) - 150, len(text))
+        self.assertEqual(text[slice(*bounds)], 'Бүрэн сүүлийн өгүүлбэр.')
+
+    def test_overlong_trailing_line_retains_complete_prior_lines_only(self):
+        text = 'Бүрэн нөхцөл.\n' + 'уртүг' * 1000
+        bounds = _complete_line_bounds(text, 0, 300)
+        self.assertEqual(text[slice(*bounds)], 'Бүрэн нөхцөл.')
+        self.assertIsNone(_complete_line_bounds(text, 20, 300))
+
+    def test_complete_source_line_spans_deduplicate_after_edge_whitespace_trim(self):
+        import_snapshot(self.db, self.helper.capture('run2', text='  Мэдээлэл бүрэн байна.  '))
+        with closing(sqlite3.connect(self.db)) as db:
+            full = db.execute('SELECT text FROM pages ORDER BY version DESC LIMIT 1').fetchone()[0]
+            start = full.index('Мэдээлэл')
+            db.execute('DELETE FROM chunks')
+            for ordinal, left, right in [(0, start, len(full)), (1, start + 4, len(full) - 3)]:
+                db.execute('INSERT INTO chunks VALUES(?,?,?,?,?,?)',
+                    ('https://nmct.edu.mn/contact', 2, ordinal, left, right, full[left:right]))
+            db.commit()
+        before = hashlib.sha256(self.db.read_bytes()).hexdigest()
+        self.retriever._refresh()
+        self.assertEqual(len(self.retriever._rows), 1)
+        row = self.retriever._rows[0]
+        self.assertEqual(row['text'], 'Мэдээлэл бүрэн байна.')
+        self.assertEqual(row['text'], full[row['start_offset']:row['end_offset']])
+        self.assertEqual(before, hashlib.sha256(self.db.read_bytes()).hexdigest())
+
+    def test_long_page_keeps_useful_complete_lines_around_oversized_paragraph(self):
+        paragraph = 'Урт тасралтгүй тайлбар ' * 300
+        import_snapshot(self.db, self.helper.capture('run2', text='эхлэл'))
+        with closing(sqlite3.connect(self.db)) as db:
+            full = 'Элсэлтийн бүртгэл нээлттэй.\n' + paragraph + '\nСургалтын төлбөр жилд 100 төгрөг.'
+            db.execute('UPDATE pages SET text=? WHERE version=2', (full,))
+            db.execute('DELETE FROM chunks')
+            # Deliberately span the two edges and an interior overlong fragment.
+            windows = [(0, 900), (1900, 2800), (len(full) - 300, len(full))]
+            for ordinal, (start, end) in enumerate(windows):
+                db.execute('INSERT INTO chunks VALUES(?,?,?,?,?,?)',
+                    ('https://nmct.edu.mn/contact', 2, ordinal, start, end, full[start:end]))
+            db.commit()
+        self.retriever._refresh()
+        rows = self.retriever._rows
+        self.assertEqual([row['text'] for row in rows],
+            ['Элсэлтийн бүртгэл нээлттэй.', 'Сургалтын төлбөр жилд 100 төгрөг.'])
+        for row in rows:
+            self.assertEqual(row['text'], full[row['start_offset']:row['end_offset']])
+            self.assertLessEqual(len(row['text']), 900 + 2 * SOURCE_BOUNDARY_CONTEXT)
 
     def test_corpus_revision_changes_id(self):
         before=self.retriever.status()['corpus_id']

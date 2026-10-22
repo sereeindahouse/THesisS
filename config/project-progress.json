@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-21",
+  "updated_date": "2026-10-22",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "10.21: Үлдсэн хоёр RAG omission-ийг зассан код чатад ажиллаж байна;897тест тэнцсэн. STTfusion WER бууруулаагүй тул нэвтрүүлээгүй.",
-  "status_basis": "897tests PASS; same8 observed-development AI completeness8/8 Gemma and best3; no post-fix human accuracy or raw STT gain.",
+  "current_week": "10.22: Аудитын3доголдол ба түүхийн буруу эх сонголтыг засав;949тест/26APIасуулт. RawSTT36.02%хэвээр.",
+  "status_basis": "949PASS;26observed-development APIqueries,34exactclaims;not human accuracy. Index196;originalDBunchanged.",
   "milestones": [
     {
       "id": "schema",
@@ -31,7 +31,7 @@
       "id": "retrieval-router",
       "label": "Хязгаарласан хүрээний хайлт, чиглүүлэгч",
       "state": "done",
-      "detail": "201 хэсэг:150HTML+21баримт+30нэмэлт таб. Хязгаарласан эхийн хайлт, чиглүүлэгч ажиллана; шинэ асуултад утгын алдаа илэрсэн.",
+      "detail": "196индекс=145HTML+21баримт+30таб. Бүтэн мөрийн зааг;хэт урт2мөрийн хамралтын өртөг бүртгэлтэй. Ерөнхий correctness биш.",
       "evidence": [
         "website_retrieval.py",
         "question_router.py",
@@ -42,7 +42,7 @@
       "id": "grounded-rag",
       "label": "Эхтэй Gemma хариулт ба fallback",
       "state": "done",
-      "detail": "Gemma эхийнIDсонгож,серверүгчлэнхаруулна. Ижил8development AIбүрэн8/8;best3мөн8/8. Давталт/хамааралгүйхэсэгүлдсэн;хүнийшинэgoldбиш.",
+      "detail": "Gemma эхийн IDсонгож,серверүгчлэнхаруулна. Аудитын3доголдол/түүхийнүйл явдлынзасвар;26APIрегресс. Давталт/илүүдэлүлдсэн;хүнийшинэgoldбиш.",
       "evidence": [
         "rag_runtime.py",
         "tools/evaluate_answer_quality.py"
@@ -1543,5 +1543,59 @@
     "overall_thesis_percent": null,
     "general_accuracy": null,
     "summary": "Ажиллах систем/ноорог их ахисан; шинэ асуултын чанар, LLM/STT/TTS gain ба хараат бус хүний эцсийн үнэлгээ батлагдаагүй."
+  },
+  "audit_fixes_20261022": {
+    "date": "2026-10-22",
+    "scope": "Observed development audit regression; not human accuracy or a general entailment proof.",
+    "local_tests_passed": 949,
+    "local_test_seconds": 129.069,
+    "audit_defects_fixed": [
+      "physical_line_boundaries",
+      "presentation_completeness_bypass",
+      "context_across_omitted_paragraph"
+    ],
+    "founding_event_guard": true,
+    "constructed_probes_passed": 30,
+    "source_answer_values_hardcoded": false,
+    "actual_api_queries": 26,
+    "route_counts": {
+      "C": 16,
+      "D": 3,
+      "A": 3,
+      "E": 4
+    },
+    "gemma_calls": 19,
+    "exact_claims": 34,
+    "loaded_hash_count": 16,
+    "tts_decode_seconds": 24.36,
+    "old_response_status": 409,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "new_stt_inferences": 0,
+    "new_model_downloads": 0,
+    "own_training": 0,
+    "new_human_score": null,
+    "human_events_preserved": 49,
+    "index_before": 201,
+    "index_after": 196,
+    "html_after": 145,
+    "document_passages": 21,
+    "client_passages": 30,
+    "strict_incomplete_edges_before": 26,
+    "strict_incomplete_edges_after": 0,
+    "original_inventory_cut_count_33_contains_7_newline_false_positives": true,
+    "html_unique_character_coverage_lost": 5530,
+    "html_nonspace_coverage_lost": 4876,
+    "raw_databases_unchanged": true,
+    "content_facts": 40,
+    "content_faqs": 30,
+    "explicit_index_migration_validated": true,
+    "first_sakura_abstention_regression_preserved_and_repaired": true,
+    "remaining": [
+      "Irrelevant/duplicate answer content",
+      "Independent human quality evaluation",
+      "Raw STT errors",
+      "Stable hosting and clean-machine deployment",
+      "Final thesis format and supervisor review"
+    ]
   }
 }

@@ -25,7 +25,8 @@ from CORE.client_tab_corpus import read_client_tab_rows
 from retrieval_probe import bm25_scores, sha256
 
 ROOT = Path(__file__).resolve().parent
-INDEX_VERSION = 'website-hybrid-v4-client-field-coordinates'
+INDEX_VERSION = 'website-hybrid-v5-complete-physical-boundaries'
+SOURCE_BOUNDARY_CONTEXT = 900
 # Ranking experiments share the production corpus/preprocessing/diversity policy.
 # Only production applies lexical/topic abstention gates; other modes rank only.
 RANKING_MODES = ('bm25', 'e5', 'rrf', 'rrf_boosted', 'production')
@@ -150,6 +151,50 @@ def _rank_text(text):
     return '\n'.join(line for line in text.splitlines() if line.strip() not in NAV_LINES)
 
 
+def _complete_line_bounds(text, start, end):
+    """Bound one imported window by complete physical lines, without rewriting.
+
+    Keep the existing per-window grouping and forward line context. An edge
+    may expand by at most SOURCE_BOUNDARY_CONTEXT Unicode characters. When an
+    enclosing line is farther away, omit its incomplete edge rather than emit
+    a cut word/sentence or copy an unbounded paragraph. Returned offsets remain
+    character offsets into the captured page, including for multibyte scripts.
+    """
+    if not 0 <= start < end <= len(text):
+        return None
+    original_start, original_end = start, end
+    left = text.rfind('\n', max(0, start - SOURCE_BOUNDARY_CONTEXT - 1), start)
+    if left >= 0:
+        start = left + 1
+    elif start <= SOURCE_BOUNDARY_CONTEXT:
+        start = 0
+    else:
+        left = text.find('\n', start, end)
+        if left < 0:
+            return None
+        start = left + 1
+
+    right = text.find('\n', end, min(len(text), end + SOURCE_BOUNDARY_CONTEXT + 1))
+    if right >= 0:
+        end = right
+    elif len(text) - end <= SOURCE_BOUNDARY_CONTEXT:
+        end = len(text)
+    else:
+        right = text.rfind('\n', start, end)
+        if right < 0:
+            return None
+        end = right
+
+    # Only outer whitespace is removed, by moving the exact source offsets.
+    while start < end and text[start].isspace():
+        start += 1
+    while start < end and text[end - 1].isspace():
+        end -= 1
+    if start >= end or end <= original_start or start >= original_end:
+        return None
+    return start, end
+
+
 class _LocalE5:
     """Persistent CPU encoder, with the same mean-pooling protocol as the probe."""
     def __init__(self, root):
@@ -249,11 +294,10 @@ class WebsiteRetriever:
             start, end = chunk['start_offset'], chunk['end_offset']
             if not 0 <= start < end <= len(page['text']) or page['text'][start:end] != chunk['text']:
                 continue
-            # Expand cut words to whole lines while retaining an exact contiguous slice.
-            left = page['text'].rfind('\n', max(0, start - 180), start)
-            start = left + 1 if left >= 0 else (0 if start < 180 else start)
-            right = page['text'].find('\n', end, min(len(page['text']), end + 250))
-            end = right if right >= 0 else min(len(page['text']), end)
+            bounds = _complete_line_bounds(page['text'], start, end)
+            if bounds is None:
+                continue
+            start, end = bounds
             text = page['text'][start:end]
             dedup = hashlib.sha256(text.encode()).hexdigest()
             if dedup in seen:

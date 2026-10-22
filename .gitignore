@@ -311,3 +311,4 @@ __pycache__/
 !/tests/test_human_quality_trial.py
 !/CORE/HUMAN-QUALITY-CHECK.mn.md
 !/tests/test_structure_context.py
+!/tests/test_history_evidence.py
