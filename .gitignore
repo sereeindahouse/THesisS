@@ -312,3 +312,6 @@ __pycache__/
 !/CORE/HUMAN-QUALITY-CHECK.mn.md
 !/tests/test_structure_context.py
 !/tests/test_history_evidence.py
+!/tests/test_answer_refinement.py
+!/tests/test_voice_ui_recovery.py
+!/tests/voice_ui_recovery_harness.js

@@ -3919,5 +3919,78 @@
       "Stable hosting and clean-machine deployment",
       "Final thesis format and supervisor review"
     ]
+  },
+  "answer_refinement_20261022": {
+    "date": "2026-10-22",
+    "local_tests_passed": 981,
+    "unittest_seconds": 137.376,
+    "scope": "Observed development; fixed-root postprocessing and live regression are separate. No human quality gain.",
+    "fixed_root_cases": 16,
+    "claims_before": 34,
+    "claims_after": 29,
+    "display_characters_before": 9102,
+    "display_characters_after": 8007,
+    "spoken_characters_before": 9009,
+    "spoken_characters_after": 7934,
+    "changed_cases": 3,
+    "controlled_provider_calls": 0,
+    "same_capture_physical_dedup_only": true,
+    "subset_pruning_closed_question_forms_only": true,
+    "js_behavior_scenarios_passed": 13,
+    "stt_browser_wait_seconds": 120,
+    "server_inference_cancellation_claimed": false,
+    "stale_tts_race_controls": 3,
+    "cleanup_id_batch_limit": 100,
+    "offline_readiness_passed": 7,
+    "final_live_queries": 26,
+    "final_live_gemma_calls": 20,
+    "final_live_claims": 29,
+    "route_counts": {
+      "C": 16,
+      "D": 3,
+      "A": 3,
+      "E": 4
+    },
+    "monitor_pair": {
+      "display_chars": [
+        614,
+        318
+      ],
+      "spoken_chars": [
+        606,
+        314
+      ],
+      "decoded_seconds": [
+        34.368,
+        19.536
+      ]
+    },
+    "flow_pair": {
+      "display_chars": [
+        352,
+        352
+      ],
+      "decoded_seconds": [
+        28.248,
+        28.248
+      ]
+    },
+    "new_stt_inferences": 0,
+    "own_training": 0,
+    "new_model_downloads": 0,
+    "raw_stt_wer_percent": 36.02150537634409,
+    "human_after_fix": null,
+    "original_human_events": 49,
+    "original_data_unchanged": true,
+    "indexed_passages": 196,
+    "stable_https_proven": false,
+    "clean_machine_install_proven": false,
+    "remaining": [
+      "Surplus and repeated text at distinct positions",
+      "Independent human quality evaluation",
+      "Raw STT errors",
+      "Stable hosting/clean-machine delivery",
+      "Final thesis formatting and supervisor review"
+    ]
   }
 }

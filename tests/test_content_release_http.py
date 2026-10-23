@@ -23,6 +23,8 @@ from tools.serve_device_demo import allowed_path
 from website_retrieval import WebsiteRetriever
 from test_content_release import captured, content, URL
 from test_voice_demo_http import FakeLLM, FakeReview, FakeVoice
+import test_teacher_media_http as teacher_http
+from voice_runtime import VoiceRuntime
 
 
 class NoGenerator:
@@ -250,6 +252,75 @@ class ReleaseHTTPTests(unittest.TestCase):
         self.publish(first['release_id'],second['activation_token'],'rollback')
         status,result=self.request('POST','/api/route',dict(query='Элсэлтийнх',clarification_id=capability))
         self.assertEqual(status,409,result)
+
+
+class OrphanTTSRecordTests(unittest.TestCase):
+    """Real record files, fake synthesis, temporary release/teacher races."""
+
+    def assert_record_ownership(self, kind, *, change_source=True):
+        fixture = teacher_http.TeacherMediaHTTPTests() if kind=='teacher' else ReleaseHTTPTests()
+        fixture.setUp()
+        try:
+            if kind=='teacher':
+                answer=fixture.profile()
+                def change():
+                    page=fixture.media.store/'page.html'
+                    page.write_bytes(page.read_bytes()+b' changed synthetic fixture')
+            else:
+                first=fixture.initial();answer=fixture.route()
+                if change_source:
+                    staged=fixture.changed(first);fixture.seal(staged)
+                def change():
+                    ContentReleaseManager(fixture.root).publish(staged,first['activation_token'])
+            runtime,other=VoiceRuntime(fixture.root),VoiceRuntime(fixture.root)
+            old=runtime._save(b'old fixture audio','audio/mpeg',dict(kind='tts'))
+            unrelated=other._save(b'other session fixture audio','audio/mpeg',dict(kind='tts'))
+            old_files={path:path.read_bytes() for path in runtime._records[old['id']][:2]}
+            other_files={path:path.read_bytes() for path in other._records[unrelated['id']][:2]}
+            created,deleted=[],[]
+            def synthesize(text,voice):
+                result=runtime._save(b'new fixture audio','audio/mpeg',dict(kind='tts',
+                    text=text,voice=voice,synthesis_seconds=0,audio_synthesized=True))
+                created.append(result['id'])
+                if change_source:change()
+                return result
+            def reset(ids):
+                deleted.append(list(ids));return runtime.reset(ids)
+            fixture.voice.synthesize=synthesize
+            fixture.voice.audio=runtime.audio
+            fixture.voice.reset=reset
+            status,result=fixture.speak(answer)[:2]
+            new=created[0]
+            if change_source:
+                self.assertEqual(status,409,result)
+                self.assertNotIn('audio_url',result)
+                self.assertNotIn('id',result)
+                self.assertEqual(deleted,[[new]])
+                self.assertNotIn(new,runtime._records)
+                self.assertFalse((runtime._session/(new+'.audio')).exists())
+                self.assertFalse((runtime._session/(new+'.json')).exists())
+                self.assertEqual(fixture.request('GET','/api/voice/audio/'+new)[0],404)
+            else:
+                self.assertEqual(status,200,result)
+                self.assertEqual(result['id'],new)
+                self.assertEqual(deleted,[])
+                self.assertEqual(fixture.request('GET',result['audio_url'])[0],200)
+            self.assertEqual(runtime.audio(old['id'])[0],b'old fixture audio')
+            self.assertEqual(other.audio(unrelated['id'])[0],b'other session fixture audio')
+            self.assertEqual(old_files,{path:path.read_bytes() for path in old_files})
+            self.assertEqual(other_files,{path:path.read_bytes() for path in other_files})
+            self.assertEqual(fixture.request('GET','/api/voice/audio/'+unrelated['id'])[0],404)
+        finally:
+            fixture.tearDown();fixture.doCleanups()
+
+    def test_release_change_deletes_only_new_unreturned_tts_record(self):
+        self.assert_record_ownership('release')
+
+    def test_teacher_source_change_deletes_only_new_unreturned_tts_record(self):
+        self.assert_record_ownership('teacher')
+
+    def test_successful_speech_keeps_new_audio_and_existing_records(self):
+        self.assert_record_ownership('release',change_source=False)
 
 
 if __name__ == '__main__':

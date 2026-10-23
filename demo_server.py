@@ -474,10 +474,12 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     spoken = spoken_text(current)
                     result = voice.synthesize(spoken, body.get("voice"))
                     if not live_content.is_current(bundle):
+                        voice.reset([result['id']])
                         return self.error(409, 'Дуу бэлтгэх үед мэдээллийн хувилбар солигдсон. Асуултаа дахин илгээнэ үү.')
                     if teacher_bundle is not None:
                         teacher_state = teachers.status()
                         if not teacher_state.get('available') or teacher_bundle != teacher_state.get('bundle_id'):
+                            voice.reset([result['id']])
                             return self.error(409, 'Дуу бэлтгэх үед багшийн эх өөрчлөгдсөн. Асуултаа дахин илгээнэ үү.')
                     result['content_release'] = bundle.public()
                     answer_rag=current.get('rag') or {}

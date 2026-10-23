@@ -99,6 +99,7 @@ class TeacherMediaHTTPTests(unittest.TestCase):
             return original(text,voice)
         self.voice.synthesize=change
         status,value,_=self.speak(result);self.assertEqual(status,409);self.assertNotIn('audio_url',value)
+        self.assertEqual(self.voice.deleted,['b'*32])
 
     def test_catalog_media_identity_host_origin_and_traversal_are_bounded(self):
         status,catalog,_=self.request('GET','/api/teachers')

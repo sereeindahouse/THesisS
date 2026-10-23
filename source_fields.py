@@ -769,6 +769,41 @@ def _field_intent_without_presentation_clauses(query):
     return ''.join(clauses)
 
 
+def closed_field_selection_query(query, requirements):
+    """Two bounded question grammars whose facets are all screened here.
+
+    A nonempty field list alone is not sufficient: it may miss a compound
+    question's founder, location, purpose or other unknown facet. Unknown words,
+    extra sentences, conditions and numbers therefore disable subset pruning.
+    This does not change routing or make other queries unanswerable.
+    """
+    q = _field_intent_without_presentation_clauses(query).strip(' .!?\n')
+    if not requirements or re.search(r'[;:\n]|[.!?].*\S', q):
+        return False
+    kinds = {field['type'] for field in requirements}
+    if kinds == {'school_founding_event'}:
+        if {field['facet'] for field in requirements} != {'year'}:
+            return False
+        school = re.search(r'сургуул\w*|коллеж\w*|коосэн\w*', q)
+        if not school:
+            return False
+        prefix = q[:school.start()].strip(' “"«')
+        if (len(prefix.split()) > 5 or re.search(r'[,;.!?]|\b(?:ба|болон|хэн|хаана|хэд\w*|хэзээ|ямар|тоо\w*|оюут\w*|бүл\w*|захирал\w*|нэрл\w*|тайлбарл\w*|хэл\w*|байгуулагч\w*)\b', prefix)
+                or re.search(r'[^a-zа-яёөү\s]', prefix)):
+            return False
+        tail = q[school.end():].strip(' ”"»-')
+        return bool(re.fullmatch(
+            r'(?:анх\s+)?(?:хэдэн\s+онд\s+байгуулагдсан(?:\s+(?:бэ|вэ|уу))?|'
+            r'байгуулагдсан\s+оныг\s+хэл(?:нэ\s+үү|ээрэй)?)', tail))
+    elif kinds == {'direction_name_pair'}:
+        return bool(re.fullmatch(
+            r'(?:чанарын\s+баталгаажуулалтын\s+)?(?:хоёр|2)\s+урсгалын\s+'
+            r'чиглэл\s+(?:ба|болон)\s+нэр(?:ийг)?\s+(?:тус\s+тус\s+)?'
+            r'хэл(?:нэ\s+үү|ээрэй)?', q))
+    else:
+        return False
+
+
 def field_evidence_requirements(query):
     """Describe a few explicitly requested facets, without storing answers.
 

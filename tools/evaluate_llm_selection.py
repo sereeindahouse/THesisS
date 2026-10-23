@@ -80,7 +80,7 @@ def common_render(query, ids, units, *, abstained=False):
     from evidence_contract import resolve_evidence_selection
     from source_fields import (field_evidence_requirements, missing_field_evidence,
         requested_detail, detail_supported)
-    from rag_runtime import compound_exam_duration, both_exam_durations_supported
+    from rag_runtime import compound_exam_duration, both_exam_durations_supported, refine_evidence_selection
     from answer_contract import (render_claims, MAX_SPEECH_CHARACTERS,
         interview_attribute, ATTRIBUTE_LABELS, supports_interview_attribute)
     if abstained or not ids:
@@ -100,12 +100,15 @@ def common_render(query, ids, units, *, abstained=False):
         'requested_field_not_in_selection' if detail and not detail_supported(detail, selected, query=query) else
         'requested_field_not_in_selection' if attribute in ATTRIBUTE_LABELS
             and not supports_interview_attribute(query, selected) else None)
+    refinement = None
+    if not reason:
+        resolved, refinement = refine_evidence_selection(query, ids, units, resolved)
     answer, _ = render_claims(resolved['claims'])
     if len(answer) > MAX_SPEECH_CHARACTERS:
         reason = 'answer_exceeds_speech_budget'
     if reason:
         return dict(accepted=False, answer=None, claims=[], reason=reason, missing_fields=missing)
-    return dict(resolved, answer=answer, reason='source_preserving_selection')
+    return dict(resolved, answer=answer, reason='source_preserving_selection', selection_refinement=refinement)
 
 
 def slot_screen(case, output):

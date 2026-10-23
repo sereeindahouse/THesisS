@@ -264,6 +264,14 @@ def evidence_units(sources, max_characters=900):
             unit = dict(unit_id=_unit_id(sid, start, end, span), source_id=sid,
                         text=span, start=start, end=end, quote=text,
                         url=source.get('url'), context_unit_ids=[])
+            offset = source.get('start_offset')
+            if (source.get('text_scope') == 'main_element' and source.get('version') is not None
+                    and isinstance(source.get('url'), str) and type(offset) is int and offset >= 0
+                    and source.get('end_offset') == offset + len(text)):
+                # Coordinate systems of document/client excerpts are different.
+                # Only complete captured HTML supplies canonical page offsets.
+                unit['page_span'] = dict(url=source['url'], version=source['version'],
+                                         start=offset + start, end=offset + end)
             if previous and (_continues_previous(span) or previous['conditional']):
                 # A dependent paragraph without its physical predecessor is
                 # not a standalone claim. Keep it out of the selectable pool
@@ -523,6 +531,43 @@ def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, 
                 or _unit_id(source_id, start, end, text) != sid):
             return result('invalid_evidence_unit')
         claims.append(dict(source_id=source_id, text=text, quote=quote))
+    # Remove only copies of the same physical HTML span. A substring on another
+    # page/year/position is independent evidence and must not disappear. Validate
+    # every expanded unit above before considering any of them redundant.
+    removed = {}
+    for position, sid in enumerate(expanded):
+        unit = known[sid]
+        span = unit.get('page_span')
+        if not isinstance(span, dict) or set(span) != {'url', 'version', 'start', 'end'}:
+            continue
+        if (type(span['start']) is not int or type(span['end']) is not int
+                or span['start'] < 0 or span['end'] - span['start'] != len(unit['text'])):
+            continue
+        for other_position, other_id in enumerate(expanded):
+            if sid == other_id:
+                continue
+            other = known[other_id]; parent = other.get('page_span')
+            if (not isinstance(parent, dict) or set(parent) != set(span)
+                    or parent['url'] != span['url'] or parent['version'] != span['version']
+                    or type(parent['start']) is not int or type(parent['end']) is not int
+                    or parent['end'] - parent['start'] != len(other['text'])
+                    or not parent['start'] <= span['start'] < span['end'] <= parent['end']):
+                continue
+            if (parent['start'] == span['start'] and parent['end'] == span['end']
+                    and other_position > position):
+                continue
+            left, right = span['start'] - parent['start'], span['end'] - parent['start']
+            if other['text'][left:right] == unit['text']:
+                removed[sid] = other_id
+                break
+    all_expanded = list(expanded)
+    if removed:
+        for sid, covering in list(removed.items()):
+            while covering in removed:
+                covering = removed[covering]
+            removed[sid] = covering
+        claims = [claim for sid, claim in zip(expanded, claims) if sid not in removed]
+        expanded = [sid for sid in expanded if sid not in removed]
     selected_text = '\n\n'.join(claim['text'] for claim in claims)
     if len(selected_text) > max_characters:
         return result('evidence_selection_exceeds_budget')
@@ -531,5 +576,6 @@ def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, 
         return result('requested_evidence_markers_missing', missing_markers=missing)
     return result('verbatim_evidence_selection', accepted=True, claims=claims,
                   selected_unit_ids=expanded, context_expanded=expanded != selected_ids,
+                  expanded_unit_ids=all_expanded, duplicate_unit_coverage=removed,
                   publication_context_unit_ids=publication_context,
                   named_heading_context_unit_ids=named_context)

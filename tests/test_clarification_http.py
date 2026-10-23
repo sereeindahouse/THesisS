@@ -80,6 +80,7 @@ class RecordingRAG(ChatRAG):
 class Voice:
     def __init__(self):
         self.spoken = []
+        self.deleted = []
 
     def status(self):
         return dict(stt_ready=False, tts_ready=False)
@@ -87,6 +88,10 @@ class Voice:
     def synthesize(self, text, voice):
         self.spoken.append((text, voice))
         return dict(id='b' * 32, audio_url='/api/voice/audio/' + 'b' * 32)
+
+    def reset(self, ids):
+        self.deleted.extend(ids)
+        return dict(deleted_ids=list(ids))
 
 
 class ClarificationHTTPTests(unittest.TestCase):

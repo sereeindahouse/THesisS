@@ -22,7 +22,7 @@ from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, resolve_evidence_selection
 from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
     field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
-    field_evidence_requirements, missing_field_evidence)
+    field_evidence_requirements, missing_field_evidence, closed_field_selection_query)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
@@ -315,6 +315,60 @@ def source_extract(query, sources):
     return None
 
 
+def refine_evidence_selection(query, roots, units, resolved):
+    """Remove surplus selected roots only for two closed field grammars.
+
+    This never adds evidence or rewrites a unit. All candidate subsets run the
+    original resolver, dependency closure, marker, field and final detail guards.
+    An incomplete recognizer must not silently discard an unknown extra facet.
+    """
+    requirements = field_evidence_requirements(query)
+    before = render_claims(resolved['claims'])[0]
+    diagnostics = dict(eligible=False, before_unit_ids=list(resolved['selected_unit_ids']),
+                       before_characters=len(before), after_characters=len(before),
+                       removed_root_ids=[], candidate_subsets_checked=0)
+    if not resolved.get('accepted') or not 1 < len(roots) <= 3:
+        return resolved, diagnostics
+    if not closed_field_selection_query(query, requirements):
+        diagnostics['reason'] = 'open_or_unrecognized_question'
+        return resolved, diagnostics
+    original_text = '\n'.join(c['text'] for c in resolved['claims'])
+    # "тасралтгүй" describes continuous activity, not an exception/denial.
+    negatives = set(re.findall(r'\b[а-яёөү]+гүй\b', original_text.casefold())) - {'тасралтгүй'}
+    if negatives or re.search(r'\b(?:хэрэв|зөвхөн|биш|боловч|харин|эсвэл)\b|тохиолдолд|'
+                              r'бусад\s+нөхцөл', original_text, re.I):
+        diagnostics['reason'] = 'condition_or_exception_preserved'
+        return resolved, diagnostics
+    diagnostics.update(eligible=True, reason='no_shorter_complete_subset')
+    best, best_roots, best_length = resolved, roots, len(before)
+    for count in range(1, len(roots)):
+        for subset in combinations(roots, count):
+            diagnostics['candidate_subsets_checked'] += 1
+            candidate = resolve_evidence_selection(query, list(subset), units,
+                                                   max_characters=1800, max_claims=6)
+            if not candidate['accepted']:
+                continue
+            texts = [claim['text'] for claim in candidate['claims']]
+            selected_text = '\n'.join(texts)
+            if missing_field_evidence(requirements, texts):
+                continue
+            if compound_exam_duration(query) and not both_exam_durations_supported(selected_text):
+                continue
+            detail, attribute = requested_detail(query), interview_attribute(query)
+            if detail and not detail_supported(detail, selected_text, query=query):
+                continue
+            if attribute in ATTRIBUTE_LABELS and not supports_interview_attribute(query, selected_text):
+                continue
+            length = len(render_claims(candidate['claims'])[0])
+            if length <= MAX_SPEECH_CHARACTERS and length < best_length:
+                best, best_roots, best_length = candidate, subset, length
+    if best is not resolved:
+        diagnostics.update(reason='closed_fields_complete_subset',
+            removed_root_ids=[sid for sid in roots if sid not in best_roots],
+            after_characters=best_length)
+    return best, diagnostics
+
+
 class GroundedGenerator(LLMRuntime):
     def __init__(self, root=None, transport=None):
         root = Path(root or Path(__file__).resolve().parent)
@@ -376,7 +430,7 @@ class GroundedGenerator(LLMRuntime):
             result["llm_role"] = "evidence_selection"
             result["answer_text_generated"] = False
             result["evidence_unit_count"] = len(units)
-            result["evidence_units"]=[{key:u.get(key) for key in ('unit_id','source_id','text','start','end','context_unit_ids')} for u in units]
+            result["evidence_units"]=[{key:u.get(key) for key in ('unit_id','source_id','text','start','end','context_unit_ids','page_span')} for u in units]
             requirements = field_evidence_requirements(query)
             if requirements:
                 result['requested_fields'] = [field['name'] for field in requirements]
@@ -584,6 +638,11 @@ class GroundedGenerator(LLMRuntime):
                                     'A candidate for one field cannot replace a different field. Choose complementary units for all fields. '
                                     'Replace background units; do not simply append. Keep original names, conditions and units.')
                     payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
+                original_resolved = resolved
+                resolved, refinement = refine_evidence_selection(query, selected, units, resolved)
+                result['selection_refinement'] = refinement
+                result['pre_refinement_duplicate_unit_coverage'] = original_resolved.get('duplicate_unit_coverage', {})
+                result['duplicate_unit_coverage'] = resolved.get('duplicate_unit_coverage', {})
                 claims = resolved["claims"]
                 if requirements:
                     result['missing_requested_fields'] = []

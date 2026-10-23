@@ -1,3 +1,19 @@
+<!-- answer-refinement-files-20261022:start -->
+## Одоогийн үндсэн хэсгүүд — 2026.10.22
+
+**981 тест тэнцсэн код [чатад](http://127.0.0.1:8765/) ажиллаж байна.** Шинэ 26 API асуултын регрессийг шалгасан; энэ нь 26/26 accuracy гэсэн үг биш.
+
+| Хэсэг | Энэ удаа юу сайжирсан бэ? | Гол файл |
+|---|---|---|
+| RAG | Нэг физик эхийн давхцлыг давтаж харуулахгүй | [evidence_contract.py](../evidence_contract.py) |
+| LLM-ийн дараах шалгалт | Хоёр хязгаарласан асуултын хэлбэрт хэрэггүй сонголтыг бүх guard-аар дахин шалгаж хасна | [rag_runtime.py](../rag_runtime.py), [source_fields.py](../source_fields.py) |
+| STT-ийн хэрэглээ | 120 секундийн browser wait, retry/reset, хуучин хариунаас хамгаалалт | [index.html](../demo/index.html) |
+| TTS ба өгөгдлийн хувилбар | Эх солигдсон үед үүссэн илүү аудиог цэвэрлэнэ | [demo_server.py](../demo_server.py) |
+| Дахин шалгах | Эх/нөхцөл алдахгүй байдал, жинхэнэ JS handler, release race | [test_answer_refinement.py](../tests/test_answer_refinement.py), [test_voice_ui_recovery.py](../tests/test_voice_ui_recovery.py), [test_content_release_http.py](../tests/test_content_release_http.py) |
+
+Ижил 16 хариултын fixed-root туршилтад унших текст 9009→7934 тэмдэгт. Raw STT WER 36.02% хэвээр; шинэ хүний accuracy биш. [Явц ба хязгаар](ROADMAP-PROGRESS.mn.md) · [Gemma/RAG арга](CONCEPTS.mn.md).
+<!-- answer-refinement-files-20261022:end -->
+
 <!-- audit-fix-files-20261022:start -->
 ## Одоогийн шалгасан хувилбар — 2026.10.22
 
