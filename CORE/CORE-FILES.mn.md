@@ -1,3 +1,5 @@
+**10.24 — Бодит браузерээр шалгав:** модны хулганын товшилт болон багшийн нэр/танилцуулгын найруулгыг зассан. Desktop, 374/376 CSS px нарийн харагдац, дөрвөн карт/хоёр зураг ажилласан. 1148 тест PASS; RAG development23бүрэн/1partial; rawSTT36.02%хэвээр.
+
 ## 10.24 — Шинэ талбарын сонголт ба зураггүй багшийн нэр
 
 source_fields.py-ийн structured_field_extract нь бүрэн танигдсан асуултын шаардсан мөрүүдийг эхийн бүтэцтэй тулгана; evidence_contract.py-ийн exact_field_units нь физик мөр/offset/context холбоог батална. rag_runtime.py нь тэр plan-ийг ердийн resolver-ээр шалгаж A замд харуулна. TeacherMedia v2 нь нэр/үүргийг зурагтай тусад нь баталж, text-only карт дэмжинэ. tests/test_structured_field_extract.py-ийн14контрол, tests/test_teacher_cards_ui.py-ийнжинхэнэrenderer-ийншалгалт орсон. [Эцсийнявц](ROADMAP-PROGRESS.mn.md).

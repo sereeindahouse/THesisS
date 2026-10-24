@@ -3,8 +3,8 @@
   "updated_date": "2026-10-24",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "10.24: дөрвөн илүүдэл хариулт засагдав; багшийн 4 нэр/2 хөрөг. 1148 тест; ижил 24 асуултад 23 бүрэн/1 хэсэгчилсэн. Raw STT WER 36.02% хэвээр.",
-  "status_basis": "1148 PASS; 24+12 actual HTTP; 2 response-bound TTS decode; 19 prospective STT output independently rescored, no raw WER gain.",
+  "current_week": "10.24: бодит браузерийн мод/карт шалгалт; RAG24development23бүрэн/1partial. RawSTT36.02%хэвээр.",
+  "status_basis": "Actual Brave desktop/narrow QA9checks;1148tests;24+12actualHTTP;previous2TTSdecode;rawSTTtrial rejected.",
   "milestones": [
     {
       "id": "schema",
@@ -1149,12 +1149,12 @@
   },
   "latest_update": {
     "date": "2026-10-24",
-    "title": "Үлдсэн дөрвөн илүүдэл хариулт, багшийн нэрийн хамрах хүрээ",
+    "title": "Бодит браузерээр мод, багшийн картыг шалгав",
     "items": [
-      "Hub-ийн өрөө, дадлагын хүсэлт, N2, зөвлөлийн таслалтад гарчиг, нөхцөлтэй exact талбарыг сонгож, өөр workflow нэмэхгүй.",
-      "Багшийн 4 нэр/2 эхтэй хөрөг; жишээ зурагтай хоёр хүний нэрийг хасахгүй. 5 vs 4 эхийн зөрүүнээс бүрэн roster батлагдаагүй.",
-      "1148 тест тэнцсэн; ижил 24 асуултад 23 бүрэн/1 хэсэгчилсэн; өөр 12 найруулга тэнцсэн. TTS 31.368s/8.064s decode; хүний сонсголын шинэ оноо байхгүй.",
-      "patience2: 17 яриа ижил, хоёр raw чимээний хийсвэр текст өөр; WER 36.02% хэвээр. Нэвтрүүлээгүй; браузерийн холболтгүй."
+      "Модны хулганын товшилт, үндсэн дэлгэрэнгүй харагдац, найруулгын багшийн хүсэлтийг засав.",
+      "Brave-ийн desktop болон374/376CSSpx харагдац, эх нээх, STT/Gemma урсгал,4карт/2зураг шалгав.",
+      "24+12HTTP дахин шалгав:23бүрэн/1partial;12найруулгаPASS. Хүний accuracyбиш.",
+      "RawSTT36.02%хэвээр; patience2-г нэвтрүүлээгүй."
     ]
   },
   "quality_media_20261021": {
@@ -2079,6 +2079,115 @@
       "Raw STT WER36.02% remains; patience trial rejected.",
       "Real browser visual QA awaits a connected browser.",
       "Independent human quality study, permanent hosting, clean-machine installation and final thesis review remain."
+    ]
+  },
+  "browser_qa_20261024": {
+    "date": "2026-10-24",
+    "scope": "Actual Brave browser QA; local rendered UI and source-bound chat. Development self-review, not human or held-out accuracy.",
+    "local_tests": {
+      "run": 1148,
+      "passed": 1148,
+      "seconds": 135.455,
+      "source_unchanged": true,
+      "log_sha256": "63be8acd23a8755bda1c144621622c08f0fb0f62ace5de4f53202664c4464ffb"
+    },
+    "actual_browser": {
+      "browser": "Brave extension",
+      "final_checks": 9,
+      "passed": 9,
+      "check_names": [
+        "desktop_graph_and_compact_root",
+        "zoom_and_fit",
+        "teacher_topic_search",
+        "library_pointer_source_detail",
+        "open_saved_library_source",
+        "processing_nodes_click_and_llm_role",
+        "mobile_leaf_source_detail",
+        "teacher_cards_and_paraphrase",
+        "narrow_responsive_measured_374_and_376_css"
+      ],
+      "desktop_and_narrow_rendered": true,
+      "measured_narrow_css_widths": [
+        374,
+        376
+      ],
+      "exact_375_css_claim": false,
+      "temporary_viewport_reset": true,
+      "failed_exact_width_assertions_preserved": true,
+      "tts_playback_tested": false
+    },
+    "school_graph": {
+      "nodes": 33,
+      "edges": 32
+    },
+    "system_graph": {
+      "nodes": 16,
+      "arrows": 19
+    },
+    "graph_dom_simulation": {
+      "passed": 16,
+      "actual_browser": false
+    },
+    "fixes": [
+      "Delay SVG pointer capture until a real drag/pinch; node mouse clicks now open source details.",
+      "Compact root detail avoids listing83sources before the processing graph.",
+      "Recognize scoped teacher name plus introduction requests without dropping unsupported fields.",
+      "Explain current captured HTML versus curated source version; retry initial rendering failure."
+    ],
+    "teacher": {
+      "names": 4,
+      "portraits": 2,
+      "full_staff_roster": false,
+      "source_summary_count": 5,
+      "placeholder_images_not_displayed": true,
+      "both_real_images_loaded_in_browser": true
+    },
+    "final_24": {
+      "pass_": 23,
+      "partial": 1,
+      "remaining_partial_ids": [
+        "fresh02"
+      ],
+      "outputs_sha256": "f511edc8e5abd6e56847ef75347eca0133d4f1525842ec027b4bdf967137c9ac"
+    },
+    "followups_12": {
+      "pass_": 12,
+      "outputs_sha256": "d9f3bdfd1ae873ba8e18276b50bb49c57dfc741f591b141db0c17770ece2ba84"
+    },
+    "all36_actual_http_recollected_after_teacher_change": true,
+    "visible_outputs_identical_to_previously_read36": true,
+    "loaded20_current_before_after_match": true,
+    "stt": {
+      "wer_percent": 36.02150537634409,
+      "cer_percent": 16.89623507805326,
+      "improved": false,
+      "new_inferences_in_browser_followup": 0,
+      "patience_trial_rejected": true
+    },
+    "tts": {
+      "previous_actual_provider_requests": 2,
+      "decoded_seconds": [
+        31.368,
+        8.064
+      ],
+      "browser_followup_new_requests": 0,
+      "new_human_score": null,
+      "direct_field_sample_spoken_citation_markers_remaining": true
+    },
+    "human_accuracy": null,
+    "new_model_downloads": 0,
+    "own_training": false,
+    "preserved": {
+      "original_roadmap": true,
+      "databases": true,
+      "human_files": 52,
+      "source_passages": 196
+    },
+    "remaining": [
+      "Teacher source summary5 versus4explicitprofiles remains unresolved.",
+      "Raw STT WER36.02% remains; no acoustic-model improvement demonstrated.",
+      "Direct-A TTS sample still contains rendered citation indices; speech presentation needs a separate review.",
+      "Independent human quality evaluation, permanent hosting, clean-machine installation and final thesis review remain."
     ]
   }
 }
