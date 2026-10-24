@@ -579,7 +579,6 @@ class ExplicitFieldEvidenceTests(unittest.TestCase):
 
     def test_single_subject_unrelated_attributes_and_explicit_exclusion_do_not_activate(self):
         for query in [
-            'Мониторингийн зорилго юу вэ?',
             'Мониторинг ба үнэлгээний тайланг хаанаас авах вэ?',
             'Зөвхөн мониторингийн зорилго хэл; үнэлгээ хэрэггүй.',
             'Мониторинг биш, үнэлгээний зорилгыг хэл.',
@@ -737,11 +736,12 @@ class PresentationClauseCompletenessTests(unittest.TestCase):
     def test_brevity_does_not_invent_a_second_subject(self):
         for query in (
             'Мониторингийн зорилгыг товчхон хэлнэ үү.',
-            'Мониторингийн зорилго юу вэ? Нэмэлт тайлбар хэрэггүй.',
             'Зөвхөн мониторингийн зорилго хэл; үнэлгээ хэрэггүй.',
         ):
             with self.subTest(query=query):
                 self.assertEqual(field_evidence_requirements(query), [])
+        self.assertEqual([item['name'] for item in field_evidence_requirements(
+            'Мониторингийн зорилго юу вэ? Нэмэлт тайлбар хэрэггүй.')], ['monitoring_definition'])
 
     def test_one_of_two_or_only_one_facet_remains_a_scope_restriction(self):
         for suffix in (

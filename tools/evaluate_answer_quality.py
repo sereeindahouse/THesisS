@@ -15,8 +15,8 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_ARTIFACT_NAMES = ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
-    'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'evidence_contract.py', 'speech_text.py')
+RUNTIME_ARTIFACT_NAMES = ('rag_runtime.py', 'source_fields.py', 'historical_fields.py', 'question_router.py', 'answer_contract.py',
+    'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'evidence_contract.py', 'speech_text.py')
 
 
 def sha(path):
@@ -73,8 +73,8 @@ def run(cases_path, output, base_url, validation_path=None, label_scope=None):
     with output.open('x', encoding='utf-8') as handle:
         handle.write('{}\n')
     tracked = ['tools/evaluate_answer_quality.py', 'tools/validate_answer_cases.py',
-               'source_fields.py', 'rag_runtime.py', 'answer_contract.py', 'website_retrieval.py', 'demo_server.py',
-               'voice_runtime.py', 'llm_runtime.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'CORE/database/website.db',
+               'source_fields.py', 'historical_fields.py', 'rag_runtime.py', 'answer_contract.py', 'website_retrieval.py', 'demo_server.py',
+               'voice_runtime.py', 'llm_runtime.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'CORE/database/website.db',
                'runtime/content.db', 'evidence_contract.py', 'speech_text.py', 'CORE/website/document-excerpts-20261012.json',
                'config/model-catalog/gemma3-4b-text.json', 'runtime/rag-model.json']
     report = dict(created_utc=datetime.now(timezone.utc).isoformat(),

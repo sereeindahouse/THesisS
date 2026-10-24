@@ -43,7 +43,7 @@ def progress(root):
     if not path.is_file():
         return dict(scope_label='Үе шатны бүртгэл энэ хувилбарт байхгүй.',
                     milestones=[],completed=0,total=0,limitations=[])
-    if path.stat().st_size>65536:
+    if path.stat().st_size>262144:
         raise ValueError('Progress manifest too large.')
     data=json.loads(path.read_text(encoding='utf-8-sig'))
     if data.get('schema_version')!=1:
@@ -63,6 +63,60 @@ class SourceExplorer:
         self.root=Path(root).resolve()
         self.database=Path(database or self.root/'CORE/database/website.db').resolve()
         self.content_database=Path(content_database or self.root/'runtime/content.db').resolve()
+
+    def knowledge_tree(self):
+        """Public navigation projection of this request's selected database pair.
+
+        The CLI export deliberately retains private provenance. Never serve it
+        directly: this view explicitly selects public fields and official URLs.
+        It neither searches nor changes the answer-selection pipeline.
+        """
+        from tools.build_knowledge_tree import build_tree, load_inputs
+
+        path=self.root/'config/knowledge-topics.json'
+        if path.stat().st_size>65536:
+            raise ValueError('Topic configuration too large.')
+        config=json.loads(path.read_text(encoding='utf-8-sig'))
+        tree=build_tree(config,load_inputs(self.root,website_database=self.database,
+                                         content_database=self.content_database))
+        records={record['content_id']:record for rows in tree['records'].values() for record in rows}
+        public=[]
+        for node in tree['topics']:
+            links={}
+            for group in ('pages','passages','sources'):
+                for identifier in node['primary_record_ids'][group]:
+                    payload=records[identifier]['payload']
+                    url=payload.get('url') or payload.get('source_url_or_filename')
+                    if not isinstance(url,str) or not official(url):
+                        continue
+                    key=(url,payload.get('version'))
+                    if key not in links:
+                        links[key]={k:payload.get(k) for k in ('title','version','retrieved_at','approval_status')}
+                        links[key].update(url=url,kind=Path(urlsplit(url).path).suffix.casefold().lstrip('.') or 'html')
+            references=[]
+            for reference in node['source_references']:
+                source=reference['source']
+                if official(source['url']):
+                    references.append({**{k:source.get(k) for k in ('url','version','retrieved_at')},
+                                       'title':reference['literal_label'],'literal_label':reference['literal_label']})
+            facts=[{k:v for k,v in records[identifier]['payload'].items()
+                    if k in {'fact_id','entity_id','key','value','approval_status','valid_from','valid_until'}}
+                   for identifier in node['primary_record_ids']['facts']]
+            faqs=[{k:v for k,v in records[identifier]['payload'].items()
+                   if k in {'faq_id','question','answer','answer_status','approval_status','valid_from','valid_until'}}
+                  for identifier in node['primary_record_ids']['faqs']]
+            public.append({**{k:node[k] for k in ('topic_id','parent_id','label_mn','direct_counts','subtree_counts')},
+                           'search_terms':['багш','багш нар'] if node['topic_id'].startswith('academics.') and node['topic_id']!='academics.programs' else [],
+                           'sources':list(links.values()),'source_references':references,
+                           'fact_records':facts,'faq_records':faqs})
+        return dict(schema_version=1,relation='topic_contains',counts=tree['counts'],topics=public,
+                    taxonomy_sha256=tree['taxonomy_sha256'],readonly=True,llm_calls=0,
+                    affects_retrieval=False,membership_establishes_answer_truth=False,
+                    gaps={k:tree[k] for k in ('missing_source_topics','missing_fact_topics')},
+                    limitations=['Сэдвийн ангиллыг хөгжүүлэгч санал болгосон; сургуулийн баталсан ангилал биш.',
+                        'Эхтэй салбар нь бүрэн эсвэл өнөөдөр хүчинтэй мэдээлэлтэй гэсэн үг биш.',
+                        'Fact/FAQ нь одоо хадгалсан бүртгэл; сэдэв бүрт баталсан хариулт байгаа гэсэн үг биш.',
+                        'Мод нь эхийн навигац; одоогийн хайлтын эрэмбэ, Gemma-ийн сонголтыг өөрчлөхгүй.'])
 
     def snapshot(self):
         summary=dict(available=False,pages=0,raw_chunks=0,documents=0,

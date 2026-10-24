@@ -714,6 +714,60 @@ class NamedLaboratoryExtractTests(unittest.TestCase):
         self.assertEqual(generator.calls, 0)
 
 
+class SchoolContactExtractTests(unittest.TestCase):
+    def setUp(self):
+        from rag_runtime import school_contact_extract
+        self.extract=school_contact_extract
+        self.query='Бямба гарагт хэдээс хэд хүртэл ажилладаг вэ, бас ерөнхий утсаа хэлээд өгөөч.'
+        self.text='Хаяг мэдээлэл\nУтас\n+976 12345678\nИмэйл\nfixture@nmct.edu.mn\nАжлын цаг\nДаваа - Баасан: 08:00 - 17:00\nБямба: 11:00 - 15:00\nНям: Амарна\nМэдэгдэл илгээх\nНэр *'
+        self.source=dict(SOURCE,url='https://nmct.edu.mn/contact',text=self.text)
+
+    def test_compound_day_and_phone_copies_one_contiguous_source_span(self):
+        selected=self.extract(self.query,[self.source])
+        self.assertIsNotNone(selected)
+        self.assertIn(selected[1],self.text)
+        self.assertIn('+976 12345678',selected[1]);self.assertIn('Бямба: 11:00 - 15:00',selected[1])
+        self.assertNotIn('Мэдэгдэл илгээх',selected[1])
+
+    def test_unknown_fields_named_department_year_or_condition_are_not_discarded(self):
+        for q in (self.query+' Цалин хэд вэ?', '2030 онд '+self.query,
+                  'Химийн тэнхим '+self.query,self.query.replace('бас','хэрэв амралттай бол бас')):
+            self.assertIsNone(self.extract(q,[self.source]),q)
+        self.assertIsNone(self.extract(self.query,[dict(self.source,url='https://nmct.edu.mn/departments/mechanical')]))
+
+    def test_conflicting_invalid_or_conditional_hours_cannot_choose_one(self):
+        for value in ('11:00 - 99:00','11:00 - 15:00 байж магадгүй','11:00 - 15:00 хэрэв хичээлтэй бол'):
+            self.assertIsNone(self.extract(self.query,[dict(self.source,text=self.text.replace('11:00 - 15:00',value))]))
+        other=dict(self.source,source_id='other',text=self.text.replace('11:00 - 15:00','12:00 - 16:00'))
+        self.assertIsNone(self.extract(self.query,[self.source,other]))
+        week_query=self.query.replace('Бямба','Лхагва')
+        changed=dict(self.source,text=self.text+'\nЛхагва гараг: 12:00 - 16:00')
+        self.assertIsNone(self.extract(week_query,[changed]))
+
+
+class SportsAreaExtractTests(unittest.TestCase):
+    def setUp(self):
+        from rag_runtime import sports_area_extract
+        self.extract=sports_area_extract
+        self.query='Спортын хоёр заал нь нийлээд ямар талбайтай вэ? Бүжгийн танхимыг битгий нэмээрэй.'
+        self.text='Туршилтын сургуулийн дундын ашиглалтын 2 спорт заал (617.4 м²) болон 238 м² бүжгийн танхимд хичээл зохион байгуулдаг.'
+        self.source=dict(SOURCE,text=self.text)
+
+    def test_explicit_sports_measurement_keeps_owner_and_shared_use_qualifier(self):
+        selected=self.extract(self.query,[self.source])
+        self.assertIn(selected[1],self.text)
+        self.assertIn('дундын ашиглалтын 2 спорт заал (617.4 м²)',selected[1])
+        self.assertNotIn('238',selected[1])
+        self.assertNotIn('бүжгийн',selected[1])
+
+    def test_unknown_condition_other_measurement_role_or_conflict_is_not_dropped(self):
+        self.assertIsNone(self.extract(self.query+' Зуны төлбөр хэд вэ?',[self.source]))
+        for prefix in ('Хэрэв хэмжсэн бол ','Батлагдаагүй мэдээллээр ','Нэг бүр нь '):
+            self.assertIsNone(self.extract(self.query,[dict(self.source,text=prefix+self.text)]))
+        other=dict(self.source,source_id='other',text=self.text.replace('617.4','618.4'))
+        self.assertIsNone(self.extract(self.query,[self.source,other]))
+
+
 class ChatTests(unittest.TestCase):
     def setUp(self):
         self.retriever=Retriever()
@@ -747,6 +801,17 @@ class ChatTests(unittest.TestCase):
         self.assertIn('саатал',result['message'])
         self.assertEqual(result['suggestions'][0],result['query'])
         self.assertIsNone(result['answer'])
+
+    def test_missing_requested_information_is_not_reported_as_provider_outage(self):
+        for reason in ('requested_fields_not_in_evidence','requested_fields_not_in_selection'):
+            self.generator.generate=lambda q,s: dict(generated=False,llm_calls=1,claims=[],reason=reason)
+            result=self.chat.route(None,'Төлбөр хэд вэ?')
+            self.assertEqual(result['reason_code'],'requested_information_not_verified')
+            self.assertNotIn('саатал',result['message'])
+            self.assertIn('бүрэн баталж чадсангүй',result['message'])
+            self.assertIn('бүтэн нэр',result['message'])
+            self.assertIsNone(result['answer'])
+            self.assertEqual(result['suggestions'],[])
 
     def test_cache_mismatch(self):
         r=self.chat.route(None,'Төлбөр хэд вэ?')

@@ -20,9 +20,11 @@ from uuid import uuid4
 from llm_runtime import LLMRuntime, _json_object
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, resolve_evidence_selection
+from historical_fields import event_search_query, event_requirements, event_supported
 from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
     field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
-    field_evidence_requirements, missing_field_evidence, closed_field_selection_query)
+    field_evidence_requirements, missing_field_evidence, closed_field_selection_query,
+    single_purpose_selection_scope, staff_query_scope)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
@@ -34,8 +36,8 @@ from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
 RUNTIME_ARTIFACT_SHA256 = {
     name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
     for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
-                 'website_retrieval.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py',
-                 'evidence_contract.py', 'speech_text.py')
+                 'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py',
+                 'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py')
 }
 
 SYSTEM = '''Select the EVIDENCE_UNITS that answer the QUESTION, using unit_ids only.
@@ -171,6 +173,108 @@ def both_exam_durations_supported(text):
                for label,other in (('бичгийн','ярилцлаг'),('ярилцлаг','бичгийн')))
 
 
+def school_contact_extract(query, sources):
+    """Closed day-hours + general-phone request, using one original span.
+
+    Never substitute a department contact, live timetable or another requested
+    attribute. Values and day ranges are read from the captured contact page.
+    """
+    from urllib.parse import urlsplit
+    days=('даваа','мягмар','лхагва','пүрэв','баасан','бямба','ням')
+    q=' '.join(query.casefold().split()).strip(' .!?')
+    clauses=[part.strip(' .!?') for part in re.split(r'\s*,\s*(?:(?:бас|мөн|болон)\s+)?|\s+(?:бас|мөн|болон)\s+',q)]
+    if len(clauses)!=2:return None
+    day_pattern=r'(?P<day>'+ '|'.join(days) +r')(?:\s+гарагт)?\s+хэдээс\s+хэд\s+хүртэл\s+ажилладаг(?:\s+вэ)?'
+    phone_pattern=r'(?:ерөнхий\s+)?(?:холбоо\s+барих\s+)?ут(?:саа|сыг|ас|асны\s+дугаарыг)\s+(?:хэлээд\s+өгөөч|хэлнэ\s+үү|хэлж\s+өгнө\s+үү|хэд\s+вэ)'
+    matched=[re.fullmatch(day_pattern,clause) for clause in clauses]
+    if sum(bool(m) for m in matched)!=1:return None
+    day_index=next(i for i,m in enumerate(matched) if m)
+    if not re.fullmatch(phone_pattern,clauses[1-day_index]):return None
+    wanted=matched[day_index]['day']
+    options={}
+    eligible=[source for source in sources if official(source.get('url',''))
+              and urlsplit(source['url']).path.rstrip('/')=='/contact']
+    # Different captured bodies may contain a correction in a syntax this
+    # bounded parser does not understand. Never select the parsable one alone.
+    if len({source['text'] for source in eligible})!=1:return None
+    for source in eligible:
+        text=source['text']
+        if re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)|тэнхим|захирл|албаны|тасаг|хэлтэс|'
+                     r'зөвхөн|хэрэв|тохиолдолд|байвал|магадгүй|төлөвл|баталгаажаагүй|батлагдаагүй|'
+                     r'хүчингүй|хуучин|\bбиш\b|хэрэглэхгүй|хамаарахгүй|баярын|амралтын',text,re.I):return None
+        phones=list(re.finditer(r'(?im)^утас\s*\n[ \t]*\+?\d[\d -]{6,20}\d[ \t]*$',text))
+        if len(phones)!=1:continue
+        hours=re.search(r'(?im)^ажлын\s+цаг[ \t]*$',text)
+        if not hours:continue
+        day_rows=[line.strip() for line in text[hours.end():].splitlines()
+                  if re.match(r'(?i)^(?:'+'|'.join(days)+r')(?!\w)',line.strip())]
+        for line in day_rows:
+            value=re.fullmatch(r'(?:'+'|'.join(days)+r')(?:\s*[-–—]\s*(?:'+'|'.join(days)+r'))?\s*:\s*'
+                r'(?:(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})|амарна|ажиллахгүй|хаалттай)',line,re.I)
+            if not value:return None
+            if value[1] is not None:
+                h1,m1,h2,m2=map(int,value.groups())
+                if not (0<=h1<24 and 0<=h2<24 and 0<=m1<60 and 0<=m2<60 and h1*60+m1<h2*60+m2):return None
+        raw_day_rows=[line for line in text[hours.end():].splitlines()
+                      if re.match(r'(?i)^'+wanted+r'(?!\w)',line.strip())]
+        # A second differently formatted or invalid row is still a conflict.
+        if len(raw_day_rows)>1:return None
+        for row in re.finditer(r'(?im)^('+ '|'.join(days) +r')(?:\s*[-–—]\s*('+ '|'.join(days) +r'))?\s*:\s*([^\n]+)$',text[hours.end():]):
+            first,last,value=row[1].casefold(),(row[2] or row[1]).casefold(),row[3].strip()
+            if days.index(first)>days.index(last) or wanted not in days[days.index(first):days.index(last)+1]:continue
+            clock=re.fullmatch(r'(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})',value)
+            if clock:
+                h1,m1,h2,m2=map(int,clock.groups())
+                if not (0<=h1<24 and 0<=h2<24 and 0<=m1<60 and 0<=m2<60 and h1*60+m1<h2*60+m2):continue
+            elif value.casefold() not in {'амарна','ажиллахгүй','хаалттай'}:continue
+            start,end=min(phones[0].start(),hours.start()),max(phones[0].end(),hours.end()+row.end())
+            excerpt=text[start:end].strip()
+            options.setdefault(excerpt,source)
+    if len(options)==1:
+        excerpt,source=next(iter(options.items()))
+        return source,excerpt
+    return None
+
+
+def sports_area_extract(query,sources):
+    """Copy the explicitly requested sports-hall area, without the dance sum.
+
+    A measured noun phrase retains its written owner/use qualifier. Conditional
+    or conflicting measurements fail closed; no area is calculated or stored.
+    """
+    q=' '.join(query.casefold().split()).strip(' .!?')
+    if not re.fullmatch(r'спортын\s+(?:хоёр|2)\s+заал(?:\s+нь)?\s+нийлээд\s+ямар\s+талбайтай\s+вэ'
+                        r'\s*[.!?]\s*бүжгийн\s+танхимыг\s+битгий\s+нэмээрэй',q):return None
+    options={}
+    for source in sources:
+        if not official(source.get('url','')):continue
+        text=source['text']
+        sports_alias=r'спорт(?:ын)?\s+(?:(?:хоёр|2)\s+)?заал\w*|биеийн\s+тамирын\s+заал\w*'
+        if not re.search(sports_alias,text,re.I):continue
+        if re.search(r'хэрэв|байвал|тохиолдолд|зөвхөн|төлөвл|магадгүй|батлагдаагүй|баталгаажаагүй|'
+                     r'\bбиш\b|хуучин|хүчингүй|больсон|үндэслэл\s+алга|зураг\s+төс|санал|хэлэлц|'
+                     r'тус\s+бүр|нэг\s+бүр|нэг\s+заал|илэрхийлэхгүй|үнэндээ|барихаар|ирэх\s+(?:жил|онд)|'
+                     r'(?<!\w)бай(?:в|сан)(?!\w)|(?m:^\s*(?:19|20)\d{2}\s+он(?:ы|д)\b[^\n]*:\s*$)',text,re.I):return None
+        accepted=[]
+        for line in source['text'].splitlines():
+            if re.search(r'хэрэв|байвал|тохиолдолд|төлөвлө|магадгүй|батлагдаагүй|\bбиш\b|бишгүй|байхгүй',line,re.I):continue
+            match=re.search(r'^(?P<span>[^\n.!?;]{0,180}?(?<!\d)2\s+спорт\s+заал\s*\(\d+(?:[.,]\d+)?\s*м[²2]\))'
+                            r'\s+болон\s+\d+(?:[.,]\d+)?\s*м[²2]\s+бүжгийн\s+танхим',line,re.I)
+            if match and not re.search(r'бүж|нэг\s+бүр|тус\s+бүр',match['span'],re.I):
+                offset=text.find(line)
+                accepted.append((offset+match.start('span'),offset+match.end('span')))
+                options.setdefault(match['span'],source)
+        # Do not ignore an explicit alternative total merely because it lacks
+        # the parenthesised style recognised above.
+        measured=r'(?:(?:спорт(?:ын)?\s+(?:(?:хоёр|2)\s+)?заал\w*)|биеийн\s+тамирын\s+заал\w*)[^\n;]{0,100}?\d+(?:[.,]\d+)?\s*м[²2]'
+        for measurement in re.finditer(measured,text,re.I):
+            if not any(start<=measurement.start() and measurement.end()<=end for start,end in accepted):return None
+    if len(options)==1:
+        excerpt,source=next(iter(options.items()))
+        return source,excerpt
+    return None
+
+
 def focused_extract(query, sources):
     """Bounded factual lookups preserve the entire relevant rule condition.
 
@@ -180,6 +284,10 @@ def focused_extract(query, sources):
     from website_retrieval import search_terms
     q = query.casefold()
     terms = set(search_terms(query))
+    contact=school_contact_extract(query,sources)
+    if contact:return contact
+    sports=sports_area_extract(query,sources)
+    if sports:return sports
     # A named department's inventory and per-session capacity can already be
     # one complete source paragraph. Copy that paragraph, not its page header
     # or neighbouring mission. This rule supplies no names or answer values.
@@ -316,7 +424,7 @@ def source_extract(query, sources):
 
 
 def refine_evidence_selection(query, roots, units, resolved):
-    """Remove surplus selected roots only for two closed field grammars.
+    """Remove surplus selected roots only for fully screened field grammars.
 
     This never adds evidence or rewrites a unit. All candidate subsets run the
     original resolver, dependency closure, marker, field and final detail guards.
@@ -340,13 +448,38 @@ def refine_evidence_selection(query, roots, units, resolved):
         diagnostics['reason'] = 'condition_or_exception_preserved'
         return resolved, diagnostics
     diagnostics.update(eligible=True, reason='no_shorter_complete_subset')
+    preserve_roots = set()
+    preserve_context = set()
+    scope = single_purpose_selection_scope(query)
+    if scope:
+        lookup = {unit['unit_id']: unit for unit in units}
+        for root in roots:
+            text = lookup[root]['text']
+            requested = re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)', text, re.I)
+            # Only an explicit opposing heading or subject clause authorizes
+            # exclusion. Unidentified/pronominal roots remain, as does EVERY
+            # root mentioning the requested subject, even if a shorter root
+            # happens to pass an imperfect purpose-predicate screen.
+            opposing = re.match(r'(?:' + scope['other_alias']
+                + r')(?=\s*(?:\n|$)|\s+(?:нь|бол|гэдэг|гэж)(?:\s|$))', text.lstrip(), re.I)
+            if requested or not opposing:
+                preserve_roots.add(root)
+        diagnostics['subject_identity_preserved_root_ids'] = sorted(preserve_roots)
+        preserve_context = {identifier for identifier in resolved['selected_unit_ids']
+            if re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)',
+                         lookup[identifier]['text'], re.I)}
+        diagnostics['subject_identity_preserved_context_ids'] = sorted(preserve_context)
     best, best_roots, best_length = resolved, roots, len(before)
     for count in range(1, len(roots)):
         for subset in combinations(roots, count):
+            if not preserve_roots <= set(subset):
+                continue
             diagnostics['candidate_subsets_checked'] += 1
             candidate = resolve_evidence_selection(query, list(subset), units,
                                                    max_characters=1800, max_claims=6)
             if not candidate['accepted']:
+                continue
+            if not preserve_context <= set(candidate['selected_unit_ids']):
                 continue
             texts = [claim['text'] for claim in candidate['claims']]
             selected_text = '\n'.join(texts)
@@ -446,6 +579,11 @@ class GroundedGenerator(LLMRuntime):
             if requirements:
                 data = json.loads(payload['messages'][1]['content'])
                 data['REQUESTED_FIELDS'] = [dict(name=f['name'], requested=f['label']) for f in requirements]
+                scope = single_purpose_selection_scope(query)
+                if scope:
+                    data['SUBJECT_SCOPE'] = dict(requested_subject=scope['requested_subject'],
+                        excluded_subject=scope['other_subject'], requested_attribute='purpose_only',
+                        instruction="Select the requested subject's purpose. Exclude the other subject's definition, frequency and feature list. Multiple units are allowed only when needed for the requested subject.")
                 payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
             try:
                 # A bounded literal subject/attribute screen detects omissions;
@@ -804,6 +942,18 @@ class ChatRAG:
             # the fee itself. Keep the original query/ranking, inspect up to ten
             # candidates, then require an actual registration amount clause.
             found = self.retriever.search(query, limit=10 if registration_amount_query(query) else 5)
+            expanded = event_search_query(query)
+            if expanded:
+                supplemented = self.retriever.search(expanded, limit=5)
+                opening = [req for req in event_requirements(query) if req['event'].startswith('programme_')]
+                original = list(found.get('candidates', []))
+                seen = {source['source_id'] for source in original}
+                additions = [source for source in supplemented.get('candidates', [])
+                    if source['source_id'] not in seen
+                    and any(event_supported(req, source['text']) for req in opening)]
+                found = dict(found, candidates=(additions + original)[:10],
+                    event_query_expansion=dict(query=expanded,
+                        supplemental_source_ids=[source['source_id'] for source in additions]))
         except Exception:
             result.update(message="Мэдээллийн хайлт түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоорой.",
                           reason_code="website_search_unavailable", suggestions=self.SUGGESTIONS)
@@ -815,8 +965,12 @@ class ChatRAG:
                          "retrieved_count": len(candidates), "reason": "retrieved_only", "llm_calls": 0,
                          "retrieved_sources": [{key: source.get(key) for key in (
                              'source_id', 'url', 'title', 'text', 'version', 'source_locator',
-                             'retrieved_at', 'text_scope', 'extraction_method', 'reviewer_kind')}
+                             'retrieved_at', 'text_scope', 'extraction_method', 'reviewer_kind',
+                             'start_offset', 'end_offset', 'structure_method', 'structure_boundaries',
+                             'structure_text_sha256')}
                              for source in candidates]}
+        if found.get('event_query_expansion'):
+            result['rag']['event_query_expansion'] = found['event_query_expansion']
         result["related_sources"] = [{"title": s["title"], "url": s["url"], "excerpt": s["excerpt"],
                                       "chunk_id": s["chunk_id"], "version": s["version"],
                                       "retrieved_at": s["retrieved_at"]} for s in candidates[:3]]
@@ -840,6 +994,25 @@ class ChatRAG:
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
         evidence = year_evidence_sources(query, candidates)
         evidence=dated_news_evidence_sources(query,article_evidence_sources(query,evidence))
+        staff = staff_query_scope(query, evidence, catalog=getattr(self.retriever, '_rows', evidence))
+        if staff:
+            evidence = staff['sources']
+            result['rag']['staff_scope_filter'] = {key: staff[key] for key in
+                ('kind', 'department_titles', 'department_urls', 'person')}
+            if staff.get('stop'):
+                result.update(route='D' if staff['stop']=='clarify_staff_scope' else 'E',
+                    answer=None, citations=[], reason_code=staff['stop'], message=staff['message'],
+                    suggestions=['Химийн тэнхимийн багш хэд вэ?',
+                                 'Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?',
+                                 'Батчулуун багшийн зурагтай танилцуулгыг үзье.']
+                        if staff['stop']=='clarify_staff_scope' else [])
+                result['rag']['reason'] = staff['stop']
+                # Suggested sources must follow the same identity boundary as
+                # the answer, rather than showing another person's news first.
+                result['related_sources'] = [{key: source.get(key) for key in
+                    ('title','url','excerpt','chunk_id','version','retrieved_at')}
+                    for source in evidence[:3]]
+                return self._remember(result, allow_draft)
         before_department = [source['source_id'] for source in evidence]
         evidence = department_evidence_sources(query, evidence, all_attributes=True)
         if [source['source_id'] for source in evidence] != before_department:
@@ -995,6 +1168,16 @@ class ChatRAG:
                 result.update(reason_code='generation_not_verified',
                     message='Бэлтгэсэн хариултыг эхтэй нь нийцүүлж баталгаажуулж чадсангүй. '
                             'Доорх эхийг унших эсвэл асуултаа нэг зүйлээр тодруулж болно.')
+            if not generated['generated'] and generated['reason'] in {
+                    'requested_fields_not_in_evidence','requested_fields_not_in_selection'}:
+                missing=set(generated.get('missing_requested_fields',[]))
+                fields=[f for f in field_evidence_requirements(query) if not missing or f['name'] in missing]
+                labels='; '.join(f['label'] for f in fields)
+                result.update(reason_code='requested_information_not_verified',suggestions=[],
+                    message=('Асуусан мэдээллийг энэ хайлтын эхээс бүрэн баталж чадсангүй. '
+                        +('Баталгаажуулаагүй зүйл: '+labels+'. ' if labels else '')
+                        +'Өөр үйл явдал, он эсвэл ойролцоо мэдээллээр орлуулахгүй. '
+                        +'Товчилсон нэр хэрэглэсэн бол бүтэн нэрийг нь бичиж, асуусан оноо хамт тодруулна уу.'))
             if generated["generated"]:
                 sources = {s["source_id"]: s for s in evidence}
                 answer, cited = render_claims(generated['claims'])

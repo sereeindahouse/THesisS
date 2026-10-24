@@ -1,0 +1,774 @@
+{
+  "schema_version": "knowledge-tree-research-catalog-v1",
+  "created_date": "2026-10-23",
+  "language": "mn",
+  "title_mn": "Сургуулийн мэдлэгийн модыг үндэслэх 15 өгүүлэл",
+  "paper_count": 15,
+  "unique_paper_count": 15,
+  "full_substantive_text_read_count": 15,
+  "abstract_only_count": 0,
+  "reviewer": "AI assistants; no independent human review or paper experiment replication",
+  "scope_statement_mn": "15 давхцаагүй өгүүллийн үндсэн бүтэн substantive текст, арга, туршилт/кейс, хэлэлцүүлэг, хязгаарлалт; хавсралт байвал бүх substantive хавсралтыг уншсан. Яг хүрээг өгүүлэл бүрт хадгалсан. Эшилсэн бүх бүтээл, бүх зургийн пиксел, бүх томьёоны бие даасан баталгааг хамруулсан гэж үзэхгүй.",
+  "reading_scope_differences_mn": "Hierarchy/ontology бүлгийн тавын номзүйг уншсан; бусад аравт номзүйн жагсаалт уншлагад тооцоогүй. LightRAG-ийн дөрвөн prompt зураг, HippoRAG-ийн гурван prompt SVG текстийг нэмж уншсан. HTML-ийн гоёлын math icon code-ийг математик агуулга мэт тооцоогүй.",
+  "identity_validation_mn": "15 entry-г DOI, arXiv ID, ACL ID эсвэл primary author/institute URL-аар давхцаагүйг шалгасан. Хувилбарын огноо, author list-ийг primary title/submission record-тай тулгасан. Undated author revision-д өдөр зохиогоогүй. DOI redirect-ийн зарим web access 403 болсон үед publisher indexed metadata ба author full text-ийг ашигласан; бүх URL HTTP 200 гэсэн мэдэгдэл биш.",
+  "new_system_accuracy_result": false,
+  "benchmark_numbers_transferred_to_project": false,
+  "new_model_downloads": 0,
+  "new_inference_runs": 0,
+  "own_training_runs": 0,
+  "product_database_changes": 0,
+  "papers": [
+    {
+      "id": "hierarchy-hearst-1992",
+      "title": "Automatic Acquisition of Hyponyms from Large Text Corpora",
+      "authors": [
+        "Marti A. Hearst"
+      ],
+      "year": 1992,
+      "venue": "COLING 1992, volume 2",
+      "published_pages": "539–545",
+      "primary_url": "https://aclanthology.org/C92-2082/",
+      "full_text_url": "https://aclanthology.org/C92-2082.pdf",
+      "read_scope": {
+        "status": "complete_full_text",
+        "pdf_pages_read": "1–7 of 7",
+        "web_extracted_lines_read": "0–561 of 562",
+        "sections": "Abstract; sections 1–4, all subsections; acknowledgements; references",
+        "limitation": "Scanned PDF extraction contains OCR errors; no reimplementation or independent annotation.",
+        "bibliography_read": true,
+        "all_substantive_text_read": true
+      },
+      "limits_mn": "Олон утга, нэрийн тодотгол, хам сэдвээс хамаарсан хэрэглээ алдаа үүсгэнэ. Автомат шинэ хэв олох бүх алгоритмыг хэрэгжүүлээгүй; монгол хэл дээр шалгаагүй.",
+      "evidence_locations": [
+        "§2, pp.541–542",
+        "§3.1–3.2, pp.543–544",
+        "§4, p.544"
+      ],
+      "experiments_replicated": false,
+      "group": "hierarchy_and_ontology",
+      "identifiers": {
+        "doi": "10.3115/992133.992154",
+        "anthology_id": "C92-2082"
+      },
+      "read_version": {
+        "label": "COLING 1992 proceedings PDF",
+        "date": "1992-08-23",
+        "date_note": "publisher publication date; PDF has no separate revision date"
+      },
+      "method_mn": "Англи текстийн үг–өгүүлбэрзүйн хэвээр ерөнхий–тусгай нэрийн холбоо гаргаж, WordNet-тэй харьцуулсан.",
+      "application_inference_mn": "Манай санал: зөвхөн эх нь үнэхээр төрлийн харьцаа хэлсэн үед is_a хэрэглэ. Элсэлт, төлбөр зэрэг агуулгын бүлгийг сургуулийн дэд төрөл гэж бүү тэмдэглэ.",
+      "metadata_verification_url": "https://aclanthology.org/C92-2082/"
+    },
+    {
+      "id": "hierarchy-ontoclean-2002",
+      "title": "Evaluating Ontological Decisions with OntoClean",
+      "authors": [
+        "Nicola Guarino",
+        "Christopher Welty"
+      ],
+      "year": 2002,
+      "venue": "Communications of the ACM 45(2)",
+      "published_pages": "61–65",
+      "primary_url": "https://doi.org/10.1145/503124.503150",
+      "full_text_url": "https://www.loa.istc.cnr.it/old/Papers/CACM2002.pdf",
+      "read_scope": {
+        "status": "complete_full_text",
+        "pdf_pages_read": "1–5 of 5",
+        "web_extracted_lines_read": "0–426 of 427",
+        "sections": "Introduction; Essence and Rigidity; Identity and Unity; Benefits; all Subsumption Misused cases; conclusion; references",
+        "limitation": "Read the authors' institute-hosted complete article; no formal checker executed.",
+        "bibliography_read": true,
+        "all_substantive_text_read": true
+      },
+      "limits_mn": "Үзэл баримтлалын арга; RAG accuracy туршилт биш. Шинжийн утгыг загварчлагч зөв тогтоох шаардлагатай.",
+      "evidence_locations": [
+        "Essence and Rigidity, pp.61–62",
+        "Identity and Unity, pp.62–63",
+        "Subsumption Misused, pp.63–65"
+      ],
+      "experiments_replicated": false,
+      "group": "hierarchy_and_ontology",
+      "identifiers": {
+        "doi": "10.1145/503124.503150"
+      },
+      "read_version": {
+        "label": "Institute-hosted complete CACM article",
+        "date": "2002-02-01",
+        "date_note": "publisher publication date; PDF has no separate revision date"
+      },
+      "method_mn": "Ангиллын хатуу шинж, адилтгал, бүхэл байдлын шалгуураар superclass–subclass холбоосыг шинжилдэг.",
+      "application_inference_mn": "Манай санал: тэнхимийг сургуулийн төрөл болгохгүй; байгууллагын хэсэг, багшийн ажиллах харьяалал, сэдэв багтаах холбоог тусдаа нэрлэ. Багшийн нэрийг class биш entity гэж хадгал.",
+      "metadata_verification_url": "https://doi.org/10.1145/503124.503150"
+    },
+    {
+      "id": "hierarchy-gruber-design-1995",
+      "title": "Toward Principles for the Design of Ontologies Used for Knowledge Sharing",
+      "authors": [
+        "Thomas R. Gruber"
+      ],
+      "year": 1995,
+      "venue": "International Journal of Human-Computer Studies 43(5–6)",
+      "published_pages": "907–928",
+      "primary_url": "https://tomgruber.org/writing/onto-design.pdf",
+      "full_text_url": "https://tomgruber.org/writing/onto-design.pdf",
+      "read_scope": {
+        "status": "complete_full_text",
+        "pdf_pages_read": "1–23 of 23",
+        "web_extracted_lines_read": "0–952 of 953",
+        "sections": "Abstract; sections 1–5; both complete case studies and KIF listings; discussion; acknowledgements; bibliography",
+        "version_note": "Author-hosted PDF identifies IJHCS publication and carries Revision: August 23, 1993. Read this 23-page author version, not a separately verified publisher-layout copy. Counted once as the 1995 article.",
+        "limitation": "KIF listings read; consistency results not independently proved or executed.",
+        "bibliography_read": true,
+        "all_substantive_text_read": true
+      },
+      "limits_mn": "Дизайны шалгуур нь нөхцөл, зорилгоос хамаарна; эдгээр кейс сургуулийн чатад чанарын өсөлт батлахгүй.",
+      "evidence_locations": [
+        "§3, author PDF pp.3–5",
+        "§4.2, author PDF pp.6–13",
+        "§4.3–5, author PDF pp.13–19"
+      ],
+      "experiments_replicated": false,
+      "group": "hierarchy_and_ontology",
+      "identifiers": {
+        "doi": "10.1006/ijhc.1995.1081"
+      },
+      "read_version": {
+        "label": "Author revision; journal publication year 1995",
+        "date": "1993-08-23",
+        "date_note": "explicit revision date printed on the 23-page author PDF; not the journal publication date"
+      },
+      "method_mn": "Мэдлэг солилцох онтологийн тодорхой байдал, нийцэл, өргөтгөх боломж, кодчлолын хазайлтыг багасгах, шаардлагатай хамгийн бага таамаг гэсэн шалгуурыг хоёр кейсээр шинжилсэн.",
+      "application_inference_mn": "Манай санал: alias, entity, эхийн хувилбар, огноог тусдаа хадгал. Эх зөвхөн он хэлбэл өдөр зохиохгүй; шинэ бүлэг нэмэхэд хуучин ID-ийн утгыг солихгүй.",
+      "metadata_verification_url": "https://www.sciencedirect.com/science/article/pii/S1071581985710816"
+    },
+    {
+      "id": "hierarchy-guarino-1998",
+      "title": "Formal Ontology and Information Systems",
+      "authors": [
+        "Nicola Guarino"
+      ],
+      "year": 1998,
+      "venue": "Proceedings of FOIS 1998, IOS Press",
+      "published_pages": "3–15",
+      "primary_url": "https://www.loa.istc.cnr.it/wp-content/uploads/2020/03/FOIS98.pdf",
+      "full_text_url": "https://www.loa.istc.cnr.it/wp-content/uploads/2020/03/FOIS98.pdf",
+      "read_scope": {
+        "status": "complete_full_text",
+        "pdf_pages_read": "1–13 of 13",
+        "web_extracted_lines_read": "0–426 of 427",
+        "sections": "Abstract; sections 1–3, all subsections; conclusions; bibliography",
+        "version_note": "Institute-hosted amended author version. Footnote 10 explicitly corrects the published proceedings' quantification over possible worlds.",
+        "limitation": "Read mathematical argument and explanatory text; extracted symbols partly imperfect; no independent model-theoretic proof verification.",
+        "bibliography_read": true,
+        "all_substantive_text_read": true
+      },
+      "limits_mn": "Онол, архитектурын өгүүлэл; retrieval эсвэл сургуулийн эмпирик үнэлгээ биш.",
+      "evidence_locations": [
+        "§2.2–2.4, PDF pp.4–8",
+        "§3.1–3.2, PDF pp.8–11"
+      ],
+      "experiments_replicated": false,
+      "group": "hierarchy_and_ontology",
+      "identifiers": {
+        "doi": null
+      },
+      "read_version": {
+        "label": "Amended author version of FOIS 1998 article",
+        "date": null,
+        "date_note": "amended version is undated; FOIS publication year is 1998"
+      },
+      "method_mn": "Үгийн сангийн зорьсон утга, онтологи, ертөнцийн тухайн төлөвийг ялгаж, мэдээллийн системийн хөгжүүлэлт ба ажиллах үеийн хэрэглээг шинжилсэн.",
+      "application_inference_mn": "Манай санал: модны schema-г жилийн төлбөр, ажилтны албан тушаал, эхийн хувилбарын бодит утгаас салга. Мод бол тайлбарласан агуулгын бүтэц; бүх мэдлэгийг бүрэн формалчилсан ontology гэж бүү зарла.",
+      "metadata_verification_url": "https://www.loa.istc.cnr.it/wp-content/uploads/2020/03/FOIS98.pdf"
+    },
+    {
+      "id": "hierarchy-taxogen-2018",
+      "title": "TaxoGen: Unsupervised Topic Taxonomy Construction by Adaptive Term Embedding and Clustering",
+      "authors": [
+        "Chao Zhang",
+        "Fangbo Tao",
+        "Xiusi Chen",
+        "Jiaming Shen",
+        "Meng Jiang",
+        "Brian Sadler",
+        "Michelle Vanni",
+        "Jiawei Han"
+      ],
+      "year": 2018,
+      "venue": "KDD 2018",
+      "published_pages": "2701–2709; 9-page author PDF read",
+      "primary_url": "https://chaozhang.org/papers/2018-kdd-taxogen.pdf",
+      "full_text_url": "https://chaozhang.org/papers/2018-kdd-taxogen.pdf",
+      "read_scope": {
+        "status": "complete_full_text",
+        "pdf_pages_read": "1–9 of 9",
+        "web_extracted_lines_read": "0–1140 of 1141",
+        "sections": "Abstract; sections 1–6, all subsections; Algorithm 1; equations; tables 1–2; figure labels/captions; acknowledgements; references",
+        "limitation": "Complete author-hosted KDD PDF text; figures read through extracted labels/captions. Equations not independently verified; no training or experiment replication.",
+        "bibliography_read": true,
+        "all_substantive_text_read": true
+      },
+      "limits_mn": "Хүүхэд бүлгийн тоо урьдчилан өгөгдөнө; асар том англи эрдэм шинжилгээний корпусын үр дүн жижиг монгол сургуулийн эхэд шууд шилжихгүй.",
+      "evidence_locations": [
+        "§1–3, PDF pp.1–3",
+        "§4, PDF pp.3–5",
+        "§5.3–6, PDF pp.6–9"
+      ],
+      "experiments_replicated": false,
+      "group": "hierarchy_and_ontology",
+      "identifiers": {
+        "doi": "10.1145/3219819.3220064",
+        "arxiv_id": "1812.09551"
+      },
+      "read_version": {
+        "label": "KDD 2018 author PDF",
+        "date": null,
+        "date_note": "no separately verified revision date; associated arXiv v1 submitted 2018-12-22 is an identity link, not a claim of byte-equivalent versions"
+      },
+      "method_mn": "Сэдэв бүрийг холбоотой нэр томьёоны бүлэг болгож, шаталсан clustering, ерөнхий үгийг эцэгт үлдээх арга, тухайн сэдвийн local embedding ашигласан.",
+      "application_inference_mn": "Манай санал: ерөнхий→сэдэв→дэд сэдэв модыг is_a taxonomy-оос ялга. Ижил түвшний бүлгийн нарийвчлалыг ойролцоо байлгаж, ерөнхий агуулгыг хүчээр навчинд хуваарилахгүй.",
+      "identity_url": "https://arxiv.org/abs/1812.09551",
+      "metadata_verification_url": "https://experts.illinois.edu/en/publications/taxogen-unsupervised-topic-taxonomy-construction-by-adaptive-term/"
+    },
+    {
+      "id": "rag-lewis-2020",
+      "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+      "authors": [
+        "Patrick Lewis",
+        "Ethan Perez",
+        "Aleksandra Piktus",
+        "Fabio Petroni",
+        "Vladimir Karpukhin",
+        "Naman Goyal",
+        "Heinrich Küttler",
+        "Mike Lewis",
+        "Wen-tau Yih",
+        "Tim Rocktäschel",
+        "Sebastian Riedel",
+        "Douwe Kiela"
+      ],
+      "year": 2020,
+      "venue": "NeurIPS 2020",
+      "read_version": {
+        "label": "v4",
+        "date": "2021-04-12",
+        "first_submitted": "2020-05-22",
+        "note": "arXiv v4, 2021-04-12; first submitted 2020-05-22"
+      },
+      "primary_url": "https://arxiv.org/abs/2005.11401",
+      "full_text_url": "https://arxiv.org/html/2005.11401v4",
+      "official_publication_pdf": "https://proceedings.neurips.cc/paper/2020/file/6b493230205f780e1bc26945df7481e5-Paper.pdf",
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "sections": "Abstract; sections 1–6 and every subsection; Broader Impact; acknowledgments; appendices A–I including tables, training, human evaluation, dataset splits, null documents and retrieval collapse.",
+        "extract_characters": 45860,
+        "read_character_ranges": [
+          "0–45859, with the tool's omitted middle explicitly reread at 18000–30999"
+        ],
+        "bibliography_read": false,
+        "limitation": "Full substantive HTML read; not every PDF figure independently inspected. Appendix parameter/dimension wording and numerical prose are not treated as independent guarantees.",
+        "all_substantive_text_read": true
+      },
+      "provenance_mn": "Гадаад индексийг солих боломж нь эхийн хувилбар хадгалах үндэслэл; ишлэл харагдах нь өгүүлбэр бүр батлагдсан гэсэн үг биш.",
+      "evaluation_guidance_mn": "Хайлт, хариултын EM, үүсгэсэн өгүүлбэрийн factuality-г тусад нь шалгасан.",
+      "limits_mn": "Эх гаднаас буруу эсвэл хуучирсан байж болно; generation нь retrieved text-ээс гаднах параметрийн мэдлэг ашигладаг.",
+      "evidence_locations": [
+        "§2.1–2.4",
+        "§3.1–3.4",
+        "Table 1",
+        "§4.5",
+        "Appendices B, D, F, H"
+      ],
+      "experiments_replicated": false,
+      "group": "retrieval_selection_evaluation",
+      "identifiers": {
+        "arxiv_id": "2005.11401",
+        "doi": "10.48550/arXiv.2005.11401"
+      },
+      "method_mn": "DPR хайлт ба BART генераторыг холбож, эхийг sequence эсвэл token түвшинд marginalize хийдэг, хамт fine-tune хийсэн арга.",
+      "application_inference_mn": "Манай санал: node→passage→capture холбоог хадгал. Gemma-аар эхийн ID сонгуулж үгчлэн буцаадаг одоогийн системийг энэ эх загвар эсвэл өөрийн fine-tuning гэж нэрлэхгүй.",
+      "metadata_verification_url": "https://arxiv.org/abs/2005.11401"
+    },
+    {
+      "id": "rag-survey-gao-2024",
+      "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+      "authors": [
+        "Yunfan Gao",
+        "Yun Xiong",
+        "Xinyu Gao",
+        "Kangxiang Jia",
+        "Jinliu Pan",
+        "Yuxi Bi",
+        "Yi Dai",
+        "Jiawei Sun",
+        "Meng Wang",
+        "Haofen Wang"
+      ],
+      "year": 2024,
+      "first_preprint_year": 2023,
+      "venue": "arXiv survey, v5",
+      "read_version": {
+        "label": "v5",
+        "date": "2024-03-27",
+        "first_submitted": "2023-12-18",
+        "note": "v5, 2024-03-27; first submitted 2023-12-18"
+      },
+      "primary_url": "https://arxiv.org/abs/2312.10997",
+      "full_text_url": "https://arxiv.org/html/2312.10997v5",
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "sections": "Abstract; sections I–VIII and every subsection; all four tables and figure captions. No appendices are present in this HTML article.",
+        "extract_characters": 75293,
+        "read_character_ranges": [
+          "0–24999",
+          "25000–49999",
+          "50000–75292"
+        ],
+        "bibliography_read": false,
+        "limitation": "Read survey v5, not a claim of reading the more than 100 papers it discusses. Author list follows the full-text title block.",
+        "all_substantive_text_read": true
+      },
+      "provenance_mn": "Хуудас, ангилал, хугацааны metadata хайлтын хамрах хүрээг тогтооно. Hierarchy нь баримтын баталгаа биш.",
+      "evaluation_guidance_mn": "Context relevance, answer faithfulness, answer relevance; noise, rejection, олон эх нэгтгэх, counterfactual шалгалт тусдаа.",
+      "limits_mn": "Шинэ техник автоматаар илүү сайн гэж дүгнэхгүй; ерөнхий санал ба ишилсэн тусгай туршилтыг ялгана.",
+      "evidence_locations": [
+        "§II-A–II-D",
+        "§III-A–III-C",
+        "§IV-A",
+        "§V",
+        "§VI-B–VI-D",
+        "§VII-B"
+      ],
+      "experiments_replicated": false,
+      "group": "retrieval_selection_evaluation",
+      "identifiers": {
+        "arxiv_id": "2312.10997",
+        "doi": "10.48550/arXiv.2312.10997"
+      },
+      "method_mn": "Naive, Advanced, Modular RAG; retrieval/generation/augmentation; parent–child индекс, metadata, query routing, context selection-ийг ялгадаг.",
+      "application_inference_mn": "Манай санал: сургууль→сэдэв→дэд сэдэв→эхийн хэсэг гэсэн навигац; entity ба он/төрөл/үгүйсгэлээр шүүх. Flat retrieval-тэй ижил budget-аар харьцуулж байж үр ашгийг хэлнэ.",
+      "metadata_verification_url": "https://arxiv.org/abs/2312.10997"
+    },
+    {
+      "id": "rag-selfrag-asai-2023",
+      "title": "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection",
+      "authors": [
+        "Akari Asai",
+        "Zeqiu Wu",
+        "Yizhong Wang",
+        "Avirup Sil",
+        "Hannaneh Hajishirzi"
+      ],
+      "year": 2023,
+      "venue": "arXiv preprint v1; later ICLR 2024 paper is not substituted for this read version",
+      "read_version": {
+        "label": "v1",
+        "date": "2023-10-17",
+        "first_submitted": "2023-10-17",
+        "note": "v1, 2023-10-17, 30-page PDF"
+      },
+      "primary_url": "https://arxiv.org/abs/2310.11511",
+      "full_text_url": "https://arxiv.org/html/2310.11511v1",
+      "official_pdf": "https://arxiv.org/pdf/2310.11511v1",
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "sections": "Abstract; sections 1–6; Ethical Concerns; acknowledgments; appendices A–D, every algorithm/table, training examples, human cases, every displayed GPT-4 instruction/demonstration.",
+        "extract_characters": 215386,
+        "readable_extract_characters": 87675,
+        "read_character_ranges": [
+          "readable extract 0–22999",
+          "23000–45999",
+          "46000–68999",
+          "69000–87674"
+        ],
+        "math_presentation_note": "Decorative mathchoice/TikZ reflection-token icon drawing code was replaced, with mathematical operators retained. PDF extracted text at pp.6 and 19 resolves Critique/IsRel/IsSup/IsUse/Retrieve names. No claim of reading raw graphic-program instructions as scholarly content.",
+        "bibliography_read": false,
+        "limitation": "Read arXiv v1; numerical or typographic inconsistencies are not silently corrected into new empirical claims.",
+        "all_substantive_text_read": true
+      },
+      "provenance_mn": "Өөрийн support шошго алдаж болдгийг Appendix C.2-ын төстэй нэртэй өөр ном сонгосон кейс харуулдаг.",
+      "evaluation_guidance_mn": "Citation precision/recall ба answer correctness өөр. Utility өндөр нь нотолгоо бүрэн гэсэн үг биш.",
+      "limits_mn": "Critic-ийн GPT-4-тэй таарах хувь нь хүний accuracy биш; хүний жижиг шалгалтад сонголтын нөхцөл орсон.",
+      "evidence_locations": [
+        "§3.1–3.3",
+        "Table 2",
+        "§5.2",
+        "Appendices A.1–A.3",
+        "Appendices B.2, C.2, D"
+      ],
+      "experiments_replicated": false,
+      "group": "retrieval_selection_evaluation",
+      "identifiers": {
+        "arxiv_id": "2310.11511",
+        "doi": "10.48550/arXiv.2310.11511"
+      },
+      "method_mn": "Сургаж нэмсэн reflection token-оор retrieval хэрэгцээ, relevance, support, utility-г тусад нь шийддэг, segment beam search-тэй арга.",
+      "application_inference_mn": "Манай санал: эхтэй таарах, entity зөв, бүх шаардлага хангасан, хэрэглэгчид ойлгомжтой гэсэн дөрвөн тусдаа үнэлгээ хадгал. Одоогийн selector-ийг Self-RAG сургагдсан модель гэж нэрлэхгүй.",
+      "metadata_verification_url": "https://arxiv.org/abs/2310.11511"
+    },
+    {
+      "id": "rag-crag-yan-2024",
+      "title": "Corrective Retrieval Augmented Generation",
+      "authors": [
+        "Shi-Qi Yan",
+        "Jia-Chen Gu",
+        "Yun Zhu",
+        "Zhen-Hua Ling"
+      ],
+      "year": 2024,
+      "venue": "arXiv v3",
+      "read_version": {
+        "label": "v3",
+        "date": "2024-10-07",
+        "first_submitted": "2024-01-29",
+        "note": "v3, 2024-10-07; first submitted 2024-01-29"
+      },
+      "primary_url": "https://arxiv.org/abs/2401.15884",
+      "full_text_url": "https://arxiv.org/html/2401.15884v3",
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "sections": "Abstract; sections 1–6, all subsections; all main tables; appendices A and B.1–B.5, including every evaluator/query prompt and ablation table.",
+        "extract_characters": 48442,
+        "read_character_ranges": [
+          "0–24999",
+          "25000–48441"
+        ],
+        "bibliography_read": false,
+        "limitation": "Its Eq.1 is not copied as a valid probability decomposition: the printed expression lacks the marginalization/conditional structure required for a general latent-document model.",
+        "all_substantive_text_read": true
+      },
+      "provenance_mn": "Web-ийн нэмэлт баримт нь ижил хаалттай corpus-ийн туршилт биш; гаднын эхийн найдвартай байдал тусдаа асуудал.",
+      "evaluation_guidance_mn": "Evaluator, refinement, query rewriting, web нэмэлтийг салгаж ablation хийсэн; retrieval муудуулахад хариуг дахин хэмжсэн.",
+      "limits_mn": "Evaluator сургалт, empirical thresholds шаарддаг; reported timing нь retrieval/data processing-ийг оруулаагүй.",
+      "evidence_locations": [
+        "§3",
+        "§4.2–4.5",
+        "Tables 1–6",
+        "§5.6–5.8",
+        "Appendix B.1–B.5"
+      ],
+      "experiments_replicated": false,
+      "group": "retrieval_selection_evaluation",
+      "identifiers": {
+        "arxiv_id": "2401.15884",
+        "doi": "10.48550/arXiv.2401.15884"
+      },
+      "method_mn": "Fine-tune хийсэн T5 evaluator-оор Correct/Incorrect/Ambiguous сонгож, хэсэг шүүх эсвэл web search нэмдэг corrective pipeline.",
+      "application_inference_mn": "Манай санал: хангалтгүй баримт, хоёрдмол хүрээ, хариулахуйц эхийг ялгаж, эхгүй үед татгалз. Шууд web нөхөх эсвэл модель сургах шаардлага энэ төслийн дүгнэлт биш.",
+      "metadata_verification_url": "https://arxiv.org/abs/2401.15884"
+    },
+    {
+      "id": "rag-ircot-trivedi-2023",
+      "title": "Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions",
+      "authors": [
+        "Harsh Trivedi",
+        "Niranjan Balasubramanian",
+        "Tushar Khot",
+        "Ashish Sabharwal"
+      ],
+      "year": 2023,
+      "first_preprint_year": 2022,
+      "venue": "ACL 2023 camera-ready arXiv version",
+      "read_version": {
+        "label": "v2",
+        "date": "2023-06-23",
+        "first_submitted": "2022-12-20",
+        "note": "v2, 2023-06-23; first submitted 2022-12-20"
+      },
+      "primary_url": "https://arxiv.org/abs/2212.10509",
+      "full_text_url": "https://arxiv.org/html/2212.10509v2",
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "sections": "Abstract; sections 1–6; Limitations; Ethical Considerations; acknowledgments; appendices A–G, all tables and all four full prompt demonstration listings.",
+        "extract_characters": 73528,
+        "read_character_ranges": [
+          "0–24999",
+          "25000–49999",
+          "50000–73527"
+        ],
+        "bibliography_read": false,
+        "limitation": "Read the ACL camera-ready v2, including its later comparison caveats and prompt examples; examples are not adopted as school facts.",
+        "all_substantive_text_read": true
+      },
+      "provenance_mn": "Дараагийн холбоосын баримтыг дахин хайдаг; олон алхам хэлсэн нь алхам бүр нотлогдсон гэсэн үг биш.",
+      "evaluation_guidance_mn": "Rank-гүй, хувьсах хэмжээтэй үр дүнд 15-хэсгийн budget доторх gold paragraph recall; answer F1-ийг тусад нь хэмжсэн.",
+      "limits_mn": "Reasoning хийх LM, урт context, олон LM call хэрэгтэй; IIRC дээр retrieval өссөн ч GPT3 answer F1 өсөөгүй.",
+      "evidence_locations": [
+        "§3.1–3.2",
+        "§4 retrieval metric and footnote 7",
+        "§5",
+        "Limitations",
+        "Appendices A, C, E–G"
+      ],
+      "experiments_replicated": false,
+      "group": "retrieval_selection_evaluation",
+      "identifiers": {
+        "arxiv_id": "2212.10509",
+        "doi": "10.48550/arXiv.2212.10509"
+      },
+      "method_mn": "Асуултаар BM25 эхэлж, үүсгэсэн reasoning өгүүлбэрээр дараагийн хайлтыг удирдан, тусдаа reader-ээр хариулдаг iterative арга.",
+      "application_inference_mn": "Манай санал: тэнхим→хөтөлбөр→шаардлага гэх мэт нийлмэл асуултад шаардлагатай бүх эхийн хамралтыг шалга. Энгийн нэг баримтын асуултад iterative LM pipeline хэрэгтэй гэж дүгнэхгүй.",
+      "metadata_verification_url": "https://arxiv.org/abs/2212.10509"
+    },
+    {
+      "id": "rag-raptor-2024",
+      "group": "hierarchical_and_graph_rag",
+      "title": "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval",
+      "authors": [
+        "Parth Sarthi",
+        "Salman Abdullah",
+        "Aditi Tuli",
+        "Shubh Khanna",
+        "Anna Goldie",
+        "Christopher D. Manning"
+      ],
+      "year": 2024,
+      "year_note": "first preprint year; exact version date is separate",
+      "identifiers": {
+        "arxiv_id": "2401.18059",
+        "doi": "10.48550/arXiv.2401.18059"
+      },
+      "primary_url": "https://arxiv.org/abs/2401.18059",
+      "full_text_url": "https://arxiv.org/html/2401.18059v1",
+      "read_version": {
+        "label": "v1",
+        "date": "2024-01-31",
+        "first_submitted": "2024-01-31"
+      },
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "all_substantive_text_read": true,
+        "sections": "Abstract; §§1–6; Appendices A–I; tables 1–21; algorithms; footnotes; figure captions.",
+        "bibliography_read": false,
+        "limitation": "Read complete main and appendix substantive text, tables, algorithms, captions and footnotes. No claim of checking every figure pixel/curve, reading every cited work, or replicating code/experiments."
+      },
+      "method_mn": "Chunk→embedding→UMAP/GMM soft clustering→LLM хураангуйг давтан үүсгэнэ. Collapsed-tree хайлт бүх түвшний зангилааг зэрэг эрэмбэлнэ.",
+      "limits_mn": "Урт англи баримтын QA; гараар байгуулсан сургуулийн ангиллын модыг туршаагүй. Хураангуй эхийн яг баримтыг алдаж болно.",
+      "application_inference_mn": "Тойм ба нарийн эхийг зэрэг холбох санааг авна; навчид эхийн passageID хадгална.",
+      "boundary_mn": "196 хэсэгт автоматаар recursive summary/clustering нэмэх, хураангуйг батлагдсан fact болгох шаардлага одоогоор нотлогдоогүй.",
+      "evidence_locations": [
+        "§3",
+        "Table 2; Appendix E"
+      ],
+      "metadata_verification_url": "https://arxiv.org/abs/2401.18059",
+      "experiments_replicated": false
+    },
+    {
+      "id": "rag-graphrag-2024",
+      "group": "hierarchical_and_graph_rag",
+      "title": "From Local to Global: A GraphRAG Approach to Query-Focused Summarization",
+      "authors": [
+        "Darren Edge",
+        "Ha Trinh",
+        "Newman Cheng",
+        "Joshua Bradley",
+        "Alex Chao",
+        "Apurva Mody",
+        "Steven Truitt",
+        "Dasha Metropolitansky",
+        "Robert Osazuwa Ness",
+        "Jonathan Larson"
+      ],
+      "year": 2024,
+      "year_note": "first preprint year; exact version date is separate",
+      "identifiers": {
+        "arxiv_id": "2404.16130",
+        "doi": "10.48550/arXiv.2404.16130"
+      },
+      "primary_url": "https://arxiv.org/abs/2404.16130",
+      "full_text_url": "https://arxiv.org/html/2404.16130v2",
+      "read_version": {
+        "label": "v2",
+        "date": "2025-02-19",
+        "first_submitted": "2024-04-24"
+      },
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "all_substantive_text_read": true,
+        "sections": "Abstract; §§1–7; Appendices A–G; tables 1–6; all text prompts; figure captions.",
+        "bibliography_read": false,
+        "limitation": "Read complete main and appendix substantive text, tables, algorithms, captions and footnotes. No claim of checking every figure pixel/curve, reading every cited work, or replicating code/experiments."
+      },
+      "method_mn": "LLM entity/relationship graph→Leiden community hierarchy→community summary→map/reduce хариу.",
+      "limits_mn": "Хоёр том corpus, global sensemaking. Энэ хувь factual accuracy биш; fabrication-rate харьцуулалт хийгдээгүй (§6.1).",
+      "application_inference_mn": "Ерөнхий тойм асуултыг нэг fact асуултаас ялгаж, сэдвийн хамралтыг харуулна.",
+      "boundary_mn": "Жижиг сангийн навигацид бүх entity extraction, Leiden, олон LLM map/reduce дуудлагыг хуулбарлахгүй.",
+      "evidence_locations": [
+        "§3.1",
+        "§4.1; Appendix G, Table 6"
+      ],
+      "metadata_verification_url": "https://arxiv.org/abs/2404.16130",
+      "experiments_replicated": false,
+      "title_variant_note": "arXiv abstract page writes Graph RAG; pinned v2 HTML writes GraphRAG.",
+      "version_note": "v2 has ten authors; v1 has eight. Do not merge v1 author metadata with v2 results."
+    },
+    {
+      "id": "rag-hipporag-2024",
+      "group": "hierarchical_and_graph_rag",
+      "title": "HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models",
+      "authors": [
+        "Bernal Jiménez Gutiérrez",
+        "Yiheng Shu",
+        "Yu Gu",
+        "Michihiro Yasunaga",
+        "Yu Su"
+      ],
+      "year": 2024,
+      "year_note": "first preprint year; exact version date is separate",
+      "identifiers": {
+        "arxiv_id": "2405.14831",
+        "doi": "10.48550/arXiv.2405.14831"
+      },
+      "primary_url": "https://arxiv.org/abs/2405.14831",
+      "full_text_url": "https://arxiv.org/html/2405.14831v3",
+      "read_version": {
+        "label": "v3",
+        "date": "2025-01-14",
+        "first_submitted": "2024-05-23"
+      },
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "all_substantive_text_read": true,
+        "sections": "Abstract; §§1–7; Appendices A–I; tables 1–18; notes; captions; all three Appendix I prompt SVG data-texts.",
+        "bibliography_read": false,
+        "limitation": "Read complete main and appendix substantive text, tables, algorithms, captions and footnotes. No claim of checking every figure pixel/curve, reading every cited work, or replicating code/experiments.",
+        "additional_assets_read": "Three Appendix I prompt SVG data-texts extracted and read."
+      },
+      "method_mn": "OpenIE graph, synonym edges, query entity linking, Personalized PageRank-аар олон эхийн passage эрэмбэлнэ.",
+      "limits_mn": "100 retrieval алдааны шинжилгээнд NER 48%, OpenIE 28%, PPR 24%; temporal/context мэдээлэл алдагдаж болно (Appendix F).",
+      "application_inference_mn": "Холбоотой хэлтэс/хөтөлбөрийг passageID-аар холбох; он, дүрэм, modality-г тусад нь хадгална.",
+      "boundary_mn": "Автомат triple-ийг gold болгохгүй; query entity-г дангаар авч бүтэн асуултын нөхцөлийг хаяхгүй.",
+      "evidence_locations": [
+        "§2",
+        "Table 2"
+      ],
+      "metadata_verification_url": "https://arxiv.org/abs/2405.14831",
+      "experiments_replicated": false
+    },
+    {
+      "id": "rag-lightrag-2024",
+      "group": "hierarchical_and_graph_rag",
+      "title": "LightRAG: Simple and Fast Retrieval-Augmented Generation",
+      "authors": [
+        "Zirui Guo",
+        "Lianghao Xia",
+        "Yanhua Yu",
+        "Tu Ao",
+        "Chao Huang"
+      ],
+      "year": 2024,
+      "year_note": "first preprint year; exact version date is separate",
+      "identifiers": {
+        "arxiv_id": "2410.05779",
+        "doi": "10.48550/arXiv.2410.05779"
+      },
+      "primary_url": "https://arxiv.org/abs/2410.05779",
+      "full_text_url": "https://arxiv.org/html/2410.05779v3",
+      "read_version": {
+        "label": "v3",
+        "date": "2025-04-28",
+        "first_submitted": "2024-10-08"
+      },
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "all_substantive_text_read": true,
+        "sections": "Abstract; §§1–6; Appendix §§7.1–7.4; tables 1–5; captions; prompt PNG Figures 4–7 visually inspected.",
+        "bibliography_read": false,
+        "limitation": "Read complete main and appendix substantive text, tables, algorithms, captions and footnotes. No claim of checking every figure pixel/curve, reading every cited work, or replicating code/experiments.",
+        "additional_assets_read": "Four prompt PNGs, Figures 4–7, visually inspected."
+      },
+      "method_mn": "Entity/relation graph, high/low-level query keywords, vector matching, хөрш зангилаа; шинэ өгөгдлийг graph-д нэгтгэнэ.",
+      "limits_mn": "0.6–5.1M-token англи corpus; correctness gold биш. Table3-ын normalization асуулт ба recommendation-metrics хариу зөрсөн. <100 retrieval-token нь бүтэн generation cost биш.",
+      "application_inference_mn": "Ерөнхий сэдэв/тодорхой fact түвшнийг ялган эхэд холбох санаа хэрэгтэй.",
+      "boundary_mn": "Graph union-ийг хуучирсан дүрэм, устгал, зөрчил шийдсэн мэт тооцохгүй; ийм баталгаа хэмжээгүй.",
+      "evidence_locations": [
+        "§3",
+        "Table 1"
+      ],
+      "metadata_verification_url": "https://arxiv.org/abs/2410.05779",
+      "experiments_replicated": false
+    },
+    {
+      "id": "rag-think-on-graph-2023",
+      "group": "hierarchical_and_graph_rag",
+      "title": "Think-on-Graph: Deep and Responsible Reasoning of Large Language Model on Knowledge Graph",
+      "authors": [
+        "Jiashuo Sun",
+        "Chengjin Xu",
+        "Lumingyuan Tang",
+        "Saizhuo Wang",
+        "Chen Lin",
+        "Yeyun Gong",
+        "Lionel M. Ni",
+        "Heung-Yeung Shum",
+        "Jian Guo"
+      ],
+      "year": 2023,
+      "year_note": "first preprint year; exact version date is separate",
+      "identifiers": {
+        "arxiv_id": "2307.07697",
+        "doi": "10.48550/arXiv.2307.07697"
+      },
+      "primary_url": "https://arxiv.org/abs/2307.07697",
+      "full_text_url": "https://arxiv.org/html/2307.07697v6",
+      "read_version": {
+        "label": "v6",
+        "date": "2024-03-24",
+        "first_submitted": "2023-07-15"
+      },
+      "read_scope": {
+        "status": "complete_substantive_full_text",
+        "all_substantive_text_read": true,
+        "sections": "Abstract; §§1–6; Appendices A–E; tables 1–22; algorithms; SPARQL/API definitions; all text prompts; notes/captions.",
+        "bibliography_read": false,
+        "limitation": "Read complete main and appendix substantive text, tables, algorithms, captions and footnotes. No claim of checking every figure pixel/curve, reading every cited work, or replicating code/experiments."
+      },
+      "method_mn": "Бэлэн Freebase/Wikidata KG дээгүүр LLM relation/entity pruning-тай beam search хийнэ.",
+      "limits_mn": "KG-д тулгуурласан benchmark; source-only contract биш. Зарим CWQ хүснэгтэд ToG/ToG-R мөр солигдсон тул тэр харьцуулалтыг ашиглаагүй.",
+      "application_inference_mn": "Эхэд хүрэх холбоосыг шалгаж, алдаатай холбоосыг хүн засаж болохоор хадгална.",
+      "boundary_mn": "§2.1.3-ын evidence хүрэхгүй үед model knowledge-оор хариулах fallback-ийг NMCT-д оруулахгүй.",
+      "evidence_locations": [
+        "§2; §3.1.3",
+        "Table 2; Appendix B.2"
+      ],
+      "metadata_verification_url": "https://arxiv.org/abs/2307.07697",
+      "experiments_replicated": false
+    }
+  ],
+  "method_decision": {
+    "status": "engineering inference from the readings; not a replicated algorithm result",
+    "navigation_relation": "topic_contains",
+    "decision_mn": "Эхтэй холбогдсон, хувилбартай сэдэвчилсэн навигацийн мод. Ерөнхий бүлэг→дэд бүлэг→эхийн хэсэг; нэг хэсэг олон сэдэвтэй бол эхийн тогтвортой ID ба cross-link хадгална.",
+    "relation_semantics_mn": "topic_contains нь is_a өвлөлт биш. part_of, works_in, offers_program зэрэг entity холбоог тусад нь нэрлэнэ. Навигацийн мод ба олон чиглэлт knowledge graph хоёр өөр үүрэгтэй.",
+    "provenance_fields_proposed": [
+      "source_version_id",
+      "passage_id",
+      "source_url",
+      "snapshot_sha256",
+      "exact_locator",
+      "heading_context",
+      "year_or_validity",
+      "scope",
+      "extraction_method",
+      "review_status"
+    ],
+    "provenance_fields_note_mn": "Эдгээр талбар нь төслийн шаардлагад тохируулсан санал; өгүүллээс үгчлэн авсан эсвэл бүгд хэрэгжсэн гэсэн schema мэдэгдэл биш.",
+    "algorithm_boundary_mn": "Гараар байгуулсан topic tree нь RAPTOR clustering/summary эсвэл бүрэн GraphRAG pipeline биш. Gemma evidence-ID selector нь анхны DPR+BART RAG, Self-RAG reflection-token training эсвэл CRAG-ийн T5 evaluator-ийг хэрэгжүүлсэн гэсэн үг биш."
+  },
+  "evaluation_proposal": {
+    "status": "proposed; not newly run",
+    "corpus_size_context": {
+      "html_pages": 75,
+      "indexed_passages": 196,
+      "independently_recounted_by_this_review": false
+    },
+    "steps_mn": [
+      "Root, cycle, dangling edge, тогтвортой ID, reachable passage, unassigned ба олон сэдвийн холбоосыг шалгана. Page/passage denominator-ийг салгана.",
+      "Хүн parent/label/entity/year/scope-ийг эхтэй тулгана. Үгүйсгэл, тоо/дээд хязгаар, хугацаа, шаардлага/боломжийн ялгааг хадгалсан эсэхийг шалгана.",
+      "Шинэ асуулт/reference-ийг output-оос өмнө freeze хийнэ. Өмнө ажиглаж засварласан кейсийг development гэж тэмдэглэнэ.",
+      "Ижил corpus, retriever/selector version, k/context budget дээр flat, tree-filtered, tree+flat fallback-ийг харьцуулна. Буруу branch pruning-ийн зөв эхийн алдагдлыг тусад нь тоолно.",
+      "Зөв эх ба бүх шаардлагатай эхийн олдолт, source scope, completeness, unsupported нэмэлт, зөв clarification/rejection, latency, LM call-ийг тус тус хэмжинэ."
+    ],
+    "limitations_mn": "Эшлэл эхтэй яг таарсан ч буруу entity/он/төрөл сонгосон эсвэл шаардлагатай хэсэг орхисон бол answer correctness батлагдахгүй. Corpus тоо нь бүх албан вэб эсвэл бүх хэрэглэгчийн хэрэгцээг бүрэн хамарсан баталгаа биш. Paper benchmark accuracy, judge win rate ба retrieval recall-ийг project score болгохгүй."
+  }
+}

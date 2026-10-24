@@ -19,6 +19,7 @@
     <div class="nav-label">Төслийг дотроос нь</div>
     <nav class="atlas-nav" aria-label="Атласын хэсгүүд" role="tablist">
       <button id="knowledgeTab" class="nav-button active" role="tab" aria-selected="true" aria-controls="knowledgeView" type="button"><span class="nav-glyph" aria-hidden="true">▤</span>Мэдээллийн сан<span class="nav-arrow" aria-hidden="true">↗</span></button>
+      <button id="treeTab" class="nav-button" role="tab" aria-selected="false" aria-controls="treeView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">⌘</span>Мэдлэгийн мод<span class="nav-arrow" aria-hidden="true">↗</span></button>
       <button id="curatedTab" class="nav-button" role="tab" aria-selected="false" aria-controls="curatedView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">≡</span>Хариултын сан<span class="nav-arrow" aria-hidden="true">↗</span></button>
       <button id="progressTab" class="nav-button" role="tab" aria-selected="false" aria-controls="progressView" tabindex="-1" type="button"><span class="nav-glyph" aria-hidden="true">◷</span>Төслийн явц<span class="nav-arrow" aria-hidden="true">↗</span></button>
     </nav>
@@ -47,6 +48,40 @@
           <div class="source-column"><div id="sourceList" class="source-list" aria-label="Эх сурвалжийн жагсаалт"></div><div id="emptyState" class="empty-state" hidden><span aria-hidden="true">⌕</span><h3>Тохирох эх олдсонгүй</h3><p>Өөр түлхүүр үг ашиглах эсвэл шүүлтээ цэвэрлээрэй. Энэ хайлт зөвхөн хадгалсан цуглуулгад хийнэ.</p><button id="emptyReset" class="text-button" type="button">Бүх эхийг харах ↗</button></div><nav id="pagination" class="pagination" aria-label="Эхийн жагсаалтын хуудас"><button id="previousPage" type="button" aria-label="Өмнөх хуудас">←</button><span id="pageInfo"></span><button id="nextPage" type="button" aria-label="Дараагийн хуудас">→</button></nav></div>
           <article id="sourceDetail" class="source-detail" aria-label="Сонгосон эхийн дэлгэрэнгүй"><div class="detail-placeholder"><span aria-hidden="true">▤</span><p>Эх сурвалжаа сонгоод,<br>мэдээллийг нь нягтлаарай.</p></div></article>
         </div>
+      </section>
+    </section>
+    <section id="treeView" class="view" role="tabpanel" aria-labelledby="treeTab" hidden>
+      <div class="progress-hero tree-hero"><div class="eyebrow"><span></span>СУРГУУЛИЙН МЭДЭЭЛЭЛ → СЭДЭВ → ЭХ</div><h1>Мэдлэг хаанаас ирж,<br><em>хариулт яаж бүтдэг вэ?</em></h1><p>Сургуулийн мэдээллийг салбарласан модоор нээгээд, тухайн сэдэвт ямар эх, баримт, FAQ байгааг хараарай.</p></div>
+      <aside class="tree-scope"><strong>Модыг яаж унших вэ?</strong><p>Энэ бол хадгалсан мэдээллийн сэдвийн ангилал. Салааны тоо нь дэд сэдвүүдээ хамарна. Эх байгааг тухайн сэдвийн бүх мэдээлэл бүрэн, эсвэл хариулт зөв гэсэн баталгаа гэж үзэхгүй. Ангилал нь одоогоор хөгжүүлэгчийн санал; чатны хайлтын дарааллыг өөрчлөхгүй.</p></aside>
+      <div id="treeLoadState" class="tree-load" role="status" aria-live="polite">Мэдлэгийн модыг уншиж байна…</div>
+      <div id="treeError" class="tree-error" hidden><p id="treeErrorMessage">Мэдлэгийн модыг нээж чадсангүй.</p><button id="retryTree" class="text-button" type="button">Дахин оролдох ↻</button></div>
+      <div id="treeContent" hidden>
+        <div id="treeTotals" class="tree-totals" aria-label="Мэдлэгийн модны бүртгэл"></div>
+        <section class="knowledge-map-panel" aria-labelledby="treeTitle">
+          <div class="graph-heading"><div><span class="eyebrow muted">САЛААЛСАН МЭДЛЭГИЙН ЗУРАГ</span><h2 id="treeTitle">Шинэ Монгол Коосэн</h2></div><span id="treeTopicCount" class="graph-total"></span></div>
+          <div class="graph-search-row"><label class="search-box tree-search" for="treeSearch"><span aria-hidden="true">⌕</span><input id="treeSearch" type="search" placeholder="Сэдэв хайх: багш, номын сан…" autocomplete="off"></label><label class="graph-jump-label" for="treeTopicJump">Салаа руу очих<select id="treeTopicJump"><option value="">Сэдэв сонгох…</option></select></label></div>
+          <div class="graph-toolbar" role="group" aria-label="Мэдлэгийн модны харагдац"><div class="graph-zoom"><button id="treeZoomOut" type="button" aria-label="Модыг жижигрүүлэх">−</button><output id="treeZoomLabel" aria-live="polite">100%</output><button id="treeZoomIn" type="button" aria-label="Модыг томруулах">+</button></div><button id="treeFocus" type="button">Сонгосон салаа</button><button id="treeFit" type="button">Бүтнээр харах</button><button id="treeReset" type="button">Эхлэл ↺</button></div>
+          <div id="treeGraphViewport" class="graph-viewport"><svg id="knowledgeGraph" class="knowledge-graph" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Сургуулийн сэдвүүдийг холбосон мэдлэгийн мод. Зангилааг сонгож эхийг үзнэ." tabindex="0"></svg></div>
+          <div class="graph-footer"><p id="treeSearchStatus" class="tree-search-status" role="status" aria-live="polite"></p><span class="graph-legend"><i class="legend-node" aria-hidden="true"></i> Сэдэв <i class="legend-edge" aria-hidden="true"></i> Дэд сэдэв</span></div>
+          <p class="graph-help">Зангилааг дарвал эх нь доор гарна. Чирж зөөх, хулганы дугуй эсвэл хоёр хуруугаар томруулах боломжтой. Гар: Tab-аар зангилаанд очоод Enter дарна; + / − томруулна, 0 бүтнээр харуулна.</p>
+        </section>
+        <div class="tree-layout tree-secondary-layout">
+          <details class="tree-navigation tree-accessible-list"><summary>Сэдвүүдийг жагсаалтаар унших</summary><p class="tree-guide">Сумыг дарж салааг нээнэ. Нэрийг сонгож эхийг нь үзнэ.</p><div id="topicTree"></div></details>
+          <article id="treeDetail" class="tree-detail" aria-label="Сонгосон сэдвийн эх ба баримт"></article>
+        </div>
+        <p id="treeRelease" class="tree-release"></p>
+      </div>
+      <section class="system-map" aria-labelledby="systemMapTitle"><div class="section-title"><div><span class="eyebrow muted">СИСТЕМИЙН БОЛОВСРУУЛАЛТЫН ХОЛБООС</span><h2 id="systemMapTitle">LLM яг хаана ажилладаг вэ?</h2></div></div><p class="system-intro">Эх сурвалж, өгөгдлийн сан, хайлт, LLM, дууны үйлчилгээ хэрхэн холбогдсоныг зураглалаа. Зангилааг сонгож үүргийг нь уншаарай.</p>
+        <div class="brain-map-panel"><div class="graph-toolbar" role="group" aria-label="Системийн урсгалын харагдац"><div class="graph-zoom"><button id="brainZoomOut" type="button" aria-label="Урсгалын зургийг жижигрүүлэх">−</button><output id="brainZoomLabel" aria-live="polite">100%</output><button id="brainZoomIn" type="button" aria-label="Урсгалын зургийг томруулах">+</button></div><button id="brainFit" type="button">Бүтнээр харах</button><span class="brain-map-key"><i aria-hidden="true"></i> LLM ажиллах хэсэг</span></div><div id="brainGraphViewport" class="graph-viewport brain-viewport"><svg id="systemGraph" class="knowledge-graph" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Эхээс хариулт хүртэлх системийн бодит үйлчилгээний урсгал" tabindex="0"></svg></div><div id="brainDetail" class="brain-detail" aria-live="polite"></div></div>
+        <p class="system-map-note">Энэ нь системийн өгөгдөл боловсруулах урсгалын зураг. Нейрон сүлжээний сурсан жин, LLM-ийн дотоод бодлыг үзүүлсэн гэсэн утгагүй.</p>
+        <details class="system-text-fallback"><summary>Урсгалын тайлбарыг үгээр унших</summary><ol class="system-steps">
+          <li><span class="system-step-number">1</span><div><h3>Эхийг хадгална</h3><p>Албан сайтын HTML, сонгосон PDF ба зураг, нэмэлт табын текстийг URL, хувилбар, хадгалсан огноотой нь бүртгэнэ.</p><small>Албан эх → SQLite · эхийн хуулбар</small></div></li>
+          <li><span class="system-step-number">2</span><div><h3>Асуултыг чиглүүлнэ</h3><p>Бүртгэлтэй FAQ, баримтаар шууд хариулж болохыг шалгана. Хүрээ тодорхойгүй бол лавлаж, эхгүй бол мэдээлэл хүрэлцэхгүйг хэлнэ.</p><small>Шууд хариулт · тодруулга · эхтэй хайлт</small></div></li>
+          <li><span class="system-step-number">3</span><div><h3>RAG эхийн хэсгүүдийг олно</h3><p>BM25 үгийн тохирлыг, E5 утгын ойролцоог хайна. RRF хоёр эрэмбийг нэгтгэж, асуултад хамаарах нэр дэвшигч хэсгүүдийг бэлдэнэ.</p><small>BM25 + E5 → RRF → эхийн хэсгүүд</small></div></li>
+          <li class="system-llm"><span class="system-step-number">4</span><div><h3>Gemma хариултад хэрэгтэй хэсгийг сонгоно</h3><p>Локал LLM нь асуулт болон олдсон эхийн хэсгүүдийг уншиж, ашиглах хэсгийн ID-г сонгоно. Шууд FAQ хариултад Gemma шаардлагагүй.</p><small>Энд LLM ажиллана · хэсэг сонгох үүрэг</small></div></li>
+          <li><span class="system-step-number">5</span><div><h3>Сервер эхийн үгийг хариултад оруулна</h3><p>Сонгосон ID, эхийн холбоос, нөхцөл ба шаардлагатай талбаруудыг шалгаж, хадгалсан эхийн текстийг үгчлэн үзүүлнэ. Буруу хэсэг сонгосон алдаа үлдэх боломжтой.</p><small>Сонгосон ID → шалгалт → эхтэй хариулт</small></div></li>
+          <li><span class="system-step-number">6</span><div><h3>Хариултыг сонсоно</h3><p>Edge TTS үзүүлсэн хариултын текстийг дуу болгоно. Дуугаар асуух үед урьдчилан сурсан Cafet Whisper эхлээд яриаг текст болгоно.</p><small>Микрофон → STT → асуулт · хариулт → TTS → дуу</small></div></li>
+        </ol></details><p class="system-map-note">Нэмэлт STT текст засварын LLM санал нь тусдаа сонголттой; анхны таньсан текстийг хадгална. Энэ сэдвийн мод шинэ баримт үүсгэхгүй. Хайлт, LLM-ийн сонголт, яриа танилтыг тус тусад нь чанараар шалгах шаардлагатай.</p>
       </section>
     </section>
     <section id="curatedView" class="view" role="tabpanel" aria-labelledby="curatedTab" hidden>

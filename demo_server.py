@@ -31,8 +31,8 @@ ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
 CLARIFICATION_ARTIFACT_SHA256 = {
-    name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-    for name in ("clarification_context.py", "demo_server.py", "content_release.py", "release_runtime.py", "data_explorer.py", "teacher_media.py")
+    name: hashlib.sha256((Path(__file__).parent/name).read_bytes()).hexdigest()
+    for name in ("clarification_context.py", "demo_server.py", "content_release.py", "release_runtime.py", "data_explorer.py", "teacher_media.py", "tools/build_knowledge_tree.py")
 }
 
 
@@ -132,7 +132,27 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             result.update(query=query, answer=None, citations=[], generated=False, llm_calls=0,
                           related_sources=[], suggestions=[], clarification=None,
                           teacher_media_bundle_id=match['bundle_id'])
-            if match['status'] == 'ambiguous':
+            if match['status'] == 'staff_scope_required':
+                result.update(route='D',answer_kind='teacher_scope_clarification',reason_code='teacher_scope_required',
+                    message='Аль тэнхимийн эсвэл ямар багшийн талаар мэдэх вэ? Нэр, тэнхим, багшийн тоо эсвэл танилцуулга гэдгээ тодруулна уу. Хадгалсан эх бүх багшийн бүрэн жагсаалт биш.',
+                    suggestions=['Компьютерын ухааны багш нарын нэрсийг харуулна уу.',
+                                 'Механик инженерийн тэнхим хэдэн багштай вэ?',
+                                 'Химийн инженерийн тэнхимийн эрхлэгч хэн бэ?'])
+            elif match['status'] == 'partial_directory':
+                cards=match['profiles']
+                if not cards:
+                    return None
+                result.update(route='A',answer_kind='partial_teacher_directory',reason_code='captured_partial_teacher_directory',
+                    answer='\n\n'.join(card['source_quote'] for card in cards),
+                    message=match['department']+' — хадгалсан '+str(len(cards))+' багшийн албан танилцуулгыг үзүүлэв. Энэ нь бүх багшийн бүрэн жагсаалт биш; эхийн огноог нягтлаарай.',
+                    teacher_cards=cards,coverage='partial_captured_profiles',full_staff_roster=False,
+                    citations=[dict(document_id=card['teacher_id'],version=1,
+                        title=card['name']+' — багшийн албан танилцуулга',
+                        source_url_or_filename=card['source_url'],locator=card['source_locator'],
+                        retrieved_at=card['captured_utc'],source_html_sha256=card['source_html_sha256'],
+                        source_accepted_for_project=True,school_staff_approval=False,
+                        approval_status='draft',extraction_method='official_structured_teacher_record') for card in cards])
+            elif match['status'] == 'ambiguous':
                 names = match['candidates']
                 result.update(route='D', answer_kind='teacher_profile_clarification',
                     reason_code='teacher_name_required',
@@ -261,6 +281,15 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.send_json(200, {**explorer.snapshot(), 'content_release': bundle.public()})
                 except (OSError,sqlite3.Error,ValueError,KeyError,TypeError):
                     return self.error(503, "Эхийн сан эсвэл явцын бүртгэлийг уншиж чадсангүй.")
+            if path == "/api/explorer/tree":
+                try:
+                    tree=explorer.knowledge_tree()
+                    if not live_content.is_current(bundle):
+                        return self.error(409,"Эхийн хувилбар солигдлоо. Модыг дахин ачаална уу.")
+                    release=bundle.public()
+                    return self.send_json(200,{**tree,'release':{k:release.get(k) for k in ('release_id','corpus_id','package_id')}})
+                except (OSError,sqlite3.Error,ValueError,KeyError,TypeError):
+                    return self.error(503,"Мэдлэгийн модыг эхийн сантай тулгаж уншиж чадсангүй.")
             document = re.fullmatch(r"/api/explorer/document/((?:png|pdf)-[0-9a-f]{20})",path)
             if document:
                 try:

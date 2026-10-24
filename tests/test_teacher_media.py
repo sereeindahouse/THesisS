@@ -102,6 +102,31 @@ class TeacherMediaTests(unittest.TestCase):
         self.assertEqual(result['status'],'ambiguous')
         self.assertEqual(set(result['candidates']),{'Батчулуун','Соронзонболд'})
 
+    def test_scoped_staff_names_return_only_verified_partial_directory(self):
+        for q in ['Компьютерийн багш нар хэн хэн байдаг вэ?',
+                  'Компьютерын ухааны тэнхимийн багш нарын нэрийг хэлнэ үү.',
+                  'Компьютерын ухааны багш нарын нэрсийг жагсааж өгөөч.',
+                  'Компьютерийн багш нарын нэрсийг жагсаагаад өгөөч.',
+                  'Компьютерын ухааны багш нарын нэрсийг харуулна уу.',
+                  'Компьютерийн багш нарын зургийг харуулна уу.']:
+            result=self.manager.profile(q)
+            self.assertIsNotNone(result,q)
+            self.assertEqual(result['status'],'partial_directory',q)
+            self.assertEqual([card['name'] for card in result['profiles']],['Батчулуун'])
+            self.assertEqual(result['candidates_scope'],'captured_profiles_only_not_full_staff_list')
+        for q in ['Химийн багш нарын нэрийг хэлнэ үү.',
+                  'Компьютерийн болон химийн багш нарын нэрийг хэлнэ үү.',
+                  'Компьютерийн багш хэд вэ, нэрсийг хэлнэ үү.',
+                  'Компьютерийн Дорж багшийн нэрийг хэлнэ үү.']:
+            self.assertIsNone(self.manager.profile(q),q)
+
+    def test_generic_staff_overview_asks_scope_without_forcing_photo(self):
+        for q in ['Багш нарын талаар мэдээлэл өгөөч.',
+                  'Багш нарынхаа талаар мэдээлэл өгөөч.','Багш нар']:
+            result=self.manager.profile(q)
+            self.assertEqual(result['status'],'staff_scope_required',q)
+            self.assertEqual(result['candidates'],[])
+
     def test_attach_requires_matching_person_and_exact_capture(self):
         p=self.manifest['profiles'][0]
         result=dict(route='C',answer='Батчулуун — Багш',citations=[dict(url=p['source']['url'],html_sha256=p['source']['html_sha256'])])

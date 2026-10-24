@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 
 from CORE.client_tab_corpus import flight_records
 from CORE.website_corpus import PageParser
+from source_fields import staff_query_scope, _scope_words
 
 
 DEFAULT_MANIFEST = 'runtime/quality-media-20261021/teacher-media/manifest.json'
@@ -31,7 +32,7 @@ UNSUPPORTED = re.compile(
     r'хаяг|имэйл|мэйл|email|salary|account|phone|address|password|age\b|'
     r'өнөөдөр|маргааш|хуваарь|өрөө|хаана|хэзээ|ажиллаж байгаа|одоо ажил', re.I)
 PROFILE_INTENT = re.compile(
-    r'танилцуул|тухай|хэн\b|зураг|хөрөг|ямар багш|ямар ажил|'
+    r'танилцуул|тухай|хэн\b|зураг|зург(?:ийг|ийн|аа)|хөрөг|ямар багш|ямар ажил|'
     r'мэдээлэл|photo|portrait|profile|who\b|tell me|about', re.I)
 OVERVIEW_WORD = re.compile(
     r'багш(?:ийн|ийг|нар(?:ын)?)?|нар(?:ын)?|эрхлэгч(?:ийн)?|тэнхимийн|нь|хэн|бэ|вэ|юм|гэж|'
@@ -40,6 +41,27 @@ OVERVIEW_WORD = re.compile(
     r'үзүүл(?:нэ|ж|ээч)?|үзье|хэл(?:ж|нэ)?|'
     r'өг(?:нө|өөч|ч)|уу|үү|болох|болон|эсвэл|please|show|me|tell|who|is|'
     r'about|teacher|professor|photo|portrait|profile|picture|a|can|you|of', re.I)
+
+
+def _generic_staff_overview(query):
+    """A closed generic overview request is not automatically a photo request."""
+    words = re.findall(r'[^\W_]+', query.casefold())
+    allowed = re.compile(r'багш(?:ийн|ийг|нар(?:ын(?:хаа)?)?)?|нар(?:ын(?:хаа)?)?|'
+        r'манай|танай|надад|сургууль|сургуулийн|бүх|нь|хэн|хэнтэй|ямар|тухай|талаар|'
+        r'мэдээлэл|танилцуул(?:га|гыг|на|ж|ах|аач|аад)?|өг(?:нө|өөч|ч)|'
+        r'хэл(?:ж|нэ)?|байдаг|юм|бэ|вэ|уу|үү|please|teacher|teachers|about|tell|me', re.I)
+    return bool(words and re.search(r'багш|teacher', query, re.I)
+                and all(allowed.fullmatch(word) for word in words))
+
+
+def _directory_only(query, department):
+    """Do not let an unknown person or another requested field disappear."""
+    if re.search(r'тоо|хэд|цалин|нас|хичээл|болон|ба\b|эсвэл|харьцуул|зураг|хөрөг', query, re.I):
+        return False
+    remaining = _scope_words(query) - _scope_words(department)
+    return remaining <= set('''багш багшийн багшнар багшнарын нар нарын нэр нэрс нэрсийг нэрийг
+        хэн байдаг хэлнэ хэл өгөөч өгч хэлж байна танилцуул танилцуулаач жагсаа жагсааж жагсаагаад жагсаалт
+        жагсаалтыг үзүүл үзүүлнэ үзүүлээч харуул харуулна харуулаач үү уу вэ бэ юм нартай'''.split())
 
 
 class TeacherMediaError(ValueError):
@@ -282,13 +304,31 @@ class TeacherMedia:
         """Only a named-teacher overview/photo request; never answer private fields."""
         if not isinstance(query, str) or not 1 <= len(query) <= 2000 or UNSUPPORTED.search(query):
             return None
-        if not PROFILE_INTENT.search(query):
+        if (not PROFILE_INTENT.search(query) and not _generic_staff_overview(query)
+                and not re.search(r'багш\w*(?:\s+нар\w*)?\s+нэр', query, re.I)):
             return None
         try:
             bundle, rows = self._load()
         except (TeacherMediaError, OSError):
             return None
         matches = [row for row in rows if any(_contains(query, alias) for alias in row['aliases'])]
+        if not matches:
+            # Names are available even when the full staff roster is not. This
+            # partial directory uses only already verified portrait records.
+            catalog = [dict(title=row['department'],url=row['source']['url'],text='') for row in rows]
+            scope = staff_query_scope(query, [], catalog=catalog)
+            photo = bool(re.search(r'зураг|зургийг|хөрөг|photo|portrait',query,re.I))
+            if scope and (scope['kind']=='names' or photo) and len(scope['department_titles'])==1:
+                department = scope['department_titles'][0]
+                directory_query = re.sub(r'(?<!\w)(?:зураг(?:тай|т)?|зург(?:ийг|аа|ийн)|хөрөг|photo|portrait)(?!\w)',' ',query,flags=re.I) if photo else query
+                if _directory_only(directory_query, department):
+                    selected = [row for row in rows if row['department']==department]
+                    return dict(status='partial_directory', profiles=[self._card(row) for row in selected],
+                        department=department, bundle_id=bundle,
+                        candidates_scope='captured_profiles_only_not_full_staff_list')
+            if _generic_staff_overview(query) and not re.search(r'зураг|хөрөг|photo|portrait', query, re.I):
+                return dict(status='staff_scope_required', bundle_id=bundle, candidates=[],
+                    candidates_scope='clarify_department_person_or_attribute')
         if not _overview_only(query, matches):
             return None
         if len(matches) > 1:

@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 import sqlite3
+import shutil
 import unittest
 from unittest.mock import patch
 
@@ -92,6 +93,94 @@ class ExplorerTests(unittest.TestCase):
         result=self.explorer.snapshot()
         self.assertEqual(result['summary']['pages'],0)
         self.assertEqual(result['sources'],[])
+
+    def test_tree_projects_selected_pair_without_private_export_provenance(self):
+        from content_store import ContentStore
+        from test_demo_server import fixture
+        from tools.build_knowledge_tree import load_inputs
+        content=fixture()
+        content['sources'][0]['source_url_or_filename']='https://nmct.edu.mn/contact'
+        for group in ('sources','facts','faqs'):
+            content[group][0]['notes']='PRIVATE-WORKING-NOTE'
+        selected=self.root/'selected-content.db'
+        with ContentStore(selected) as store:store.import_content(content,allow_draft=True)
+        (self.root/'config').mkdir()
+        shutil.copyfile(Path(__file__).resolve().parents[1]/'config/knowledge-topics.json',
+                        self.root/'config/knowledge-topics.json')
+        before={p:hashlib.sha256(p.read_bytes()).hexdigest() for p in (self.db,selected)}
+        # A corrupt global activation must not redirect a selected request pair.
+        (self.root/'runtime/content-releases').mkdir(parents=True)
+        (self.root/'runtime/content-releases/active.json').write_text('broken')
+        with patch('website_retrieval._LocalE5.load',side_effect=AssertionError('No inference')):
+            result=SourceExplorer(self.root,self.db,selected).knowledge_tree()
+        self.assertEqual(result['counts'],dict(pages=1,passages=1,sources=1,facts=1,faqs=1))
+        root=next(n for n in result['topics'] if n['parent_id'] is None)
+        self.assertEqual(root['subtree_counts'],result['counts'])
+        contact=next(n for n in result['topics'] if n['topic_id']=='contact')
+        self.assertEqual(contact['sources'][0]['url'],'https://nmct.edu.mn/contact')
+        self.assertEqual(contact['faq_records'][0]['question'],'Тест үү?')
+        encoded=json.dumps(result,ensure_ascii=False)
+        for private in ('PRIVATE-WORKING-NOTE','activation_token','html_path','snapshot_dir',str(self.root)):
+            self.assertNotIn(private,encoded)
+        self.assertFalse(result['affects_retrieval'])
+        self.assertFalse(result['membership_establishes_answer_truth'])
+        self.assertEqual(before,{p:hashlib.sha256(p.read_bytes()).hexdigest() for p in before})
+        with self.assertRaises(ValueError):load_inputs(self.root,website_database=self.db)
+
+    def test_progress_has_bounded_room_for_documented_history(self):
+        (self.root/'config').mkdir()
+        path=self.root/'config/project-progress.json'
+        value=dict(schema_version=1,milestones=[],history='x'*70000)
+        path.write_text(json.dumps(value),encoding='utf-8')
+        self.assertEqual(progress(self.root)['total'],0)
+        path.write_text(' '*262145,encoding='utf-8')
+        with self.assertRaises(ValueError):progress(self.root)
+
+    def test_tree_never_offers_nonofficial_or_credential_source_links(self):
+        from content_store import ContentStore
+        from test_demo_server import fixture
+        selected=self.root/'selected-content.db'
+        with ContentStore(selected) as store:store.import_content(fixture(),allow_draft=True)
+        (self.root/'config').mkdir()
+        shutil.copyfile(Path(__file__).resolve().parents[1]/'config/knowledge-topics.json',
+                        self.root/'config/knowledge-topics.json')
+        explorer=SourceExplorer(self.root,self.db,selected)
+        for url in ('javascript:alert(1)','https://nmct.edu.mn.evil.example/contact',
+                    'https://user:password@nmct.edu.mn/contact','https://nmct.edu.mn:444/contact'):
+            with self.subTest(url=url):
+                with closing(sqlite3.connect(self.db)) as db:
+                    for table in ('pages','captures','chunks'):db.execute(f'UPDATE {table} SET url=?',(url,))
+                    db.commit()
+                tree=explorer.knowledge_tree()
+                links=[link for node in tree['topics'] for key in ('sources','source_references') for link in node[key]]
+                self.assertEqual(links,[])
+
+
+class ExplorerTreeHTTPConsistencyTests(unittest.TestCase):
+    def setUp(self):
+        from test_demo_server import DemoServerTests
+        self.helper=DemoServerTests();self.helper.setUp()
+
+    def tearDown(self):self.helper.tearDown()
+
+    def test_activation_changed_after_tree_read_refuses_stale_payload(self):
+        marker={'schema_version':1,'topics':[],'private_partial_tree':'must not escape'}
+        with patch('data_explorer.SourceExplorer.knowledge_tree',return_value=marker), \
+                patch('release_runtime.LiveContentRuntime.is_current',return_value=False):
+            status,result=self.helper.request('GET','/api/explorer/tree')
+        self.assertEqual(status,409)
+        self.assertNotIn('private_partial_tree',json.dumps(result))
+
+    def test_activation_corrupted_during_tree_read_fails_closed(self):
+        def corrupt_activation():
+            active=self.helper.root/'runtime/content-releases/active.json'
+            active.parent.mkdir(parents=True,exist_ok=True)
+            active.write_text('corrupt activation',encoding='utf-8')
+            return {'private_partial_tree':'must not escape'}
+        with patch('data_explorer.SourceExplorer.knowledge_tree',side_effect=corrupt_activation):
+            status,result=self.helper.request('GET','/api/explorer/tree')
+        self.assertEqual(status,503)
+        self.assertNotIn('private_partial_tree',json.dumps(result))
 
 
 class ExplorerDocumentTests(unittest.TestCase):

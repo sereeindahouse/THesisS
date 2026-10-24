@@ -10,6 +10,8 @@ def spoken_text(result):
     """One shared display-to-speech selection, including draft/clarification text."""
     if result.get('answer') is not None:
         prefix = 'Ноорог, сургуулиар баталгаажаагүй. ' if result.get('answer_kind') == 'development_draft_preview' else ''
+        if result.get('answer_kind') == 'partial_teacher_directory':
+            prefix = result.get('message','Хадгалсан танилцуулга нь бүх багшийн бүрэн жагсаалт биш.') + ' '
         text = result['answer']
         if result.get('answer_kind') == 'rag_generated':
             text = remove_rendered_citations(text, len(result.get('citations', [])))

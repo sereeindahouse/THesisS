@@ -177,6 +177,29 @@ def _spans(text):
     yield from _structural_spans(text, adjusted)
 
 
+def _source_spans(source):
+    """Apply verified DOM boundaries before physical paragraph grouping.
+
+    Every segment remains an exact, contiguous slice of the same source. The
+    saved HTML supplies section/card boundaries; query words and expected
+    numerical answers never decide where the source is split. Legacy excerpts
+    and invalid metadata retain the conservative physical-text grouping.
+    """
+    text = source['text']
+    cuts = source.get('structure_boundaries')
+    valid = (source.get('text_scope') == 'main_element'
+             and source.get('structure_method') == 'verified-captured-dom-v1'
+             and source.get('structure_text_sha256') == hashlib.sha256(text.encode('utf-8')).hexdigest()
+             and isinstance(cuts, list) and bool(cuts)
+             and all(type(cut) is int and 0 < cut < len(text) for cut in cuts)
+             and cuts == sorted(set(cuts))
+             and all(text[cut - 1] == '\n' or text[cut] == '\n' for cut in cuts))
+    boundaries = [0, *cuts, len(text)] if valid else [0, len(text)]
+    for left, right in zip(boundaries, boundaries[1:]):
+        for start, end in _spans(text[left:right]):
+            yield left + start, left + end
+
+
 def _numbered_rows(text):
     return [line for line in text.splitlines()
             if re.match(r'^\s*\d{1,2}(?:[.)]|-[^\W\d_]+)?\s+', line)]
@@ -250,7 +273,7 @@ def evidence_units(sources, max_characters=900):
             continue
         seen.add(sid)
         previous_physical = None
-        for physical_start, end in _spans(text):
+        for physical_start, end in _source_spans(source):
             start = _after_template_counters(text, physical_start, end)
             span = text[start:end]
             previous = previous_physical

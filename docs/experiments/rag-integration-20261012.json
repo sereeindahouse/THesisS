@@ -3992,5 +3992,294 @@
       "Stable hosting/clean-machine delivery",
       "Final thesis formatting and supervisor review"
     ]
+  },
+  "rag_focus_20261023": {
+    "date": "2026-10-23",
+    "scope": "Observed development;20pairedselectorcases and30actualHTTPcases, not human/held-out accuracy.",
+    "mechanism": [
+      "Verified saved-HTML/canonical-text section boundaries; shared text conservatively blocks inner card splits.",
+      "Named Latin software/use-year query inflection activates existing total/year/per-student omission screens.",
+      "Exact single-purpose grammar permits rechecked selected-root subsets; explicit purpose cannot borrow another subject or a past activity."
+    ],
+    "local_tests": {
+      "run": 1039,
+      "passed": 1039,
+      "seconds": 166.943,
+      "scope": "Combined project suite, including11 knowledge-tree tests."
+    },
+    "preserved": {
+      "captured_pages": 75,
+      "indexed_passages": 196,
+      "facts": 40,
+      "faqs": 30,
+      "corpus_id": "e7a3a118bb5050467f5000d8e5d1f976d8f1e9ea7daaa0a18f9ddc62a3337e3b",
+      "source_rows_and_ids_unchanged": true,
+      "previous_selectable_nonspace_loss": 0,
+      "original_dbs_unchanged": true,
+      "roadmap_unchanged": true,
+      "human_files_unchanged": true
+    },
+    "evidence_unit_counts": {
+      "before": 648,
+      "after": 721,
+      "meaning": "Overlapping selectable spans, not unique facts."
+    },
+    "paired": {
+      "cases": 20,
+      "reference_literals_complete_before": 19,
+      "reference_literals_complete_after": 20,
+      "display_characters_before": 9575,
+      "display_characters_after": 7619,
+      "changed_answers": 9,
+      "baseline_provider_calls": 24,
+      "candidate_provider_calls": 25,
+      "source_pools_and_options_equal": true,
+      "same_model": true,
+      "reference_author": "assistant",
+      "human_review": false,
+      "held_out": false,
+      "source_collection": "paired-results-release.json; final source/prompt/identity guards, alternating baseline/candidate."
+    },
+    "live": {
+      "cases": 30,
+      "routes": {
+        "C": 20,
+        "D": 3,
+        "A": 3,
+        "E": 4
+      },
+      "gemma_calls": 24,
+      "exact_claims": 31,
+      "loaded_artifacts": 17,
+      "all_checks_passed": true,
+      "browser_visual_qa": false
+    },
+    "examples": {
+      "founding_display_characters": [
+        222,
+        151
+      ],
+      "library_display_characters": [
+        785,
+        255
+      ],
+      "gasshuku_display_characters": [
+        655,
+        301
+      ],
+      "monitoring_purpose_display_characters": [
+        318,
+        318
+      ]
+    },
+    "remaining": [
+      "Evaluation/mixed-purpose answers can still include other process information.",
+      "Sakura and mechanical-practice cases can select unrelated additional roots.",
+      "Shared subject/following conditional scope is not generally solved by physical paragraph units."
+    ],
+    "new_stt_inferences": 0,
+    "new_tts_syntheses": 0,
+    "new_model_downloads": 0,
+    "training_performed": false,
+    "new_human_score": null,
+    "general_semantic_correctness_proven": false,
+    "identity_guard": [
+      "Every requested-subject root and original requested-subject dependency is preserved.",
+      "Unidentified/pronominal or prefixed roots cannot be removed by a later opposing heading.",
+      "A closed single-purpose query supplies subject scope to Gemma; a purpose word alone does not authorize dropping requested evidence."
+    ]
+  },
+  "knowledge_tree_20261023": {
+    "date": "2026-10-23",
+    "kind": "Developer-proposed source-linked topic navigation",
+    "relation": "topic_contains",
+    "topics": 33,
+    "roots": 1,
+    "counts": {
+      "facts": 40,
+      "faqs": 30,
+      "pages": 75,
+      "passages": 196,
+      "sources": 14
+    },
+    "passage_types": {
+      "html": 145,
+      "document": 21,
+      "client_tab": 30
+    },
+    "unassigned_records": 0,
+    "primary_duplicated_records": 0,
+    "missing_source_topics": [],
+    "missing_fact_topics": [
+      "school",
+      "school.overview",
+      "school.history",
+      "school.quality",
+      "academics.general",
+      "academics.mechanical",
+      "academics.electrical",
+      "academics.chemical",
+      "academics.civil",
+      "student",
+      "student.library",
+      "student.environment",
+      "student.sports",
+      "student.council",
+      "career.internship",
+      "career.partners",
+      "news",
+      "events"
+    ],
+    "source_presence_is_not_completeness": true,
+    "source_ref_occurrences": 77,
+    "dangling_refs": 0,
+    "research_papers": 15,
+    "abstract_only_papers": 0,
+    "research_read_scope": "Full substantive main text and appendices where present; per-paper version/scope recorded. Not all figure pixels, proofs, cited papers or experiment replication.",
+    "research_catalog_sha256": "1219a69fd12e0066e71610b227d3cc28db6e1c7cf008d93147195011bfc2838e",
+    "topic_config_sha256": "86e14e3fc0c9104af5abc3c84e6c85f40da8c159e2671a4395de322fb50080ef",
+    "tree_builder_sha256": "9492ec4f21f8cc7af92c6433369bc3109caca8b09dd927069994fba2ad2436f8",
+    "focused_tests": 11,
+    "independent_integrity_checks": 15,
+    "llm_calls": 0,
+    "model_downloads": 0,
+    "own_training": false,
+    "database_modified": false,
+    "rag_ranking_changed": false,
+    "raptor_implemented": false,
+    "knowledge_graph_reasoning_implemented": false,
+    "new_human_accuracy": null,
+    "research_catalog_original_local_sha256": "c1a954d611c193ce4915512d2881eb593a13b776ba12ad0ced995ca1388cfd65",
+    "research_catalog_hash_note": "Public catalog uses canonical LF bytes; original local Windows CRLF hash preserved separately. Entries and read scopes are unchanged."
+  },
+  "visual_knowledge_semantic_20261024": {
+    "date": "2026-10-24",
+    "scope": "Observed development. Same original rubric; all 24 and all 12 actual HTTP answers reviewed. Not human or held-out/general accuracy.",
+    "human_evaluation": false,
+    "visible_graph": {
+      "topics": 33,
+      "topic_edges": 32,
+      "processing_nodes": 16,
+      "processing_edges": 19,
+      "actual_api_dom_checks_passed": 13,
+      "public_ui_harness_scenarios": 13,
+      "zoom_pan_pinch_search_keyboard_source_detail": true,
+      "geometry_previews_inspected": true,
+      "preview_is_browser_screenshot": false,
+      "real_browser_visual_qa": false,
+      "browser_unavailable": true,
+      "api_route": "/api/explorer/tree",
+      "ui_route": "/data#tree",
+      "read_only": true,
+      "private_projection_tested": true,
+      "ranking_changed_by_navigation_tree": false,
+      "neural_weights_visualized": false,
+      "topic_config_sha256": "86e14e3fc0c9104af5abc3c84e6c85f40da8c159e2671a4395de322fb50080ef",
+      "tree_builder_sha256": "6fec254384b56232352eaa0d12ab1a904760ced6c371a8f3c5fa09080f7ee285"
+    },
+    "local_tests": {
+      "run": 1124,
+      "passed": 1124,
+      "skipped": 0,
+      "seconds": 156.819,
+      "source_unchanged": true,
+      "log_sha256": "f18dc4321e5c1b3fb657c851263c9dad6ebf1fb2dbb1a468416f08cecdf96039"
+    },
+    "baseline_24": {
+      "pass": 9,
+      "partial": 8,
+      "fail": 5,
+      "safe_unhelpful": 2,
+      "busy_retries": 2,
+      "first_busy_outputs_preserved": true
+    },
+    "final_24": {
+      "cases": 24,
+      "routes": {
+        "D": 1,
+        "A": 6,
+        "C": 12,
+        "B": 1,
+        "E": 4
+      },
+      "loaded_artifacts": 20,
+      "runtime_disk_preflight_matched": true,
+      "raw_sha256": "4fcb188c824152ae834a74e1ffa1e049d1e24e846120c0be477194eae5c35f77",
+      "pass": 19,
+      "partial": 5,
+      "fail": 0,
+      "safe_unhelpful": 0,
+      "partial_ids": [
+        "fresh02",
+        "fresh14",
+        "fresh18",
+        "fresh19",
+        "fresh22"
+      ],
+      "llm_calls": 14,
+      "c_literal_claims": 18,
+      "all_c_claims_exact": true
+    },
+    "followups_12": {
+      "cases": 12,
+      "routes": {
+        "A": 1,
+        "E": 6,
+        "C": 4,
+        "D": 1
+      },
+      "loaded_artifacts": 20,
+      "runtime_disk_preflight_matched": true,
+      "raw_sha256": "2791a73f3c8fb04ee224c03704087c7c97eca561e61dcf836d25acd02c684c00",
+      "pass": 12,
+      "scope": "Alternate wordings from observed failure families; development, not independent held-out proof.",
+      "llm_calls": 7,
+      "c_literal_claims": 4,
+      "all_c_claims_exact": true
+    },
+    "fixed": [
+      "Teacher identity/department scope and positive staff counts; student patronymics cannot supply teacher facts.",
+      "Partial captured teacher directory is disclosed in both screen and speech text; not a full staff roster.",
+      "Cafeteria opening/closing hours cannot borrow floor area, seating, or invitation time.",
+      "Library floor requires the library-to-floor source relation; numbered room lists are not floor evidence.",
+      "Founding, first graduation, programme opening and first intake use their own dated source event.",
+      "Closed general-contact and two-sports-hall questions return context-preserving literal source spans.",
+      "Academic-year choices and calendar-year tuition cannot borrow another year or ignore added conditions.",
+      "Owned cold-start timeout is retried within the existing deadline; wrong server identity still fails."
+    ],
+    "independent_direct_extract_checks": {
+      "constructed": 57,
+      "additional_counterexamples": 4,
+      "saved_real_positives": 4,
+      "passed": true,
+      "general_semantic_proof": false,
+      "saved_real_positives_scope": "Two existing source patterns rechecked in two saved logs, not four independent empirical samples."
+    },
+    "preserved": {
+      "protected_files_unchanged": true,
+      "human_files_unchanged": true,
+      "protected_file_count": 5,
+      "human_file_count": 52,
+      "pages": 75,
+      "passages": 196,
+      "sources": 14,
+      "facts": 40,
+      "faqs": 30
+    },
+    "remaining": [
+      "Only two verified CS teacher profiles are captured; the full requested roster is unavailable.",
+      "Hub, internship, N2 and council answers still include substantial unrequested material.",
+      "Unknown programme abbreviations may require full-name clarification.",
+      "Human answer-quality study, permanent hosting and clean-machine installation remain incomplete."
+    ],
+    "llm_role": "C-path Gemma selects evidence-unit IDs. Server restores exact source text and applies bounded guards. Not free-form answer generation or a general entailment proof.",
+    "raw_stt_wer_percent_unchanged": 36.02150537634409,
+    "new_stt_inferences": 0,
+    "new_tts_syntheses": 0,
+    "new_model_downloads": 0,
+    "own_training": false,
+    "new_human_score": null,
+    "research_catalog_sha256": "1219a69fd12e0066e71610b227d3cc28db6e1c7cf008d93147195011bfc2838e",
+    "research_registry_entries_changed": false
   }
 }

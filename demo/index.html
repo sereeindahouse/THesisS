@@ -26,7 +26,7 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
       <span><strong id="routeHeading">ШМТК · Мэдээллийн туслах</strong><small>Сургуулийн талаар асуугаарай</small></span>
     </a>
     <div class="header-actions">
-      <a class="quiet-button" href="/data" title="Эхийн сан ба төслийн явц">Эхийн сан</a>
+      <a class="quiet-button" href="/data#tree" title="Мэдлэгийн мод, эх сурвалж ба төслийн явц">Мэдлэгийн мод</a>
       <a id="localAdminLink" class="quiet-button" href="/admin" title="Мэдээлэл шинэчлэх" aria-label="Мэдээлэл шинэчлэх" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5"/></svg><span>Шинэчлэх</span></a>
       <button id="voiceReset" class="quiet-button" type="button" title="Чатыг цэвэрлэж, шинээр эхлэх" aria-label="Шинэ чат">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Шинэ чат</span>
@@ -271,6 +271,7 @@ function renderTurn(turn,result){
  }
  if(result.answer_kind==="development_draft_preview")target.append(node("p","Хөгжүүлэлтийн ноорог мэдээлэл.","chat-notice"));
  const hasAnswer=typeof result.answer==="string"&&Boolean(result.answer.trim());
+ if(result.answer_kind==="partial_teacher_directory"&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));
  const fallback=[result.clarification?.question,result.message].find(v=>typeof v==="string"&&v.trim());
  if(result.answer_kind==="rag_generated"&&hasAnswer)target.append(node("p","Албан эхийн мэдээллийг нэгтгэв","answer-label"));
  target.append(node("div",hasAnswer?result.answer:(fallback||"Энэ асуултын шууд хариулт хадгалсан мэдээлэлд одоогоор алга. Доорх асуултаас сонгож болно."),"chat-answer"));

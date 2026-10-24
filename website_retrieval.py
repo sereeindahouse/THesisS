@@ -19,7 +19,7 @@ import time
 import unicodedata
 from urllib.parse import urlsplit
 
-from CORE.website_corpus import readonly
+from CORE.website_corpus import readonly, structural_spans
 from CORE.document_corpus import read_document_rows
 from CORE.client_tab_corpus import read_client_tab_rows
 from retrieval_probe import bm25_scores, sha256
@@ -27,6 +27,40 @@ from retrieval_probe import bm25_scores, sha256
 ROOT = Path(__file__).resolve().parent
 INDEX_VERSION = 'website-hybrid-v5-complete-physical-boundaries'
 SOURCE_BOUNDARY_CONTEXT = 900
+STRUCTURE_METHOD = 'verified-captured-dom-v1'
+
+
+def _capture_structure(run, capture, page):
+    """Use saved HTML only after path, byte hash and full text correspondence.
+
+    Structure changes selectable evidence, never the captured text, index rows
+    or search scores. Missing/ambiguous captures keep the physical-text parser.
+    """
+    if capture is None:
+        return []
+    try:
+        path = Path(capture['html_path']).resolve()
+        snapshot = Path(run['snapshot_dir']).resolve()
+        if not path.is_relative_to(snapshot) or path.stat().st_size > 8 * 1024 * 1024:
+            return []
+        body = path.read_bytes()
+        if hashlib.sha256(body).hexdigest() != capture['html_sha256']:
+            return []
+        if hashlib.sha256(page['text'].encode('utf-8')).hexdigest() != page['text_sha256']:
+            return []
+        charset = json.loads(capture['http_metadata'])['charset']
+        return structural_spans(body.decode(charset, errors='strict'), page['text'])
+    except (OSError, ValueError, KeyError, LookupError, TypeError):
+        return []
+
+
+def _source_structure(page_spans, start, end, text):
+    cuts = sorted({point - start for span in page_spans for point in span
+                   if start < point < end})
+    if not cuts:
+        return {}
+    return dict(structure_method=STRUCTURE_METHOD, structure_boundaries=cuts,
+                structure_text_sha256=hashlib.sha256(text.encode('utf-8')).hexdigest())
 # Ranking experiments share the production corpus/preprocessing/diversity policy.
 # Only production applies lexical/topic abstention gates; other modes rank only.
 RANKING_MODES = ('bm25', 'e5', 'rrf', 'rrf_boosted', 'production')
@@ -275,10 +309,14 @@ class WebsiteRetriever:
                 return
             pages = db.execute('SELECT p.* FROM pages p JOIN captures x ON p.url=x.url AND p.version=x.version WHERE x.run_id=? ORDER BY p.url', (run['run_id'],)).fetchall()
             chunks = db.execute('SELECT c.* FROM chunks c JOIN captures x ON c.url=x.url AND c.version=x.version WHERE x.run_id=? ORDER BY c.url,c.ordinal', (run['run_id'],)).fetchall()
+            captures = db.execute('SELECT * FROM captures WHERE run_id=?', (run['run_id'],)).fetchall()
             document_count = db.execute('SELECT COUNT(*) FROM assets WHERE run_id=?', (run['run_id'],)).fetchone()[0]
             document_rows, document_warnings = read_document_rows(db, run)
             client_rows, client_warnings = read_client_tab_rows(db, run)
         page_map = {(p['url'], p['version']): dict(p) for p in pages}
+        capture_map = {(c['url'], c['version']): dict(c) for c in captures}
+        structures = {key: _capture_structure(run, capture_map.get(key), page)
+                      for key, page in page_map.items()}
         rows, seen, context_codes = [], set(), {}
         for chunk in chunks:
             page = page_map[(chunk['url'], chunk['version'])]
@@ -309,6 +347,7 @@ class WebsiteRetriever:
                 chunk_id=chunk['ordinal'], start_offset=start, end_offset=end, text=text, excerpt=text,
                 page_years=sorted(set(re.findall(r'\b20\d{2}\b', page['text']))),
                 page_header=page['text'][:300], snapshot_only=True, validity_unknown=not bool(page['valid_from'] and page['valid_until']))
+            row.update(_source_structure(structures[(page['url'], page['version'])], start, end, text))
             rows.append(row)
             context_codes[row['source_id']] = preceding_entity_codes(page['text'], start)
         # A client field inherits the captured HTML page's approval/validity

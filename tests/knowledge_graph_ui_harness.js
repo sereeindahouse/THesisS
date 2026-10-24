@@ -1,0 +1,97 @@
+/* Native-SVG/UI interaction tests in an intentionally small simulated DOM.
+ * These checks do not claim browser rendering, font measurement or visual QA.
+ * Default inputs are constructed fixtures using the public topic taxonomy.
+ * --live uses the actual loopback JSON APIs without calling an LLM.
+ */
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert'),crypto=require('crypto');
+const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'demo/data.html'),'utf8'),code=fs.readFileSync(path.join(root,'demo/data.js'),'utf8');
+let activeDocument;
+class Element {
+  constructor(tag='div') {
+    this.tagName=tag.toLowerCase();this.children=[];this.attributes={};this.listeners={};this.style={};this.hidden=false;this.value='';this.className='';this._text='';
+    this.dataset=new Proxy({}, {set:(target,key,value)=>{target[key]=String(value);this.attributes['data-'+key.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())]=String(value);return true;}});
+    this.classList={toggle:(name,on)=>{const names=new Set(this.className.split(' ').filter(Boolean));on?names.add(name):names.delete(name);this.className=[...names].join(' ');this.attributes.class=this.className;}};
+  }
+  append(...children){children.forEach(child=>{const item=typeof child==='string'?new TextNode(child):child;item.parent=this;this.children.push(item);});}
+  replaceChildren(...children){this.children=[];this._text='';this.append(...children);}
+  set textContent(value){this._text=String(value);this.children=[];}
+  get textContent(){return this._text+this.children.map(child=>child.textContent).join('');}
+  setAttribute(key,value){this.attributes[key]=String(value);if(key==='class')this.className=String(value);if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=value;}
+  getAttribute(key){return this.attributes[key]??null;}
+  addEventListener(type,handler){(this.listeners[type]??=[]).push(handler);}
+  fire(type,event={}){(this.listeners[type]||[]).forEach(handler=>handler({target:this,preventDefault(){},stopPropagation(){},...event}));}
+  focus(){activeDocument.activeElement=this;this.fire('focus');}
+  scrollIntoView(){this.scrolled=true;}
+  setPointerCapture(){}
+  getBoundingClientRect(){return {left:0,top:0,width:this.bounds?.width||1000,height:this.bounds?.height||760};}
+  querySelectorAll(selector){return descendants(this).filter(node=>matches(node,selector));}
+  querySelector(selector){return this.querySelectorAll(selector)[0]||null;}
+}
+class TextNode extends Element {constructor(text){super('#text');this._text=String(text);}}
+const descendants=node=>node.children.flatMap(child=>[child,...descendants(child)]);
+function matches(node,selector) {
+  if(selector.startsWith('.'))return node.className.split(' ').includes(selector.slice(1));
+  const attribute=selector.match(/^\[([^=\]]+)(?:="([^"]*)")?\]$/);
+  if(attribute)return attribute[2]===undefined?node.getAttribute(attribute[1])!==null:node.getAttribute(attribute[1])===attribute[2];
+  return node.tagName===selector.toLowerCase();
+}
+function fixtureInputs() {
+  const config=JSON.parse(fs.readFileSync(path.join(root,'config/knowledge-topics.json'),'utf8'));
+  const topics=config.topics.map(topic=>({...topic,direct_counts:{pages:0,passages:0,sources:0,facts:0,faqs:0},subtree_counts:{pages:0,passages:0,sources:0,facts:0,faqs:0},sources:[],source_references:[],fact_records:[],faq_records:[],search_terms:topic.topic_id.startsWith('academics.')&&topic.topic_id!=='academics.programs'?['багш','багш нар']:[]}));
+  const environment=topics.find(topic=>topic.topic_id==='student.environment');environment.direct_counts.pages=1;environment.direct_counts.passages=1;
+  environment.sources=[{url:'https://nmct.edu.mn/about/environment',title:'Constructed environment fixture',version:1}];
+  topics.find(topic=>topic.topic_id==='student.library').source_references=[{url:'https://nmct.edu.mn/about/environment',title:'Номын сан',literal_label:'Номын сан',version:1}];
+  topics.forEach(topic=>{let current=topic;while(current){Object.keys(current.subtree_counts).forEach(key=>current.subtree_counts[key]+=topic.direct_counts[key]);current=topics.find(other=>other.topic_id===current.parent_id);}});
+  const counts=topics.find(topic=>topic.parent_id===null).subtree_counts;
+  return {tree:{schema_version:1,topics,counts},explorer:{sources:[{id:'environment-fixture',url:'https://nmct.edu.mn/about/environment',title:'Constructed environment fixture',text:'Constructed UI-only source text. Номын сан.',kind:'HTML',topic:'other'}],summary:{pages:1,indexed_passages:1},curated:{sources:[],facts:[],faqs:[]},progress:{}}};
+}
+async function inputs() {
+  if(!process.argv.includes('--live'))return fixtureInputs();
+  const [explorer,tree]=await Promise.all(['/api/explorer','/api/explorer/tree'].map(async endpoint=>{const response=await fetch('http://127.0.0.1:8765'+endpoint);assert.equal(response.status,200,endpoint);return response.json();}));return {explorer,tree};
+}
+async function boot(data,width=1000,height=760) {
+  const entries=[...html.matchAll(/<([a-zA-Z0-9]+)\b[^>]*\bid="([^"]+)"[^>]*>/g)],ids=entries.map(match=>match[2]);assert.equal(ids.length,new Set(ids).size,'HTML IDs remain unique');
+  const map=new Map(entries.map(match=>[match[2],new Element(match[1])])),nav=new Element('nav');nav.className='atlas-nav';['knowledge','tree','curated','progress'].forEach(view=>nav.append(map.get(view+'Tab')));map.get('knowledgeGraph').bounds={width,height};map.get('systemGraph').bounds={width,height};
+  const all=()=>[...map.values(),nav],document={activeElement:null,getElementById:id=>map.get(id),createElement:tag=>new Element(tag),createElementNS:(_,tag)=>new Element(tag),createTextNode:text=>new TextNode(text),createDocumentFragment:()=>new Element('#fragment'),querySelector:selector=>all().find(node=>matches(node,selector))||all().flatMap(descendants).find(node=>matches(node,selector))||null};activeDocument=document;
+  const location={hash:'#tree'},history={replaceState(_,__,url){location.hash=url.includes('#')?'#'+url.split('#')[1]:'';}},context={document,location,history,navigator:{},matchMedia:query=>({matches:query.includes('max-width')&&width<=850}),URL,AbortController,Set,Map,WeakMap,Number,String,Array,Math,Date,JSON,console,setTimeout,clearTimeout,window:{addEventListener(){}},fetch:async endpoint=>({ok:true,json:async()=>JSON.parse(JSON.stringify(endpoint==='/api/explorer/tree'?data.tree:data.explorer))})};
+  vm.runInNewContext(code,context,{filename:'demo/data.js'});await new Promise(resolve=>setTimeout(resolve,15));assert.equal(map.get('treeContent').hidden,false,map.get('treeErrorMessage').textContent);return {map,document};
+}
+function geometry(svg) {
+  return {viewBox:svg.getAttribute('viewBox'),transform:svg.querySelector('.graph-scene').getAttribute('transform'),nodes:svg.querySelectorAll('.graph-node').map(node=>({id:node.getAttribute('data-node-id'),parent:node.getAttribute('data-parent-id')||null,x:Number(node.getAttribute('data-x')),y:Number(node.getAttribute('data-y')),width:Number(node.getAttribute('data-width')),height:Number(node.getAttribute('data-height')),label:node.querySelector('title').textContent,lines:node.querySelector('.graph-node-label').children.map(line=>line.textContent),subtitle:node.querySelector('.graph-node-subtitle').textContent,colour:node.getAttribute('data-colour'),fill:node.getAttribute('aria-pressed')==='true'?(node.className.includes('graph-llm')?'#836323':'#285e50'):node.getAttribute('data-fill'),selected:node.getAttribute('aria-pressed')==='true'})),edges:svg.querySelectorAll('.graph-edge').map(edge=>({from:edge.getAttribute('data-from'),to:edge.getAttribute('data-to'),path:edge.getAttribute('d'),points:edge.getAttribute('data-route-points')?JSON.parse(edge.getAttribute('data-route-points')):null,colour:edge.getAttribute('stroke'),directed:Boolean(edge.getAttribute('marker-end'))}))};
+}
+function edgeSamples(edge) {
+  if(edge.points){const samples=[];for(let i=1;i<edge.points.length;i++){const [x0,y0]=edge.points[i-1],[x1,y1]=edge.points[i],steps=Math.ceil(Math.hypot(x1-x0,y1-y0)/2);for(let step=0;step<=steps;step++){const t=step/steps;samples.push([x0+(x1-x0)*t,y0+(y1-y0)*t]);}}return samples;}
+  const p=edge.path.match(/-?\d+(?:\.\d+)?/g).map(Number);assert.equal(p.length,8);const [x0,y0,x1,y1,x2,y2,x3,y3]=p,samples=[];for(let step=0;step<=500;step++){const t=step/500,u=1-t;samples.push([u*u*u*x0+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x3,u*u*u*y0+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y3]);}return samples;
+}
+function validateClearEdges(graph) {graph.edges.forEach(edge=>{const samples=edgeSamples(edge);graph.nodes.filter(node=>node.id!==edge.from&&node.id!==edge.to).forEach(node=>{assert(!samples.some(([x,y])=>x>node.x-node.width/2+2&&x<node.x+node.width/2-2&&y>node.y-node.height/2+2&&y<node.y+node.height/2-2),'Connection '+edge.from+'→'+edge.to+' passes through unrelated '+node.id);});});}
+function validateTree(svg,topics) {
+  const graph=geometry(svg),ids=new Set(graph.nodes.map(node=>node.id));assert.equal(graph.nodes.length,topics.length);assert.equal(graph.edges.length,topics.length-1);assert.equal(ids.size,topics.length);
+  const roots=topics.filter(topic=>topic.parent_id===null);assert.equal(roots.length,1);
+  graph.nodes.forEach(node=>{assert([node.x,node.y,node.width,node.height].every(Number.isFinite));assert(node.width>0&&node.height>0);const topic=topics.find(topic=>topic.topic_id===node.id);assert.equal(node.label,topic.label_mn);assert.equal(node.parent,topic.parent_id);const actual=svg.querySelector('[data-node-id="'+node.id+'"]');assert.equal(actual.getAttribute('role'),'button');assert.equal(actual.getAttribute('tabindex'),'0');assert(actual.getAttribute('aria-label').includes(topic.label_mn));});
+  graph.edges.forEach(edge=>{assert(ids.has(edge.from)&&ids.has(edge.to));assert.equal(topics.find(topic=>topic.topic_id===edge.to).parent_id,edge.from);assert(!/NaN|Infinity/.test(edge.path));});
+  const reachable=new Set([roots[0].topic_id]);while(true){const before=reachable.size;graph.edges.forEach(edge=>{if(reachable.has(edge.from))reachable.add(edge.to);});if(reachable.size===before)break;}assert.equal(reachable.size,topics.length);
+  for(let i=0;i<graph.nodes.length;i++)for(let j=i+1;j<graph.nodes.length;j++){const a=graph.nodes[i],b=graph.nodes[j],overlapX=Math.abs(a.x-b.x)<(a.width+b.width)/2,overlapY=Math.abs(a.y-b.y)<(a.height+b.height)/2;assert(!(overlapX&&overlapY),'Overlapping cards: '+a.id+' / '+b.id);}
+  assert.equal(svg.querySelectorAll('foreignObject').length,0);return graph;
+}
+function escapeXml(value){return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function serialize(node) {if(node.tagName==='#text')return escapeXml(node._text);const attributes={...node.attributes};if(node.className)attributes.class=node.className;return '<'+node.tagName+Object.entries(attributes).map(([key,value])=>' '+key+'="'+escapeXml(value)+'"').join('')+'>'+escapeXml(node._text)+node.children.map(serialize).join('')+'</'+node.tagName+'>';}
+function exportGraph(svg,file) {const css=fs.readFileSync(path.join(root,'demo/data.css'),'utf8'),body=serialize(svg),open=body.indexOf('>');fs.writeFileSync(file,body.slice(0,open).replace('<svg','<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="760"')+'><style>'+escapeXml(css)+'</style>'+body.slice(open+1));}
+(async()=>{
+  const data=await inputs(),{map,document}=await boot(data),svg=map.get('knowledgeGraph'),checks=[];
+  validateClearEdges(validateTree(svg,data.tree.topics));checks.push('all taxonomy nodes/edges are real, reachable, nonoverlapping native SVG with full accessible labels');
+  assert.equal(svg.querySelectorAll('.graph-node').length,33);assert.equal(svg.querySelectorAll('.graph-edge').length,32);checks.push('33 topic cards connect through exactly 32 parent-child edges');
+  const initialScale=Number(svg.dataset.graphScale);map.get('treeZoomIn').fire('click');assert(Number(svg.dataset.graphScale)>initialScale);map.get('treeZoomOut').fire('click');assert(Math.abs(Number(svg.dataset.graphScale)-initialScale)<1e-8);checks.push('zoom controls change and restore the actual SVG camera');
+  const initialY=Number(svg.dataset.graphY);svg.fire('keydown',{key:'ArrowDown'});assert.equal(Number(svg.dataset.graphY),initialY-50);svg.fire('keydown',{key:'0'});assert(Math.abs(Number(svg.dataset.graphScale)-initialScale)<1e-8);assert(Math.abs(Number(svg.dataset.graphY)-initialY)<1e-8);checks.push('keyboard camera pan and full fit work');
+  map.get('treeSearch').value='багш';map.get('treeSearch').fire('input');const teacherTopics=data.tree.topics.filter(topic=>topic.topic_id.startsWith('academics.')&&topic.topic_id!=='academics.programs');assert.equal(teacherTopics.length,6);teacherTopics.forEach(topic=>assert(svg.querySelector('[data-node-id="'+topic.topic_id+'"]').className.split(' ').includes('search-match')));assert.equal(svg.querySelectorAll('.graph-node').length,33);assert(svg.querySelectorAll('.graph-muted').length>0);checks.push('teacher search highlights all six real department nodes while retaining graph context');
+  const library=svg.querySelector('[data-node-id="student.library"]');library.fire('click');assert.equal(library.getAttribute('aria-pressed'),'true');assert(map.get('treeDetail').textContent.includes('Номын сан'));assert.equal(map.get('treeDetail').querySelector('a').href,'https://nmct.edu.mn/about/environment');assert(!library.querySelector('.graph-node-subtitle').textContent.startsWith('0'));checks.push('library node opens correct source and its source-reference badge avoids a false empty-knowledge claim');
+  const beforeFocus=Number(svg.dataset.graphScale);map.get('treeFocus').fire('click');assert(Number(svg.dataset.graphScale)>=beforeFocus);map.get('treeDetail').querySelector('.text-button').fire('click');assert.equal(map.get('sourceDetail').querySelector('a').href,'https://nmct.edu.mn/about/environment');checks.push('node detail links to its exact saved source');
+  map.get('treeTab').fire('click');map.get('treeReset').fire('click');assert.equal(map.get('treeSearch').value,'');assert.equal(svg.querySelectorAll('.search-match').length,0);assert.equal(svg.querySelector('[data-node-id="nmct"]').getAttribute('aria-pressed'),'true');checks.push('reset clears filtering and restores school root selection and overview');
+  const rootNode=svg.querySelector('[data-node-id="nmct"]');rootNode.fire('keydown',{key:'ArrowRight'});assert.notEqual(document.activeElement,rootNode);document.activeElement.fire('keydown',{key:'Enter'});assert.equal(document.activeElement.getAttribute('aria-pressed'),'true');map.get('treeReset').fire('click');checks.push('keyboard node navigation and activation preserve access to source detail');
+  const brain=geometry(map.get('systemGraph'));assert.equal(brain.nodes.length,16);assert.equal(brain.edges.length,19);assert(brain.edges.every(edge=>edge.directed));assert(brain.edges.some(edge=>edge.from==='faq'&&edge.to==='guards'));assert(brain.edges.some(edge=>edge.from==='rrf'&&edge.to==='gemma'));assert(brain.edges.some(edge=>edge.from==='gemma'&&edge.to==='guards'));assert(brain.edges.some(edge=>edge.from==='microphone'&&edge.to==='stt'));assert(brain.edges.some(edge=>edge.from==='answer'&&edge.to==='tts'));checks.push('processing graph contains real STT/RAG/Gemma/guard/TTS paths and direct FAQ bypass');validateClearEdges(brain);checks.push('every processing arrow avoids all unrelated service cards, preserving separate retrieval branches and FAQ bypass');
+  const beforePan=Number(svg.dataset.graphX);svg.fire('pointerdown',{pointerId:1,button:0,clientX:100,clientY:100});svg.fire('pointermove',{pointerId:1,clientX:155,clientY:132});svg.fire('pointerup',{pointerId:1});assert.notEqual(Number(svg.dataset.graphX),beforePan);map.get('treeFit').fire('click');checks.push('pointer drag pans the graph without changing its topology');
+  const phone=await boot(data,343,570);validateTree(phone.map.get('knowledgeGraph'),data.tree.topics);phone.map.get('treeTopicJump').value='academics';phone.map.get('treeTopicJump').fire('change');assert.equal(phone.map.get('knowledgeGraph').querySelector('[data-node-id="academics"]').getAttribute('aria-pressed'),'true');assert(!phone.map.get('treeDetail').scrolled);phone.map.get('treeTopicJump').value='student.library';phone.map.get('treeTopicJump').fire('change');assert(phone.map.get('treeDetail').scrolled);checks.push('narrow-viewport branch selection keeps the map visible and leaf selection opens its source detail');
+  let exported=null;const outputIndex=process.argv.indexOf('--output');if(outputIndex>=0){const directory=path.resolve(process.argv[outputIndex+1]);fs.mkdirSync(directory,{recursive:true});exportGraph(svg,path.join(directory,'school-knowledge-tree.svg'));exportGraph(map.get('systemGraph'),path.join(directory,'system-processing-graph.svg'));exported={school:geometry(svg),processing:brain};fs.writeFileSync(path.join(directory,'graph-geometry.json'),JSON.stringify(exported,null,2)+'\n');}
+  const artifact_sha256=Object.fromEntries(['demo/data.html','demo/data.css','demo/data.js','config/knowledge-topics.json','tests/knowledge_graph_ui_harness.js'].map(name=>[name,crypto.createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex')]));
+  const result={scope:process.argv.includes('--live')?'Actual loopback API payloads in simulated DOM; no browser rendering claim':'Constructed UI fixtures from public 33-topic configuration; no school accuracy or browser rendering claim',passed:checks.length,checks,counts:{topics:data.tree.topics.length,topic_edges:32,processing_nodes:16,processing_edges:19},artifact_sha256,exported:Boolean(exported)};if(outputIndex>=0)fs.writeFileSync(path.join(path.resolve(process.argv[outputIndex+1]),'graph-ui-checks.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));
+})().catch(error=>{console.error(error.stack||error);process.exitCode=1;});

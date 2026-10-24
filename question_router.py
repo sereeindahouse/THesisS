@@ -2,8 +2,9 @@
 
 A=fact-backed stored response, B=stored FAQ, D=clarification, E=refusal within
 this imported package. C is disabled. These are proposed development routes,
-not human gold. Matching uses only canonical questions and explicit aliases;
-neither a retrieval score nor a clarification establishes answer support.
+not human gold. Matching uses canonical questions, explicit aliases, and a
+fully consumed admission-choice grammar bound to an existing fact family.
+Neither a retrieval score nor a clarification establishes answer support.
 """
 import argparse
 import json
@@ -18,7 +19,7 @@ from retrieval_probe import terms
 from sqlite_retrieval import ReadOnlyContentStore, exact_key, search_content
 
 ROOT = Path(__file__).resolve().parent
-POLICY_VERSION = 'bounded-exact-v1'
+POLICY_VERSION = 'bounded-exact-choice-v2'
 
 # The existing question audit proposes these fact routes. A returns the same
 # reviewed-format stored response and its fact dependencies, not a new template.
@@ -43,6 +44,54 @@ OFFICE_WORDS = frozenset({'алба', 'албаны', 'албанд', 'алба�
 YEAR_PREFIX_RE = re.compile(r'^((?:19|20)\d{2}(?:\s*[–—-]\s*(?:19|20)\d{2})?)\s+'
                             r'(?:оны|онд|хичээлийн жилийн)\s+(.+)$', re.IGNORECASE)
 YEAR_RANGE_RE = re.compile(r'(?<!\d)((?:19|20)\d{2})\s*[–—-]\s*((?:19|20)\d{2})(?!\d)')
+
+
+def _admission_choice_request(query):
+    """Recognize a complete yes/no request, never discard an unknown clause.
+
+    This maps question meaning to an existing fact family; it does not supply
+    the policy, its year, or an answer. Those remain in the pinned package.
+    """
+    value = exact_key(query)
+    year = YEAR_PREFIX_RE.fullmatch(value)
+    scope, body = (year.group(1), year.group(2)) if year else (None, value)
+    prefix = (r'(?:элсэлтэд|элсэлтийн\s+(?:цахим\s+)?бүртгэл(?:д|ийн\s+үед))\s+')
+    one = (r'(?:ганцхан|ганц|нэгхэн|нэг)\s+мэргэж(?:ил|лийн\s+хөтөлбөр)\s+'
+           r'(?:сонгоод|сонгож|сонгон)\s+(?:бүртгүүлж\s+)?болох\s+уу')
+    second = (r'(?:мэргэжлийн\s+)?(?:2\s*[-–]?\s*р|хоёр\s+дахь|хоёрдугаар)\s+'
+              r'(?:мэргэжлийн\s+)?сонголт(?:ыг)?\s+'
+              r'(?:заавал\s+хийх\s+(?:ёстой\s+)?(?:юу|үү)|'
+              r'хийхгүй\s+байж\s+болох\s+уу|орхиж\s+болох\s+уу)')
+    return dict(year_scope=scope) if re.fullmatch(prefix + '(?:' + one + '|' + second + ')', body) else None
+
+
+def _fact_year_scope(fact):
+    """Read positive structured coverage; prose may mention excluded years."""
+    value = fact.get('value')
+    scope = value.get('year_scope') if isinstance(value, dict) else None
+    if not isinstance(scope, str) or not re.fullmatch(
+            r'(?:19|20)\d{2}(?:\s*[–—-]\s*(?:19|20)\d{2})?', scope):
+        return None
+    return re.sub(r'\s*[–—-]\s*', '–', scope)
+
+
+def _tuition_calendar_request(query):
+    value=exact_key(query)
+    amount=r'(?:яг\s+)?хэд\s+(?:(?:болох|байх|байсан|байдаг)\s+)?(?:вэ|бэ)'
+    year = YEAR_PREFIX_RE.fullmatch(value)
+    if (year and len(YEAR_RE.findall(year.group(1))) == 1
+            and re.fullmatch(r'сургалтын\s+төлбөр\s+'+amount,year.group(2))):
+        return year.group(1)
+    trailing=re.fullmatch(r'сургалтын\s+төлбөр\s+((?:19|20)\d{2})\s+он(?:д|ы)\s+'+amount,value)
+    return trailing[1] if trailing else None
+
+
+def _live_class_clock_request(query):
+    # A narrow complete question about a live class start is not answered from
+    # historical admission exam durations or general contact opening hours.
+    value = exact_key(query)
+    return bool(re.fullmatch(r'(?:манай\s+)?(?:[1-9]\s*[-–]?\s*р\s+курси(?:йн|йнхний)\s+)?'
+        r'хичээл\s+маргааш\s+хэдэн\s+цагт\s+(?:эхлэх|эхэлдэг|орох|ордог)\s+(?:вэ|бэ)', value))
 
 
 def _topic_words(text):
@@ -94,7 +143,26 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
     literal_exact_ids = retrieval['exact_matches']
     year_prefix = YEAR_PREFIX_RE.fullmatch(query)
     binding_id = None
-    if not literal_exact_ids and year_prefix:
+    # A literal alias is an intent spelling, not evidence for its stated year.
+    # Explicit academic years must still match the positive fact year_scope;
+    # a caution such as "2044 оны журам биш" never expands that scope.
+    choice_request = _admission_choice_request(query) if not literal_exact_ids or YEAR_RE.search(query) else None
+    choice_facts = {fid: fact for fid, fact in facts.items()
+                    if fact.get('entity_id') == 'nmct.admissions'
+                    and re.fullmatch(r'second_choice(?:\.[a-zA-Z0-9_]+)?', fact.get('key', ''))
+                    and _fact_year_scope(fact)}
+    choice_ids = []
+    if choice_request and choice_request['year_scope']:
+        requested_scope = re.sub(r'\s*[–—-]\s*', '–', choice_request['year_scope'])
+        choice_ids = [faq_id for faq_id, faq in faqs.items()
+                      if len(faq['fact_ids']) == 1 and faq['fact_ids'][0] in choice_facts
+                      and _fact_year_scope(choice_facts[faq['fact_ids'][0]]) == requested_scope]
+        if len(choice_ids) == 1:
+            binding_id = choice_ids[0]
+            retrieval = search_content(db_path, faqs[binding_id]['question'], backend='bm25', top_k=50,
+                allow_draft=allow_draft, package_id=retrieval['package_id'],
+                as_of=date.fromisoformat(retrieval['as_of']))
+    if not literal_exact_ids and year_prefix and not binding_id:
         # Only this anchored, explicit year grammar is supported. It is a
         # supplied constraint on a literal stored base question, not an alias,
         # fuzzy intent, STT correction or authorization to discard other words.
@@ -126,8 +194,9 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
         answer=None, answer_faq_id=None, answer_kind=None, intended_answer_route=None,
         citations=[], candidates=candidates, exact_matches=literal_exact_ids,
         binding_faq_id=binding_id,
-        match_kind='explicit_year_literal_base' if binding_id else
-                   ('literal_exact' if exact_ids else 'lexical_candidates'),
+        match_kind='bounded_admission_choice' if choice_request and binding_id else
+                   ('explicit_year_literal_base' if binding_id else
+                   ('literal_exact' if exact_ids else 'lexical_candidates')),
         unknown_validity_records=[], human_gold=False, c_enabled=False,
         generated=False, llm_calls=0, score_is_probability=False,
         automatic_approval=False, training_performed=False, database_modified=False,
@@ -162,6 +231,34 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
     if any(int(start) > int(end) for start, end in YEAR_RANGE_RE.findall(query)):
         return finish('E', ['invalid_year_range'],
             'Асуултын жилийн хүрээ урвуу байна. Оны дарааллыг автоматаар засахгүй.')
+
+    if _live_class_clock_request(query):
+        result.update(citations=[], candidates=[])
+        return finish('E', ['live_class_schedule_not_available'],
+            'Энэ чатад маргаашийн тухайн ангийн хичээлийн хуваарь холбогдоогүй байна. '
+            'Тэнхим, бүлгээ заагаад ангийн багш эсвэл сургалтын албанаас эхлэх цагийг тодруулаарай.')
+
+    tuition_year = _tuition_calendar_request(query)
+    tuition_facts = [fact for fact in facts.values()
+                     if fact.get('entity_id') == 'nmct.admissions'
+                     and re.fullmatch(r'annual_tuition(?:\.[a-zA-Z0-9_]+)?', fact.get('key', ''))]
+    tuition_scopes = {_fact_year_scope(fact) for fact in tuition_facts} - {None}
+    if tuition_year and tuition_scopes and tuition_year not in tuition_scopes:
+        result.update(requested_years=[tuition_year], supported_years=sorted(tuition_scopes), citations=[])
+        return finish('E', ['tuition_year_scope_not_available'],
+            f'{tuition_year} оны сургалтын төлбөрийн дүнг одоогийн хариултын эх батлахгүй байна. '
+            'Өөр оны үнийг орлуулахгүй. Хичээлийн жилийг асуусан бол эхлэх, дуусах хоёр оноор нь тодруулна уу.')
+
+    if choice_request and choice_facts and not binding_id:
+        years = sorted({_fact_year_scope(fact) for fact in choice_facts.values()})
+        result['citations'] = []
+        if not choice_request['year_scope']:
+            return clarify('admission_choice_year_needed',
+                'Аль оны эсвэл хичээлийн жилийн элсэлтийн мэргэжил сонголтын журмыг асууж байна вэ?', [],
+                {year for scope in years for year in YEAR_RE.findall(scope)})
+        return finish('E', ['admission_choice_scope_not_available'],
+            'Асуусан оны хүрээнд мэргэжлийн сонголтыг тайлбарлах нэг тодорхой эхтэй хариулт олдсонгүй. '
+            'Өөр оны журмыг орлуулахгүй; элсэлтийн хичээлийн жилийн хүрээг нягтлаарай.')
 
     if not candidates:
         return finish('E', ['no_supported_question_match'],
@@ -272,8 +369,8 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
         # would silently drop its year/number/entity. Keep the original request
         # visible and ask for scope review instead of offering that unsafe click.
         return clarify('constrained_wording_not_exact',
-            'Нэр, он, тооны хязгаарлалтыг хадгалсан хүсэлт яг таараагүй. '
-            'Богино FAQ-аар орлуулахгүй; энэ асуултын эхтэй хэлбэрийг нягтлах шаардлагатай.', [], query_years)
+            'Асуусан нэр, он, тоонд тохирох мэдээллийг одоогоор баттай ялгаж чадсангүй. '
+            'Яг аль хүний, хөтөлбөрийн эсвэл хичээлийн жилийн ямар мэдээлэл хэрэгтэйг нэг өгүүлбэрээр тодруулна уу.', [], query_years)
     entity_options = {faq_id: ENTITY_TERMS[faq_id] for faq_id in related_ids if faq_id in ENTITY_TERMS}
     if len(entity_options) > 1 and not any(tokens & values for values in entity_options.values()):
         return clarify('missing_entity', 'Аль хамтын ажиллагааны тухай асууж байна вэ?', entity_options)

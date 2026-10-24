@@ -17,6 +17,10 @@ PORT = 8765
 URL = f"http://127.0.0.1:{PORT}"
 
 
+class DemoProbeTimeout(RuntimeError):
+    """HTTP identity was not received in time; no identity has been accepted."""
+
+
 def probe_demo(port=PORT, *, timeout=8):
     """Return our status, None for an unused port; reject an unrelated service."""
     try:
@@ -49,6 +53,9 @@ def probe_demo(port=PORT, *, timeout=8):
             raise ValueError("unexpected demo identity")
         return status
     except (OSError, urllib.error.URLError, ValueError) as error:
+        if isinstance(error, TimeoutError) or (isinstance(error, urllib.error.URLError)
+                                              and isinstance(error.reason, TimeoutError)):
+            raise DemoProbeTimeout('Demo-ийн эхлэлийн хариуг хугацаанд нь хүлээн авсангүй.') from error
         raise RuntimeError(
             f"{port} порт дээр өөр үйлчилгээ эсвэл танигдахгүй сервер байна. "
             "Одоо ажиллаж буй процессыг зогсоосонгүй. "
@@ -133,7 +140,14 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
-            status = probe_demo(port, timeout=min(8, remaining / 2))
+            try:
+                status = probe_demo(port, timeout=min(8, remaining / 2))
+            except DemoProbeTimeout:
+                # Only our newly launched child gets the remaining cold-start
+                # budget. An unexpected identity still stops immediately.
+                if process.poll() is not None:
+                    raise
+                continue
             if status is not None:
                 if not status["content"].get("available"):
                     raise RuntimeError("Сервер эхэлсэн ч SQLite агуулга уншигдсангүй.")

@@ -1,9 +1,11 @@
 import io
 import json
 import unittest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from email.message import Message
-from open_demo import probe_demo
+from open_demo import probe_demo, start_or_reuse, DemoProbeTimeout
 
 
 class LauncherIdentityTests(unittest.TestCase):
@@ -30,5 +32,24 @@ class LauncherIdentityTests(unittest.TestCase):
 
     def test_malformed_backend_not_accepted(self):
         with self.assertRaises(RuntimeError): self.call([])
+
+    def test_owned_cold_start_retries_timeout_but_not_wrong_identity(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'demo').mkdir()
+            (root/'demo_server.py').write_text('# fixture')
+            (root/'demo/index.html').write_text('fixture')
+            ready=dict(content=dict(available=True))
+            for first,success in ((DemoProbeTimeout('cold'),True),(RuntimeError('wrong identity'),False)):
+                child=MagicMock();child.poll.return_value=None;child.pid=12345
+                with patch('open_demo.probe_demo',side_effect=[None,first,ready]), \
+                     patch('open_demo.ensure_database',return_value=False), \
+                     patch('tools.start_local_llm.start_local_llm'), \
+                     patch('open_demo.subprocess.Popen',return_value=child):
+                    if success:
+                        self.assertFalse(start_or_reuse(root)['reused_server'])
+                        child.terminate.assert_not_called()
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,'wrong identity'):start_or_reuse(root)
+                        child.terminate.assert_called_once()
 
 if __name__=='__main__': unittest.main()

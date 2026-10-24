@@ -153,6 +153,182 @@ class PageParser(HTMLParser):
                 'text_scope': 'main_element' if self.has_main else 'visible_page_with_navigation'}
 
 
+STRUCTURAL_SPANS_VERSION = 'canonical-dom-fences-v1'
+_HTML_VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
+              'meta', 'param', 'source', 'track', 'wbr'}
+_HTML_HEADINGS = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
+
+
+class _StructureParser(PageParser):
+    """Track the existing extractor's tokens, without changing its output."""
+    def __init__(self):
+        super().__init__()
+        self.nodes, self.node_stack, self.token_paths = [], [], []
+        self.structurally_valid = True
+
+    def _record(self, before):
+        self.token_paths.extend([tuple(self.node_stack)] * (len(self.main_parts) - before))
+
+    def handle_starttag(self, tag, attrs):
+        node = dict(tag=tag, parent=self.node_stack[-1] if self.node_stack else None)
+        self.nodes.append(node)
+        if tag not in _HTML_VOID:
+            self.node_stack.append(len(self.nodes) - 1)
+        before = len(self.main_parts)
+        super().handle_starttag(tag, attrs)
+        self._record(before)
+
+    def handle_endtag(self, tag):
+        before = len(self.main_parts)
+        super().handle_endtag(tag)
+        self._record(before)
+        if tag in _HTML_VOID:
+            return
+        if not self.node_stack or self.nodes[self.node_stack[-1]]['tag'] != tag:
+            self.structurally_valid = False
+            return
+        self.node_stack.pop()
+
+    def handle_data(self, data):
+        before = len(self.main_parts)
+        super().handle_data(data)
+        self._record(before)
+
+    def mapped_lines(self):
+        """Match NFC/whitespace/deduplication exactly, retaining token ancestry.
+
+        A node may fence a line only when it owns every nonspace token in that
+        line. Inline markup must never manufacture a boundary in flattened text.
+        """
+        rows, pieces, paths, previous, offset = [], [], [], None, 0
+
+        def flush():
+            nonlocal pieces, paths, previous, offset
+            line = ' '.join(unicodedata.normalize('NFC', ''.join(pieces)).split())
+            if line and line != previous:
+                common = set.intersection(*(set(path) for path in paths)) if paths else set()
+                touched = set().union(*paths)
+                rows.append(dict(start=offset, end=offset + len(line), text=line,
+                                 owners=common, touched=touched))
+                offset += len(line) + 1
+            previous = line
+            pieces, paths = [], []
+
+        for token, path in zip(self.main_parts, self.token_paths):
+            for index, piece in enumerate(token.split('\n')):
+                if index:
+                    flush()
+                pieces.append(piece)
+                if piece.strip():
+                    paths.append(path)
+        flush()
+        return rows
+
+
+def structural_spans(html, expected_text):
+    """Partition captured main text at verified section/repeated-card fences.
+
+    Every returned range is in the original canonical character coordinate
+    system, and the ranges cover *all* characters, including whitespace gaps.
+    These are splitting constraints for a paragraph parser, not replacement
+    evidence: no sentence, heading, year, list, badge or condition is removed.
+
+    Card fences require a pure group of repeated sibling containers, each with
+    exactly one heading and a complete paragraph. Their outer container keeps
+    sibling year/name/badge text attached. Any shared section text vetoes card
+    splitting. Other layouts retain their bounds; any outer main text outside
+    all sections also vetoes inner section fences. No content is classified as
+    decorative, conditional or semantically unnecessary.
+    Malformed nesting or extraction mismatch fails closed with []; an ambiguous
+    node never supplies a fence. This function performs no I/O or query matching.
+    """
+    if not isinstance(html, str) or not isinstance(expected_text, str) or not expected_text:
+        return []
+    parser = _StructureParser()
+    try:
+        parser.feed(html)
+        parser.close()
+        if (not parser.structurally_valid or parser.node_stack or not parser.has_main
+                or parser.result()['text'] != expected_text):
+            return []
+        lines = parser.mapped_lines()
+    except (ValueError, TypeError, IndexError):
+        return []
+    if '\n'.join(line['text'] for line in lines) != expected_text:
+        return []
+
+    children = [[] for _ in parser.nodes]
+    owned, touched = [[] for _ in parser.nodes], [[] for _ in parser.nodes]
+    for node_id, node in enumerate(parser.nodes):
+        if node['parent'] is not None:
+            children[node['parent']].append(node_id)
+    for index, line in enumerate(lines):
+        for node_id in line['owners']:
+            owned[node_id].append(index)
+        for node_id in line['touched']:
+            touched[node_id].append(index)
+
+    def bounds(node_id):
+        indexes = owned[node_id]
+        if (not indexes or indexes != touched[node_id]
+                or indexes != list(range(indexes[0], indexes[-1] + 1))):
+            return None
+        # Include the following newline, so every cut starts a physical line.
+        return lines[indexes[0]]['start'], min(len(expected_text), lines[indexes[-1]]['end'] + 1)
+
+    def descendants(node_id):
+        pending, result = [node_id], []
+        while pending:
+            current = pending.pop()
+            result.append(current)
+            pending.extend(children[current])
+        return result
+
+    def card(node_id):
+        if parser.nodes[node_id]['tag'] not in {'div', 'article', 'li'} or bounds(node_id) is None:
+            return False
+        members = descendants(node_id)
+        headings = [n for n in members if parser.nodes[n]['tag'] in _HTML_HEADINGS and owned[n]]
+        paragraphs = [n for n in members if parser.nodes[n]['tag'] == 'p' and bounds(n) is not None]
+        return len(headings) == 1 and bool(paragraphs)
+
+    def ancestors(node_id):
+        parent = parser.nodes[node_id]['parent']
+        result = []
+        while parent is not None:
+            result.append(parent)
+            parent = parser.nodes[parent]['parent']
+        return result
+
+    section_ids = {n for n, node in enumerate(parser.nodes) if node['tag'] == 'section'}
+    shared_main_scope = {
+        n for n, node in enumerate(parser.nodes) if node['tag'] == 'main'
+        and any(not lines[i]['owners'] & section_ids for i in owned[n])}
+    cuts = {0, len(expected_text)}
+    for node_id, node in enumerate(parser.nodes):
+        span = bounds(node_id)
+        parents = ancestors(node_id)
+        outer_scope = bool(shared_main_scope.intersection(parents))
+        if (node['tag'] == 'section' and span is not None and not outer_scope
+                and not section_ids.intersection(parents)):
+            cuts.update(span)
+        meaningful = [child for child in children[node_id] if touched[child]]
+        if (len(meaningful) < 2 or not all(card(child) for child in meaningful)
+                or len({parser.nodes[child]['tag'] for child in meaningful}) != 1
+                or set(owned[node_id]) != {i for child in meaningful for i in owned[child]}):
+            continue
+        # Shared text of any tag can carry a subject, condition or date. It must
+        # not disappear merely because later cards carry individual headings.
+        group_lines = set(owned[node_id])
+        sections = section_ids.intersection(parents)
+        if outer_scope or any(set(owned[section]) - group_lines for section in sections):
+            continue
+        for child in meaningful:
+            cuts.update(bounds(child))
+    ordered = sorted(cuts)
+    return [(start, end) for start, end in zip(ordered, ordered[1:]) if start < end]
+
+
 def split_chunks(text, size=900, overlap=140):
     """Character windows keep exact contiguous source excerpts and offsets."""
     if not isinstance(text, str) or not 100 <= size <= 10000 or not 0 <= overlap < size:

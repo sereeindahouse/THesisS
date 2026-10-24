@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 
 COOKIE = '__Host-nmct_device'
 MAX_AUDIO = 8 * 1024 * 1024
-GET_PATHS = {'/', '/index.html', '/data', '/data.html', '/data.js', '/data.css', '/api/status', '/api/explorer', '/api/teachers'}
+GET_PATHS = {'/', '/index.html', '/data', '/data.html', '/data.js', '/data.css', '/api/status', '/api/explorer', '/api/explorer/tree', '/api/teachers'}
 POST_PATHS = {'/api/route', '/api/search', '/api/preview', '/api/website-search',
               '/api/conversation/reset', '/api/voice/transcribe', '/api/voice/speak',
               '/api/voice/reset', '/api/voice/correct'}

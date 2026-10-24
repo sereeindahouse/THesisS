@@ -1,3 +1,23 @@
+<!-- rag-focus-files-20261024:start -->
+## 2026.10.24 — Харагдах мэдлэгийн мод ба RAG-ийн гол файлууд
+
+[**SVG мэдлэгийн модыг нээх →**](http://127.0.0.1:8765/data#tree) · [Модыг тайлбартай унших](KNOWLEDGE-TREE.mn.md) · [15 өгүүллийн үндэслэл](../papers/08-knowledge-tree-research.mn.md) · [Явц](ROADMAP-PROGRESS.mn.md).
+
+Сургуулийн зураг **33 зангилаа/32 холбоостой**, системийн урсгал **16 зангилаа/19 сумтай**. Зангилааг дарж эхийг нээх, хайх, томруулах, зөөх, бүтнээр харах боломжтой. Системийн зураг нь эхээс хариулт хүртэлх өгөгдлийн урсгалыг харуулна; нейроны жин, LLM-ийн дотоод бодлыг илэрхийлэхгүй.
+
+| Файл | Бодит үүрэг |
+|---|---|
+| [data.html](../demo/data.html), [data.js](../demo/data.js), [data.css](../demo/data.css) | SVG зангилаа/холбоос, харагдацын удирдлага, хайлт, гарын товчлуур болон нарийн дэлгэцийн сонголт; текстэн жагсаалт нэмэлтээр |
+| [data_explorer.py](../data_explorer.py), [demo_server.py](../demo_server.py) | `/api/explorer/tree`: сонгосон хоёр DB-ийн сэдэв, тоо, албан эхийн холбоосыг зөвшөөрсөн талбараар харуулна |
+| [knowledge-topics.json](../config/knowledge-topics.json), [build_knowledge_tree.py](../tools/build_knowledge_tree.py) | 33 сэдвийн санал болгосон ангилал; эх, fact/FAQ-г read-only байдлаар холбоно |
+| [website_corpus.py](website_corpus.py), [website_retrieval.py](../website_retrieval.py), [evidence_contract.py](../evidence_contract.py) | HTML-ийн баталгаатай зааг, хайлт, эхийн байрлал |
+| [source_fields.py](../source_fields.py), [rag_runtime.py](../rag_runtime.py) | Gemma-ийн эхийн ID сонголт, талбар/субъект/нөхцөлийн шалгалт, серверийн үгчлэн хариулт |
+| [test_knowledge_graph_ui.py](../tests/test_knowledge_graph_ui.py), [knowledge_graph_ui_harness.js](../tests/knowledge_graph_ui_harness.js) | Public 33 сэдвийн зохиомол туршилтын өгөгдөл; зангилаа/холбоос, эх хүрэх, харагдац удирдах, хүртээмжийн шалгалт |
+| [test_knowledge_tree.py](../tests/test_knowledge_tree.py), [test_data_explorer.py](../tests/test_data_explorer.py) | Эхийн бүртгэл, read-only экспорт, хувийн талбар/URL хамгаалалт, active хувилбар солигдох үеийн хориг |
+
+1124 локал автомат тест тэнцсэн. Бодит API-ийн өгөгдлөөр DOM дуурайлгасан орчинд байрлал, холбоос, удирдлагын 13 нөхцөл тэнцэж, графын байрлалаас PNG preview гарган үзсэн. Эдгээр нь бодит браузерийн screenshot, хараат бус хүний accuracy биш.
+<!-- rag-focus-files-20261024:end -->
+
 <!-- answer-refinement-files-20261022:start -->
 ## Одоогийн үндсэн хэсгүүд — 2026.10.22
 

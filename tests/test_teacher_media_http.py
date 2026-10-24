@@ -79,6 +79,27 @@ class TeacherMediaHTTPTests(unittest.TestCase):
         self.assertNotIn('teacher_cards',result);self.assertIn('бүх багшийн жагсаалт биш',result['message'])
         self.assertTrue(result['suggestions'][0].startswith('Батчулуун'))
 
+    def test_general_staff_request_clarifies_information_scope_without_photo_choices(self):
+        status,result,_=self.request('POST','/api/route',dict(query='Багш нарынхаа талаар мэдээлэл өгөөч.'))
+        self.assertEqual(status,200);self.assertEqual(result['route'],'D')
+        self.assertEqual(result['reason_code'],'teacher_scope_required')
+        self.assertIn('тэнхим',result['message'])
+        self.assertNotIn('teacher_cards',result)
+        self.assertTrue(any('хэдэн багш' in s for s in result['suggestions']))
+
+    def test_partial_directory_coverage_is_visible_and_spoken_with_exact_profiles(self):
+        status,result,_=self.request('POST','/api/route',dict(query='Компьютерын ухааны багш нарын нэрсийг жагсааж өгөөч.'))
+        self.assertEqual(status,200);self.assertEqual(result['route'],'A')
+        self.assertEqual(result['answer_kind'],'partial_teacher_directory')
+        self.assertFalse(result['full_staff_roster'])
+        self.assertIn('бүрэн жагсаалт биш',result['message'])
+        self.assertEqual(len(result['teacher_cards']),1)
+        self.assertEqual(result['answer'],result['teacher_cards'][0]['source_quote'])
+        status,audio,_=self.speak(result)
+        self.assertEqual(status,200,audio)
+        self.assertIn('бүрэн жагсаалт биш',self.voice.spoken[0][0])
+        self.assertIn(result['answer'],self.voice.spoken[0][0])
+
     def test_unknown_and_private_field_requests_never_show_profile_as_answer(self):
         for query in ('Дорж багшийн зураг','Батчулуун багшийн утасны дугаар','Батчулуун багш хэдэн настай вэ?'):
             with self.subTest(query=query):
@@ -111,6 +132,7 @@ class TeacherMediaHTTPTests(unittest.TestCase):
 
     def test_gateway_exposes_only_public_teacher_get_routes_and_never_admin(self):
         self.assertTrue(allowed_path('GET','/api/teachers'))
+        self.assertTrue(allowed_path('GET','/api/explorer/tree'))
         self.assertTrue(allowed_path('GET','/api/teacher-media/teacher-'+'a'*24))
         for method,path in (('POST','/api/teachers'),('GET','/api/teacher-media/../../x'),
                             ('GET','/api/admin/state'),('POST','/api/admin/publish'),('GET','/runtime/quality-media-20261021/teacher-media/manifest.json')):
