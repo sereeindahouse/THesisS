@@ -144,7 +144,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return None
                 result.update(route='A',answer_kind='partial_teacher_directory',reason_code='captured_partial_teacher_directory',
                     answer='\n\n'.join(card['source_quote'] for card in cards),
-                    message=match['department']+' — хадгалсан '+str(len(cards))+' багшийн албан танилцуулгыг үзүүлэв. Энэ нь бүх багшийн бүрэн жагсаалт биш; эхийн огноог нягтлаарай.',
+                    message=match['department']+' — хадгалсан '+str(len(cards))+' багшийн нэр, үүргийг үзүүлэв. Үүнээс '+str(sum(bool(card.get('image_url')) for card in cards))+' нь эхтэй хөрөг зурагтай. Энэ нь бүх багшийн бүрэн жагсаалт биш; эхийн огноог нягтлаарай.',
                     teacher_cards=cards,coverage='partial_captured_profiles',full_staff_roster=False,
                     citations=[dict(document_id=card['teacher_id'],version=1,
                         title=card['name']+' — багшийн албан танилцуулга',
@@ -162,7 +162,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 card = match['profile']
                 result.update(route='A', answer_kind='official_teacher_profile',
                     reason_code='source_bound_teacher_profile', answer=card['source_quote'],
-                    message='Албан сайтаас хадгалсан нэр, танилцуулга, зургийг үзүүлэв. Эхийн огноог нягтлаарай.',
+                    message=('Албан сайтаас хадгалсан нэр, танилцуулга, зургийг үзүүлэв. Эхийн огноог нягтлаарай.'
+                        if card.get('image_url') else 'Албан сайтаас хадгалсан нэр, танилцуулгыг үзүүлэв. Эхэд жишээ зураг байсан тул багшийн бодит зураг гэж харуулаагүй. Эхийн огноог нягтлаарай.'),
                     teacher_cards=[card], citations=[dict(document_id=card['teacher_id'],version=1,
                         title=card['name']+' — багшийн албан танилцуулга',
                         source_url_or_filename=card['source_url'],locator=card['source_locator'],

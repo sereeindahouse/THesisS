@@ -1,3 +1,7 @@
+## 10.24 — Шинэ талбарын сонголт ба зураггүй багшийн нэр
+
+source_fields.py-ийн structured_field_extract нь бүрэн танигдсан асуултын шаардсан мөрүүдийг эхийн бүтэцтэй тулгана; evidence_contract.py-ийн exact_field_units нь физик мөр/offset/context холбоог батална. rag_runtime.py нь тэр plan-ийг ердийн resolver-ээр шалгаж A замд харуулна. TeacherMedia v2 нь нэр/үүргийг зурагтай тусад нь баталж, text-only карт дэмжинэ. tests/test_structured_field_extract.py-ийн14контрол, tests/test_teacher_cards_ui.py-ийнжинхэнэrenderer-ийншалгалт орсон. [Эцсийнявц](ROADMAP-PROGRESS.mn.md).
+
 <!-- rag-focus-files-20261024:start -->
 ## 2026.10.24 — Харагдах мэдлэгийн мод ба RAG-ийн гол файлууд
 

@@ -200,6 +200,92 @@ class TeacherMediaTests(unittest.TestCase):
         self.manifest['operator_note']='a new manifest version';self.save()
         self.assertNotEqual(self.manager.status()['bundle_id'],initial)
 
+    def text_only_fixture(self):
+        teacher=dict(self.teacher,name='Номин-Эрдэнэ',nameEn='Nomin-erdene',
+                     image='/uploads/sample-woman-123.jpg')
+        self.write_fixture([teacher])
+        self.manifest['schema_version']=2
+        row=self.manifest['profiles'][0]
+        row['image']=None
+        row['image_omission_reason']='source_image_filename_indicates_placeholder'
+        self.save()
+
+    def test_placeholder_portrait_does_not_discard_verified_teacher_text(self):
+        self.text_only_fixture()
+        status=self.manager.status()
+        self.assertTrue(status['available'])
+        self.assertEqual(status['profile_count'],1)
+        self.assertEqual(status['portrait_count'],0)
+        result=self.manager.profile('Номин-Эрдэнэ багшийн зураг харуулна уу?')
+        self.assertEqual(result['status'],'matched')
+        card=result['profile']
+        self.assertEqual(card['name'],'Номин-Эрдэнэ')
+        self.assertFalse(card['portrait_available'])
+        self.assertEqual(card['image_status'],'source_placeholder_excluded')
+        self.assertIsNone(card['media_id'])
+        self.assertIsNone(card['image_url'])
+        self.assertIsNone(card['image_sha256'])
+        self.assertEqual(card['source_fields']['position'],'Багш')
+        self.assertIn('/teachers/0',card['source_locator'])
+        self.assertNotIn('sample-woman',json.dumps(card,ensure_ascii=False))
+        directory=self.manager.profile('Компьютерын ухааны багш нарын нэрсийг харуулна уу.')
+        self.assertEqual([p['name'] for p in directory['profiles']],['Номин-Эрдэнэ'])
+        self.assertEqual(directory['status'],'partial_directory')
+
+    def test_text_only_requires_v2_and_exact_source_placeholder_reason(self):
+        self.text_only_fixture()
+        original=deepcopy(self.manifest)
+        for version,reason in [(1,'source_image_filename_indicates_placeholder'),
+                               (2,None),(2,'image_download_failed')]:
+            with self.subTest(version=version,reason=reason):
+                self.manifest=deepcopy(original)
+                self.manifest['schema_version']=version
+                self.manifest['profiles'][0]['image_omission_reason']=reason
+                self.save()
+                self.assertFalse(self.manager.status()['available'])
+
+    def test_real_portrait_cannot_silently_become_text_only(self):
+        self.manifest['schema_version']=2
+        self.manifest['profiles'][0]['image']=None
+        self.manifest['profiles'][0]['image_omission_reason']='source_image_filename_indicates_placeholder'
+        self.save()
+        self.assertFalse(self.manager.status()['available'])
+
+    def test_text_only_teacher_source_fields_and_identity_remain_verified(self):
+        self.text_only_fixture()
+        original=deepcopy(self.manifest)
+        for key,value in [('name','Анужин'),('role','Захирал'),
+                          ('bio','Зохиомол намтар'),('aliases',['Номин-Эрдэнэ','Дорж']),
+                          ('department','Химийн инженерийн тэнхим'),
+                          ('teacher_id','nmct-other-1')]:
+            with self.subTest(field=key):
+                self.manifest=deepcopy(original)
+                self.manifest['profiles'][0][key]=value
+                self.save()
+                self.assertFalse(self.manager.status()['available'])
+
+    def test_text_only_duplicates_and_changed_source_fail_closed(self):
+        self.text_only_fixture()
+        self.manifest['profiles'].append(deepcopy(self.manifest['profiles'][0]))
+        self.save()
+        self.assertFalse(self.manager.status()['available'])
+        self.manifest['profiles'].pop();self.save()
+        self.assertTrue(self.manager.status()['available'])
+        (self.store/'page.html').write_bytes(b'<html>altered source</html>')
+        self.assertFalse(self.manager.status()['available'])
+
+    def test_text_only_profile_never_attaches_or_serves_a_placeholder_portrait(self):
+        self.text_only_fixture()
+        row=self.manifest['profiles'][0]
+        answer=dict(route='C',answer='Номин-Эрдэнэ — Багш',
+            citations=[dict(url=row['source']['url'],html_sha256=row['source']['html_sha256'])])
+        self.assertEqual(self.manager.attach('Номин-Эрдэнэ багшийн тухай',answer),[])
+        with self.assertRaises(KeyError):
+            self.manager.media('teacher-'+'a'*24)
+        photo=self.manager.profile('Багш нарын зураг')
+        self.assertEqual(photo['status'],'ambiguous')
+        self.assertEqual(photo['candidates'],[])
+
     def test_manifest_outside_project_rejected(self):
         with self.assertRaises(TeacherMediaError):TeacherMedia(self.store,self.root/'outside.json')
 

@@ -19,12 +19,12 @@ from uuid import uuid4
 
 from llm_runtime import LLMRuntime, _json_object
 from website_retrieval import WebsiteRetriever
-from evidence_contract import evidence_units, resolve_evidence_selection
+from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
 from historical_fields import event_search_query, event_requirements, event_supported
 from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
     field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
     field_evidence_requirements, missing_field_evidence, closed_field_selection_query,
-    single_purpose_selection_scope, staff_query_scope)
+    single_purpose_selection_scope, staff_query_scope, structured_field_extract)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
@@ -1118,6 +1118,33 @@ class ChatRAG:
                 result.update(reason_code='requested_attribute_not_supported',
                     message='Бичгийн болон ярилцлагын шалгалтын үргэлжлэх хугацааг хоёуланг нь батлах хэсэг энэ хайлтаар олдсонгүй. Нэг шалгалтын минут эсвэл оноог нөгөөгийн хугацаагаар орлуулахгүй.')
                 return self._remember(result,allow_draft)
+            structured = structured_field_extract(query, evidence)
+            if structured:
+                field_units = exact_field_units(structured['parts'])
+                field_selection = resolve_evidence_selection(query, [field_units[-1]['unit_id']],
+                    field_units, max_characters=1800, max_claims=6)
+                if field_selection['accepted']:
+                    claims = field_selection['claims']
+                    answer, cited = render_claims(claims)
+                    original_sources = {source['source_id']: source for source in evidence}
+                    result.update(route='A', answer=answer, answer_kind='official_website_extract',
+                        reason_code='source_field_lookup', related_sources=[], suggestions=[],
+                        citations=[dict(document_id=sid, version=original_sources[sid]['version'],
+                            title=original_sources[sid]['title'],
+                            locator=original_sources[sid].get('source_locator', str(original_sources[sid]['chunk_id'])),
+                            extraction_method='html_exact_labelled_fields',
+                            source_url_or_filename=original_sources[sid]['url'],
+                            retrieved_at=original_sources[sid]['retrieved_at'],
+                            source_accepted_for_project=True, school_staff_approval=False) for sid in cited],
+                        message='Асуусан талбарыг өөрийн гарчиг, нөхцөлтэй нь эхээс үг өөрчлөхгүй үзүүлэв. '
+                                'Эхийн он, огноог нягтлаарай.')
+                    result['rag'].update(reason='source_labelled_fields_no_generation',
+                        field_extract_kind=structured['kind'], claims=claims,
+                        selected_unit_ids=field_selection['selected_unit_ids'],
+                        field_extract_units=[{key: unit.get(key) for key in
+                            ('unit_id','source_id','start','end','text','context_unit_ids','page_span')}
+                            for unit in field_units])
+                    return self._remember(result, allow_draft)
             direct = source_extract(query, evidence)
             if direct:
                 source, excerpt = direct

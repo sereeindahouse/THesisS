@@ -333,3 +333,5 @@ __pycache__/
 !/tests/test_knowledge_graph_ui.py
 !/tests/knowledge_graph_ui_harness.js
 !/tests/test_direct_extract_semantic_guards.py
+!/tests/test_structured_field_extract.py
+!/tests/test_teacher_cards_ui.py

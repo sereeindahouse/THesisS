@@ -4281,5 +4281,125 @@
     "new_human_score": null,
     "research_catalog_sha256": "1219a69fd12e0066e71610b227d3cc28db6e1c7cf008d93147195011bfc2838e",
     "research_registry_entries_changed": false
+  },
+  "core_followup_20261024": {
+    "date": "2026-10-24",
+    "scope": "Observed development; root self review of every24+12 answer against unchanged frozen references/rubric. Not human/held-out accuracy.",
+    "local_tests": {
+      "run": 1148,
+      "passed": 1148,
+      "seconds": 176.858,
+      "source_unchanged": true,
+      "log_sha256": "e6ee28673eb5804f9c7f9d3e1d7515aac666abbdf85330a8694aa3e70a8fa95e"
+    },
+    "previous_24": {
+      "pass_": 19,
+      "partial": 5
+    },
+    "final_24": {
+      "pass_": 23,
+      "partial": 1,
+      "remaining_partial_ids": [
+        "fresh02"
+      ],
+      "routes": {
+        "D": 1,
+        "A": 10,
+        "C": 8,
+        "B": 1,
+        "E": 4
+      },
+      "llm_calls": 10,
+      "exact_literal_claims": 18,
+      "outputs_sha256": "c805a3eed68e9eb42234c9c42fd93f3d6a9971e22c75c9eb042b7ee9eec1cf7a"
+    },
+    "followups_12": {
+      "pass_": 12,
+      "routes": {
+        "A": 1,
+        "E": 6,
+        "C": 4,
+        "D": 1
+      },
+      "llm_calls": 7,
+      "exact_literal_claims": 4,
+      "outputs_sha256": "1d56a8d3a1f762031f8572031891d7b6476892c9232767408a26bbf03afea97c"
+    },
+    "method": "Closed query grammar plus labelled source structure; exact source-line spans retain shared headings/conditions. Incomplete/conflicting/qualified sources or unknown added facets use existing guarded RAG. No answer values stored in rules.",
+    "focused_constructed_field_tests": 14,
+    "field_unit_context_and_original_offsets_checked": true,
+    "llm_role": "Other C queries still use Gemma evidence-ID selection; server restores original source words. Four explicit field plans can answer A without Gemma.",
+    "teacher": {
+      "previous_names": 2,
+      "names": 4,
+      "portraits": 2,
+      "source_summary_count": 5,
+      "source_explicit_profile_count": 4,
+      "full_staff_roster": false,
+      "missing_portraits_excluded_without_dropping_verified_names": true,
+      "existing_source_and_image_files_unchanged": 11,
+      "constructed_ui_test_exercises_actual_renderer": true,
+      "current_official_source_compared_with_saved_capture": true
+    },
+    "tts": {
+      "actual_syntheses": 2,
+      "decoded_seconds": [
+        31.368,
+        8.064
+      ],
+      "response_bound_exact_spoken_text": true,
+      "partial_coverage_notice_spoken": true,
+      "human_listening_score": null,
+      "browser_playback_verified": false
+    },
+    "stt": {
+      "candidate": "beam5/patience2; all other decoding/audio/model unchanged",
+      "prospective_plan_sha256": "cd9eae962f4699ef33d92049e61532dda1d9df13282440cdf67b3c88998df749",
+      "candidate_inferences": 19,
+      "baseline_reinference": 0,
+      "unchanged_speech_texts": 17,
+      "changed_raw_nonspeech_controls": 2,
+      "human_references": 13,
+      "human_reference_words": 186,
+      "word_errors": 67,
+      "human_reference_characters": 1089,
+      "character_errors": 184,
+      "wer_percent": 36.02150537634409,
+      "cer_percent": 16.89623507805326,
+      "improved": false,
+      "production_promoted": false,
+      "independent_dynamic_programming_score_verified": true,
+      "early_all19_identical_claim_corrected": true,
+      "control_scope": "Forced raw nonspeech decoding still hallucinated. Existing application screening separately rejected silence/noise before Whisper loading; no raw WER gain.",
+      "application_controls_rejected": 2,
+      "application_control_whisper_calls": 0,
+      "archived_baseline_latency_is_not_contemporaneous_benchmark": true
+    },
+    "browser": {
+      "available": false,
+      "inventory_browsers": 0,
+      "chrome_creation_failed": true,
+      "real_visual_qa": false,
+      "official_setup_steps_given": true,
+      "setup_source": "https://learn.chatgpt.com/docs/chrome-extension"
+    },
+    "preserved": {
+      "pages": 75,
+      "passages": 196,
+      "facts": 40,
+      "faqs": 30,
+      "original_databases": true,
+      "roadmap": true,
+      "human_files": 52
+    },
+    "new_model_downloads": 0,
+    "own_training": false,
+    "human_accuracy": null,
+    "remaining": [
+      "Teacher summary5 vs4 explicit names cannot establish a full roster.",
+      "Raw STT WER36.02% remains; patience trial rejected.",
+      "Real browser visual QA awaits a connected browser.",
+      "Independent human quality study, permanent hosting, clean-machine installation and final thesis review remain."
+    ]
   }
 }

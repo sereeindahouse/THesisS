@@ -321,6 +321,43 @@ def evidence_units(sources, max_characters=900):
     return kept
 
 
+def exact_field_units(parts):
+    """Bind a checked field plan back to unmodified retrieved source windows.
+
+    This low-level constructor establishes offsets and provenance only. Its
+    caller must first validate the requested roles and the complete physical
+    source structure. Every preceding part becomes required context of the last
+    part, so a language requirement cannot lose its pathway heading.
+    """
+    units = []
+    for part in parts:
+        source, start, end = (part.get(key) for key in ('source', 'start', 'end'))
+        if not isinstance(source, dict):
+            raise ValueError('A field part needs its original source.')
+        text, sid = source.get('text'), source.get('source_id')
+        if (not isinstance(text, str) or not isinstance(sid, str)
+                or type(start) is not int or type(end) is not int
+                or not 0 <= start < end <= len(text)
+                or (start and text[start - 1] != '\n')
+                or (end < len(text) and text[end] != '\n')):
+            raise ValueError('A field must be a complete physical source-line span.')
+        span = text[start:end]
+        unit = dict(unit_id=_unit_id(sid, start, end, span), source_id=sid,
+                    text=span, start=start, end=end, quote=text,
+                    url=source.get('url'), context_unit_ids=[])
+        offset = source.get('start_offset')
+        if (source.get('text_scope') == 'main_element' and source.get('version') is not None
+                and isinstance(source.get('url'), str) and type(offset) is int and offset >= 0
+                and source.get('end_offset') == offset + len(text)):
+            unit['page_span'] = dict(url=source['url'], version=source['version'],
+                                     start=offset + start, end=offset + end)
+        if not any(old['unit_id'] == unit['unit_id'] for old in units):
+            units.append(unit)
+    if units:
+        units[-1]['context_unit_ids'] = [unit['unit_id'] for unit in units[:-1]]
+    return units
+
+
 _ROLE_PATTERNS = {
     'total': r'нийт',
     'per_group': r'тус\s+бүр|бүрээс|бүрийн',

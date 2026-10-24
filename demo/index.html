@@ -244,18 +244,24 @@ function renderTeacherCards(cards){
  if(!Array.isArray(cards))return null;
  const list=node('div',undefined,'teacher-cards');let count=0;
  for(const card of cards){
-  if(!card||typeof card.name!=='string'||typeof card.image_url!=='string'||!/^\/api\/teacher-media\/teacher-[a-f0-9]{24}$/.test(card.image_url))continue;
+  if(!card||typeof card.name!=='string')continue;
+  const portrait=card.portrait_available!==false&&typeof card.image_url==='string'&&/^\/api\/teacher-media\/teacher-[a-f0-9]{24}$/.test(card.image_url);
+  const textOnly=card.portrait_available===false&&card.image_status==='source_placeholder_excluded'&&card.image_url===null;
+  if(!portrait&&!textOnly)continue;
   let source;try{source=new URL(card.source_url)}catch{continue}
   if(source.protocol!=='https:'||source.hostname!=='nmct.edu.mn'||source.username||source.password||source.port||source.search||source.hash)continue;
-  const article=node('article',undefined,'teacher-card'),image=document.createElement('img');
-  image.src=card.image_url;image.alt=card.name+' — албан эх дээрх зураг';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';image.width=180;image.height=236;
-  image.addEventListener('error',()=>{image.remove();article.append(node('p','Зургийг ачаалж чадсангүй. Албан эхээр үзнэ үү.','small muted'))},{once:true});
+  const article=node('article',undefined,'teacher-card');
+  if(portrait){const image=document.createElement('img');
+   image.src=card.image_url;image.alt=card.name+' — албан эх дээрх зураг';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';image.width=180;image.height=236;
+   image.addEventListener('error',()=>{image.remove();article.append(node('p','Зургийг ачаалж чадсангүй. Албан эхээр үзнэ үү.','small muted'))},{once:true});article.append(image);
+  }
   const info=node('div',undefined,'teacher-card-info');info.append(node('h3',card.name));
   if(typeof card.role==='string')info.append(node('p',card.role));
   if(typeof card.department==='string')info.append(node('p',card.department));
   const link=node('a','Албан эхийг нээх ↗');link.href=source.href;link.target='_blank';link.rel='noopener noreferrer';info.append(link);
-  info.append(node('p','Албан сайтын зураг · эхийг хадгалсан '+String(card.captured_utc||'').slice(0,10)));
-  article.append(image,info);list.append(article);if(++count===3)break;
+  if(textOnly)info.append(node('p','Эхэд жишээ зураг байсан тул багшийн бодит зураг гэж харуулаагүй.'));
+  info.append(node('p',(portrait?'Албан сайтын зураг':'Албан эхийн танилцуулга')+' · эхийг хадгалсан '+String(card.captured_utc||'').slice(0,10)));
+  article.append(info);list.append(article);if(++count===6)break;
  }return count?list:null;
 }
 function renderTurn(turn,result){
@@ -271,7 +277,7 @@ function renderTurn(turn,result){
  }
  if(result.answer_kind==="development_draft_preview")target.append(node("p","Хөгжүүлэлтийн ноорог мэдээлэл.","chat-notice"));
  const hasAnswer=typeof result.answer==="string"&&Boolean(result.answer.trim());
- if(result.answer_kind==="partial_teacher_directory"&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));
+ if((result.answer_kind==="partial_teacher_directory"||result.teacher_cards?.some(card=>card.portrait_available===false))&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));
  const fallback=[result.clarification?.question,result.message].find(v=>typeof v==="string"&&v.trim());
  if(result.answer_kind==="rag_generated"&&hasAnswer)target.append(node("p","Албан эхийн мэдээллийг нэгтгэв","answer-label"));
  target.append(node("div",hasAnswer?result.answer:(fallback||"Энэ асуултын шууд хариулт хадгалсан мэдээлэлд одоогоор алга. Доорх асуултаас сонгож болно."),"chat-answer"));

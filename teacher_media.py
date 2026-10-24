@@ -1,7 +1,8 @@
 """Dated, source-bound teacher portraits; no face recognition or model images.
 
 Only explicitly named teacher objects in a captured official Next Flight record
-may supply a portrait.  This optional store never edits the RAG content release.
+may supply a profile. Source-labelled sample portraits are excluded independently
+of valid text fields. This optional store never edits the RAG content release.
 Missing/invalid stores disable the feature, rather than inventing a profile.
 """
 from copy import deepcopy
@@ -19,7 +20,7 @@ from CORE.website_corpus import PageParser
 from source_fields import staff_query_scope, _scope_words
 
 
-DEFAULT_MANIFEST = 'runtime/quality-media-20261021/teacher-media/manifest.json'
+DEFAULT_MANIFEST = 'runtime/quality-media-20261021/teacher-media/manifest-v2.json'
 MAX_IMAGE_BYTES = 2 * 1024 * 1024
 MAX_HTML_BYTES = 2 * 1024 * 1024
 MAX_MANIFEST_BYTES = 256 * 1024
@@ -208,7 +209,7 @@ class TeacherMedia:
                 manifest = (deepcopy(self._cache[1]) if self._cache and self._cache[0] == bundle_id
                             else json.loads(raw))
                 profiles = manifest['profiles']
-                if (manifest['schema_version'] != 1 or
+                if (manifest['schema_version'] not in (1, 2) or
                     manifest['method'] != 'explicit_official_next_flight_teacher_record' or
                     not isinstance(profiles, list) or not 1 <= len(profiles) <= 50):
                     raise TeacherMediaError('Unsupported teacher manifest.')
@@ -220,7 +221,6 @@ class TeacherMedia:
                         raise TeacherMediaError('Invalid teacher text fields.')
                     source, asset = item['source'], item['image']
                     source_url = _official_url(source['url'])
-                    image_url = _official_url(asset['url'], image=True)
                     html = _safe_file(self.root, source['html_file'], MAX_HTML_BYTES)
                     if _sha(html) != source['html_sha256']:
                         raise TeacherMediaError('Teacher source capture changed.')
@@ -243,20 +243,39 @@ class TeacherMedia:
                         item['bio'] != teacher.get('bio', '') or
                         item['department'] != department or
                         item['teacher_id'] != 'nmct-' + urlsplit(source_url).path.rsplit('/', 1)[1] + '-' + str(teacher['id']) or
-                        image_url != 'https://' + SOURCE_HOST + teacher['image'] or
                         not item['name'].strip() or not item['role'].strip()):
                         raise TeacherMediaError('Manifest does not match teacher source fields.')
-                    mid, sha = asset['media_id'], asset['sha256']
-                    if not ID.fullmatch(mid) or not HEX.fullmatch(sha) or mid != 'teacher-' + sha[:24]:
-                        raise TeacherMediaError('Invalid media identifier.')
-                    if mid in seen_ids or item['teacher_id'] in seen_people:
-                        raise TeacherMediaError('Duplicate teacher or image identity.')
-                    seen_ids.add(mid); seen_people.add(item['teacher_id'])
-                    image = _safe_file(self.root, asset['file'], MAX_IMAGE_BYTES)
-                    if len(image) != asset['bytes'] or _sha(image) != sha:
-                        raise TeacherMediaError('Teacher portrait changed.')
-                    if _dimensions(image, asset['mime']) != (asset['width'], asset['height']):
-                        raise TeacherMediaError('Teacher portrait dimensions differ.')
+                    if item['teacher_id'] in seen_people:
+                        raise TeacherMediaError('Duplicate teacher identity.')
+                    seen_people.add(item['teacher_id'])
+                    if asset is None:
+                        # An explicit source placeholder is a missing portrait,
+                        # not a reason to throw away the publisher's named record.
+                        # Other absent/malformed images must not silently become
+                        # "verified" text-only entries in a damaged v1 bundle.
+                        if (manifest['schema_version'] != 2 or
+                            item.get('image_omission_reason') != 'source_image_filename_indicates_placeholder' or
+                            not isinstance(teacher.get('image'), str) or
+                            not teacher['image'].startswith('/uploads/') or
+                            not PLACEHOLDER.search(teacher['image']) or
+                            '%' in teacher['image'] or '\\' in teacher['image'] or '?' in teacher['image'] or
+                            '#' in teacher['image'] or '..' in teacher['image'].split('/')):
+                            raise TeacherMediaError('Unverified text-only portrait omission.')
+                    else:
+                        image_url = _official_url(asset['url'], image=True)
+                        if image_url != 'https://' + SOURCE_HOST + teacher['image']:
+                            raise TeacherMediaError('Manifest does not match teacher portrait.')
+                        mid, sha = asset['media_id'], asset['sha256']
+                        if not ID.fullmatch(mid) or not HEX.fullmatch(sha) or mid != 'teacher-' + sha[:24]:
+                            raise TeacherMediaError('Invalid media identifier.')
+                        if mid in seen_ids:
+                            raise TeacherMediaError('Duplicate image identity.')
+                        seen_ids.add(mid)
+                        image = _safe_file(self.root, asset['file'], MAX_IMAGE_BYTES)
+                        if len(image) != asset['bytes'] or _sha(image) != sha:
+                            raise TeacherMediaError('Teacher portrait changed.')
+                        if _dimensions(image, asset['mime']) != (asset['width'], asset['height']):
+                            raise TeacherMediaError('Teacher portrait dimensions differ.')
                     if not isinstance(source['captured_utc'], str) or not source['captured_utc'].endswith(('+00:00', 'Z')):
                         raise TeacherMediaError('Teacher capture must have a UTC timestamp.')
                     datetime.fromisoformat(source['captured_utc'].replace('Z', '+00:00'))
@@ -273,9 +292,10 @@ class TeacherMedia:
         try:
             bundle, rows = self._load()
             return dict(available=True, profile_count=len(rows), bundle_id=bundle,
+                        portrait_count=sum(item['image'] is not None for item in rows),
                         source_kind='dated_official_teacher_records')
         except (TeacherMediaError, OSError):
-            return dict(available=False, profile_count=0, bundle_id=None,
+            return dict(available=False, profile_count=0, portrait_count=0, bundle_id=None,
                         error='Teacher media is unavailable or failed verification.')
 
     def catalog(self):
@@ -290,9 +310,12 @@ class TeacherMedia:
     def _card(item):
         source, asset = item['source'], item['image']
         return dict(teacher_id=item['teacher_id'], name=item['name'], role=item['role'],
-                    bio=item['bio'], department=item['department'], media_id=asset['media_id'],
-                    image_url='/api/teacher-media/' + asset['media_id'],
-                    image_sha256=asset['sha256'], source_url=source['url'],
+                    bio=item['bio'], department=item['department'], media_id=asset['media_id'] if asset else None,
+                    image_url='/api/teacher-media/' + asset['media_id'] if asset else None,
+                    image_sha256=asset['sha256'] if asset else None,
+                    portrait_available=asset is not None,
+                    image_status='source_bound_portrait' if asset else 'source_placeholder_excluded',
+                    source_url=source['url'],
                     source_fields=dict(name=item['name'], position=item['role'], bio=item['bio']),
                     source_quote='\n'.join(x for x in (item['name'], item['role'], item['bio']) if x),
                     source_quote_kind='structured_teacher_fields',
@@ -334,7 +357,11 @@ class TeacherMedia:
         if len(matches) > 1:
             return dict(status='ambiguous', candidates=[r['name'] for r in matches], bundle_id=bundle)
         if not matches and re.search(r'багш|teacher', query, re.I):
-            return dict(status='ambiguous', candidates=[r['name'] for r in rows], bundle_id=bundle,
+            # A generic photo chooser must not promise unavailable sample
+            # portraits; a scoped directory can still disclose text-only rows.
+            choices = [r for r in rows if r['image'] is not None] if re.search(
+                r'зураг|зург|хөрөг|photo|portrait',query,re.I) else rows
+            return dict(status='ambiguous', candidates=[r['name'] for r in choices], bundle_id=bundle,
                         candidates_scope='captured_profiles_only_not_full_staff_list')
         if len(matches) != 1:
             return None
@@ -352,6 +379,8 @@ class TeacherMedia:
         if not selected or selected['status'] != 'matched':
             return []
         card = selected['profile']
+        if not card['portrait_available']:
+            return []
         answer = result.get('answer', '')
         if not isinstance(answer, str) or not _contains(answer, card['name']):
             return []
@@ -371,7 +400,7 @@ class TeacherMedia:
         _, rows = self._load()
         for item in rows:
             asset = item['image']
-            if asset['media_id'] == media_id:
+            if asset and asset['media_id'] == media_id:
                 data = _safe_file(self.root, asset['file'], MAX_IMAGE_BYTES)
                 if _sha(data) != asset['sha256']:
                     raise TeacherMediaError('Teacher portrait changed during read.')

@@ -1608,6 +1608,263 @@ def missing_field_evidence(requirements, units_or_text):
     return missing
 
 
+def _closed_structured_question(query):
+    """Recognise complete field grammars, never a bag of overlapping words.
+
+    Unknown qualifiers, dates, comparisons and additional requests retain the
+    ordinary RAG path. Descriptors contain requested roles, not answer values.
+    """
+    q = _field_intent_without_presentation_clauses(query).strip(' .!?\n')
+    if re.search(r'\d|[;:\n]|[.!?].*\S', q):
+        return None
+    patterns = (
+        ('facility_rooms', r'hub\s*(?:center)?(?:-?д|т)?\s+'
+         r'(?:(?:багийн\s+ажил\s+хийх|багаар\s+ажиллах)\s+өрөө)\s*[, ]\s*'
+         r'(?:(?:болон|ба|мөн)\s+)?сэтгэл\s*зүйчийн\s+өрөө\s+'
+         r'(?:байдаг|бий)\s+(?:уу|юу|вэ|бэ)'),
+        ('internship_application', r'японд\s+дадлага\s+хийхийн\s+тулд\s+'
+         r'хэн\s+хүсэлт\s+гаргаж\s*,?\s*ямар\s+ярилцлага\s+өгдөг\s+(?:вэ|бэ)'),
+        ('pathway_language', r'япон\s+коосэнд\s+дэвшин\s+суралцахад\s+'
+         r'(?P<language>япон|англи)\s+хэлний\s+ямар\s+түвшин\s+(?:хэрэгтэй|шаардлагатай)\s+(?:вэ|бэ)'),
+        ('member_absence', r'оюутны\s+зөвлөлийн\s+гишүүн\s+шалтгаангүй\s+'
+         r'хэд(?:эн\s+удаа)?\s+тасалбал\s+ямар\s+арга\s+хэмжээтэй\s+(?:вэ|бэ)'),
+    )
+    for kind, pattern in patterns:
+        match = re.fullmatch(pattern, q, re.I)
+        if match:
+            return dict(kind=kind, **match.groupdict())
+    return None
+
+
+def _overlapping_source_windows(sources):
+    """Merge only byte-identical overlapping windows of one captured page.
+
+    This does not read another source or fill a gap. Retain original sources so
+    every returned field can be mapped back to one original contiguous quote.
+    Any inconsistent overlapping capture invalidates that URL/version group.
+    """
+    groups = {}
+    for source in sources:
+        text, start, end = (source.get(key) for key in ('text', 'start_offset', 'end_offset'))
+        if (source.get('text_scope') != 'main_element' or not isinstance(text, str)
+                or type(start) is not int or start < 0 or end != start + len(text)
+                or not source.get('url') or source.get('version') is None):
+            continue
+        groups.setdefault((source['url'], source['version']), []).append(source)
+    for group in groups.values():
+        ordered = sorted(group, key=lambda source: (source['start_offset'], -len(source['text'])))
+        windows, bad = [], False
+        for source in ordered:
+            start, text = source['start_offset'], source['text']
+            if not windows or start > windows[-1]['end']:
+                windows.append(dict(start=start, end=start + len(text), text=text, sources=[source]))
+                continue
+            window = windows[-1]
+            overlap = min(window['end'] - start, len(text))
+            if window['text'][start-window['start']:start-window['start']+overlap] != text[:overlap]:
+                bad = True
+                break
+            if start + len(text) > window['end']:
+                window['text'] += text[overlap:]
+                window['end'] = start + len(text)
+            window['sources'].append(source)
+        if not bad:
+            yield from windows
+
+
+def _source_lines(text):
+    return [(match.start() + len(match[0]) - len(match[0].lstrip()),
+             match.start() + len(match[0].rstrip()), match[0].strip())
+            for match in re.finditer(r'[^\n]+', text) if match[0].strip()]
+
+
+def _unsafe_field_prefix(lines, index):
+    """A local dated/qualified heading cannot silently lose its scope."""
+    for _, _, line in lines[max(0, index - 2):index]:
+        if (re.search(r'хэрэв|зөвхөн|\bбиш\b|хуучин|төлөвлө|магадгүй|хамаарахгүй', line, re.I)
+                or (re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', line)
+                    and (not line.endswith(('.', '!', '?', '。'))
+                         or re.search(r'журам|шаардлага|нөхцөл|хуваарь|мөрдө|үйлчил|хүчинтэй', line, re.I)))):
+            return True
+    return False
+
+
+def _closes_field_list(line):
+    return (len(line) <= 100 and not line.endswith(('.', '!', '?', '。'))
+            and not re.search(r'хэрэв|зөвхөн|\bбиш\b|харин|гэхдээ|тохиолдолд|'
+                              r'хамаарахгүй|төлөвлө|магадгүй|дээрх|нэмэлт|анхаар|'
+                              r'хязгаар|чөлөөл|бусад\s+нөхцөл', line, re.I))
+
+
+def _map_window_spans(window, spans):
+    result = []
+    for left, right in spans:
+        absolute_left, absolute_right = window['start'] + left, window['start'] + right
+        candidates = [source for source in window['sources']
+                      if source['start_offset'] <= absolute_left < absolute_right <= source['end_offset']]
+        if not candidates:
+            return None
+        source = min(candidates, key=lambda candidate: (len(candidate['text']), candidate['source_id']))
+        start, end = absolute_left - source['start_offset'], absolute_right - source['start_offset']
+        if source['text'][start:end] != window['text'][left:right]:
+            return None
+        result.append(dict(source=source, start=start, end=end))
+    return result
+
+
+def _structured_window_fields(descriptor, window):
+    text, kind = window['text'], descriptor['kind']
+    lines = _source_lines(text)
+    # Source-wide correction/obsolete notices cannot disappear merely because
+    # the requested card has an attractive label. Date values in unrelated
+    # completed events are not treated as dates of these requirements.
+    if re.search(r'хуучин|хүчингүй|баталгаажаагүй|няцаа|батлаагүй|төлөвлөж|'
+                 r'дээрх.{0,60}(?:биш|хамаарахгүй|өөрчлөгд)', text, re.I):
+        return []
+    candidates = []
+    if kind == 'facility_rooms':
+        for index, (start, _, label) in enumerate(lines):
+            if (not re.fullmatch(r'hub\s+center', label, re.I) or index + 3 >= len(lines)
+                    or _unsafe_field_prefix(lines, index)):
+                continue
+            description = lines[index + 1]
+            if (not description[2].endswith('.') or not re.search(r'байрл|орчин', description[2], re.I)
+                    or re.search(r'хэрэв|зөвхөн|биш|байхгүй|төлөвлө|магадгүй', description[2], re.I)):
+                continue
+            cursor = index + 2
+            if re.fullmatch(r'\d+(?:[.,]\d+)?\s+м[²2]\s+талбай', lines[cursor][2], re.I):
+                cursor += 1
+            rows, expected = [], 1
+            while cursor + 1 < len(lines) and re.fullmatch(r'0?\d{1,2}', lines[cursor][2]):
+                if int(lines[cursor][2]) != expected:
+                    rows = []
+                    break
+                item = lines[cursor + 1]
+                if (len(item[2]) > 100 or re.search(r'[.!?]|хэрэв|зөвхөн|биш|байхгүй|эсвэл', item[2], re.I)):
+                    rows = []
+                    break
+                rows.append((lines[cursor][0], item[1], item[2]))
+                cursor += 2
+                expected += 1
+            # A new physical heading must close the list: a clipped prefix of
+            # a longer list cannot certify that later conditions were checked.
+            if len(rows) < 2 or cursor >= len(lines) or not _closes_field_list(lines[cursor][2]):
+                continue
+            wanted = [r'багаар\s+ажиллах\s+өрөө', r'сэтгэл\s*зүйчийн\s+өрөө']
+            matches = [[row for row in rows if re.fullmatch(pattern, row[2], re.I)] for pattern in wanted]
+            if all(len(found) == 1 for found in matches):
+                candidates.append([(start, description[1]), *[(found[0][0], found[0][1]) for found in matches]])
+    elif kind == 'internship_application':
+        for index, (start, _, label) in enumerate(lines[:-1]):
+            if (not re.fullmatch(r'дадлага\s+хөтөлбөрт\s+хэн\s+хамрагдах\s+вэ\?', label, re.I)
+                    or _unsafe_field_prefix(lines, index)):
+                continue
+            answer = lines[index + 1]
+            body = answer[2]
+            if (not body.endswith('.') or not re.search(r'курсийн\s+оюут\w*', body, re.I)
+                    or not re.search(r'хүсэлт\w*\s+гарга\w*', body, re.I)
+                    or not re.search(r'япон\s+хэл\s+дээр\s+ярилцлага\s+өг\w*', body, re.I)
+                    or not re.search(r'тэнцсэн\s+тохиолдолд', body, re.I)
+                    or not re.search(r'дадлага\s+хийх\s+боломжтой', body, re.I)
+                    or re.search(r'биш|хамрагдахгүй|тодорхойгүй|төлөвлө|магадгүй', body, re.I)):
+                continue
+            if index + 2 < len(lines):
+                following = lines[index + 2][2]
+                if (re.search(r'нэмэлт|анхаар|хязгаар|чөлөөл|хэрэв|зөвхөн', following, re.I)
+                        or not (re.fullmatch(r'\d+', following) or following.isupper() or following.endswith('?'))):
+                    continue
+            candidates.append([(start, answer[1])])
+    elif kind == 'pathway_language':
+        for index, (start, end, label) in enumerate(lines):
+            if (not re.fullmatch(r'япон\s+коосэнд\s+дэвшин\s+суралцахад\s+тавигдах\s+шаардлагууд', label, re.I)
+                    or _unsafe_field_prefix(lines, index)):
+                continue
+            cursor, rows, expected = index + 1, [], 1
+            while cursor < len(lines):
+                item = re.fullmatch(r'(0?\d{1,2})\s+(.+)', lines[cursor][2])
+                if not item:
+                    break
+                if int(item[1]) != expected:
+                    rows = []
+                    break
+                rows.append(lines[cursor])
+                cursor += 1
+                expected += 1
+            if len(rows) < 2 or cursor >= len(lines) or not _closes_field_list(lines[cursor][2]):
+                continue
+            region = '\n'.join(row[2] for row in rows)
+            if re.search(r'хэрэв|зөвхөн|биш|боловч|харин|эсвэл|тохиолдолд|хамаарахгүй|төлөвлө', region, re.I):
+                continue
+            language = re.escape(descriptor['language'])
+            wanted = [row for row in rows if re.fullmatch(
+                r'0?\d{1,2}\s+' + language + r'\s+хэлний\s+(?:(?:JLPT|CEFR)\s+)?'
+                r'(?:N[1-5]|[ABC][12])\s+түвшний\s+мэдлэг\s*,?\s+чадвартай[.]?', row[2], re.I)]
+            if len(wanted) == 1:
+                candidates.append([(start, end), (wanted[0][0], wanted[0][1])])
+    elif kind == 'member_absence':
+        scopes = [(start, end) for index, (start, end, label) in enumerate(lines)
+                  if re.fullmatch(r'оюутны\s+зөвлөл(?:ийн\s+тухай)?', label, re.I)
+                  and not _unsafe_field_prefix(lines, index)]
+        for index, (start, _, label) in enumerate(lines[:-1]):
+            if not re.fullmatch(r'цаг\s+баримтлалт', label, re.I):
+                continue
+            preceding = [scope for scope in scopes if scope[1] < start and start - scope[1] <= 1500]
+            if not preceding:
+                continue
+            scope = preceding[-1]
+            region = text[scope[1]:start]
+            if re.search(r'багш\w*\s+зөвлөл|сургуулийн\s+зөвлөл|'
+                         r'хэрэв|зөвхөн|биш|хүчингүй|төлөвлө|(?<!\d)(?:19|20)\d{2}(?!\d)', region, re.I):
+                continue
+            answer = lines[index + 1]
+            if (not answer[2].endswith('.') or not re.search(
+                    r'\d+\s+удаа\s+шалтгаангүй\s+тасалвал\s+эрх\s+түтгэлзүүлэх\s+асуудлыг\s+хэлэлцэнэ\.', answer[2], re.I)
+                    or re.search(r'биш|тохиолдолд|зөвхөн|хэрэв|харин|хамаарахгүй|төлөвлө', answer[2], re.I)):
+                continue
+            if any(re.match(r'мөн|харин|гэхдээ|хэрэв|энэ|тус\b|нэмэлт|анхаар', line[2], re.I)
+                   for line in lines[index + 2:index + 5]):
+                continue
+            candidates.append([scope, (start, answer[1])])
+    return candidates
+
+
+def structured_field_extract(query, sources):
+    """Return requested labelled fields as original, independently exact spans.
+
+    A complete bounded grammar plus an explicit source heading is required.
+    Shared headings are retained with a chosen list item; the item is never
+    rephrased as the whole pathway's eligibility. Conflicting candidate fields
+    fail closed. This is a development rule, not a general entailment model.
+    """
+    descriptor = _closed_structured_question(query)
+    if descriptor is None:
+        return None
+    candidates = []
+    headings = {
+        'facility_rooms': r'(?im)^hub\s+center\s*$',
+        'internship_application': r'(?im)^дадлага\s+хөтөлбөрт\s+хэн\s+хамрагдах\s+вэ\?\s*$',
+        'pathway_language': r'(?im)^япон\s+коосэнд\s+дэвшин\s+суралцахад\s+тавигдах\s+шаардлагууд\s*$',
+        'member_absence': r'(?im)^оюутны\s+зөвлөл(?:ийн\s+тухай)?\s*$',
+    }
+    for window in _overlapping_source_windows(sources):
+        plans = _structured_window_fields(descriptor, window)
+        if not plans and re.search(headings[descriptor['kind']], window['text']):
+            # A second explicit scoped source that is conditional, incomplete,
+            # or negated must not be ignored in favour of a convenient copy.
+            return None
+        for spans in plans:
+            mapped = _map_window_spans(window, spans)
+            if mapped:
+                candidates.append(mapped)
+    if not candidates:
+        return None
+    signatures = {tuple(item['source']['text'][item['start']:item['end']] for item in candidate)
+                  for candidate in candidates}
+    if len(signatures) != 1:
+        return None
+    return dict(kind=descriptor['kind'], parts=candidates[0])
+
+
 def field_extract(query, sources):
     """Select literal spans by the requested field and source section labels.
 

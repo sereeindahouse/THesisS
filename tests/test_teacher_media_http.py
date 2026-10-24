@@ -100,6 +100,49 @@ class TeacherMediaHTTPTests(unittest.TestCase):
         self.assertIn('бүрэн жагсаалт биш',self.voice.spoken[0][0])
         self.assertIn(result['answer'],self.voice.spoken[0][0])
 
+    def test_text_only_named_profile_never_exposes_source_placeholder(self):
+        self.media.text_only_fixture()
+        status,result,_=self.request('POST','/api/route',
+            dict(query='Номин-Эрдэнэ багшийн зураг харуулна уу?'))
+        self.assertEqual(status,200,result)
+        self.assertEqual(result['route'],'A')
+        self.assertEqual(result['answer_kind'],'official_teacher_profile')
+        self.assertEqual(result['llm_calls'],0)
+        card=result['teacher_cards'][0]
+        self.assertEqual(card['name'],'Номин-Эрдэнэ')
+        self.assertFalse(card['portrait_available'])
+        self.assertIsNone(card['image_url'])
+        self.assertEqual(card['source_quote'],result['answer'])
+        self.assertEqual(card['source_html_sha256'],result['citations'][0]['source_html_sha256'])
+        self.assertNotIn('sample-woman',json.dumps(result,ensure_ascii=False))
+        self.assertIn('жишээ зураг',result['message'].casefold())
+        self.assertIn('харуулаагүй',result['message'].casefold())
+
+    def test_text_only_scoped_directory_keeps_partial_notice_and_source_text_in_tts(self):
+        self.media.text_only_fixture()
+        status,result,_=self.request('POST','/api/route',
+            dict(query='Компьютерын ухааны багш нарын нэрсийг жагсааж өгөөч.'))
+        self.assertEqual(status,200,result)
+        self.assertEqual(result['answer_kind'],'partial_teacher_directory')
+        self.assertFalse(result['full_staff_roster'])
+        self.assertFalse(result['teacher_cards'][0]['portrait_available'])
+        self.assertIn('Номин-Эрдэнэ',result['answer'])
+        status,audio,_=self.speak(result)
+        self.assertEqual(status,200,audio)
+        self.assertIn('бүрэн жагсаалт биш',self.voice.spoken[0][0])
+        self.assertIn(result['answer'],self.voice.spoken[0][0])
+
+    def test_text_only_source_change_invalidates_cached_profile_tts(self):
+        self.media.text_only_fixture()
+        status,result,_=self.request('POST','/api/route',
+            dict(query='Номин-Эрдэнэ багшийн танилцуулгыг үзье.'))
+        self.assertEqual(status,200,result)
+        self.assertEqual(result['answer_kind'],'official_teacher_profile')
+        page=self.media.store/'page.html'
+        page.write_bytes(page.read_bytes()+b' altered source')
+        self.assertEqual(self.speak(result)[0],409)
+        self.assertFalse(self.voice.spoken)
+
     def test_unknown_and_private_field_requests_never_show_profile_as_answer(self):
         for query in ('Дорж багшийн зураг','Батчулуун багшийн утасны дугаар','Батчулуун багш хэдэн настай вэ?'):
             with self.subTest(query=query):
