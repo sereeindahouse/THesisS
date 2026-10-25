@@ -339,5 +339,6 @@ __pycache__/
 !/tests/test_correction_configuration_http.py
 !/tests/test_navigation_security_http.py
 !/tests/test_partial_answer_speech.py
+!/tests/test_speech_text.py
 !/tests/clarification_option_ui_harness.js
 !/tests/test_clarification_option_ui.py

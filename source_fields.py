@@ -1608,6 +1608,113 @@ def missing_field_evidence(requirements, units_or_text):
     return missing
 
 
+def _office_floor_phone_request(query, *, unsafe=False):
+    """A bounded office/field contract independent of one sentence template.
+
+    Subject inflections and requested attributes are recognised separately.
+    Every remaining word must be grammatical or a bounded request/visit word;
+    unfamiliar names, another office, dates and additional fields cannot be
+    discarded merely because floor and phone also occur in the question.
+    """
+    office = r'(?<!\w)сургалтын\s+алба(?:ны|нд|тай|наас)?(?!\w)'
+    floor = r'(?<!\w)(?:давхар(?:т|ын|ыг)?|давхрыг|давхрын)(?!\w)'
+    phone = r'(?<!\w)(?:утас(?:ны)?|утсыг|утсаар|дугаар(?:ыг|ын)?)(?!\w)'
+    if not (re.search(office,query,re.I)
+            and re.search(r'(?<!\w)(?:давхар|давхр)\w*',query,re.I)
+            and re.search(r'(?<!\w)(?:утас|утс|дугаар)\w*',query,re.I)):
+        return None
+    # Separate coordinated fields from a location question about a telephone:
+    # a phone being on a floor does not ask for the office's phone number.
+    clauses = re.split(r',|(?<!\w)(?:ба|болон|мөн|бас)(?!\w)',query,flags=re.I)
+    separate_fields = (any(re.search(floor,part,re.I) and not re.search(phone,part,re.I)
+                           for part in clauses)
+                       and any(re.search(phone,part,re.I) and not re.search(floor,part,re.I)
+                               for part in clauses)
+                       and not any(re.search(floor,part,re.I) and re.search(phone,part,re.I)
+                                   for part in clauses))
+    remaining = re.sub(office,' ',query,flags=re.I)
+    remaining = re.sub(floor,' ',remaining,flags=re.I)
+    remaining = re.sub(phone,' ',remaining,flags=re.I)
+    grammar = frozenset('''сайн байна уу үү энэ тэр тус тэдний нь надад манай танай
+        алба албаны очих уулзах гэсэн юм аа хэд хэдэн аль хэддүгээр ямар юу вэ бэ
+        болон ба мөн бас байрлах байрладаг байрлаж байдаг байгаа дээр өөрийнх болохыг холбоо барих
+        мэдээлэл мэдээллийг мэдээлнэ хэл хэлж хэлнэ өгөөч өгнө өгч танилцуулаач
+        хэрэгтэй хүсэж хүссэн асууж талаар мэдмээр'''.split())
+    words = set(re.findall(r'\w+',remaining.casefold()))
+    unknown = words - grammar
+    # In particular, neither a supplied year nor a proposed floor/phone value
+    # is a harmless request word. Source cards must not erase that constraint.
+    closed = bool(not unsafe and not unknown and separate_fields
+                  and not re.search(r'\d|[^\w\s,.!?-]',remaining))
+    meaning_guard = bool(re.search(r'\bбиш\b|\bүгүй\b|\w+гүй\b|хэрэв|зөвхөн|боловч|эсвэл|тохиолдолд',query,re.I))
+    return dict(kind='office_floor_phone',requested_fields=['office_floor','office_phone'],
+                closed=closed,unsafe=bool(unsafe),negated_or_conditional=meaning_guard,
+                unparsed_scope=not closed and not meaning_guard)
+
+
+def _cooperation_month_platform_slots(query):
+    """Recognise compound date/platform requests in either field order.
+
+    The literal company remains a requested identity, not an alias guessed
+    from a known answer. Only the supplied source cards can establish it.
+    """
+    latin = list(re.finditer(r'(?<![a-z0-9])(?P<name>[a-z][a-z0-9]*(?:[ -]+[a-z][a-z0-9]*)*)'
+        r'(?:-(?:ийн|ын|тай|тэй)|(?:ийн|тай|тэй))?',query,re.I))
+    entity = latin[0]['name'].strip() if len(latin)==1 else None
+    remaining = query
+    for match in reversed(latin):
+        remaining=remaining[:match.start()]+' '+remaining[match.end():]
+    grammar = frozenset('''компьютерын компьютерийн ухааны тэнхим тэнхимийн
+        компани компанийн компанитай тус нь хамтын ажиллагаа ажиллагаагаа ажиллагааны
+        платформ платформын платформыг нэр нэрийг нэрлээд нэрлэж аль ямар юу хэд хэдэн
+        хэзээ хэзээнээс он оны оныг онд сар сарын сард сараас сарыг эхэлсэн эхлүүлсэн эхлүүлж эхэлж эхлэх
+        ашигладаг ашиглаж ашигласан ашиглах хэрэглэдэг сургалтад сургалтанд сургалт сургалтын
+        болон ба мөн бас вэ бэ уу үү хэлж хэлнэ хэл өгнө өгөөч мэдээлэл мэдээллийг
+        танилцуулаач байна байгаа'''.split())
+    unknown=set(re.findall(r'\w+',remaining.casefold()))-grammar
+    date_role=False
+    for clause in re.split(r',|(?<!\w)(?:болон|ба|мөн|бас)(?!\w)',query,flags=re.I):
+        owner=re.search(r'хамтын\s+ажиллагаа\w*',clause,re.I)
+        starts=list(re.finditer(r'(?<!\w)(?:эхэлсэн|эхлүүлсэн|эхлүүлж|эхэлж|эхлэх)(?!\w)',clause,re.I))
+        calendars=list(re.finditer(r'(?<!\w)(?:хэзээ|хэзээнээс|сар|сард|сараас|сарыг|сарын|он|оны|оныг|онд)(?!\w)',clause,re.I))
+        if owner and any('платформ' not in clause[min(owner.start(),start.start(),calendar.start()):
+                max(owner.end(),start.end(),calendar.end())].casefold() for start in starts for calendar in calendars):
+            date_role=True
+    return dict(entity=entity,closed_grammar=not unknown and date_role and len(latin)<=1
+                and not re.search(r'\d|[^\w\s,.!?-]',remaining))
+
+
+def _student_table_request(query, *, unsafe=False):
+    """Requested year, named department, total and every recorded course.
+
+    A nominal attribute list and a full question share these same slots. The
+    source plan still checks title identity, a contiguous complete table and
+    its total; this parser never supplies student counts or course counts.
+    """
+    if unsafe or not (re.search(r'(?<!\w)нийт(?!\w)',query,re.I)
+            and re.search(r'оюут(?:ан|ны|нууд)|суралцагч',query,re.I)
+            and re.search(r'(?<!\w)курс(?:ийн)?\s+(?:тус\s+)?бүр(?:ийн)?(?!\w)',query,re.I)):
+        return None
+    years=list(re.finditer(r'(?<!\d)((?:19|20)\d{2})\s*[–—-]\s*((?:19|20)\d{2})(?!\d)',query))
+    if len(years)!=1 or int(years[0][1])>=int(years[0][2]):return None
+    year=years[0][1]+'–'+years[0][2]
+    without_year=query[:years[0].start()]+' '+query[years[0].end():]
+    scopes=list(re.finditer(r'(?<!\w)тэнхим(?:ийн|д)?(?!\w)',without_year,re.I))
+    if len(scopes)!=1:return None
+    grammar=frozenset('''оны онд он хичээлийн жилд жилийн нийт суралцагч суралцагчийн
+        суралцагчид оюутан оюутны оюутнууд оюутантай суралцаж курс курсийн тус бүр бүрийн
+        тоо тоог нь хэд хэдэн хэдтэй болон ба мөн бас вэ бэ уу үү хэл хэлж хэлнэ өгнө өгөөч
+        мэдээлэл мэдээллийг танилцуулаач байна байгаа'''.split())
+    before=without_year[:scopes[0].start()]
+    department_words=[word for word in re.findall(r'\w+',before.casefold()) if word not in grammar]
+    after=without_year[scopes[0].end():]
+    if (not 1<=len(department_words)<=6 or set(re.findall(r'\w+',after.casefold()))-grammar
+            or re.search(r'\d|[^\w\s,.!?-]',without_year)):
+        return None
+    return dict(kind='department_student_table',year=year,department=' '.join(department_words),
+                all_courses=True,closed=True)
+
+
 def followup_field_request(query):
     """Small source-field contracts; unknown clauses never authorize pruning.
 
@@ -1628,21 +1735,22 @@ def followup_field_request(query):
         predicate = r'хамтын\s+ажиллагаа(?:гаа)?\s+хэдэн\s+оны\s+хэдэн\s+сараас\s+эх(?:элсэн|лүүлж)\s*[, ]\s*'
         platform = r'(?:компанийн\s+)?ямар\s+платформыг\s+сургалтад\s+ашиглаж\s+эхэлсэн\s+(?:вэ|бэ)'
         match = re.fullmatch(prefix + name + r'\s+' + predicate + platform, q, re.I)
-        conflict=bool(entity and match and entity.casefold()!=match['company'].strip().casefold())
+        slots = _cooperation_month_platform_slots(q)
+        detected=match['company'].strip() if match else slots['entity']
+        conflict=bool(entity and detected and entity.casefold()!=detected.casefold())
         latin=set(re.findall(r'[a-z][a-z0-9]*',body.casefold()))
         scoped_partial=bool(scoped and not unsafe and not conflict
             and latin <= set(re.findall(r'[a-z][a-z0-9]*',entity.casefold()))
             and not (set(re.findall(r'\d+',body))-set(re.findall(r'(?:19|20)\d{2}',body))))
-        return dict(kind='cooperation_month_platform', entity=entity or (match['company'].strip() if match else None),
-                    body=body, closed=bool(match) and not unsafe and not conflict, unsafe=unsafe,
+        closed=bool((match or slots['closed_grammar']) and (entity or detected) and not unsafe and not conflict)
+        return dict(kind='cooperation_month_platform', entity=entity or detected,
+                    body=body, closed=closed, unsafe=unsafe,
                     conflicting_entity=conflict,
-                    partial_scope=scoped_partial and not bool(match),
+                    partial_scope=scoped_partial and not closed,
                     requested_fields=['cooperation_start_month','cooperation_platform'])
-    office = re.fullmatch(r'сургалтын\s+албатай\s+уулзах\s+гэсэн\s+юм\s+аа\s*,?\s*'
-        r'хэдэн\s+давхарт\s+байдаг(?:\s+вэ)?\s+мөн\s+тэдний\s+дугаар\s+хэд\s+(?:вэ|бэ)', q, re.I)
-    if office or (re.search(r'сургалтын\s+алб',q,re.I) and 'давхар' in q and re.search(r'дугаар|утас',q,re.I)):
-        return dict(kind='office_floor_phone', requested_fields=['office_floor','office_phone'],
-                    closed=bool(office) and not unsafe,unsafe=unsafe)
+    office = _office_floor_phone_request(q,unsafe=unsafe)
+    if office:
+        return office
     stats = re.fullmatch(r'(?P<year>(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2})\s+оны\s+'
         r'(?:хичээлийн\s+жилд\s+)?(?P<department>[а-яёөү ]{3,65}?)\s+тэнхимд\s+'
         r'нийт\s+хэдэн\s+оюутан\s+суралцаж\s*,?\s*'
@@ -1650,6 +1758,8 @@ def followup_field_request(query):
     if stats and not unsafe:
         return dict(kind='department_student_table', year=re.sub(r'\s*[–—-]\s*','–',stats['year']),
                     department=stats['department'], first_course=1,last_course=5,closed=True)
+    nominal_table=_student_table_request(q,unsafe=unsafe)
+    if nominal_table:return nominal_table
     arc = re.fullmatch(r'(?P<year>(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2})\s+оны\s+'
         r'намар\s+(?P<company>[a-z][a-z0-9 ]{1,65}?)(?:-ийн|ийн)\s+дэмжлэгээр\s+'
         r'хэдэн\s+мэргэжлийн\s+хичээл\s+хэрэгжүүлсэн\s+(?:вэ|бэ)',q,re.I)
@@ -1877,7 +1987,9 @@ def _student_table_plan(request,sources):
                 row=re.fullmatch(r'(\d+)-р\s+курс\s+(\d+)\s+оюутан',lines[cursor][2],re.I)
                 if not row:break
                 rows.append((int(row[1]),int(row[2]),lines[cursor]));cursor+=1
-            expected=list(range(request['first_course'],request['last_course']+1))
+            if not rows:continue
+            expected=(list(range(1,len(rows)+1)) if request.get('all_courses') else
+                      list(range(request['first_course'],request['last_course']+1)))
             if ([row[0] for row in rows]!=expected or sum(row[1] for row in rows)!=int(match[3])
                     or cursor>=len(lines)
                     or re.match(r'мөн|харин|гэхдээ|хэрэв|энэ|тус\b|нэмэлт|анхаар|зөвхөн',lines[cursor][2],re.I)):
@@ -1894,8 +2006,11 @@ def _office_field_plan(request,sources):
             'office_phone':'сургалтын албаны тусгай утасны дугаар'}
     missing=list(labels)
     if not request.get('closed'):
+        qualifier = ('Асуултын бичвэрт үгүйсгэсэн эсвэл нөхцөлт хэлбэр байна. '
+                     if request.get('negated_or_conditional') else
+                     'Асуултын нэр, он, нэмэлт хүсэлт эсвэл хоёр талбарын холбоог бүрэн тодорхойлж чадсангүй. ')
         return dict(kind=request['kind'],parts=[],missing_fields=missing,
-            message='Асуултын бичвэрт давхрын талаар үгүйсгэсэн эсвэл тодорхойгүй хэлбэр байна. '
+            message=qualifier+'Тэр хүрээг хасаж өөр асуултад хариулахгүй. '
                     'Сургалтын албаны давхар болон тусгай утсыг энэ эхээр баталж чадсангүй; '
                     'ерөнхий сургуулийн дугаараар орлуулахгүй. Асуултаа бичиж тодруулж болно.')
     candidates=[]

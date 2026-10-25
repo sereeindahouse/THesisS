@@ -3,8 +3,8 @@
   "updated_date": "2026-10-25",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "10.25: бодит хэрэглээний RAG/тодруулга, STT засварын санал, TTS ба Brave засвар. Raw STT 36.02% хэвээр.",
-  "status_basis": "1239 local tests;12 observed development handling checks;4 final Brave checks;1 actual browser STT;3 response-bound TTS. Not human accuracy.",
+  "current_week": "10.25: RAG-ийн талбар/нэрийн засвар, кредит цагийн дууны хэлбэр, тусдаа холбоостой SVG жишээ. Raw STT36.02% хэвээр.",
+  "status_basis": "1262 local PASS;9 new observed-development handling checks;12RAG regression;2paired TTS provider calls+actual Brave playback;19STTcandidate rejected.",
   "milestones": [
     {
       "id": "schema",
@@ -42,7 +42,7 @@
       "id": "grounded-rag",
       "label": "Эхтэй Gemma хариулт ба fallback",
       "state": "done",
-      "detail": "Gemma C замд эхийн ID сонгоно. Компани/он тодруулахад анхны хүсэлт хадгалагдана; дутуу талбарыг текст/дуугаар хэлнэ. Өмнөх24-ийн23/1 нь түүхэн development үнэлгээ; өнөөдрийн12 handling PASS нь12бүрэнхариулт эсвэл accuracy биш.",
+      "detail": "Шинэ 9 найруулгад 2 бүтэн, эх дутуу 1 хэсэгчилсэн, эхгүй эсвэл хүрээ тодорхойгүй 6 үр дүн гарсан. Талбарын дараалал, албаны бүтэн нэр, курс бүрийн хүснэгтийг шалгана. Хүний эсвэл ерөнхий accuracy биш.",
       "evidence": [
         "rag_runtime.py",
         "tools/evaluate_answer_quality.py"
@@ -52,7 +52,7 @@
       "id": "voice-stability",
       "label": "Дууны урсгалын тогтвортой ажиллагаа",
       "state": "in_progress",
-      "detail": "Raw WER 36.02% хэвээр. Raw текстийг хадгалсан, блоклохгүй LLM засварын санал + explicit apply ажиллав. 1 бодит STT, 3 response-bound TTS; нэг дуу Brave дээр дуустал тоглосон. Хүний шинэ сонсголын оноо биш.",
+      "detail": "Raw WER 36.02% хэвээр; шинэ 19 prompt туршилт муудсан тул нэвтрүүлээгүй. Дуугаар «90 кр цаг»-ийг «90 кредит цаг» гэж уншина. Хоёр provider хүсэлт, MP3 decode, 8.736 секундийн Brave playback тэнцсэн. Хүний чанарын шинэ өсөлт хэмжээгүй.",
       "evidence": [
         "voice_runtime.py",
         "requirements.txt"
@@ -2299,6 +2299,126 @@
       "Missing source fields require verified school content; no invented office contact or platform.",
       "Teacher source summary5 versus4 explicit profiles remains unresolved.",
       "Independent human evaluation, permanent HTTPS, clean-machine recovery and final thesis review remain."
+    ]
+  },
+  "core_direct_20261025": {
+    "date": "2026-10-25",
+    "scope": "Bounded development generalisation and speech formatting; not human or held-out accuracy.",
+    "local_tests": {
+      "run": 1262,
+      "passed": 1262,
+      "skipped": 0,
+      "seconds": 201.278,
+      "source_unchanged": true
+    },
+    "rag": {
+      "new_paraphrases": 9,
+      "expected_handling_pass": 9,
+      "full_answers": 2,
+      "explicit_source_partial": 1,
+      "unsupported_or_unparsed": 6,
+      "before_routes": {
+        "E": 5,
+        "C": 4
+      },
+      "after_routes": {
+        "E": 6,
+        "A": 3
+      },
+      "before_llm_calls": 4,
+      "after_llm_calls": 0,
+      "exact_source_claims": 6,
+      "loaded20_match_current": true,
+      "fixes": [
+        "Compound field order and nominal student-count requests retain all requested source fields.",
+        "Named-office floor and own phone require that same full office identity; Hub floor and general phone cannot substitute.",
+        "Clear office queries are not falsely labelled negated; extra fields are not silently discarded."
+      ],
+      "regression_cases": 12,
+      "regression_actual_capture_before_final_speech_formatter": false,
+      "regression_source_answers_preserved": true,
+      "final_formatter_checked_offline": true,
+      "human_accuracy": null,
+      "held_out": false
+    },
+    "stt": {
+      "model": "Cafet/whisper-small-mongolian",
+      "production_decoder_changed": false,
+      "own_weight_training": false,
+      "raw_wer_percent": 36.02,
+      "raw_cer_percent": 16.9,
+      "eligible_references": 13,
+      "experiment": "One prospectively frozen reduced-context initial_prompt ablation; same conditioning mechanism.",
+      "candidate_word_errors": 87,
+      "reference_words": 186,
+      "candidate_character_errors": 249,
+      "reference_characters": 1089,
+      "candidate_wer_percent": 46.77,
+      "candidate_cer_percent": 22.87,
+      "new_local_decodes": 19,
+      "baseline_inference_reused": true,
+      "synthetic_edit_counts_before": [
+        2,
+        8
+      ],
+      "synthetic_edit_counts_after": [
+        3,
+        9
+      ],
+      "critical_year_and_floor_losses": true,
+      "raw_nonspeech_hallucinations_not_eliminated": true,
+      "promoted": false,
+      "independently_rescored": true,
+      "general_accuracy": null
+    },
+    "tts": {
+      "improvement": "Speech-only educational кр цаг/кр.цаг expansion to кредит цаг; source display and digits preserved.",
+      "neural_weights_changed": false,
+      "provider": "online Edge TTS experiment",
+      "voice": "mn-MN-BataaNeural",
+      "controlled_pair_provider_requests": 2,
+      "decoded_seconds": [
+        8.544,
+        8.736
+      ],
+      "after_response_bound": true,
+      "browser_cache_hit": false,
+      "browser_provider_request": true,
+      "provider_requests_total": 3,
+      "actual_browser_playback_ended_seconds": 8.736,
+      "same_text_and_voice_verified": true,
+      "human_quality_gain": null
+    },
+    "actual_brave_core_checks": {
+      "run": 2,
+      "passed": 2
+    },
+    "isolated_showcase": {
+      "core_integrated": false,
+      "published": false,
+      "flow_nodes": 9,
+      "flow_edges": 8,
+      "topic_groups": 5,
+      "python_tests": 7,
+      "svg_renderer_checks": 11,
+      "http_checks": 14,
+      "actual_brave_checks": 6,
+      "bm25_only": true,
+      "asr_tts_llm_calls": 0
+    },
+    "preserved": {
+      "source_rows": 196,
+      "original_roadmap": true,
+      "databases": true,
+      "human_files": 52
+    },
+    "new_model_downloads": 0,
+    "own_training": false,
+    "human_accuracy": null,
+    "remaining": [
+      "Raw STT WER36.02% remains; no safe acoustic-model gain demonstrated.",
+      "TTS pronunciation formatting works technically; fresh human quality improvement not measured.",
+      "Missing official office/platform fields, teacher summary5/profile4 gap, independent study, permanent HTTPS, clean-machine recovery and final thesis review remain."
     ]
   }
 }

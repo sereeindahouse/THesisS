@@ -4,7 +4,7 @@ import unittest
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
 from rag_runtime import ChatRAG
 from source_fields import (cooperation_entity_choices, followup_field_request,
-                           structured_field_extract, _office_field_plan)
+                           structured_field_extract)
 from test_rag_runtime import Policy, Retriever, Generator
 
 
@@ -23,11 +23,32 @@ S_QUERY = 'Sakura Internet-тэй хамтын ажиллагаа хэдэн о�
 D_QUERY = 'Компьютерын ухааны тэнхим StoD компанитай хамтын ажиллагаагаа хэдэн оны хэдэн сараас эхлүүлж, ямар платформыг сургалтад ашиглаж эхэлсэн бэ?'
 # Newly authored prompts, not a user's transcript or a literal typed query.
 MISSING_QUERY = 'Компанийн хамтын ажиллагаа эхэлсэн сарын мэдээлэл болон сургалтад ашигладаг платформыг нь танилцуулаач?'
+UNCLEAR_QUERY = 'ТанигдаагүйҮг '+MISSING_QUERY
 O_QUERY = 'Сургалтын алба хэдэн давхарт байдаг вэ, тус албаны утасны дугаарыг хэлнэ үү?'
+O_PARAPHRASES = (
+    O_QUERY,
+    'Сургалтын албаны байрлах давхар болон холбоо барих утасны дугаарыг хэлж өгөөч.',
+    'Сургалтын албаны утасны дугаар хэд вэ, мөн аль давхарт байрладаг вэ?',
+    'Аль давхарт сургалтын алба байдаг вэ, дугаар нь хэд вэ?',
+    'Сургалтын албанд очих гэсэн юм, байрлах давхар болон утсыг нь хэлнэ үү.',
+    'Сайн байна уу, сургалтын албаны давхар ба утасны дугаар хэрэгтэй байна.',
+    'Сургалтын албаны давхрыг, тэдний утсыг танилцуулаач.',
+    'Сургалтын албаны байрлах давхрыг болон тус албаны холбоо барих дугаарыг мэдээлнэ үү.',
+    'Сургалтын албаны утас болон давхрын мэдээллийг өгнө үү.',
+    'Сургалтын алба аль давхарт байрладаг, тэдний утасны дугаар юу вэ?',
+    'Давхар нь хэд, холбоо барих утас нь юу вэ, сургалтын албаны мэдээлэл өгөөч?',
+)
+COOP_PARAPHRASES = (
+    'StoD компанитай хэзээнээс хамтын ажиллагаа эхлүүлсэн, сургалтад ямар платформ ашигладаг вэ?',
+    'Ямар платформыг сургалтад ашиглаж эхэлсэн бэ, StoD-тай хамтын ажиллагаа хэдэн оны хэдэн сард эхэлсэн бэ?',
+    'StoD-ийн платформын нэрийг болон хамтын ажиллагаа эхэлсэн оныг, сарыг хэлнэ үү.',
+    'StoD-тай хамтын ажиллагааны эхэлсэн сар болон ашигладаг платформын мэдээллийг өгөөч.',
+)
 TABLE = ('Оюутны тоо\n2031–2032 оны хичээлийн жилд нийт 79 оюутан суралцаж байна. Үүнээс:\n'
          '1-р курс 11 оюутан\n2-р курс 13 оюутан\n3-р курс 17 оюутан\n4-р курс 19 оюутан\n5-р курс 19 оюутан\n'
          'Мэргэжлийн клубийн үйл ажиллагаанд 23 оюутан хамрагдаж байна.')
 T_QUERY = '2031–2032 оны хичээлийн жилд роботик инженерийн тэнхимд нийт хэдэн оюутан суралцаж, нэгдүгээрээс тавдугаар курс тус бүр хэдэн оюутантай вэ?'
+T_NOMINAL = 'Роботикийн тэнхимийн 2031–2032 оны нийт суралцагч, курс бүрийн тоог хэлж өгөөч.'
 
 
 def source(text, identifier='synthetic', **extra):
@@ -44,11 +65,9 @@ def selected(plan):
 
 
 def office_contract(sources):
-    # Exercise the source-role contract independently of the deliberately
-    # narrow phrase parser; no observed user's wording is embedded here.
-    request=dict(kind='office_floor_phone', requested_fields=['office_floor','office_phone'],
-                 closed=True, unsafe=False)
-    return _office_field_plan(request,sources)
+    # Test the public query-to-evidence path rather than injecting a parsed
+    # contract that could hide a query recognition failure.
+    return structured_field_extract(O_QUERY,sources)
 
 
 class FollowupFieldTests(unittest.TestCase):
@@ -88,6 +107,38 @@ class FollowupFieldTests(unittest.TestCase):
         self.assertIsNone(structured_field_extract(D_QUERY,[missing]))
         self.assertIsNone(structured_field_extract(D_QUERY.replace('StoD','UnknownCloud'),[self.partners]))
 
+    def test_company_date_platform_slots_work_in_either_order_without_losing_a_field(self):
+        for query in COOP_PARAPHRASES:
+            for entity in ('StoD','Sakura Internet'):
+                own_query=query.replace('StoD',entity)
+                with self.subTest(query=own_query):
+                    request=followup_field_request(own_query)
+                    self.assertTrue(request['closed'],request)
+                    plan=structured_field_extract(own_query,[self.partners])
+                    text='\n'.join(selected(plan))
+                    if entity=='StoD':
+                        self.assertEqual(plan['missing_fields'],[])
+                        self.assertIn('2031 оны 6-р',text)
+                        self.assertIn('OrbitLab',text)
+                        self.assertNotIn('2030 оны 8-р',text)
+                    else:
+                        self.assertEqual(plan['missing_fields'],['cooperation_platform'])
+                        self.assertIn('2030 оны 8-р',text)
+                        self.assertNotIn('OrbitLab',text)
+
+    def test_reordered_company_fields_do_not_drop_numbers_other_names_or_extra_requests(self):
+        base=COOP_PARAPHRASES[0]
+        for query in (base.replace('хэзээнээс','2035 онд хэзээнээс'),
+                      base.replace('StoD','StoD биш'),
+                      base+' Мөн үүлэн серверийн үнийг хэлнэ үү.',
+                      base.replace('StoD','StoD болон ARC'),
+                      base.replace('ямар платформ','TinyPortal нэртэй платформ'),
+                      base.replace('сургалтад','химийн тэнхимийн сургалтад'),
+                      'StoD-ийн платформыг хэдэн сард ашиглаж эхэлсэн вэ, хамтын ажиллагааны нэрийг хэлнэ үү?',
+                      'StoD-ийн хамтын ажиллагааны платформыг хэдэн сард ашиглаж эхэлсэн бэ?'):
+            with self.subTest(query=query):
+                self.assertIsNone(structured_field_extract(query,[self.partners]))
+
     def test_conditions_negation_and_unknown_compound_do_not_authorize_direct_extraction(self):
         for query in (D_QUERY+' Мөн утсыг хэл.',D_QUERY.replace('хэдэн оны','хэрэв би тэнцвэл хэдэн оны'),
                       D_QUERY.replace('StoD','StoD биш'),D_QUERY.replace('ашиглаж','ашиглахгүйгээр')):
@@ -114,9 +165,9 @@ class FollowupFieldTests(unittest.TestCase):
         self.assertIsNone(structured_field_extract(query.replace('ARC','Sakura Internet'),[self.partners]))
 
     def test_appended_entity_is_a_constraint_and_does_not_erase_body(self):
-        body=MISSING_QUERY+'\nХамтын ажиллагааны байгууллага: StoD'
+        body=UNCLEAR_QUERY+'\nХамтын ажиллагааны байгууллага: StoD'
         request=followup_field_request(body)
-        self.assertEqual(request['body'],MISSING_QUERY)
+        self.assertEqual(request['body'],UNCLEAR_QUERY)
         self.assertEqual(request['entity'],'StoD')
         self.assertFalse(request['closed'])
         plan=structured_field_extract(body,[self.partners])
@@ -149,6 +200,71 @@ class FollowupFieldTests(unittest.TestCase):
         self.assertEqual(result['parts'],[])
         self.assertIn('үгүйсгэсэн',result['message'])
 
+    def test_office_paraphrases_extract_both_requested_own_fields_with_dynamic_values(self):
+        for floor,phone in ((4,'77665544'),(12,'66554433')):
+            own=source(f'Сургалтын алба\nБайршил: {floor} давхар\nУтас: {phone}\nБусад мэдээлэл')
+            for query in O_PARAPHRASES:
+                with self.subTest(query=query,floor=floor):
+                    request=followup_field_request(query)
+                    self.assertIsNotNone(request)
+                    self.assertTrue(request['closed'],request)
+                    plan=structured_field_extract(query,[own])
+                    self.assertEqual(plan['missing_fields'],[])
+                    text='\n'.join(selected(plan))
+                    self.assertIn(f'{floor} давхар',text)
+                    self.assertIn(phone,text)
+                    self.assertTrue(all(part['source']['text'][part['start']:part['end']]
+                                        for part in plan['parts']))
+
+    def test_office_uncertain_or_additional_scope_never_discards_requested_qualifiers(self):
+        own=source('Сургалтын алба\nБайршил: 4 давхар\nУтас: 77665544\nБусад мэдээлэл')
+        queries=(
+            O_QUERY.replace('Сургалтын алба','Хэрэв тэнцвэл сургалтын алба'),
+            O_QUERY+' Мөн ажиллах цагийн хуваарийг өгөөч.',
+            O_QUERY.replace('тус албаны','карьерын албаны'),
+            O_QUERY.replace('тус албаны','сургуулийн ерөнхий'),
+            O_QUERY.replace('хэдэн давхарт','2032 онд хэдэн давхарт'),
+            O_QUERY.replace('хэдэн давхарт','3-р давхарт'),
+            O_QUERY.replace('тус албаны','Б.Болд багшийн'),
+            O_QUERY.replace('Сургалтын алба','Зөвхөн сургалтын алба'),
+            O_QUERY.replace('байдаг вэ','байдаггүй юу'),
+            O_QUERY.replace('утасны дугаарыг','утасгүй гэдгийг'),
+            O_QUERY.replace('дугаарыг','88776655 дугаарыг'),
+            O_QUERY.replace('утасны дугаарыг','утасны дугаар болон цахим хаягийг'),
+            O_QUERY.replace('байдаг вэ','одоо байдаг вэ'),
+            O_QUERY.replace('тус албаны утасны дугаарыг хэлнэ үү',
+                            'утас хэдэн давхарт байдаг вэ, дугаар нь хэд вэ'),
+        )
+        for query in queries:
+            with self.subTest(query=query):
+                request=followup_field_request(query)
+                self.assertTrue(request is None or not request['closed'])
+                plan=structured_field_extract(query,[own])
+                self.assertTrue(plan is None or not plan['parts'])
+
+    def test_another_office_or_only_one_attribute_is_not_a_two_field_office_request(self):
+        queries=(
+            'Карьерын алба аль давхарт байрладаг, утасны дугаар нь хэд вэ?',
+            'Сургалтын болон санхүүгийн албаны давхар, утасны дугаарыг харьцуулна уу.',
+            'Сургалтын албаны утасны дугаар хэд вэ?',
+            'Сургалтын алба аль давхарт байрладаг вэ?',
+            'Сургалтын албаны утас хэдэн давхарт байдаг вэ?',
+        )
+        for query in queries:
+            with self.subTest(query=query):
+                request=followup_field_request(query)
+                self.assertTrue(request is None or not request['closed'])
+
+    def test_conflicting_office_cards_and_unrelated_following_contact_are_not_combined(self):
+        first=source('Сургалтын алба\nБайршил: 4 давхар\nУтас: 77665544\nНомын сан')
+        other=source('Сургалтын алба\nБайршил: 12 давхар\nУтас: 66554433\nНомын сан',
+                     identifier='different',version=2)
+        self.assertIsNone(structured_field_extract(O_QUERY,[first,other]))
+        partial=source('Сургалтын алба\nБайршил: 4 давхар\nСургуулийн ерөнхий холбоо\nУтас: 66554433')
+        plan=structured_field_extract(O_QUERY,[partial])
+        self.assertEqual(plan['missing_fields'],['office_phone'])
+        self.assertNotIn('66554433','\n'.join(selected(plan)))
+
     def test_student_table_uses_own_department_year_and_all_requested_rows(self):
         table=source(TABLE,title='Роботик инженерийн тэнхим')
         plan=structured_field_extract(T_QUERY,[table])
@@ -160,6 +276,35 @@ class FollowupFieldTests(unittest.TestCase):
         for query in (T_QUERY.replace('2031–2032','2033–2034'),T_QUERY.replace('роботик','оптик'),
                       T_QUERY+' Мөн клубийн тоог хэл.',T_QUERY.replace('нийт хэдэн','зөвхөн нийт хэдэн')):
             with self.subTest(query=query):self.assertIsNone(structured_field_extract(query,[table]))
+
+    def test_nominal_total_and_each_course_requests_use_complete_source_table(self):
+        table=source(TABLE,title='Роботик инженерийн тэнхим')
+        queries=(T_NOMINAL,
+            '2031–2032 оны Роботикийн тэнхимд суралцаж байгаа оюутны нийт тоо болон курс тус бүрийн тоог танилцуулаач.')
+        for query in queries:
+            with self.subTest(query=query):
+                plan=structured_field_extract(query,[table])
+                text='\n'.join(selected(plan))
+                self.assertIn('нийт 79',text)
+                for grade,count in ((1,11),(2,13),(3,17),(4,19),(5,19)):
+                    self.assertIn(f'{grade}-р курс {count}',text)
+                self.assertNotIn('23 оюутан',text)
+        for query in (T_NOMINAL.replace('2031–2032','2032–2033'),
+                      T_NOMINAL.replace('Роботикийн','Оптикийн'),
+                      T_NOMINAL+' Мөн клубийн тоог хэлнэ үү.',
+                      T_NOMINAL.replace('нийт','зөвхөн нийт')):
+            with self.subTest(query=query):self.assertIsNone(structured_field_extract(query,[table]))
+
+    def test_each_course_means_all_recorded_contiguous_courses_not_a_fixed_five(self):
+        four=TABLE.replace('4-р курс 19','4-р курс 38').replace('5-р курс 19 оюутан\n','')
+        table=source(four,title='Роботик инженерийн тэнхим')
+        plan=structured_field_extract(T_NOMINAL,[table])
+        self.assertIn('4-р курс 38','\n'.join(selected(plan)))
+        self.assertNotIn('5-р курс','\n'.join(selected(plan)))
+        self.assertIsNone(structured_field_extract(T_QUERY,[table]))
+        zero=source('Оюутны тоо\n2031–2032 оны хичээлийн жилд нийт 0 оюутан суралцаж байна. Үүнээс:\nБусад мэдээлэл',
+                    title='Роботик инженерийн тэнхим')
+        self.assertIsNone(structured_field_extract(T_NOMINAL,[zero]))
 
     def test_inconsistent_incomplete_conditional_tables_are_not_shortened(self):
         for text in (TABLE.replace('нийт 79','нийт 80'),TABLE.replace('3-р курс 17 оюутан\n',''),
@@ -231,6 +376,46 @@ class FollowupChatTests(unittest.TestCase):
         self.assertEqual(empty['missing_fields'],['office_floor','office_phone'])
         self.assertEqual(calls,0)
 
+    def test_office_paraphrases_reach_own_source_or_honest_missing_fields_end_to_end(self):
+        own=source('Сургалтын алба\nБайршил: 12 давхар\nУтас: 66554433\nНомын сан')
+        general=source('Сургуулийн холбоо\nУтас: 77665544')
+        for query in O_PARAPHRASES:
+            with self.subTest(query=query):
+                supported,calls=self.chat(query,[own],'specific_scope_not_supported')
+                self.assertEqual(supported['route'],'A',supported)
+                self.assertIn('12 давхар',supported['answer'])
+                self.assertIn('66554433',supported['answer'])
+                self.assertEqual(supported['missing_fields'],[])
+                self.assertEqual(supported['query'],query)
+                self.assertEqual(calls,0)
+                absent,calls=self.chat(query,[general],'specific_scope_not_supported')
+                self.assertEqual(absent['route'],'E')
+                self.assertEqual(absent['missing_fields'],['office_floor','office_phone'])
+                self.assertNotIn('үгүйсгэсэн',absent['message'])
+                self.assertNotIn('77665544',absent['message'])
+                self.assertIsNone(absent['answer'])
+                self.assertEqual(calls,0)
+
+    def test_reordered_cooperation_and_nominal_table_are_complete_or_explicitly_partial(self):
+        sources=[source(SAKURA+ARC+STOD+END)]
+        for query in COOP_PARAPHRASES:
+            stod,calls=self.chat(query,sources)
+            self.assertEqual(stod['route'],'A',stod)
+            self.assertIn('OrbitLab',stod['answer'])
+            self.assertIn('2031 оны 6-р',stod['answer'])
+            self.assertEqual(stod['missing_fields'],[])
+            self.assertEqual(calls,0)
+            sakura,calls=self.chat(query.replace('StoD','Sakura Internet'),sources)
+            self.assertEqual(sakura['answer_kind'],'partial_official_website_extract')
+            self.assertEqual(sakura['missing_fields'],['cooperation_platform'])
+            self.assertNotIn('OrbitLab',sakura['answer'])
+            self.assertEqual(calls,0)
+        nominal,calls=self.chat(T_NOMINAL,[source(TABLE,title='Роботик инженерийн тэнхим')])
+        self.assertEqual(nominal['route'],'A',nominal)
+        self.assertIn('5-р курс 19',nominal['answer'])
+        self.assertNotIn('23 оюутан',nominal['answer'])
+        self.assertEqual(calls,0)
+
     def test_unknown_company_does_not_become_known_partner(self):
         result,calls=self.chat(D_QUERY.replace('StoD','UnknownCloud'),[source(SAKURA+ARC+STOD+END)])
         self.assertEqual(result['route'],'E')
@@ -249,7 +434,7 @@ class FollowupChatTests(unittest.TestCase):
 
     def test_appended_raw_scope_stays_partial_and_conditions_or_other_entity_fail_closed(self):
         sources=[source(SAKURA+ARC+STOD+END)]
-        raw=MISSING_QUERY+'\nХамтын ажиллагааны байгууллага: StoD'
+        raw=UNCLEAR_QUERY+'\nХамтын ажиллагааны байгууллага: StoD'
         result,calls=self.chat(raw,sources)
         self.assertEqual(result['answer_kind'],'partial_official_website_extract')
         self.assertIn('OrbitLab',result['answer'])

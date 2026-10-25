@@ -41,6 +41,74 @@ RUNTIME_ARTIFACT_SHA256 = {
                  'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py')
 }
 
+def named_office_field_scope(query, sources):
+    """Bind a floor/phone request to its literal office's labelled record.
+
+    This is a missing-evidence guard, not an office-name ontology or a direct
+    answer generator. The training-office extractor has its own stricter plan.
+    A bare floor elsewhere on the page or the school's general phone cannot
+    establish a named office's requested details.
+    """
+    q = query.casefold()
+    if (re.search(r'(?<!\w)сургалтын\s+алба(?:ны|тай|нд|наас)?(?!\w)',q)
+            or not re.search(r'давхар|давхр', q)
+            or not re.search(r'(?<!\w)(?:утас(?:ны)?|утсыг|утсаар|дугаар(?:ыг|ын)?)(?!\w)', q)
+            or re.search(r'(?<!\w)(?:биш|үгүй|эсэх|бус|хэрэв|эсвэл|боловч|зөвхөн)(?!\w)|байдаггүй|байрладаггүй', q)):
+        return None
+    # Keep the complete explicit subject at the beginning of its clause.
+    # Matching only the last genitive word would turn "хүний нөөцийн алба"
+    # into a different "нөөцийн алба" record. Unknown prefixes are never
+    # discarded in search of a convenient shorter source heading.
+    names = set()
+    prefixes = {'сайн','байна','уу','надад','танай','манай','тус','энэ','тэр','тэгвэл','бас','мөн'}
+    for match in re.finditer(r'(?:^|[,;.!?]\s*)(?P<words>[а-яөүё-]+(?:\s+[а-яөүё-]+){0,4})\s+алба(?:ны|тай|нд|наас)?(?!\w)',q):
+        words = match['words'].split()
+        while words and words[0] in prefixes:
+            words.pop(0)
+        if (not words or any(word.startswith('алба') for word in words)
+                or not re.search(r'(?:ын|ийн|ны|ний)$',words[-1])):
+            return None
+        if any(re.fullmatch(r'аль|ямар|хэд|хэдэн|хэддүгээр|давхар\w*|давхр\w*|утас\w*|дугаар\w*',word) for word in words):
+            return None
+        names.add(' '.join(words)+' алба')
+    if len(names) != 1:
+        return None
+    name = next(iter(names))
+    if name == 'сургалтын алба':
+        return None
+    valid = []
+    for source in sources:
+        rows = source['text'].splitlines()
+        for index, heading in enumerate(rows):
+            if re.sub(r'\s+', ' ', heading.strip().rstrip(':：').strip().casefold()) != name:
+                continue
+            fields = set()
+            pending = None
+            for row in rows[index+1:index+9]:
+                row = row.strip()
+                if not row:
+                    continue
+                if re.fullmatch(r'(?:байршил|давхар)\s*[:：]?', row, re.I):
+                    pending = 'office_floor'
+                    continue
+                if re.fullmatch(r'(?:утас(?:ны\s+дугаар)?|холбоо\s+барих\s+утас)\s*[:：]?', row, re.I):
+                    pending = 'office_phone'
+                    continue
+                floor = re.fullmatch(r'(?:(?:байршил|давхар)\s*[:：]\s*)?\d{1,2}(?:-р)?\s+давхар(?:т)?[.]?', row, re.I)
+                phone = re.fullmatch(r'(?:(?:утас(?:ны\s+дугаар)?|холбоо\s+барих\s+утас)\s*[:：]\s*)?(\+?\d[\d ()-]{5,25}\d)', row, re.I)
+                if floor and pending in {None, 'office_floor'}:
+                    fields.add('office_floor')
+                elif phone and (pending == 'office_phone' or re.match(r'утас|холбоо', row, re.I)):
+                    fields.add('office_phone')
+                else:
+                    break
+                pending = None
+            if fields == {'office_floor', 'office_phone'}:
+                valid.append(source)
+                break
+    return dict(name=name, requested_fields=['office_floor', 'office_phone'], sources=valid)
+
+
 SYSTEM = '''Select the EVIDENCE_UNITS that answer the QUESTION, using unit_ids only.
 Choose the MINIMUM sufficient set, normally ONE unit. Select a second or third
 unit only if it supplies another explicitly requested fact missing from the first.
@@ -1097,6 +1165,17 @@ class ChatRAG:
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
         evidence = year_evidence_sources(query, candidates)
         evidence=dated_news_evidence_sources(query,article_evidence_sources(query,evidence))
+        office_scope = named_office_field_scope(query, evidence)
+        if office_scope is not None and not office_scope['sources']:
+            result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,
+                reason_code='named_office_fields_not_supported',
+                message=('Хадгалсан эхээс «'+office_scope['name']+'»-д хамаарах давхар болон тусгай утсыг '
+                         'хамтад нь баталсан бүртгэл олдсонгүй. Өөр өрөөний давхар, сургуулийн ерөнхий утсаар орлуулахгүй.'),
+                missing_fields=office_scope['requested_fields'])
+            result['rag'].update(reason='named_office_fields_not_supported',named_office=office_scope['name'])
+            return self._remember(result,allow_draft)
+        # Presence guard only. A valid office card must not prune the other
+        # evidence needed by an additional topic in the same request.
         if followup_request and followup_request['kind']=='office_floor_phone' and not evidence:
             missing=structured_field_extract(query,[])
             result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,

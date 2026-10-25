@@ -23,6 +23,43 @@ _DIGITS = ('тэг', 'нэг', 'хоёр', 'гурав', 'дөрөв', 'тав',
 _EDUCATIONAL_ACRONYM = re.compile(
     r'(?<![\w/\\@.+~%=:?#&|$–—-])ЕБС(?P<possessive>-ийн)?'
     r'(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])')
+_EDUCATIONAL_CREDIT = re.compile(
+    r'(?<![\w.,/\\@+~%=:#?&|$–—-])(?P<number>[0-9]{1,3}(?:[.,][0-9]{1,2})?)'
+    r'[ \t]*кр(?:[ \t]+|\.[ \t]*)цаг(?P<suffix>ийн|аас|аар|ийг)?'
+    r'(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])',re.I)
+
+
+def normalize_spoken_educational_credits(text):
+    """Expand only numbered кр цаг/кр.цаг in nearby educational prose.
+
+    The official НССДС credit-equivalence guide labels its unit кредит цаг
+    and кр.цаг (usp.edu.mn, Бакалаврын сургалтын журмын14-р хавсралт).
+    This speech-only expansion preserves the written number and case ending;
+    it is neither a credit conversion nor a measured human pronunciation gain.
+    """
+    breaks=[]
+    for match in re.finditer(r'[.!?;\r\n]',text):
+        index=match.start()
+        if match[0]=='.' and ((index>0 and index+1<len(text)
+                and text[index-1].isdigit() and text[index+1].isdigit())
+                or (text[max(0,index-2):index].casefold()=='кр'
+                    and re.match(r'[ \t]*цаг(?:ийн|аас|аар|ийг)?(?!\w)',text[index+1:],re.I))):
+            continue
+        breaks.append(index)
+
+    def expand(match):
+        before,after=text[:match.start()],text[match.end():]
+        if (re.search(r'(?:\d|цаг(?:ийн|аас|аар|ийг)?)\s*[–—/\-]\s*$',before,re.I)
+                or re.match(r'\s*[–—/\-]\s*\d',after)
+                or re.search(r'(?:код|id|дугаар|файлын\s+нэр|url|хаяг)\s*[:=#]?\s*$',before,re.I)):
+            return match.group()
+        left=max((index+1 for index in breaks if index<match.start()),default=0)
+        right=min((index for index in breaks if index>=match.end()),default=len(text))
+        context=text[max(left,match.start()-160):min(right,match.end()+160)]
+        if not re.search(r'(?<!\w)(?:хичээл\w*|оюут\w*|суралц\w*|сургал\w*)(?!\w)',context,re.I):
+            return match.group()
+        return match['number']+' кредит цаг'+(match['suffix'] or '')
+    return _EDUCATIONAL_CREDIT.sub(expand,text)
 
 
 def normalize_spoken_educational_acronyms(text):
@@ -151,4 +188,5 @@ def normalize_spoken_notation(text, *, official_extract=False):
             text = heading.rstrip('. ') + '.\n\n' + body
     text = re.sub(r'(?<!\w)QR(?=\s+код)', 'кью ар', text, flags=re.I)
     text = normalize_spoken_educational_acronyms(text)
+    text = normalize_spoken_educational_credits(text)
     return normalize_spoken_years_and_phones(text)

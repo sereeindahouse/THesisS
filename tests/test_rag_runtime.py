@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from rag_runtime import ChatRAG, GroundedGenerator, source_extract, focused_extract, article_evidence_sources, dated_news_evidence_sources, broad_school_information_request
+from rag_runtime import ChatRAG, GroundedGenerator, source_extract, focused_extract, article_evidence_sources, dated_news_evidence_sources, broad_school_information_request, named_office_field_scope
 from evidence_contract import evidence_units
 
 SOURCE = dict(source_id='web-test', text='Сургалтын төлбөр: жилд 8,280,000 ₮.',
@@ -1075,6 +1075,84 @@ class ChatTests(unittest.TestCase):
         self.assertIn('Элсэлт 2026',r['answer'])
         self.assertFalse(r['generated'])
         self.assertEqual(self.generator.calls,0)
+
+class NamedOfficeEvidenceTests(unittest.TestCase):
+    def test_supported_office_does_not_discard_a_second_requested_topic_source(self):
+        class CaptureGenerator(Generator):
+            def generate(self,query,sources):
+                self.received=[s['source_id'] for s in sources]
+                return dict(generated=False,llm_calls=1,claims=[],reason='test_abstention')
+        retriever,generator=Retriever(),CaptureGenerator()
+        retriever.sources=[
+            dict(SOURCE,source_id='office',text='Санхүүгийн алба\nБайршил: 7-р давхар\nУтас: 00123456'),
+            dict(SOURCE,source_id='programme',text='Хөтөлбөрийн зорилго\nТуршилт хийж асуудлыг шийдэх инженер бэлтгэх.'),
+        ]
+        with tempfile.TemporaryDirectory() as root:
+            ChatRAG(root,Policy(),retriever=retriever,generator=generator).route(None,
+                'Санхүүгийн алба хэдэн давхарт байрладаг, утас хэд вэ, бас хөтөлбөрийн зорилго юу вэ?')
+        self.assertEqual(set(generator.received),{'office','programme'})
+
+    def test_unrelated_hub_floor_and_wireless_internet_do_not_answer_office_fields(self):
+        retriever, generator = Retriever(), Generator()
+        retriever.sources=[dict(SOURCE,text='Hub Center\nСургуулийн 12 давхарт байрлана. Утасгүй интернэттэй.\nУтас: 00123456')]
+        with tempfile.TemporaryDirectory() as root:
+            result=ChatRAG(root,Policy(),retriever=retriever,generator=generator).route(
+                None,'Оюутны алба хэддүгээр давхарт байрладаг, утасны дугаар нь хэд вэ?')
+        self.assertEqual(result['route'],'E')
+        self.assertEqual(result['reason_code'],'named_office_fields_not_supported')
+        self.assertEqual(result['missing_fields'],['office_floor','office_phone'])
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['related_sources'],[])
+        self.assertEqual(generator.calls,0)
+
+    def test_fields_must_belong_to_the_same_named_office_card(self):
+        query='Санхүүгийн алба хэдэн давхарт байдаг, утас нь хэд вэ?'
+        for text in [
+            'Санхүүгийн алба\nБайршил: 7-р давхар\nӨөр алба\nУтас: 00123456',
+            'Сургалтын алба\nБайршил: 7-р давхар\nУтас: 00123456',
+            'Санхүүгийн албатай уулзана.\nHub Center\nБайршил: 7-р давхар\nУтас: 00123456',
+        ]:
+            with self.subTest(text=text):
+                self.assertEqual(named_office_field_scope(query,[dict(SOURCE,text=text)])['sources'],[])
+
+    def test_own_labelled_values_are_dynamic_and_allow_either_field_order(self):
+        for name, floor, phone in [('Санхүүгийн алба','7-р давхар','00123456'),('Оюутны алба','9 давхарт','00987654')]:
+            for rows in [f'Байршил: {floor}\nУтас: {phone}',f'Утас\n{phone}\nБайршил\n{floor}']:
+                source=dict(SOURCE,text=name+'\n'+rows)
+                plan=named_office_field_scope(name+' хэдэн давхарт байрладаг, утас хэд вэ?',[source])
+                self.assertEqual(plan['sources'],[source])
+
+    def test_multiword_office_name_is_preserved_and_a_shortened_heading_cannot_substitute(self):
+        for name, shortened in [('Оюутны хөгжлийн алба','Хөгжлийн алба'),('Хүний нөөцийн алба','Нөөцийн алба')]:
+            query=name+' хэдэн давхарт байдаг, утас нь хэд вэ?'
+            wrong=dict(SOURCE,text=shortened+'\nБайршил: 7-р давхар\nУтас: 00123456')
+            correct=dict(SOURCE,text=name+'\nБайршил: 9-р давхар\nУтас: 00987654')
+            self.assertEqual(named_office_field_scope(query,[wrong])['sources'],[])
+            self.assertEqual(named_office_field_scope(query,[correct])['sources'],[correct])
+            self.assertEqual(named_office_field_scope(query,[wrong,correct])['name'],name.casefold())
+
+    def test_unknown_subject_prefix_is_not_dropped_to_find_a_shorter_office_heading(self):
+        source=dict(SOURCE,text='Хөгжлийн алба\nБайршил: 7-р давхар\nУтас: 00123456')
+        plan=named_office_field_scope('Байгууллагын хөгжлийн алба хэдэн давхарт байдаг, утас хэд вэ?',[source])
+        self.assertEqual(plan['name'],'байгууллагын хөгжлийн алба')
+        self.assertEqual(plan['sources'],[])
+
+    def test_a_field_question_prefix_is_not_invented_as_part_of_an_office_name(self):
+        for query in ['Аль давхарт сургалтын алба байдаг вэ, дугаар нь хэд вэ?',
+                      'Хэдэн давхарт хүний нөөцийн алба байрладаг вэ, утас нь хэд вэ?']:
+            self.assertIsNone(named_office_field_scope(query,[]))
+
+    def test_negation_multiple_offices_training_office_and_noncontact_requests_are_not_hijacked(self):
+        for query in [
+            'Оюутны алба биш, санхүүгийн алба хэдэн давхарт байдаг, утас нь хэд вэ?',
+            'Оюутны алба болон санхүүгийн алба хэдэн давхарт байдаг, утас хэд вэ?',
+            'Сургалтын алба хэдэн давхарт байдаг, утас хэд вэ?',
+            'Оюутны алба хэдэн давхарт утасгүй интернэттэй вэ?',
+            'Номын сан хэдэн давхарт байдаг, утас хэд вэ?',
+        ]:
+            with self.subTest(query=query):
+                self.assertIsNone(named_office_field_scope(query,[]))
+
 
 if __name__=='__main__':
     unittest.main()
