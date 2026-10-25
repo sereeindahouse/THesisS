@@ -172,6 +172,40 @@ class ClarificationContextTests(unittest.TestCase):
         for token in (None, "", "ABC" * 10, "a" * 33):
             with self.assertRaises(ValueError): self.resolve(token, "Элсэлтийнх")
 
+    def cooperation(self, query='ТанигдаагүйНэр компанийн хамтын ажиллагаа хэдэн сараас эхэлсэн, ямар платформ ашигласан бэ?'):
+        return dict(query=query, route='D', answer=None, package_id='package-one',
+                    rag={'corpus_id': 'corpus-one'}, suggestions=['Холбоо барих утас хэд вэ?'],
+                    clarification=dict(kind='missing_cooperation_entity', options=[
+                        dict(question='Sakura Internet', entity='Sakura Internet'),
+                        dict(question='ARC', entity='ARC'), dict(question='StoD', entity='StoD')]))
+
+    def test_partner_choice_preserves_original_month_platform_and_raw_words(self):
+        for partner in ('Sakura Internet', 'Sakura', 'ARC', 'StoD'):
+            original=self.cooperation()
+            reply=self.resolve(self.context.issue(original), partner)
+            entity='Sakura Internet' if partner=='Sakura' else partner
+            self.assertEqual(reply['resolved_query'], original['query']+'\nХамтын ажиллагааны байгууллага: '+entity)
+            self.assertTrue(reply['applied'])
+            self.assertIn('ТанигдаагүйНэр',reply['resolved_query'])
+
+    def test_partner_selection_keeps_unknown_qualifiers_dates_numbers_and_negation(self):
+        query='2024–2025 оны 7-р сард эхлээгүй бол зөвхөн оройн ангийн ямар платформ ашиглах вэ?'
+        reply=self.resolve(self.context.issue(self.cooperation(query)), 'StoD')
+        self.assertEqual(reply['resolved_query'],query+'\nХамтын ажиллагааны байгууллага: StoD')
+
+    def test_partner_choice_does_not_erase_explicit_other_entity(self):
+        for query in ('Sakura биш өөр компанийн платформ юу вэ?', 'ARC болон StoD-ийг харьцуулна уу.'):
+            self.assertIsNone(self.context.issue(self.cooperation(query)))
+
+    def test_partner_choice_accepts_only_offered_unique_literal_entities(self):
+        original=self.cooperation(); original['clarification']['options']=original['clarification']['options'][:1]
+        for reply in ('StoD','Sakura биш','Sakura 2027','Холбоо барих утас хэд вэ?'):
+            result=self.resolve(self.context.issue(original), reply)
+            self.assertFalse(result['applied'])
+            self.assertEqual(result['resolved_query'], reply)
+        original['clarification']['options']=[dict(question='Mystery', entity='Mystery')]
+        self.assertIsNone(self.context.issue(original))
+
 
 if __name__ == "__main__": unittest.main()
 

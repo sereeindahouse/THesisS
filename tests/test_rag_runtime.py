@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from rag_runtime import ChatRAG, GroundedGenerator, source_extract, focused_extract, article_evidence_sources, dated_news_evidence_sources
+from rag_runtime import ChatRAG, GroundedGenerator, source_extract, focused_extract, article_evidence_sources, dated_news_evidence_sources, broad_school_information_request
 from evidence_contract import evidence_units
 
 SOURCE = dict(source_id='web-test', text='Сургалтын төлбөр: жилд 8,280,000 ₮.',
@@ -526,6 +526,79 @@ class GeneratorTests(unittest.TestCase):
         self.assertEqual(result['marker_selection_repair']['candidate_selection_ids'], ['u1', 'u2', 'u3', 'u4'])
         self.assertEqual(len(posts), 2)
 
+    def test_marker_repair_accepts_an_option_with_its_required_context_explicitly_listed(self):
+        texts=[
+            'Сургуулийн баг төхөөрөмжийн тооллогыг шинэчилсэн.',
+            '2037 оны хамтарсан ажлын товч танилцуулга.',
+            'Тус баг ZXQ9 төслийн төхөөрөмжийг шинэчилж туршилтад ашигласан.',
+            '2037 онд ZXQ9 төсөл өөр төрлийн судалгааны төхөөрөмж туршсан.',
+        ]
+        for replacement in [['u2','u3'],['u3','u2']]:
+            with self.subTest(replacement=replacement):
+                result,posts,_=self.marker_selection([
+                    dict(insufficient=False,unit_ids=['u1']),
+                    dict(insufficient=False,unit_ids=replacement),
+                ],texts=texts)
+                self.assertTrue(result['generated'],result)
+                self.assertEqual(result['llm_calls'],2)
+                self.assertEqual([claim['text'] for claim in result['claims']],texts[1:3])
+                repair=result['marker_selection_repair']
+                self.assertIn(['u3'],repair['admissible_selection_options'])
+                self.assertNotIn(['u2','u3'],repair['admissible_selection_options'])
+                # u2 is not an admissible root by itself or paired with the
+                # unrelated initial root. It is exposed as REQUIRED context.
+                self.assertIn('u2',repair['candidate_selection_ids'])
+                self.assertEqual(result['marker_repair_context_equivalence']['policy'],
+                                 'identical_validated_dependency_closure')
+                data=json.loads(posts[1]['messages'][1]['content'])
+                self.assertEqual(next(unit for unit in data['EVIDENCE_UNITS'] if unit['unit_id']=='u3')['requires'],['u2'])
+
+    def test_marker_repair_context_equivalence_still_rejects_an_independent_option_union(self):
+        result,posts,_=self.marker_selection([
+            dict(insufficient=False,unit_ids=['u1']),
+            dict(insufficient=False,unit_ids=['u2','u3','u4']),
+        ],texts=[
+            'Сургуулийн баг төхөөрөмжийн тооллогыг шинэчилсэн.',
+            '2037 оны хамтарсан ажлын товч танилцуулга.',
+            'Тус баг ZXQ9 төслийн төхөөрөмжийг шинэчилж туршилтад ашигласан.',
+            '2037 онд ZXQ9 төсөл өөр төрлийн судалгааны төхөөрөмж туршсан.',
+        ])
+        self.assertFalse(result['generated'])
+        self.assertEqual(result['reason'],'invalid_evidence_selection')
+        self.assertEqual(result['claims'],[])
+        self.assertEqual(len(posts),2)
+        self.assertTrue({'u2','u3','u4'}<=set(result['marker_selection_repair']['candidate_selection_ids']))
+
+    def test_marker_repair_explicit_three_unit_context_chain_keeps_every_claim(self):
+        result,posts,texts=self.marker_selection([
+            dict(insufficient=False,unit_ids=['u1']),
+            dict(insufficient=False,unit_ids=['u2','u3','u4']),
+        ],texts=[
+            'Сургуулийн баг төхөөрөмжийн тооллогыг шинэчилсэн.',
+            '2037 оны хамтарсан ажлын товч танилцуулга.',
+            'Тус баг мэргэжлийн лабораторид судалгааны ажил зохион байгуулсан.',
+            'Мөн ZXQ9 төслийн төхөөрөмжийг шинэчилж туршилтад ашигласан.',
+        ])
+        self.assertTrue(result['generated'],result)
+        self.assertEqual([claim['text'] for claim in result['claims']],texts[1:])
+        self.assertEqual(len(result['selected_unit_ids']),3)
+        self.assertEqual(len(result['marker_repair_context_equivalence']['canonical_root_ids']),1)
+        branch=posts[1]['format']['properties']['unit_ids']['anyOf'][1]
+        self.assertGreaterEqual(branch['maxItems'],3)
+        self.assertLessEqual(branch['maxItems'],6)
+
+    def test_marker_repair_dependency_chain_still_obeys_six_claim_budget(self):
+        result,posts,_=self.marker_selection([dict(insufficient=False,unit_ids=['u1'])],texts=[
+            'Сургуулийн баг төхөөрөмжийн тооллогыг шинэчилсэн.',
+            '2037 оны хамтарсан ажлын товч танилцуулга.',
+            *['Тус баг лабораторийн тоног төхөөрөмжийг хамтран судалсан.' for _ in range(5)],
+            'Мөн ZXQ9 төслийн төхөөрөмжийг шинэчилж туршилтад ашигласан.',
+        ])
+        self.assertFalse(result['generated'])
+        self.assertEqual(result['reason'],'requested_evidence_markers_missing')
+        self.assertEqual(result['marker_selection_repair']['status'],'not_attempted_no_admissible_option')
+        self.assertEqual(len(posts),1)
+
     def test_marker_retry_rejects_out_of_option_union_duplicates_and_more_than_two_ids(self):
         for replacement in [['u2', 'u3'], ['u3', 'u3'], ['u1', 'u2', 'u3']]:
             with self.subTest(replacement=replacement):
@@ -850,6 +923,89 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(r['route'],'D')
         self.assertTrue(r['suggestions'])
         self.assertEqual(self.retriever.calls,0)
+
+    def test_constructed_generic_school_information_clarifies_before_wrong_news_selection(self):
+        # Constructed paraphrases, not a private audio transcript/reference.
+        for query in ['Би сургуулийн талаар мэдээлэл авмаар байна.',
+                      'Сайн байна уу, би сургуулийн талаар мэдээлэл авмаар байна!',
+                      'САЙН УУ! Шинэ Монгол Технологийн коллежийн ерөнхий танилцуулгыг өгөөч.',
+                      'Танай сургуулийн тухай дэлгэрэнгүй мэдээлэл хэлнэ үү.']:
+            with self.subTest(query=query):
+                retriever,generator=Retriever(),Generator()
+                retriever.sources[0]['text']='Өөр улсын их сургуулийн тэтгэлгийн мэдээ.'
+                result=ChatRAG('.',Policy('missing_entity'),retriever,generator).route(None,query)
+                self.assertEqual(result['route'],'D')
+                self.assertEqual(result['reason_code'],'clarify_topic')
+                self.assertEqual(result['clarification_basis'],'closed_generic_school_information')
+                self.assertIsNone(result['answer'])
+                self.assertEqual(result['citations'],[])
+                self.assertEqual(result['candidates'],[])
+                self.assertEqual(retriever.calls,0)
+                self.assertEqual(generator.calls,0)
+
+    def test_school_information_finite_vocabulary_preserves_concrete_fields_entities_and_negation(self):
+        questions=[
+            'Би сургуулийн байршлын мэдээлэл авмаар байна.',
+            'Би сургуулийн Sakura хамтын ажиллагааны мэдээлэл авмаар байна.',
+            'Би сургуулийн тэнхимийн багшийн тооны мэдээлэл авмаар байна.',
+            'Би сургуулийн 2033 оны мэдээлэл авмаар байна.',
+            'Би сургуулийн хоёр мянга гучин гурван оны мэдээлэл авмаар байна.',
+            'Би сургуулийн тухай мэдээлэл авахгүй гэсэн юм.',
+            'Би сургуулийн тухай мэдээлэл биш холбоо барих утсыг асуусан.',
+            'Би сургуулийн мэдээлэл авах гэсэн юм, мөн төлбөр хэд вэ?',
+            'Би Хуурамч коллежийн тухай мэдээлэл авмаар байна.',
+        ]
+        for query in questions:
+            with self.subTest(query=query):
+                self.assertFalse(broad_school_information_request(query))
+                retriever,generator=Retriever(),Generator()
+                result=ChatRAG('.',Policy(),retriever,generator).route(None,query)
+                self.assertNotEqual(result.get('clarification_basis'),'closed_generic_school_information')
+                self.assertEqual(retriever.calls,1)
+
+    def test_broad_information_guard_does_not_bypass_exact_stored_answer_or_rejection(self):
+        query='Би сургуулийн талаар мэдээлэл авмаар байна.'
+        self.policy.answer='Хадгалсан эхтэй танилцуулга'
+        result=self.chat.route(None,query)
+        self.assertEqual(result['answer'],self.policy.answer)
+        self.policy.answer=None;self.policy.reason='expired_content'
+        blocked=self.chat.route(None,query)
+        self.assertEqual(blocked['reason_code'],'expired_content')
+        self.assertEqual(self.retriever.calls,0)
+        self.assertEqual(self.generator.calls,0)
+
+    def test_generic_topic_suggestions_read_canonical_eligible_questions_from_pinned_package(self):
+        from content_store import ContentStore
+        from project_policy import ContentUsePolicy
+        from test_question_router import fixture
+        content=fixture('approved')
+        content['sources'][0]['source_url_or_filename']='https://nmct.edu.mn/fixture-topics'
+        for group in ('sources','facts','faqs'):
+            for item in content[group]:item.update(valid_from=None,valid_until=None)
+        contact=next(faq for faq in content['faqs'] if faq['faq_id']=='faq.contact')
+        contact['question']='Жишээ холбооны бүртгэлийг үзүүлье.'
+        for identifier,question in [('faq.departments.list','Жишээ тэнхимүүдийн бүртгэлийг үзүүлье.'),
+                                    ('faq.admission.programs.fixture','Жишээ элсэлтийн чиглэлийг үзүүлье.')]:
+            faq=copy.deepcopy(contact);faq.update(faq_id=identifier,question=question,question_aliases=[])
+            content['faqs'].append(faq)
+        with tempfile.TemporaryDirectory() as temporary:
+            database=Path(temporary)/'content.db'
+            with ContentStore(database) as store:
+                pinned=store.import_content(content,allow_draft=True)['package_id']
+                newer=copy.deepcopy(content)
+                next(faq for faq in newer['faqs'] if faq['faq_id']=='faq.contact')['question']='Шинэ package-ийн өөр асуулт.'
+                store.import_content(newer,allow_draft=True)
+            chat=ChatRAG(Path(__file__).resolve().parents[1],ContentUsePolicy(Path(__file__).resolve().parents[1]),Retriever(),Generator())
+            questions=chat._school_topic_questions(database,pinned)
+            self.assertEqual(questions,['Жишээ тэнхимүүдийн бүртгэлийг үзүүлье.',
+                'Жишээ элсэлтийн чиглэлийг үзүүлье.','Жишээ холбооны бүртгэлийг үзүүлье.'])
+            self.assertNotIn('Sakura',' '.join(questions))
+            self.assertNotIn('Шинэ package-ийн өөр асуулт.',questions)
+            incomplete=copy.deepcopy(content)
+            next(faq for faq in incomplete['faqs'] if faq['faq_id']=='faq.departments.list')['answer_status']='partial_in_scope'
+            with ContentStore(database) as store:
+                partial=store.import_content(incomplete,allow_draft=True)['package_id']
+            self.assertEqual(chat._school_topic_questions(database,partial),questions[1:])
 
     def test_external_sources_excluded(self):
         self.retriever.sources[0]['url']='https://nmct.edu.mn.evil/elselt'

@@ -56,6 +56,48 @@ class VoiceUIRecoveryTests(unittest.TestCase):
     def test_pagehide_cleanup_batches_and_acknowledgments_preserve_new_ids(self):
         self.scenario('cleanup-pagehide')
 
+    def test_successful_stt_requests_suggestion_without_blocking_or_automatic_apply(self):
+        self.scenario('correction-auto')
+
+    def test_edit_aborts_old_suggestion_and_late_completion_cannot_unlock_new_one(self):
+        self.scenario('correction-edit-late')
+
+    def test_new_audio_cancels_suggestion_and_retains_its_own_stt_busy_state(self):
+        self.scenario('correction-new-audio')
+
+    def test_new_chat_cancels_suggestion_and_ignores_its_late_result(self):
+        self.scenario('correction-reset')
+
+    def test_send_cancels_optional_suggestion_and_retains_transcription_lineage(self):
+        self.scenario('correction-send')
+
+    def test_suggestion_timeout_preserves_raw_editing_and_send(self):
+        self.scenario('correction-timeout')
+
+    def test_late_json_body_cannot_restore_suggestion_after_edit(self):
+        self.scenario('correction-body-late')
+
+    def test_apply_requires_same_raw_text_and_same_transcription_identity(self):
+        self.scenario('correction-apply-binding')
+
+    def test_rejected_unbound_and_no_change_proposals_never_apply(self):
+        self.scenario('correction-bad-response')
+
+    def test_suggestion_network_failure_keeps_manual_retry_usable(self):
+        self.scenario('correction-failure-retry')
+
+    def test_empty_speech_or_unavailable_corrector_never_start_suggestion(self):
+        self.scenario('correction-empty-unavailable')
+
+    def test_pagehide_cancels_suggestion_without_waiting(self):
+        self.scenario('correction-pagehide')
+
+    def test_temporarily_unavailable_provider_retains_manual_recovery(self):
+        self.scenario('correction-provider-recovery')
+
+    def test_programmatic_correction_cannot_start_during_route_or_recording(self):
+        self.scenario('correction-programmatic-busy')
+
 
 if __name__ == '__main__':
     unittest.main()

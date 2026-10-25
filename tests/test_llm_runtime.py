@@ -195,6 +195,106 @@ class LLMRuntimeTests(unittest.TestCase):
         result = self.runtime(FakeTransport("сургууль энд байна")).suggest_correction(raw)
         self.assert_raw_fallback(result, raw, "too_many_edits")
 
+    def test_case_only_sentence_or_known_name_capitalization_is_not_a_new_name(self):
+        for raw, corrected in [('сургуулийн тухай мэдээлэл авмаар байна', 'Сургуулийн тухай мэдээлэл авмаар байна'),
+                               ('arc компанийн тухай мэдээлэл авна', 'ARC компанийн тухай мэдээлэл авна'),
+                               ('билгүүн багш ямар хичээл заадаг вэ', 'Билгүүн багш ямар хичээл заадаг вэ')]:
+            with self.subTest(raw=raw):
+                result=self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assertFalse(result['guard_rejected'])
+                self.assertEqual(result['suggested_text'],corrected)
+                self.assertFalse(result['automatic_application'])
+
+    def test_capitalization_exception_cannot_change_a_name_or_another_word(self):
+        for raw, corrected in [('билгүүн багш ямар хичээл заадаг вэ', 'Билгүүтэй багш ямар хичээл заадаг вэ'),
+                               ('сургуулийн тухай мэдээлэл авмаар байна', 'Сакурагийн тухай мэдээлэл авмаар байна')]:
+            with self.subTest(raw=raw):
+                result=self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assert_raw_fallback(result,raw,'names_or_latin_tokens_changed')
+
+    def test_lowercase_name_context_cannot_be_recovered_by_guessing(self):
+        cases = [
+            ("сакурын интернэт компанитай хамтран ажилладаг", "сакура интернэт компанитай хамтран ажилладаг"),
+            ("шинэ монгол экологийн коллежийн мэдээлэл авна", "шинэ монгол технологийн коллежийн мэдээлэл авна"),
+            ("билгүүн багш ямар хичээл заадаг вэ", "билгүүтэй багш ямар хичээл заадаг вэ"),
+            ("багш билгүүн ямар хичээл заадаг вэ", "багш билгүүтэй ямар хичээл заадаг вэ"),
+        ]
+        for raw, corrected in cases:
+            with self.subTest(raw=raw):
+                result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assert_raw_fallback(result, raw, "named_entity_context_changed")
+
+    def test_added_deleted_and_changed_negation_or_contrast_rejected(self):
+        cases = [
+            ("энэ хугацаанд бүртгүүлж болохгүй байна", "энэ хугацаанд бүртгүүлж болно байна"),
+            ("энэ мэдээлэл зөв биш гэж хэлсэн", "энэ мэдээлэл зөв гэж хэлсэн"),
+            ("энэ мэдээлэл зөв гэж хэлсэн", "энэ мэдээлэл зөв биш гэж хэлсэн"),
+            ("энэ мэдээлэл өөр байх болно", "энэ мэдээлэл адил байх болно"),
+            ("энэ холбоосыг одоохондоо битгий нээгээрэй", "энэ холбоосыг одоохондоо түр нээгээрэй"),
+            ("энэ мэдээллийг шууд бүү ашиглаарай", "энэ мэдээллийг шууд л ашиглаарай"),
+            ("энэ мэдээлэл батлагдсан эсэх талаар асууна", "энэ мэдээлэл батлагдсан гэж талаар асууна"),
+            ("энэ бол А биш Б гэж хэлсэн", "энэ бол А Б биш гэж хэлсэн"),
+        ]
+        for raw, corrected in cases:
+            with self.subTest(raw=raw):
+                result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assert_raw_fallback(result, raw, "negation_or_contrast_changed")
+
+    def test_grammar_or_punctuation_edit_can_preserve_lowercase_name_and_negation(self):
+        cases = [
+            ("сакурын интернэт компанитай ажилладаг байн", "сакурын интернэт компанитай ажилладаг байна"),
+            ("билгүүн багшийн тухай мэдээлэл авмаар байн", "билгүүн багшийн тухай мэдээлэл авмаар байна"),
+            ("энэ зөв биш гэж хэлж байн", "энэ зөв биш гэж хэлж байна"),
+            ("энэ мэдээлэл өөр байх болно", "энэ мэдээлэл өөр байх болно."),
+        ]
+        for raw, corrected in cases:
+            with self.subTest(raw=raw):
+                result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assertFalse(result['guard_rejected'])
+                self.assertTrue(result['changed'])
+                self.assertEqual(result['suggested_text'], corrected)
+                self.assertEqual(result['raw_text'], raw)
+                self.assertFalse(result['automatic_application'])
+
+    def test_hidden_controls_and_bidi_formatting_never_become_suggestions(self):
+        raw = "сургуулийн тухай мэдээлэл авах гэсэн юм"
+        for char in ('\x00', '\u202e', '\u200b', '\u2028'):
+            with self.subTest(char=repr(char)):
+                result = self.runtime(FakeTransport(raw+char)).suggest_correction(raw)
+                self.assert_raw_fallback(result, raw, 'invalid_suggestion_characters')
+
+    def test_grammar_suggestion_cannot_insert_or_delete_spoken_words(self):
+        cases = [
+            ("энэ мэдээллийг дараа нь шалгаж авна", "энэ мэдээллийг дараа нь дахин шалгаж авна"),
+            ("энэ мэдээллийг дараа нь дахин шалгаж авна", "энэ мэдээллийг дараа нь шалгаж авна"),
+            ("энд очоод мэдээлэл авч уулзна", "энд очоод мэдээлэл авч уулзаж байна"),
+        ]
+        for raw, corrected in cases:
+            with self.subTest(raw=raw):
+                result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assert_raw_fallback(result, raw, 'word_insertion_or_deletion')
+
+    def test_same_word_count_spelling_spacing_and_punctuation_remain_possible(self):
+        cases = [
+            ("мэдэлэл авах гэсэн юм", "мэдээлэл авах гэсэн юм"),
+            ("мэдээлэл  авмаар байн", "мэдээлэл авмаар байна"),
+            ("мэдээлэл авах гэсэн юм", "мэдээлэл авах гэсэн юм."),
+        ]
+        for raw, corrected in cases:
+            with self.subTest(raw=raw):
+                result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+                self.assertFalse(result['guard_rejected'])
+                self.assertTrue(result['changed'])
+                self.assertEqual(result['suggested_text'], corrected)
+                self.assertFalse(result['automatic_application'])
+
+    def test_word_count_guard_does_not_hide_numeric_invention(self):
+        raw = "мэдээллийг хаанаас авах вэ"
+        corrected = "2026 оны мэдээллийг хаанаас авах вэ"
+        result = self.runtime(FakeTransport(corrected)).suggest_correction(raw)
+        self.assert_raw_fallback(result, raw, 'numbers_or_years_changed')
+        self.assertFalse(result['numeric_unchanged'])
+
     def test_uncertainty_rejected(self):
         fake = FakeTransport(reason="Эргэлзэж байна.")
         raw = "Сургуулийн тухай мэдээлэл авмаар байн"

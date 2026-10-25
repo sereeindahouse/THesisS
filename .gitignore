@@ -335,3 +335,9 @@ __pycache__/
 !/tests/test_direct_extract_semantic_guards.py
 !/tests/test_structured_field_extract.py
 !/tests/test_teacher_cards_ui.py
+!/tests/test_actual_user_followup_fields.py
+!/tests/test_correction_configuration_http.py
+!/tests/test_navigation_security_http.py
+!/tests/test_partial_answer_speech.py
+!/tests/clarification_option_ui_harness.js
+!/tests/test_clarification_option_ui.py

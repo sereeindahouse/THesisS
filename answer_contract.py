@@ -12,8 +12,10 @@ def spoken_text(result):
         prefix = 'Ноорог, сургуулиар баталгаажаагүй. ' if result.get('answer_kind') == 'development_draft_preview' else ''
         if result.get('answer_kind') == 'partial_teacher_directory':
             prefix = result.get('message','Хадгалсан танилцуулга нь бүх багшийн бүрэн жагсаалт биш.') + ' '
+        elif result.get('answer_kind') == 'partial_official_website_extract':
+            prefix = (result.get('message') or 'Эхээс асуусан бүх мэдээллийг баталж чадсангүй; хариулт хэсэгчилсэн.') + ' '
         text = result['answer']
-        if result.get('answer_kind') == 'rag_generated':
+        if result.get('answer_kind') in {'rag_generated', 'official_website_extract', 'partial_official_website_extract'}:
             text = remove_rendered_citations(text, len(result.get('citations', [])))
         text = normalize_spoken_notation(text, official_extract=result.get('answer_kind') == 'official_website_extract')
         return normalize_spoken_currency(prefix + text)

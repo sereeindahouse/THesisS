@@ -111,6 +111,33 @@ def _choices(result):
     original = result["query"]
     offered = list(result.get("suggestions") or [])
     clarification = result.get("clarification") or {}
+    if isinstance(clarification, dict) and clarification.get('kind') == 'missing_cooperation_entity':
+        # Select only an explicitly offered partner. Append its identity to the
+        # full original request: a canonical FAQ must not erase month/platform,
+        # a supplied year, unknown qualifiers, or the uncorrected STT wording.
+        aliases = {'Sakura Internet': ('Sakura Internet', 'Sakura', 'Сакура'),
+                   'ARC': ('ARC',), 'StoD': ('StoD',)}
+        if (not original.strip() or len(original) > 900
+                or re.search(r'хамтын\s+ажиллагааны\s+байгууллага\s*:', original, re.I)
+                or any(re.search(r'(?<!\w)' + re.escape(alias) + r'(?!\w)', original, re.I)
+                       for values in aliases.values() for alias in values)):
+            return {}
+        mappings = {}
+        for option in clarification.get('options', [])[:12]:
+            if not isinstance(option, dict):
+                continue
+            entity, label = option.get('entity'), option.get('question')
+            if entity not in aliases or not isinstance(label, str) or not 1 <= len(label) <= 200:
+                continue
+            if not any(re.search(r'(?<!\w)' + re.escape(alias) + r'(?!\w)', label, re.I)
+                       for alias in aliases[entity]):
+                continue
+            resolved = original + '\nХамтын ажиллагааны байгууллага: ' + entity
+            if len(resolved) > 1000:
+                continue
+            for reply in (label, *aliases[entity]):
+                mappings.setdefault(_key(reply), set()).add(resolved)
+        return {reply: next(iter(queries)) for reply, queries in mappings.items() if len(queries) == 1}
     if isinstance(clarification, dict):
         offered.extend(item.get("question") for item in clarification.get("options", [])
                        if isinstance(item, dict))

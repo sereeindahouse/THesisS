@@ -50,6 +50,9 @@ const context = vm.createContext({
   refreshClarificationHint() {}, discardClarifications() {}, stopMic() {}, resetPreview() {},
   async discardVoice(ids) { discarded.push(...ids); },
   ownResponse(result) { context.savedIds.push(result.id); }, savedIds: [],
+  node() { return {append() {}}; }, scrollChat() {},
+  appendTurn(query,draft) { return {query,draft,body:element('testTurnBody'),transcriptionId:run('currentTranscription?.id')}; },
+  acceptClarification() {}, renderTurn() {},
 });
 function $(id) { return element(id); }
 vm.runInContext(`
@@ -57,7 +60,7 @@ vm.runInContext(`
       voiceGeneration=0,routeGeneration=0,routeBusy=false,micStarting=false,
       micRecorder=null,selectedAudio={type:'audio/wav'},currentTranscription=null,
       latestRoute=null,pendingClarification=null,websiteGeneration=0,faqGeneration=0,
-      correctionBusy=false;
+      correctionBusy=false,correctionGeneration=0,correctionValue=null,activeCorrection=null;
   const ownedVoiceIds=new Set(),ownedClarificationIds=new Set(),chatTurns=[];
 `, context);
 vm.runInContext(between('function hasSpokenReply', 'function speakTurn'), context);
@@ -69,6 +72,9 @@ if (source.includes('function cancelTranscription()'))
   vm.runInContext(between('function cancelTranscription()', 'function invalidateVoiceAnswer'), context);
 vm.runInContext(between('function invalidateVoiceAnswer', 'async function discardVoice'), context);
 vm.runInContext(between('async function transcribeSelected()', '$("voiceFile").addEventListener'), context);
+vm.runInContext(between('function clearCorrection()', 'async function loadReviews()'), context);
+vm.runInContext(source.split(/\r?\n/).find(line => line.startsWith('$("routeQuery").addEventListener("input"')), context);
+vm.runInContext(between('async function askTurn(turn)', '$("routeQuery").addEventListener("keydown"'), context);
 vm.runInContext(source.split(/\r?\n/).find(line => line.startsWith('$("voiceReset").addEventListener')), context);
 vm.runInContext(source.split(/\r?\n/).find(line => line.startsWith('$("removeCapture").addEventListener')), context);
 vm.runInContext(source.split(/\r?\n/).find(line => line.startsWith('window.addEventListener("pagehide"')), context);
@@ -82,9 +88,140 @@ const success = (request, text, id = 'a'.repeat(32)) => request.resolve({ok: tru
   async json() { return {id, text, speech_text_available: !!text,
     model_load_seconds: 0, transcription_seconds: 1, audio_seconds: 2}; }});
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+const bindCorrection = (text='сургуулийн тухай мэдээлэл авмаар байн', id='a'.repeat(32)) => {
+  element('routeQuery').value=text;
+  context.boundRaw=text;context.boundId=id;
+  run('llmState={configured:true,available:true};currentTranscription={id:boundId,rawText:boundRaw};refreshVoiceControls()');
+};
+const correctionReply = (request, overrides={}) => request.resolve({ok:true,async json(){
+  const raw=JSON.parse(request.options.body).text;
+  return {raw_text:raw,suggested_text:raw+'а',automatic_application:false,
+    used:true,changed:true,guard_rejected:false,message:'controlled guarded suggestion',...overrides};
+}});
 
 async function main() {
-  if (scenario === 'timeout') {
+  if (scenario === 'correction-auto') {
+    run('llmState={configured:true,available:true}');
+    const pending=run('transcribeSelected()');
+    success(requests[0],'сургуулийн тухай мэдээлэл авмаар байн');await pending;
+    assert.equal(requests.length,2,'Successful STT automatically requests one optional suggestion');
+    assert.equal(requests[1].path,'/api/voice/correct');
+    assert.equal(element('routeQuery').value,'сургуулийн тухай мэдээлэл авмаар байн');
+    assert.equal(element('sttOriginal').textContent,element('routeQuery').value);
+    assert.equal(run('voiceBusy'),false);assert.equal(run('correctionBusy'),true);
+    assert.equal(element('routeQuery').disabled,false,'Raw text is immediately editable');
+    assert.equal(element('routeButton').disabled,false,'Suggestion never blocks Send');
+    assert.equal(element('attachAudio').disabled,false,'A new audio input does not wait for the LLM');
+    correctionReply(requests[1]);await flush();
+    assert.equal(element('correctionSuggestion').hidden,false);
+    assert.equal(element('routeQuery').value,run('currentTranscription.rawText'),'A proposal does not apply itself');
+    handlers.get('applyCorrectionButton:click')();
+    assert.equal(element('routeQuery').value,'сургуулийн тухай мэдээлэл авмаар байна');
+    assert.equal(run('currentTranscription.rawText'),'сургуулийн тухай мэдээлэл авмаар байн');
+    assert.equal(run('currentTranscription.id'),'a'.repeat(32));
+    assert.equal(element('sttOriginal').textContent,'сургуулийн тухай мэдээлэл авмаар байн');
+  } else if (scenario === 'correction-edit-late') {
+    bindCorrection();ignoreAbort=true;const first=run('requestCorrection({automatic:true})');
+    element('routeQuery').value='хэрэглэгчийн өөрийн засвар';handlers.get('routeQuery:input')();
+    assert.equal(requests[0].options.signal.aborted,true);
+    const newer=run('requestCorrection()');assert.equal(requests.length,2);
+    correctionReply(requests[0]);await first;
+    assert.equal(run('correctionBusy'),true,'Older finally cannot unlock a new correction');
+    assert.equal(element('routeQuery').value,'хэрэглэгчийн өөрийн засвар');
+    assert.equal(element('correctionSuggestion').hidden,true);
+    correctionReply(requests[1]);await newer;
+    assert.equal(element('correctionText').textContent,'хэрэглэгчийн өөрийн засвара');
+  } else if (scenario === 'correction-new-audio') {
+    bindCorrection();ignoreAbort=true;const first=run('requestCorrection()');
+    const stt=run('transcribeSelected()');assert.equal(requests[0].options.signal.aborted,true);
+    correctionReply(requests[0]);await first;
+    assert.equal(run('voiceBusy'),true);assert.equal(element('routeQuery').disabled,true);
+    assert.equal(element('correctionSuggestion').hidden,true);
+    success(requests[1],'шинэ дууны текст','b'.repeat(32));await stt;
+    assert.equal(requests.length,3);assert.equal(requests[2].path,'/api/voice/correct');
+    assert.equal(run('currentTranscription.id'),'b'.repeat(32));
+    correctionReply(requests[2]);await flush();assert.equal(element('correctionText').textContent,'шинэ дууны текста');
+  } else if (scenario === 'correction-reset') {
+    bindCorrection();ignoreAbort=true;const pending=run('requestCorrection()');
+    await handlers.get('voiceReset:click')();
+    assert.equal(requests[0].options.signal.aborted,true);
+    correctionReply(requests[0]);await pending;
+    assert.equal(element('routeQuery').value,'');assert.equal(run('currentTranscription'),null);
+    assert.equal(run('correctionBusy'),false);assert.equal(element('correctionSuggestion').hidden,true);
+    assert.equal(element('correctionStatus').textContent,'');
+  } else if (scenario === 'correction-send') {
+    bindCorrection();ignoreAbort=true;const pending=run('requestCorrection()');
+    handlers.get('routeForm:submit')({preventDefault(){}});
+    assert.equal(requests[0].options.signal.aborted,true);
+    assert.equal(run('routeBusy'),true);assert.equal(run('currentTranscription'),null);
+    assert.equal(cleanupRequests.at(-1).path,'/api/route');
+    assert.equal(cleanupRequests.at(-1).body.transcription_id,'a'.repeat(32),'Send preserves audio lineage while canceling a suggestion');
+    correctionReply(requests[0]);await pending;
+    assert.equal(element('routeQuery').value,'');assert.equal(element('correctionSuggestion').hidden,true);
+    cleanupRequests.at(-1).resolve({query:'controlled query'});await flush();
+    assert.equal(run('routeBusy'),false);
+  } else if (scenario === 'correction-timeout') {
+    bindCorrection();const pending=run('requestCorrection()');
+    const timer=timers.find(t=>t.milliseconds===25000&&!t.cleared);assert(timer);
+    timer.fn();await pending;
+    assert.equal(requests[0].options.signal.aborted,true);assert.equal(run('correctionBusy'),false);
+    assert.equal(element('routeButton').disabled,false);assert.equal(element('routeQuery').disabled,false);
+    assert.equal(element('routeQuery').value,run('currentTranscription.rawText'));
+    assert.match(element('correctionStatus').textContent,/хугацаа/);
+  } else if (scenario === 'correction-body-late') {
+    bindCorrection();let bodyResolve;const body=new Promise(resolve=>bodyResolve=resolve);
+    const pending=run('requestCorrection()');requests[0].resolve({ok:true,json(){return body}});await flush();
+    element('routeQuery').value='зассан текст';handlers.get('routeQuery:input')();
+    bodyResolve({raw_text:context.boundRaw,suggested_text:'хуучин санал',used:true,changed:true,automatic_application:false});await pending;
+    assert.equal(element('routeQuery').value,'зассан текст');assert.equal(element('correctionSuggestion').hidden,true);
+    assert.equal(element('correctionStatus').textContent,'');
+  } else if (scenario === 'correction-apply-binding') {
+    bindCorrection();const pending=run('requestCorrection()');correctionReply(requests[0]);await pending;
+    assert.equal(element('correctionSuggestion').hidden,false);
+    run("currentTranscription={id:'b'.repeat(32),rawText:boundRaw}");handlers.get('applyCorrectionButton:click')();
+    assert.equal(element('routeQuery').value,context.boundRaw,'A new audio ID invalidates an identical-text proposal');
+    run('currentTranscription={id:boundId,rawText:boundRaw}');element('routeQuery').value='direct programmatic edit';
+    handlers.get('applyCorrectionButton:click')();assert.equal(element('routeQuery').value,'direct programmatic edit');
+  } else if (scenario === 'correction-bad-response') {
+    for(const overrides of [{raw_text:'wrong raw'},{automatic_application:true},{guard_rejected:true},{used:false},{changed:false}]){
+      bindCorrection();const before=requests.length;const pending=run('requestCorrection()');correctionReply(requests[before],overrides);await pending;
+      assert.equal(element('routeQuery').value,context.boundRaw);assert.equal(element('correctionSuggestion').hidden,true);
+      assert.equal(run('correctionBusy'),false);assert.equal(element('routeButton').disabled,false);
+    }
+  } else if (scenario === 'correction-failure-retry') {
+    bindCorrection();const pending=run('requestCorrection()');requests[0].reject(new Error('controlled offline'));await pending;
+    assert.equal(element('routeQuery').value,context.boundRaw);assert.equal(element('correctTranscriptButton').disabled,false);
+    const retry=handlers.get('correctTranscriptButton:click')();assert.equal(requests.length,2);
+    correctionReply(requests[1]);await retry;assert.equal(element('correctionSuggestion').hidden,false);
+    assert.equal(element('routeQuery').value,context.boundRaw);
+  } else if (scenario === 'correction-empty-unavailable') {
+    run('llmState={configured:true,available:true}');const empty=run('transcribeSelected()');success(requests[0],'');await empty;
+    assert.equal(requests.length,1,'Empty speech never becomes a correction request');
+    run('llmState={configured:true,available:false}');const unavailable=run('transcribeSelected()');success(requests[1],'таньсан текст');await unavailable;
+    assert.equal(requests.length,2,'Unavailable LLM never delays successful raw STT');
+    assert.equal(element('routeQuery').value,'таньсан текст');assert.equal(element('routeButton').disabled,false);
+    run('llmState={configured:false,available:false}');await run('requestCorrection()');assert.equal(requests.length,2);
+  } else if (scenario === 'correction-provider-recovery') {
+    bindCorrection();run('llmState.available=false;refreshVoiceControls()');
+    await run('requestCorrection({automatic:true})');assert.equal(requests.length,0,'Unavailable service is not automatically retried');
+    assert.equal(element('correctTranscriptButton').hidden,false,'A configured temporary outage must leave a manual retry');
+    assert.equal(element('correctTranscriptButton').disabled,false);
+    const retry=handlers.get('correctTranscriptButton:click')();assert.equal(requests.length,1);
+    correctionReply(requests[0],{available:true});await retry;
+    assert.equal(run('llmState.available'),true,'An actual successful reply can restore future automatic suggestions');
+    assert.equal(element('correctionSuggestion').hidden,false);
+    assert.equal(element('routeQuery').value,context.boundRaw);
+  } else if (scenario === 'correction-programmatic-busy') {
+    bindCorrection();
+    for(const state of ['routeBusy=true','voiceBusy=true','micStarting=true',"micRecorder={state:'recording'}"]){
+      run('routeBusy=false;voiceBusy=false;micStarting=false;micRecorder=null;'+state);
+      await run('requestCorrection()');assert.equal(requests.length,0,'Disabled-control state is also guarded inside the handler');
+    }
+  } else if (scenario === 'correction-pagehide') {
+    bindCorrection();const pending=run('requestCorrection()');handlers.get('window:pagehide')();await pending;
+    assert.equal(requests[0].options.signal.aborted,true);assert.equal(run('correctionBusy'),false);
+    assert.equal(element('correctionSuggestion').hidden,true);
+  } else if (scenario === 'timeout') {
     const pending = run('transcribeSelected()');
     assert.equal(requests.length, 1);
     const timer = timers.find(item => item.milliseconds === 120000 && !item.cleared);

@@ -97,6 +97,27 @@ def direction_card_bindings(text):
 
 def _structural_spans(text, spans):
     """Keep tightly adjacent source cards and same-entity paragraphs intact."""
+    table_split=[]
+    for start,end in spans:
+        lines=_lines(text[start:end])
+        first=next((i for i,line in enumerate(lines) if re.fullmatch(r'\d+-р\s+курс\s+\d+\s+оюутан',line[2],re.I)),0)
+        intro=(text[start:start+lines[first][0]] if first else
+               text[table_split[-1][0]:table_split[-1][1]] if table_split else '')
+        prefix_ok=bool(re.search(r'нийт\s+\d+\s+оюутан\s+суралцаж\s+байна\.\s+Үүнээс:\s*$',intro,re.I))
+        cursor=first
+        while cursor<len(lines) and re.fullmatch(r'\d+-р\s+курс\s+\d+\s+оюутан',lines[cursor][2],re.I):
+            cursor+=1
+        # Only a separately named club paragraph is an independent new subject.
+        # Pronouns, exceptions, eligibility and arbitrary trailing prose remain
+        # attached. This is source structure, independent of any query/answer.
+        ordinals=[int(re.match(r'\d+',line[2])[0]) for line in lines[first:cursor]]
+        if (prefix_ok and ordinals==list(range(1,len(ordinals)+1)) and cursor-first>=2 and cursor+1==len(lines) and re.match(r'мэргэжлийн\s+клубийн\s+үйл\s+ажиллагаанд\b',lines[cursor][2],re.I)
+                and lines[cursor][2].endswith('.')
+                and not re.search(r'хэрэв|зөвхөн|биш|харин|гэхдээ|тохиолдолд',lines[cursor][2],re.I)):
+            if first:table_split.append((start,start+lines[first-1][1]))
+            table_split.extend([(start+lines[first][0],start+lines[cursor-1][1]),(start+lines[cursor][0],end)])
+        else:table_split.append((start,end))
+    spans=table_split
     combined = []
     index = 0
     while index < len(spans):
@@ -295,7 +316,12 @@ def evidence_units(sources, max_characters=900):
                 # Only complete captured HTML supplies canonical page offsets.
                 unit['page_span'] = dict(url=source['url'], version=source['version'],
                                          start=offset + start, end=offset + end)
-            if previous and (_continues_previous(span) or previous['conditional']):
+            course_rows=[re.fullmatch(r'(\d+)-р\s+курс\s+(\d+)\s+оюутан',line[2],re.I) for line in _lines(span)]
+            table_context=bool(previous and previous['unit'] and len(course_rows)>=2 and all(course_rows)
+                and [int(row[1]) for row in course_rows]==list(range(1,len(course_rows)+1))
+                and re.search(r'(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2}\s+оны\s+хичээлийн\s+жилд\s+'
+                              r'нийт\s+\d+\s+оюутан\s+суралцаж\s+байна\.\s+Үүнээс:\s*$',previous['unit']['text'],re.I))
+            if previous and (_continues_previous(span) or previous['conditional'] or table_context):
                 # A dependent paragraph without its physical predecessor is
                 # not a standalone claim. Keep it out of the selectable pool
                 # rather than attach it across omitted text or a trimmed prefix.

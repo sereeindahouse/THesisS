@@ -70,7 +70,7 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
         <details id="fileUploadPanel"><summary>Бичлэгийг сонсох</summary><audio id="voiceInputPlayer" controls hidden preload="metadata" aria-label="Оруулсан дуу"></audio></details>
       </div>
       <div id="correctionSuggestion" class="correction-suggestion" hidden>
-        <p class="small muted">Засварын санал</p><p id="correctionText"></p>
+        <p class="small muted">Локал LLM · хэл найруулгын санал</p><p id="correctionText"></p><p class="small muted">Анхны танилтыг хадгалсан. Аудиотой таарч байвал саналыг хэрэглэнэ үү.</p>
         <button id="applyCorrectionButton" class="secondary-button" type="button">Саналыг хэрэглэх</button>
       </div>
       <p id="correctionStatus" class="status composer-status" role="status" aria-live="polite"></p>
@@ -219,6 +219,16 @@ function submitFollowup(query){
  currentTranscription=null;
  clearPendingClarification();$("routeQuery").value=query;sizeComposer();$("routeForm").requestSubmit();
 }
+function submitClarificationOption(turn,query){
+ if(routeBusy||voiceBusy||micStarting||micRecorder?.state==="recording")return;
+ const id=turn.result?.conversation?.clarification_id;
+ if(!id){submitFollowup(query);return}
+ const draft=$("routeDraft").checked;
+ if(typeof id!=="string"||pendingClarification?.id!==id||pendingClarification.draft!==draft||turn.draft!==draft){
+  $("routeStatus").textContent="Энэ тодруулга хуучирсан эсвэл горим өөрчлөгдсөн байна. Одоогийн асуултаа дахин илгээнэ үү.";return;
+ }
+ currentTranscription=null;$("routeQuery").value=query;sizeComposer();$("routeForm").requestSubmit();
+}
 function followupButtons(questions){
  const options=node("div",undefined,"chat-options");
  for(const question of [...new Set(questions)].filter(q=>typeof q==="string"&&q.trim()).slice(0,3)){
@@ -277,17 +287,20 @@ function renderTurn(turn,result){
  }
  if(result.answer_kind==="development_draft_preview")target.append(node("p","Хөгжүүлэлтийн ноорог мэдээлэл.","chat-notice"));
  const hasAnswer=typeof result.answer==="string"&&Boolean(result.answer.trim());
- if((result.answer_kind==="partial_teacher_directory"||result.teacher_cards?.some(card=>card.portrait_available===false))&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));
+ if((["partial_teacher_directory","partial_official_website_extract"].includes(result.answer_kind)||result.teacher_cards?.some(card=>card.portrait_available===false))&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));
  const fallback=[result.clarification?.question,result.message].find(v=>typeof v==="string"&&v.trim());
- if(result.answer_kind==="rag_generated"&&hasAnswer)target.append(node("p","Албан эхийн мэдээллийг нэгтгэв","answer-label"));
+ if(result.answer_kind==="rag_generated"&&hasAnswer)target.append(node("p","Албан эхээс сонгосон мэдээлэл","answer-label"));
  target.append(node("div",hasAnswer?result.answer:(fallback||"Энэ асуултын шууд хариулт хадгалсан мэдээлэлд одоогоор алга. Доорх асуултаас сонгож болно."),"chat-answer"));
  const teacherCards=renderTeacherCards(result.teacher_cards);if(teacherCards)target.append(teacherCards);
  if(result.clarification?.options?.length){
   const options=node("div",undefined,"chat-options");
   for(const option of result.clarification.options){
+   if(typeof option?.question!=="string"||!option.question.trim())continue;
    const years=option.question.match(/20\d{2}\s*[–—-]\s*20\d{2}/);
-   const button=node("button",years?years[0]:option.question);button.type="button";button.dataset.followupQuery=option.question;
-   button.addEventListener("click",()=>submitFollowup(option.question));options.append(button);
+   const yearReply=result.clarification.kind==="missing_year"&&result.conversation?.clarification_id?(years?.[0]||option.question.match(/20\d{2}/)?.[0]):null;
+   const reply=yearReply||option.question;
+   const button=node("button",reply);button.type="button";button.dataset.followupQuery=reply;
+   button.addEventListener("click",()=>submitClarificationOption(turn,reply));options.append(button);
   }target.append(options);
  }
  if(Array.isArray(result.related_sources)&&result.related_sources.length){const sources=renderRelatedSources(result.related_sources);if(sources)target.append(sources)}
@@ -369,7 +382,7 @@ $("websiteForm").addEventListener("submit",async e=>{
 $("websiteDraft").addEventListener("change",()=>{++websiteGeneration;$("websiteForm").querySelector("button").disabled=false;$("websiteResults").replaceChildren();$("websiteStatus").textContent="Горим өөрчлөгдлөө. Дахин хайна уу."});
 
 let voiceState={},voiceGeneration=0,voiceBusy=false,selectedAudio=null,inputURL=null;
-let llmState={},correctionGeneration=0,correctionBusy=false,correctionValue=null;
+let llmState={},correctionGeneration=0,correctionBusy=false,correctionValue=null,activeCorrection=null;
 let micStream=null,micRecorder=null,micTimer=null,micEpoch=0,micStarting=false;
 let micAudioContext=null,micLevelTimer=null;
 let latestRoute=null,routeBusy=false,currentTranscription=null;const ownedVoiceIds=new Set();
@@ -390,8 +403,8 @@ function refreshVoiceControls(){
  document.querySelectorAll("[data-route-example],[data-followup-query]").forEach(b=>b.disabled=busy);
  document.querySelectorAll(".play-message").forEach(b=>{b.disabled=!voiceState.tts_ready||busy;b.title=voiceState.tts_ready?"Хариултыг дуугаар сонсох":"Дуут хариултын үйлчилгээ бэлэн биш"});
  $("speakButton").disabled=!voiceState.tts_ready||!hasSpokenReply(latestRoute?.result)||latestRoute?.result?.can_speak===false||busy;
- $("correctTranscriptButton").hidden=!llmState.configured||llmState.available===false;
- $("correctTranscriptButton").disabled=!llmState.configured||llmState.available===false||correctionBusy||busy||!$("routeQuery").value.trim();
+ $("correctTranscriptButton").hidden=!llmState.configured;
+ $("correctTranscriptButton").disabled=!llmState.configured||correctionBusy||busy||!$("routeQuery").value.trim();
 }
 async function discardVoice(ids){
  // Retain failed cleanup IDs for the next normal reset; no background retry.
@@ -413,13 +426,14 @@ function startMicLevel(stream,epoch){
  }catch{stopMicLevel()}
 }
 function stopMic(abandon=false){if(abandon)++micEpoch;if(micTimer)clearTimeout(micTimer);micTimer=null;stopMicLevel();if(micRecorder?.state==="recording")micRecorder.stop();if(micStream)micStream.getTracks().forEach(track=>track.stop());micStream=null;micStarting=false;refreshVoiceControls()}
-async function transcribeSelected(){if(!selectedAudio||voiceBusy)return;invalidateVoiceAnswer();$("routeQuery").value="";voiceBusy=true;const generation=voiceGeneration;refreshVoiceControls();$("voiceStatus").textContent="Дууг текст болгож байна…";
+async function transcribeSelected(){if(!selectedAudio||voiceBusy)return;invalidateVoiceAnswer();$("routeQuery").value="";voiceBusy=true;const generation=voiceGeneration;let correctionReady=null;refreshVoiceControls();$("voiceStatus").textContent="Дууг текст болгож байна…";
  const request={controller:new AbortController(),timer:null};activeTranscription=request;
  // This bounds the browser wait; aborting it does not cancel server inference.
  request.timer=setTimeout(()=>{if(activeTranscription!==request)return;cancelTranscription();$("voiceStatus").textContent="Дууг таних хүлээлгийн хугацаа дууслаа. Бичлэгээ дахин таних эсвэл асуултаа бичиж илгээж болно.";refreshVoiceControls()},STT_REQUEST_TIMEOUT_MS);
  try{const response=await fetch("/api/voice/transcribe",{method:"POST",headers:{"Content-Type":selectedAudio.type||"audio/wav"},body:selectedAudio,signal:request.controller.signal});const r=await response.json();if(!response.ok)throw Error(r.error||"STT алдаа");ownResponse(r);
   if(activeTranscription!==request||generation!==voiceGeneration){await discardVoice([r.id]);return}currentTranscription=r.speech_text_available!==false&&typeof r.text==="string"&&r.text.trim()?{id:r.id,rawText:r.text}:null;$("routeQuery").value=r.text;sizeComposer();$("sttOriginal").textContent=r.text;$("sttTiming").textContent="Модель ачаалах "+Number(r.model_load_seconds).toFixed(2)+" s · таних "+Number(r.transcription_seconds).toFixed(2)+" s · аудио "+Number(r.audio_seconds).toFixed(2)+" s";$("sttDetails").hidden=false;$("voiceStatus").textContent=(r.speech_text_available===false||r.recognition_review?.needs_extra_review)?r.message:"Текстээ нягтлаад ↑ дарж илгээнэ үү.";
- }catch(e){if(activeTranscription===request&&generation===voiceGeneration)$("voiceStatus").textContent=e.message}finally{clearTimeout(request.timer);if(activeTranscription===request){activeTranscription=null;voiceBusy=false;refreshVoiceControls()}}}
+  if(currentTranscription)correctionReady=currentTranscription.id;
+ }catch(e){if(activeTranscription===request&&generation===voiceGeneration)$("voiceStatus").textContent=e.message}finally{clearTimeout(request.timer);if(activeTranscription===request){activeTranscription=null;voiceBusy=false;refreshVoiceControls();if(correctionReady&&generation===voiceGeneration&&currentTranscription?.id===correctionReady&&llmState.configured&&llmState.available===true)requestCorrection({automatic:true})}}}
 $("voiceFile").addEventListener("change",()=>{
  const file=$("voiceFile").files[0];if(!file)return;invalidateVoiceAnswer();$("routeQuery").value="";sizeComposer();
  if(file.size>8*1024*1024){clearInput();$("voiceStatus").textContent="8 MiB хүртэл хэмжээтэй файл сонгоно.";refreshVoiceControls();return}
@@ -443,20 +457,27 @@ $("speakButton").addEventListener("click",async()=>{if(!latestRoute||voiceBusy)r
  }catch(e){if(generation===voiceGeneration)$("ttsStatus").textContent=e.message}finally{voiceBusy=false;refreshVoiceControls()}});
 $("ttsVoice").addEventListener("change",()=>{++voiceGeneration;clearSpeech();refreshVoiceControls()});
 $("speechSpeed").addEventListener("change",()=>{$("voiceReplyPlayer").playbackRate=Number($("speechSpeed").value)});
-window.addEventListener("pagehide",()=>{cancelTranscription();stopMic(true);if(ownedClarificationIds.size)fetch("/api/conversation/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clarification_ids:[...ownedClarificationIds]}),keepalive:true}).catch(()=>{});const pending=[...ownedVoiceIds];for(let start=0;start<pending.length;start+=100){const batch=pending.slice(start,start+100);fetch("/api/voice/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:batch}),keepalive:true}).then(response=>{if(response.ok)for(const id of batch)ownedVoiceIds.delete(id)}).catch(()=>{})}});
+window.addEventListener("pagehide",()=>{cancelTranscription();clearCorrection();stopMic(true);if(ownedClarificationIds.size)fetch("/api/conversation/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clarification_ids:[...ownedClarificationIds]}),keepalive:true}).catch(()=>{});const pending=[...ownedVoiceIds];for(let start=0;start<pending.length;start+=100){const batch=pending.slice(start,start+100);fetch("/api/voice/reset",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids:batch}),keepalive:true}).then(response=>{if(response.ok)for(const id of batch)ownedVoiceIds.delete(id)}).catch(()=>{})}});
 
 
-function clearCorrection(){++correctionGeneration;correctionBusy=false;correctionValue=null;$("correctionStatus").textContent="";$("correctionText").textContent="";$("correctionSuggestion").hidden=true}
-$("correctTranscriptButton").addEventListener("click",async()=>{
- const raw=$("routeQuery").value;if(!raw.trim()||correctionBusy||voiceBusy)return;
- clearCorrection();const generation=correctionGeneration;correctionBusy=true;refreshVoiceControls();$("correctionStatus").textContent="Текстийн саналыг нягталж байна…";
- try{const r=await api("/api/voice/correct",{text:raw});if(generation!==correctionGeneration||$("routeQuery").value!==raw)return;
+function clearCorrection(){++correctionGeneration;const request=activeCorrection;activeCorrection=null;if(request){clearTimeout(request.timer);request.controller.abort()}correctionBusy=false;correctionValue=null;$("correctionStatus").textContent="";$("correctionText").textContent="";$("correctionSuggestion").hidden=true}
+async function requestCorrection({automatic=false}={}){
+ const raw=$("routeQuery").value;if(!raw.trim()||correctionBusy||voiceBusy||routeBusy||micStarting||micRecorder?.state==="recording")return;
+ if(!llmState.configured||(automatic&&llmState.available!==true))return;
+ clearCorrection();const generation=correctionGeneration,transcriptionId=currentTranscription?.id||null;
+ const request={controller:new AbortController(),timer:null};activeCorrection=request;correctionBusy=true;refreshVoiceControls();$("correctionStatus").textContent=automatic?"Анхны танилт бэлэн. Локал LLM хэл найруулгын санал бэлтгэж байна; одоо илгээж болно.":"Локал LLM текстийн санал нягталж байна…";
+ request.timer=setTimeout(()=>{if(activeCorrection!==request)return;clearCorrection();$("correctionStatus").textContent="LLM санал хүлээх хугацаа дууслаа. Анхны текстээ засаж эсвэл шууд илгээж болно.";refreshVoiceControls()},25000);
+ const current=()=>activeCorrection===request&&generation===correctionGeneration&&$("routeQuery").value===raw&&(currentTranscription?.id||null)===transcriptionId;
+ try{const response=await fetch("/api/voice/correct",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:raw}),signal:request.controller.signal});const r=await response.json();if(!current())return;if(!response.ok)throw Error(r.error||"LLM санал амжилтгүй");
+  if(r.raw_text!==raw||r.automatic_application!==false)throw Error("Саналын эх текст таарахгүй байна");
+  if(typeof r.available==="boolean")llmState.available=r.available;
   $("correctionStatus").textContent=r.message||(r.guard_rejected?"Нэр, он эсвэл тоо өөрчилсөн саналыг хэрэглэхгүй.":"Анхны текст хэвээр байна.");
-  if(r.used&&r.changed&&!r.guard_rejected&&typeof r.suggested_text==="string"&&r.suggested_text.trim()){correctionValue=r.suggested_text;$("correctionText").textContent=r.suggested_text;$("correctionSuggestion").hidden=false}
- }catch(e){if(generation===correctionGeneration)$("correctionStatus").textContent="LLM санал бэлэн биш. Текстээ гараар засаж үргэлжлүүлнэ үү."}
- finally{if(generation===correctionGeneration){correctionBusy=false;refreshVoiceControls()}}
-});
-$("applyCorrectionButton").addEventListener("click",()=>{if(!correctionValue)return;const value=correctionValue;invalidateVoiceAnswer({preserveTranscription:true});$("routeQuery").value=value;sizeComposer();$("routeStatus").textContent="Саналыг хэрэглэсэн. Текстээ нягтлаад илгээнэ үү.";refreshVoiceControls()});
+  if(r.used&&r.changed&&!r.guard_rejected&&typeof r.suggested_text==="string"&&r.suggested_text.trim()){correctionValue={text:r.suggested_text,raw,transcriptionId,generation};$("correctionText").textContent=r.suggested_text;$("correctionSuggestion").hidden=false}
+ }catch(e){if(current())$("correctionStatus").textContent="LLM санал бэлэн биш. Анхны текстээ гараар засаж эсвэл шууд илгээж болно."}
+ finally{clearTimeout(request.timer);if(activeCorrection===request){activeCorrection=null;correctionBusy=false;refreshVoiceControls()}}
+}
+$("correctTranscriptButton").addEventListener("click",()=>requestCorrection());
+$("applyCorrectionButton").addEventListener("click",()=>{const proposal=correctionValue;if(voiceBusy||routeBusy||micStarting||micRecorder?.state==="recording"||!proposal||proposal.generation!==correctionGeneration||proposal.raw!==$("routeQuery").value||proposal.transcriptionId!==(currentTranscription?.id||null))return;const value=proposal.text;invalidateVoiceAnswer({preserveTranscription:true});$("routeQuery").value=value;sizeComposer();$("routeStatus").textContent="LLM саналыг хэрэглэсэн. Анхны танилт хадгалагдсан; текстээ нягтлаад илгээнэ үү.";refreshVoiceControls()});
 
 async function loadReviews(){try{const r=await api("/api/review"),target=$("reviewContents");target.replaceChildren();if(!r.available){$("reviewSummary").textContent="Хувийн сонсголын бүртгэл энэ clone-д байхгүй.";return}
  const stt=r.pending_stt||[],tts=r.tts||[];if(r.current_reference_metrics?.metrics){const m=r.current_reference_metrics.metrics;target.append(node("p","Одоо батлагдсан "+r.eligible_stt_count+" бичлэг · WER "+(m.corpus_wer*100).toFixed(1)+"% · CER "+(m.corpus_cer*100).toFixed(1)+"%. Зөвхөн энэ хэлэгчийн pilot хэмжилт.","notice"))}$("reviewSummary").textContent="Тэмдэглэл хөтлөх боломжтой "+stt.length+" бичлэг, "+tts.length+" TTS жишээ байна. Зөвхөн хүсвэл ашиглана. Хувийн тэмдэглэл GitHub-д орохгүй.";

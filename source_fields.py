@@ -1608,6 +1608,57 @@ def missing_field_evidence(requirements, units_or_text):
     return missing
 
 
+def followup_field_request(query):
+    """Small source-field contracts; unknown clauses never authorize pruning.
+
+    A separate entity line is a server-issued clarification constraint. It
+    supplies only the organisation, preserving the original question verbatim.
+    """
+    scoped = re.fullmatch(r'([\s\S]+)\nХамтын ажиллагааны байгууллага:\s*([^\n]{1,80})', query, re.I)
+    body, entity = (scoped[1], scoped[2].strip()) if scoped else (query, None)
+    q = _field_intent_without_presentation_clauses(body).strip(' .!?\n')
+    unsafe = bool(re.search(r'\bбиш\b|\bүгүй\b|\w+гүй\b|хэрэв|зөвхөн|боловч|эсвэл|тохиолдолд|'
+                            r'[;:\n]|[.!?].*\S', q, re.I))
+    # Missing entity recognition does not assert that the remaining raw STT
+    # wording is fully understood. It only offers a source-backed identity.
+    if (re.search(r'хамтын\s+ажиллагаа', q, re.I) and 'платформ' in q
+            and re.search(r'сар|хэзээ', q, re.I)):
+        name = r'(?P<company>[a-z][a-z0-9 ]{1,65}?)(?:-тэй|-тай|тэй|тай|\s+компанитай)'
+        prefix = r'(?:компьютер(?:ын|ийн)\s+ухааны\s+тэнхим\s+)?'
+        predicate = r'хамтын\s+ажиллагаа(?:гаа)?\s+хэдэн\s+оны\s+хэдэн\s+сараас\s+эх(?:элсэн|лүүлж)\s*[, ]\s*'
+        platform = r'(?:компанийн\s+)?ямар\s+платформыг\s+сургалтад\s+ашиглаж\s+эхэлсэн\s+(?:вэ|бэ)'
+        match = re.fullmatch(prefix + name + r'\s+' + predicate + platform, q, re.I)
+        conflict=bool(entity and match and entity.casefold()!=match['company'].strip().casefold())
+        latin=set(re.findall(r'[a-z][a-z0-9]*',body.casefold()))
+        scoped_partial=bool(scoped and not unsafe and not conflict
+            and latin <= set(re.findall(r'[a-z][a-z0-9]*',entity.casefold()))
+            and not (set(re.findall(r'\d+',body))-set(re.findall(r'(?:19|20)\d{2}',body))))
+        return dict(kind='cooperation_month_platform', entity=entity or (match['company'].strip() if match else None),
+                    body=body, closed=bool(match) and not unsafe and not conflict, unsafe=unsafe,
+                    conflicting_entity=conflict,
+                    partial_scope=scoped_partial and not bool(match),
+                    requested_fields=['cooperation_start_month','cooperation_platform'])
+    office = re.fullmatch(r'сургалтын\s+албатай\s+уулзах\s+гэсэн\s+юм\s+аа\s*,?\s*'
+        r'хэдэн\s+давхарт\s+байдаг(?:\s+вэ)?\s+мөн\s+тэдний\s+дугаар\s+хэд\s+(?:вэ|бэ)', q, re.I)
+    if office or (re.search(r'сургалтын\s+алб',q,re.I) and 'давхар' in q and re.search(r'дугаар|утас',q,re.I)):
+        return dict(kind='office_floor_phone', requested_fields=['office_floor','office_phone'],
+                    closed=bool(office) and not unsafe,unsafe=unsafe)
+    stats = re.fullmatch(r'(?P<year>(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2})\s+оны\s+'
+        r'(?:хичээлийн\s+жилд\s+)?(?P<department>[а-яёөү ]{3,65}?)\s+тэнхимд\s+'
+        r'нийт\s+хэдэн\s+оюутан\s+суралцаж\s*,?\s*'
+        r'(?:нэгдүгээрээс\s+тавдугаар|1\s*[–—-]\s*5-р)\s+курс\s+тус\s+бүр\s+хэдэн\s+оюутантай\s+(?:вэ|бэ)',q,re.I)
+    if stats and not unsafe:
+        return dict(kind='department_student_table', year=re.sub(r'\s*[–—-]\s*','–',stats['year']),
+                    department=stats['department'], first_course=1,last_course=5,closed=True)
+    arc = re.fullmatch(r'(?P<year>(?:19|20)\d{2}\s*[–—-]\s*(?:19|20)\d{2})\s+оны\s+'
+        r'намар\s+(?P<company>[a-z][a-z0-9 ]{1,65}?)(?:-ийн|ийн)\s+дэмжлэгээр\s+'
+        r'хэдэн\s+мэргэжлийн\s+хичээл\s+хэрэгжүүлсэн\s+(?:вэ|бэ)',q,re.I)
+    if arc and not unsafe:
+        return dict(kind='cooperation_course_count',year=re.sub(r'\s*[–—-]\s*','–',arc['year']),
+                    entity=arc['company'].strip(),closed=True)
+    return None
+
+
 def _closed_structured_question(query):
     """Recognise complete field grammars, never a bag of overlapping words.
 
@@ -1710,6 +1761,173 @@ def _map_window_spans(window, spans):
             return None
         result.append(dict(source=source, start=start, end=end))
     return result
+
+
+def cooperation_source_cards(sources):
+    """Own company headings and their adjacent paragraphs, from source data.
+
+    A shared footer/company list is not a card. A card needs its own descriptive
+    sentence and cooperation paragraph before another company boundary.
+    """
+    cards = []
+    for window in _overlapping_source_windows(sources):
+        lines = _source_lines(window['text'])
+        starts = []
+        for index, (start, end, line) in enumerate(lines):
+            legal = re.fullmatch(r'([A-Za-z][A-Za-z0-9 &.\-]{1,65}?)\s+(?:Co\.,?\s*Ltd\.?|Ltd\.?|Inc\.?)', line)
+            prose = re.match(r'^([A-Za-z][A-Za-z0-9 &.\-]{1,65}?)\s+компани\s+нь\b', line, re.I)
+            if legal or prose:
+                name = (legal or prose)[1].strip()
+                if starts and starts[-1]['name'].casefold() == name.casefold():
+                    continue
+                starts.append(dict(name=name,index=index,start=start,end=end))
+        for position, heading in enumerate(starts):
+            stop = starts[position+1]['start'] if position+1 < len(starts) else len(window['text'])
+            block = window['text'][heading['start']:stop]
+            if (not re.search(r'^'+re.escape(heading['name'])+r'\s+компани\s+нь\b',block,re.I|re.M)
+                    or not re.search(r'тус\s+компанитай.{0,80}хамтын\s+ажиллагаа',block,re.I)):
+                continue
+            # A new non-company section also closes this card. Never borrow a
+            # platform after a domestic-partners/contact/programme heading.
+            tail = [line for line in lines if heading['start'] < line[0] < stop]
+            for left, _, label in tail:
+                if re.fullmatch(r'дотоодын.{0,90}|хамтын\s+ажиллагаатай\s+байгууллагууд|'
+                                r'холбоо\s+барих|хөтөлбөрүүд',label,re.I):
+                    stop=left;break
+            cards.append(dict(entity=heading['name'],window=window,start=heading['start'],end=stop,
+                              heading=(heading['start'],heading['end']),text=window['text'][heading['start']:stop]))
+    return cards
+
+
+def cooperation_entity_choices(sources):
+    choices={}
+    for card in cooperation_source_cards(sources):
+        source=card['window']['sources'][0]
+        choices.setdefault(card['entity'].casefold(),dict(question=card['entity'],entity=card['entity'],
+            source_url=source['url'],source_version=source['version']))
+    return list(choices.values())
+
+
+def _cooperation_field_plan(request,sources):
+    if not request.get('closed') and not request.get('partial_scope'):
+        return None
+    wanted=request.get('entity','').casefold()
+    matches=[card for card in cooperation_source_cards(sources) if card['entity'].casefold()==wanted]
+    if not matches:
+        return None
+    plans=[]
+    for card in matches:
+        window=card['window']; lines=_source_lines(window['text'])
+        local=[line for line in lines if card['start']<=line[0]<card['end']]
+        unsafe=re.search(r'хуучин|хүчингүй|баталгаажаагүй|батлаагүй|няцаа|хэрэв|зөвхөн|'
+                         r'\bбиш\b|тохиолдолд|төлөвлө|магадгүй|хамаарахгүй',card['text'],re.I)
+        index=next(index for index,line in enumerate(lines) if line[0]==card['start'])
+        if unsafe or _unsafe_field_prefix(lines,index):
+            return None
+        years=set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)',request.get('body','')))
+        if request.get('year'):years.update(re.findall(r'\d{4}',request['year']))
+        if not years <= set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)',card['text'])):
+            return None
+        if request['kind']=='cooperation_course_count':
+            candidates=[line for line in local if request['year'] in re.sub(r'\s*[–—-]\s*','–',line[2])
+                and re.search(r'хичээлийн\s+жилийн\s+намрын\s+улиралд',line[2],re.I)
+                and re.search(r'мэргэжлийн\s+\d+\s+хичээл',line[2],re.I)
+                and re.search(r'онлайнаар\s+амжилттай\s+хэрэгжүүл',line[2],re.I)]
+            if len(candidates)!=1:return None
+            spans=[card['heading'],(candidates[0][0],candidates[0][1])]
+            missing=[]
+        else:
+            dates=[line for line in local if re.search(r'тус\s+компанитай\s+(?:19|20)\d{2}\s+оны\s+(?:[1-9]|1[0-2])-р\s+сараас',line[2],re.I)
+                and re.search(r'хамтын\s+ажиллагаа',line[2],re.I)
+                and re.search(r'эхлүүл|эхэл|суурийг\s+тавь',line[2],re.I)]
+            platforms=[line for line in local if re.search(r'тус\s+компанийн\s+хөгжүүлсэн\s+\S+\s+платформыг',line[2],re.I)
+                and re.search(r'сургалт\w*.{0,100}ашиглаж\s+эх(?:эл|л)',line[2],re.I)]
+            if len(dates)!=1 or len(platforms)>1:return None
+            spans=[card['heading'],(dates[0][0],dates[0][1])]
+            if platforms:spans.append((platforms[0][0],platforms[0][1]))
+            missing=[] if platforms else ['cooperation_platform']
+        mapped=_map_window_spans(window,spans)
+        if not mapped:return None
+        notice=(card['entity']+'-ийн энэ эхэд сургалтад ашигласан платформын нэрийг тодорхой заагаагүй байна. '
+                'Өөр компанийн платформын нэрээр орлуулахгүй.' if missing else '')
+        if request.get('partial_scope'):
+            missing.append('unparsed_request_scope')
+            notice+=(' Анхны танигдсан бичвэрийн зарим үг тодорхойгүй тул асуултын бүх шаардлагыг бүрэн тайлбарласан '
+                     'гэж үзэхгүй. Сонгосон байгууллагын эхээс баталсан хэсгийг үзүүлэв; үлдсэн санаагаа бичиж тодруулна уу.')
+        plans.append(dict(kind=request['kind'],parts=mapped,missing_fields=missing,message=notice or None))
+    signatures={tuple(part['source']['text'][part['start']:part['end']] for part in plan['parts']) for plan in plans}
+    return plans[0] if len(signatures)==1 else None
+
+
+def _student_table_plan(request,sources):
+    wanted=_scope_words(request['department'])
+    candidates=[]
+    for window in _overlapping_source_windows(sources):
+        if not any(wanted and wanted <= _scope_words(source.get('title','')) for source in window['sources']):
+            continue
+        lines=_source_lines(window['text'])
+        for index,(start,_,heading) in enumerate(lines[:-2]):
+            if heading.casefold()!='оюутны тоо' or _unsafe_field_prefix(lines,index):continue
+            intro=lines[index+1]
+            match=re.fullmatch(r'((?:19|20)\d{2})\s*[–—-]\s*((?:19|20)\d{2})\s+оны\s+хичээлийн\s+жилд\s+'
+                r'нийт\s+(\d+)\s+оюутан\s+суралцаж\s+байна\.\s+Үүнээс:',intro[2],re.I)
+            if not match or match[1]+'–'+match[2]!=request['year']:continue
+            cursor=index+2;rows=[]
+            while cursor<len(lines):
+                row=re.fullmatch(r'(\d+)-р\s+курс\s+(\d+)\s+оюутан',lines[cursor][2],re.I)
+                if not row:break
+                rows.append((int(row[1]),int(row[2]),lines[cursor]));cursor+=1
+            expected=list(range(request['first_course'],request['last_course']+1))
+            if ([row[0] for row in rows]!=expected or sum(row[1] for row in rows)!=int(match[3])
+                    or cursor>=len(lines)
+                    or re.match(r'мөн|харин|гэхдээ|хэрэв|энэ|тус\b|нэмэлт|анхаар|зөвхөн',lines[cursor][2],re.I)):
+                continue
+            mapped=_map_window_spans(window,[(start,rows[-1][2][1])])
+            if mapped:candidates.append(dict(kind=request['kind'],parts=mapped))
+    signatures={tuple(part['source']['text'][part['start']:part['end']] for part in plan['parts']) for plan in candidates}
+    return candidates[0] if len(signatures)==1 else None
+
+
+def _office_field_plan(request,sources):
+    """Own labelled office cards only; general school contact is unrelated."""
+    labels={'office_floor':'сургалтын албаны байрлах давхар',
+            'office_phone':'сургалтын албаны тусгай утасны дугаар'}
+    missing=list(labels)
+    if not request.get('closed'):
+        return dict(kind=request['kind'],parts=[],missing_fields=missing,
+            message='Асуултын бичвэрт давхрын талаар үгүйсгэсэн эсвэл тодорхойгүй хэлбэр байна. '
+                    'Сургалтын албаны давхар болон тусгай утсыг энэ эхээр баталж чадсангүй; '
+                    'ерөнхий сургуулийн дугаараар орлуулахгүй. Асуултаа бичиж тодруулж болно.')
+    candidates=[]
+    for window in _overlapping_source_windows(sources):
+        lines=_source_lines(window['text'])
+        for index,(start,end,label) in enumerate(lines):
+            if not re.fullmatch(r'сургалтын\s+алба',label,re.I) or _unsafe_field_prefix(lines,index):continue
+            found={};pending=None;invalid=False
+            for left,right,row in lines[index+1:index+8]:
+                if re.search(r'хэрэв|зөвхөн|биш|хуучин|хүчингүй|төлөвлө|байхгүй|хамаарахгүй',row,re.I):
+                    invalid=True;break
+                if re.fullmatch(r'байршил\s*[:：]?',row,re.I):pending=('office_floor',left);continue
+                if re.fullmatch(r'утас\s*[:：]?',row,re.I):pending=('office_phone',left);continue
+                floor=re.fullmatch(r'(?:байршил\s*[:：]?\s*)?\d{1,2}(?:-р)?\s+давхар(?:т)?[.]?',row,re.I)
+                phone=re.fullmatch(r'(?:утас|холбоо\s+барих\s+утас)\s*[:：]?\s*(?:\+976\s*)?\d{8}',row,re.I)
+                if floor:key='office_floor'
+                elif phone or (pending and pending[0]=='office_phone' and re.fullmatch(r'(?:\+976\s*)?\d{8}',row)):
+                    key='office_phone'
+                else:break
+                if key in found:invalid=True;break
+                found[key]=(pending[1] if pending and pending[0]==key else left,right)
+                pending=None
+            if invalid:continue
+            if found:
+                mapped=_map_window_spans(window,[(start,end),*found.values()])
+                if mapped:candidates.append((mapped,[key for key in missing if key not in found]))
+    signatures={tuple(part['source']['text'][part['start']:part['end']] for part in plan[0]) for plan in candidates}
+    if len(signatures)>1:return None
+    parts,missing=candidates[0] if candidates else ([],missing)
+    notice='Хадгалсан эхээр баталж чадаагүй мэдээлэл: '+', '.join(labels[key] for key in missing)+'. '
+    return dict(kind=request['kind'],parts=parts,missing_fields=missing,
+                message=notice+'Сургуулийн ерөнхий утсыг албаны тусгай дугаар гэж орлуулахгүй.' if missing else None)
 
 
 def _structured_window_fields(descriptor, window):
@@ -1836,6 +2054,14 @@ def structured_field_extract(query, sources):
     rephrased as the whole pathway's eligibility. Conflicting candidate fields
     fail closed. This is a development rule, not a general entailment model.
     """
+    followup=followup_field_request(query)
+    if followup:
+        if followup['kind'].startswith('cooperation_'):
+            return _cooperation_field_plan(followup,sources)
+        if followup['kind']=='department_student_table':
+            return _student_table_plan(followup,sources)
+        if followup['kind']=='office_floor_phone':
+            return _office_field_plan(followup,sources)
     descriptor = _closed_structured_question(query)
     if descriptor is None:
         return None

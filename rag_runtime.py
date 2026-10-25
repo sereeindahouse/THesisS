@@ -24,7 +24,8 @@ from historical_fields import event_search_query, event_requirements, event_supp
 from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
     field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
     field_evidence_requirements, missing_field_evidence, closed_field_selection_query,
-    single_purpose_selection_scope, staff_query_scope, structured_field_extract)
+    single_purpose_selection_scope, staff_query_scope, structured_field_extract,
+    followup_field_request, cooperation_entity_choices)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
@@ -67,6 +68,26 @@ SCHEMA = {"type":"object","properties":{
 
 def normalized(text):
     return " ".join(text.split())
+
+
+def broad_school_information_request(query):
+    """A finite generic request, not a keyword rule for every information query.
+
+    Unknown content words, entities, numbers and negation retain their ordinary
+    route. Greeting punctuation/case is immaterial; no raw STT words are fixed.
+    """
+    if re.search(r'\d|[^a-zа-яёөү\s,.!?。！？]',query,re.I):
+        return False
+    value=normalized(query.casefold()).strip(' ,.?!。！？')
+    value=re.sub(r'^сайн\s+(?:байна\s+)?уу(?:\s*[,!?。！？.]\s*|\s+|$)','',value,count=1)
+    words=set(re.findall(r'[a-zа-яёөү]+',value))
+    school={'сургууль','сургуулийн','сургуулиас','коллеж','коллежийн','коосэн','шмтк','nmct'}
+    information={'мэдээлэл','мэдээллийг','мэдээллээ','танилцуулга','танилцуулгыг'}
+    fillers=set('''би надад манай танай тус энэ нь шинэ монгол технологийн тухай талаар
+        ерөнхий дэлгэрэнгүй илүү их авах авмаар авъя авч мэдмээр хүсэж хүсэлтэй
+        хүссэн гэсэн юм аа байна байгаа уу үү юу вэ бэ өгөөч өгнө өгч өгнөө
+        хэлнэ хэлж хэлээд хэлээч хэлээрэй танилцуулаач танилцуулна танилцуулж'''.split())
+    return bool(words & school and words & information and words <= school|information|fillers)
 
 
 def article_evidence_sources(query, sources):
@@ -591,6 +612,8 @@ class GroundedGenerator(LLMRuntime):
                 # whole selection rather than appending to unrelated background.
                 marker_repair = False
                 marker_repair_options = set()
+                marker_repair_closures = {}
+                marker_repair_maximum_ids = 2
                 for attempt in range(2):
                     attempt_started = time.perf_counter()
                     remaining = 100 - (attempt_started - started)
@@ -617,20 +640,40 @@ class GroundedGenerator(LLMRuntime):
                     selected = proposal["unit_ids"]
                     if not isinstance(selected,list) or any(not isinstance(x,str) for x in selected):
                         return finish("invalid_generation")
-                    result['model_selection_ids'] = selected[:3]
+                    result['model_selection_ids'] = selected[:6 if marker_repair else 3]
                     if any(label not in allowed_selection_labels for label in selected):
                         return finish('unknown_evidence_unit')
                     selected = [selection_labels[label] for label in selected]
-                    result["proposed_unit_ids"] = selected[:3]
+                    result["proposed_unit_ids"] = selected[:6 if marker_repair else 3]
                     if proposal["insufficient"]:
                         if selected:
                             return finish("invalid_generation")
                         return finish("insufficient_evidence")
-                    if not 1 <= len(selected) <= (2 if marker_repair else 3):
+                    if not 1 <= len(selected) <= (marker_repair_maximum_ids if marker_repair else 3):
                         return finish("invalid_generation")
-                    if marker_repair and (len(set(selected)) != len(selected)
-                            or frozenset(selected) not in marker_repair_options):
-                        return finish('invalid_evidence_selection')
+                    if marker_repair:
+                        if len(set(selected)) != len(selected):
+                            return finish('invalid_evidence_selection')
+                        if frozenset(selected) not in marker_repair_options:
+                            # An option's required context can be repeated
+                            # explicitly by the model. It is the same logical
+                            # option only when the FULL validated dependency
+                            # closure is identical; arbitrary option unions or
+                            # independent background units remain forbidden.
+                            explicit = resolve_evidence_selection(query, selected, units,
+                                max_characters=1800, max_claims=6)
+                            closure = frozenset(explicit.get('expanded_unit_ids', []))
+                            equivalent = min((option for option, required in marker_repair_closures.items()
+                                if explicit['accepted'] and closure == required
+                                and set(selected) <= required), key=lambda option: (len(option),sorted(option)), default=None)
+                            if equivalent is None:
+                                return finish('invalid_evidence_selection')
+                            canonical = [unit['unit_id'] for unit in units if unit['unit_id'] in equivalent]
+                            result['marker_repair_context_equivalence'] = dict(
+                                proposed_unit_ids=list(selected), canonical_root_ids=canonical,
+                                expanded_unit_ids=explicit['expanded_unit_ids'],
+                                policy='identical_validated_dependency_closure')
+                            selected = canonical
                     resolved = resolve_evidence_selection(query, selected, units, max_characters=1800, max_claims=6)
                     if not resolved["accepted"]:
                         result['selection_diagnostics']={key:value for key,value in resolved.items() if key not in {'claims','accepted'}}
@@ -643,7 +686,7 @@ class GroundedGenerator(LLMRuntime):
                             # original resolver/final guards; a union of allowed
                             # IDs is not itself an allowed selection.
                             missing_markers = resolved.get('missing_markers', [])
-                            options, limit_reason = [], None
+                            options, option_closures, limit_reason = [], {}, None
                             if len(units) > 64:
                                 limit_reason = 'unit_limit'
                             elif missing_markers:
@@ -669,6 +712,7 @@ class GroundedGenerator(LLMRuntime):
                                     if len(render_claims(candidate['claims'])[0]) > MAX_SPEECH_CHARACTERS:
                                         continue
                                     options.append(candidate_ids)
+                                    option_closures[frozenset(candidate_ids)] = frozenset(candidate['expanded_unit_ids'])
                                     if len(options) > 32:
                                         limit_reason = 'option_limit'
                                         break
@@ -676,7 +720,8 @@ class GroundedGenerator(LLMRuntime):
                             if limit_reason:
                                 options = []  # Never offer an arbitrary truncated search result.
                             option_labels = [[stable_to_label[sid] for sid in option] for option in options]
-                            pool_ids = {sid for option in options for sid in option}
+                            pool_ids = {sid for option in options
+                                        for sid in option_closures[frozenset(option)]}
                             pool = [stable_to_label[unit['unit_id']] for unit in units if unit['unit_id'] in pool_ids]
                             result['marker_selection_repair'] = dict(missing_markers=missing_markers,
                                 candidate_unit_ids=[selection_labels[label] for label in pool],
@@ -692,6 +737,9 @@ class GroundedGenerator(LLMRuntime):
                                 return finish(resolved['reason'])
                             marker_repair = True
                             marker_repair_options = {frozenset(option) for option in options}
+                            marker_repair_closures = {option: option_closures[option] for option in marker_repair_options}
+                            marker_repair_maximum_ids = max(2, max(map(len, marker_repair_closures.values())))
+                            result['marker_selection_repair']['maximum_explicit_unit_ids'] = marker_repair_maximum_ids
                             result['selection_repair_reason'] = 'literal_requested_marker_omission'
                             result['selection_repair_minimum_units'] = min(map(len, options))
                             data = json.loads(payload['messages'][1]['content'])
@@ -701,12 +749,15 @@ class GroundedGenerator(LLMRuntime):
                             items = dict(type='string', enum=pool)
                             payload['format']['properties']['unit_ids'] = dict(anyOf=[
                                 dict(type='array', maxItems=0, items=items),
-                                dict(type='array', minItems=1, maxItems=2, items=items)])
+                                dict(type='array', minItems=1, maxItems=marker_repair_maximum_ids, items=items)])
                             data['SELECTION_REPAIR'] = dict(previous_unit_ids=proposal['unit_ids'],
                                 missing_markers=missing_markers, candidate_unit_ids=pool,
-                                minimum_distinct_units=min(map(len, options)), maximum_distinct_units=2,
+                                minimum_distinct_units=min(map(len, options)), maximum_distinct_units=marker_repair_maximum_ids,
+                                maximum_logical_roots=2,
                                 instruction='Choose exactly ONE of ADMISSIBLE_SELECTION_OPTIONS as the complete replacement selection, '
                                             'or return insufficient=true with an empty selection. '
+                                            'Required context IDs of that option may also be listed explicitly; '
+                                            'they do not authorize another independent selection. '
                                             'Do not combine options, add background units or invent an answer.')
                             payload['messages'][1]['content'] = json.dumps(data, ensure_ascii=False)
                             continue
@@ -827,6 +878,33 @@ class ChatRAG:
         self._lock = threading.Lock()
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
 
+    def _school_topic_questions(self, database, package_id, *, allow_draft=False):
+        """Offer existing usable canonical topics from the same pinned package."""
+        if database is None or not hasattr(self.policy,'preview') or not hasattr(self.policy,'faq_accepted'):
+            return []
+        import sqlite3
+        from sqlite_retrieval import ReadOnlyContentStore
+        try:
+            with ReadOnlyContentStore(database) as store:
+                content=store.export(package_id)
+                result=[]
+                for family in ('faq.departments.list','faq.admission.programs.','faq.contact'):
+                    choices=sorted([faq for faq in content['faqs'] if (faq['faq_id']==family
+                        or family.endswith('.') and faq['faq_id'].startswith(family))],
+                        key=lambda faq:faq['faq_id'],reverse=True)
+                    for faq in choices:
+                        if not self.policy.faq_accepted(content,faq['faq_id']):
+                            continue
+                        preview=self.policy.preview(store,faq['faq_id'],allow_draft=allow_draft,package_id=package_id)
+                        if (preview.get('answer_eligible') and preview.get('answer_status')=='complete_in_scope'
+                                and isinstance(faq.get('question'),str) and faq['question'].strip()):
+                            result.append(faq['question']);break
+                return result
+        except (OSError,ValueError,KeyError,sqlite3.Error):
+            # Topic clarification remains useful if no safe stored option can
+            # be read. Never replace it with an invented/cross-package option.
+            return []
+
     def status(self):
         provider = self.generator.status()
         with self._lock:
@@ -892,6 +970,31 @@ class ChatRAG:
         result = self.policy.route(database, query, allow_draft=allow_draft)
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
+        if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
+                and result.get('reason_code') in self.EXTEND|{'missing_entity','constrained_wording_not_exact',
+                    'constraints_not_supported_together'} and broad_school_information_request(query)):
+            result.update(route='D',answer=None,citations=[],candidates=[],clarification=None,
+                reason_code='clarify_topic',clarification_basis='closed_generic_school_information',
+                message='Сургуулийн яг ямар мэдээлэл хэрэгтэй вэ? Тэнхим, мэргэжил, элсэлт эсвэл холбоо барих мэдээллээс сэдвээ сонгоорой.',
+                suggestions=self._school_topic_questions(database,result['package_id'],allow_draft=allow_draft))
+            return self._remember(result,allow_draft)
+        followup_request=followup_field_request(query)
+        if followup_request and followup_request.get('conflicting_entity'):
+            result.update(route='E',answer=None,citations=[],related_sources=[],clarification=None,
+                reason_code='cooperation_entity_conflict',
+                message='Анхны асуултын компани болон дараа сонгосон байгууллага зөрж байна. '
+                        'Нэгийг нь чимээгүй орлуулахгүй; аль компанийн мэдээлэл хэрэгтэйг тодруулна уу.')
+            return self._remember(result,allow_draft)
+        if followup_request and followup_request['kind']=='cooperation_month_platform' and followup_request.get('unsafe'):
+            result.update(route='E',answer=None,citations=[],related_sources=[],clarification=None,
+                reason_code='cooperation_conditions_not_verified',
+                message='Асуултын үгүйсгэл эсвэл нэмэлт нөхцөлийг сарын огноо, платформын энгийн эхээр баталж чадсангүй. '
+                        'Тэр нөхцөлийг хасаж өөр асуултад хариулахгүй; хэрэгтэй хүрээгээ тодруулна уу.')
+            return self._remember(result,allow_draft)
+        field_handoff=bool(followup_request and not result.get('exact_matches') and not result.get('answer')
+            and result.get('reason_code') in {'missing_entity','specific_scope_not_supported',
+                'constraints_not_supported_together','constrained_wording_not_exact',
+                'select_supported_question','no_supported_question_match','unmatched_named_entity'})
         # A quoted news title is not a request to choose among unrelated FAQ
         # partnerships. Preserve the ambiguity, ask for the article identity,
         # and offer no canonical FAQ click that would replace the request.
@@ -918,7 +1021,7 @@ class ChatRAG:
             ((result.get('reason_code') == 'constrained_wording_not_exact' and
               bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query))) or
              (result.get('reason_code') == 'unmatched_numeric_constraints' and bool(re.search(r'\d',query)))))
-        if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff and not year_handoff and not broader_handoff) or result.get('exact_matches'):
+        if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff and not year_handoff and not broader_handoff and not field_handoff) or result.get('exact_matches'):
             return result
         if tuition_handoff or year_handoff or broader_handoff:
             result['faq_scope_handoff'] = {'reason_code': result['reason_code']}
@@ -994,6 +1097,33 @@ class ChatRAG:
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
         evidence = year_evidence_sources(query, candidates)
         evidence=dated_news_evidence_sources(query,article_evidence_sources(query,evidence))
+        if followup_request and followup_request['kind']=='office_floor_phone' and not evidence:
+            missing=structured_field_extract(query,[])
+            result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,
+                reason_code='requested_office_fields_not_supported',message=missing['message'],
+                missing_fields=missing['missing_fields'])
+            return self._remember(result,allow_draft)
+        if followup_request and followup_request['kind']=='cooperation_month_platform':
+            choices=cooperation_entity_choices(getattr(self.retriever,'_rows',None) or candidates)
+            named=[choice for choice in choices if re.search(r'(?<![A-Za-z0-9])'+re.escape(choice['entity'])+r'(?![A-Za-z0-9])',query,re.I)]
+            entity=followup_request.get('entity')
+            if len(named)>1:
+                result.update(route='D',reason_code='cooperation_entity_conflict',answer=None,citations=[],related_sources=[],clarification=None,
+                    message='Асуултад хэд хэдэн компани нэрлэгдсэн байна. Аль компанийн эхэлсэн сар, платформыг асуусныг тодруулна уу; нэгийн мэдээллийг нөгөөд холбохгүй.')
+                return self._remember(result,allow_draft)
+            if entity and choices and entity.casefold() not in {choice['entity'].casefold() for choice in choices}:
+                result.update(route='E',reason_code='cooperation_entity_not_supported',answer=None,
+                    citations=[],related_sources=[],clarification=None,
+                    message='Нэрлэсэн компанийн хамтын ажиллагааны сар, платформыг энэ эхээр баталж чадсангүй. '
+                            'Өөр компанийн эхээр орлуулахгүй.')
+                return self._remember(result,allow_draft)
+            if not entity and not named and choices:
+                result.update(route='D',reason_code='missing_cooperation_entity',answer=None,citations=[],
+                    related_sources=[],message='Аль компанийн хамтын ажиллагааны эхэлсэн сар, сургалтад ашигласан платформыг асууж байна вэ?',
+                    clarification=dict(kind='missing_cooperation_entity',
+                        question='Аль компанийн хамтын ажиллагааг асууж байна вэ?',options=choices),
+                    requested_fields=followup_request['requested_fields'])
+                return self._remember(result,allow_draft)
         staff = staff_query_scope(query, evidence, catalog=getattr(self.retriever, '_rows', evidence))
         if staff:
             evidence = staff['sources']
@@ -1119,7 +1249,24 @@ class ChatRAG:
                     message='Бичгийн болон ярилцлагын шалгалтын үргэлжлэх хугацааг хоёуланг нь батлах хэсэг энэ хайлтаар олдсонгүй. Нэг шалгалтын минут эсвэл оноог нөгөөгийн хугацаагаар орлуулахгүй.')
                 return self._remember(result,allow_draft)
             structured = structured_field_extract(query, evidence)
+            if not structured and followup_request and followup_request.get('closed'):
+                kind=followup_request['kind']
+                if kind in {'cooperation_month_platform','cooperation_course_count','department_student_table','office_floor_phone'}:
+                    labels=('нэрлэсэн компанийн өөрийн он, хичээл, платформын холбоог' if kind.startswith('cooperation_')
+                            else 'нэрлэсэн тэнхимийн өөрийн он, нийт болон курс тус бүрийн бүтэн хүснэгтийг'
+                            if kind=='department_student_table' else 'сургалтын албаны өөрийн давхар, тусгай утсыг')
+                    result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,
+                        reason_code='requested_source_fields_not_supported',
+                        message='Асуусан '+labels+' энэ хайлтын эхээр зөрүүгүй баталж чадсангүй. '
+                                'Өөр байгууллага, он эсвэл хөрш хэсгийн мэдээллээр орлуулахгүй.')
+                    return self._remember(result,allow_draft)
             if structured:
+                if not structured['parts']:
+                    result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],
+                        clarification=None,reason_code='requested_office_fields_not_supported',
+                        message=structured['message'],missing_fields=structured.get('missing_fields',[]))
+                    result['rag'].update(reason='requested_office_fields_not_supported',field_extract_kind=structured['kind'])
+                    return self._remember(result,allow_draft)
                 field_units = exact_field_units(structured['parts'])
                 field_selection = resolve_evidence_selection(query, [field_units[-1]['unit_id']],
                     field_units, max_characters=1800, max_claims=6)
@@ -1127,7 +1274,8 @@ class ChatRAG:
                     claims = field_selection['claims']
                     answer, cited = render_claims(claims)
                     original_sources = {source['source_id']: source for source in evidence}
-                    result.update(route='A', answer=answer, answer_kind='official_website_extract',
+                    partial=bool(structured.get('missing_fields'))
+                    result.update(route='A', answer=answer, answer_kind='partial_official_website_extract' if partial else 'official_website_extract',
                         reason_code='source_field_lookup', related_sources=[], suggestions=[],
                         citations=[dict(document_id=sid, version=original_sources[sid]['version'],
                             title=original_sources[sid]['title'],
@@ -1136,8 +1284,8 @@ class ChatRAG:
                             source_url_or_filename=original_sources[sid]['url'],
                             retrieved_at=original_sources[sid]['retrieved_at'],
                             source_accepted_for_project=True, school_staff_approval=False) for sid in cited],
-                        message='Асуусан талбарыг өөрийн гарчиг, нөхцөлтэй нь эхээс үг өөрчлөхгүй үзүүлэв. '
-                                'Эхийн он, огноог нягтлаарай.')
+                        message=structured.get('message') or 'Асуусан талбарыг өөрийн гарчиг, нөхцөлтэй нь эхээс үг өөрчлөхгүй үзүүлэв. '
+                                'Эхийн он, огноог нягтлаарай.',missing_fields=structured.get('missing_fields',[]))
                     result['rag'].update(reason='source_labelled_fields_no_generation',
                         field_extract_kind=structured['kind'], claims=claims,
                         selected_unit_ids=field_selection['selected_unit_ids'],

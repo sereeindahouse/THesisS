@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import secrets
 import sqlite3
@@ -44,6 +45,35 @@ def _content_length(headers):
     return int(lengths[0])
 
 
+def _transcription_corrector(root, rag, supplied=None):
+    """Explicit local-project opt-in; never replace environment/operator intent."""
+    if supplied is not None:
+        return supplied
+    runtime = LLMRuntime(root)
+    if (runtime.configured or 'THESIS_LLM_MODEL' in os.environ
+            or 'THESIS_OLLAMA_URL' in os.environ):
+        return runtime
+    try:
+        path = root / 'runtime' / 'rag-model.json'
+        if path.stat().st_size > 16384:
+            return runtime
+        config = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return runtime
+    if not isinstance(config, dict) or config.get('stt_correction_from_rag') is not True:
+        return runtime
+    generator = getattr(rag, 'generator', None)
+    if getattr(generator, 'configured', False) is not True:
+        return runtime
+    model, base_url = getattr(generator, 'model', None), getattr(generator, 'base_url', None)
+    if not isinstance(model, str) or not isinstance(base_url, str):
+        return runtime
+    # Copy validated connection settings into a fresh suggestion runtime. RAG's
+    # prompt, transport, counters, status cache and locks are never reused.
+    candidate = LLMRuntime(root, model=model, base_url=base_url)
+    return candidate if candidate.configured else runtime
+
+
 def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None, teacher_service=None):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
@@ -52,8 +82,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     review = review_service if review_service is not None else ListeningReview(root)
 
     content_policy = ContentUsePolicy(root)
-    llm = llm_service if llm_service is not None else LLMRuntime(root)
     rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
+    llm = _transcription_corrector(root, rag, llm_service)
     clarification_context = clarification_service if clarification_service is not None else ClarificationContext()
     explorer = SourceExplorer(root,content_database=database)
     releases = ContentReleaseManager(root)
@@ -230,13 +260,18 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
         def do_GET(self):
             if not self.valid_host():
                 return self.error(403, "Зөвхөн localhost хаягаас нээнэ.")
-            if self.headers.get("Sec-Fetch-Site") == "cross-site":
+            path = unquote(urlsplit(self.path).path)
+            # A top-level link may come from another site. Only these static
+            # HTML shells may open; API/admin/assets/media keep their guards.
+            public_navigation = (path in {'/', '/index.html', '/data', '/data.html'}
+                and self.headers.get('Sec-Fetch-Mode') == 'navigate'
+                and self.headers.get('Sec-Fetch-Dest') == 'document')
+            if self.headers.get("Sec-Fetch-Site") == "cross-site" and not public_navigation:
                 return self.error(403, "Өөр сайтаас локал өгөгдөл уншихгүй.")
             origin = self.headers.get('Origin')
             port_number = self.server.server_address[1]
             if origin and origin not in {f'http://127.0.0.1:{port_number}', f'http://localhost:{port_number}'}:
                 return self.error(403, 'Өөр сайтаас локал өгөгдөл уншихгүй.')
-            path = unquote(urlsplit(self.path).path)
             if path == '/api/teachers':
                 return self.send_json(200, {**teachers.status(), 'profiles': teachers.catalog()})
             if path.startswith('/api/teacher-media/'):

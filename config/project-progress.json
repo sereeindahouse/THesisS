@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-24",
+  "updated_date": "2026-10-25",
   "target_date": "2026-11-10",
   "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "10.24: бодит браузерийн мод/карт шалгалт; RAG24development23бүрэн/1partial. RawSTT36.02%хэвээр.",
-  "status_basis": "Actual Brave desktop/narrow QA9checks;1148tests;24+12actualHTTP;previous2TTSdecode;rawSTTtrial rejected.",
+  "current_week": "10.25: бодит хэрэглээний RAG/тодруулга, STT засварын санал, TTS ба Brave засвар. Raw STT 36.02% хэвээр.",
+  "status_basis": "1239 local tests;12 observed development handling checks;4 final Brave checks;1 actual browser STT;3 response-bound TTS. Not human accuracy.",
   "milestones": [
     {
       "id": "schema",
@@ -42,7 +42,7 @@
       "id": "grounded-rag",
       "label": "Эхтэй Gemma хариулт ба fallback",
       "state": "done",
-      "detail": "Gemma C замд ID сонгож, сервер үгчлэн сэргээнэ. Дөрвөн бүтэцтэй асуулт A/0 LLM. Ижил 24 асуултад 23 бүрэн/1 хэсэгчилсэн; бүрэн staff roster батлагдаагүй.",
+      "detail": "Gemma C замд эхийн ID сонгоно. Компани/он тодруулахад анхны хүсэлт хадгалагдана; дутуу талбарыг текст/дуугаар хэлнэ. Өмнөх24-ийн23/1 нь түүхэн development үнэлгээ; өнөөдрийн12 handling PASS нь12бүрэнхариулт эсвэл accuracy биш.",
       "evidence": [
         "rag_runtime.py",
         "tools/evaluate_answer_quality.py"
@@ -52,7 +52,7 @@
       "id": "voice-stability",
       "label": "Дууны урсгалын тогтвортой ажиллагаа",
       "state": "in_progress",
-      "detail": "Raw WER 36.02% хэвээр; patience2-ийн шинэ 19 гаралт сайжруулаагүй тул нэвтрүүлээгүй. Хоёр response-bound TTS decode тэнцсэн; хүний шинэ сонсголын оноо байхгүй.",
+      "detail": "Raw WER 36.02% хэвээр. Raw текстийг хадгалсан, блоклохгүй LLM засварын санал + explicit apply ажиллав. 1 бодит STT, 3 response-bound TTS; нэг дуу Brave дээр дуустал тоглосон. Хүний шинэ сонсголын оноо биш.",
       "evidence": [
         "voice_runtime.py",
         "requirements.txt"
@@ -2188,6 +2188,117 @@
       "Raw STT WER36.02% remains; no acoustic-model improvement demonstrated.",
       "Direct-A TTS sample still contains rendered citation indices; speech presentation needs a separate review.",
       "Independent human quality evaluation, permanent hosting, clean-machine installation and final thesis review remain."
+    ]
+  },
+  "actual_user_followup_20261025": {
+    "date": "2026-10-25",
+    "scope": "Observed development failures and technical integration; not held-out or human accuracy.",
+    "local_tests": {
+      "run": 1239,
+      "passed": 1239,
+      "skipped": 0,
+      "seconds": 144.163,
+      "source_unchanged": true
+    },
+    "actual_http": {
+      "cases": 12,
+      "expected_handling_pass": 12,
+      "full_answer_accuracy": null,
+      "routes": {
+        "D": 2,
+        "A": 4,
+        "C": 4,
+        "E": 2
+      },
+      "llm_calls": 5,
+      "exact_source_claims": 13,
+      "held_out": false,
+      "human_accuracy": null,
+      "missing_source": [
+        "Sakura platform name not stated in saved source.",
+        "Training-office floor and own phone absent from saved corpus."
+      ]
+    },
+    "rag": {
+      "company_scope_preserved": true,
+      "month_and_platform_request_preserved_on_option_click": true,
+      "mechanical_table_excludes_club": true,
+      "explicit_context_repair_requires_exact_valid_dependency_closure": true,
+      "broad_school_request": "Clarify topic before retrieval; observed generic q01 text now D/0 LLM.",
+      "original_source_rows": 196,
+      "original_nonspace_characters_lost": 0
+    },
+    "clarification": {
+      "actual_brave_company_option_checks": 2,
+      "original_query_retained": true,
+      "explicit_year_reply_retains_scope": true,
+      "one_shot_replay_http": 409
+    },
+    "llm": {
+      "rag_role": "Select source-unit IDs; server restores verbatim source text.",
+      "stt_role": "Separate opt-in local correction suggestion; user explicitly applies it.",
+      "actual_correction_provider_requests": 4,
+      "automatic_application": false,
+      "public_clone_private_opt_in_present": false,
+      "lexical_count_identity_and_negation_guards": "Bounded safeguards, not semantic correctness proof."
+    },
+    "stt": {
+      "raw_wer_percent": 36.02,
+      "raw_cer_percent": 16.9,
+      "reference_pairs": 13,
+      "raw_word_errors": 67,
+      "raw_reference_words": 186,
+      "raw_character_errors": 184,
+      "raw_reference_characters": 1089,
+      "quality_improvement_demonstrated": false,
+      "actual_new_q01_browser_inferences": 1,
+      "technical_trial_not_benchmark": true,
+      "archived_correction_replay_promoted": false,
+      "synthetic_controls_promotion_gate": "failed"
+    },
+    "tts": {
+      "actual_new_provider_requests": 3,
+      "response_bound": true,
+      "partial_missing_field_notice_spoken": true,
+      "source_citation_indices_not_spoken": true,
+      "decoded_seconds": [
+        36.72,
+        23.4,
+        36.72
+      ],
+      "actual_brave_playback_ended_seconds": 36.72,
+      "new_human_score": null
+    },
+    "browser": {
+      "name": "Brave",
+      "fresh_public_document_navigation_worked": true,
+      "current_targeted_checks": 4,
+      "current_targeted_checks_passed": 4,
+      "authenticated_api_and_explicit_foreign_origin_guards_retained": true,
+      "new_permission_or_extension_installation_required": false
+    },
+    "knowledge_tree": {
+      "canonical_topics": 33,
+      "canonical_topic_edges": 32,
+      "core_processing_nodes": 16,
+      "core_processing_edges": 19,
+      "temporary_no_llm_showcase_integrated": false,
+      "scope": "Processing diagram is not a topic taxonomy, trained weights or model reasoning trace."
+    },
+    "preserved": {
+      "original_roadmap": true,
+      "databases": true,
+      "source_rows": 196,
+      "human_files": 52
+    },
+    "own_training": false,
+    "new_model_downloads": 0,
+    "human_accuracy": null,
+    "remaining": [
+      "Raw STT WER36.02% is unresolved; correction suggestion is not acoustic improvement.",
+      "Missing source fields require verified school content; no invented office contact or platform.",
+      "Teacher source summary5 versus4 explicit profiles remains unresolved.",
+      "Independent human evaluation, permanent HTTPS, clean-machine recovery and final thesis review remain."
     ]
   }
 }
