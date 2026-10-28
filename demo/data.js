@@ -128,6 +128,40 @@
     const section=element('section',`plan-task-group ${className}`);section.append(element('h4','',title));const list=element('ul');
     items.forEach(text=>list.append(element('li','',planText(text))));section.append(list);target.append(section);
   }
+  function renderProjectNote(progress) {
+    const board=$('projectNoteBoard'),target=$('projectNoteLenses'),route=$('projectNoteRoute'),link=$('projectNoteLink');
+    target.replaceChildren();route.replaceChildren();board.hidden=true;link.hidden=true;link.removeAttribute?.('href');
+    const note=progress.project_note;
+    if(!note||typeof note!=='object'||Array.isArray(note))return;
+    const text=value=>typeof value==='string'?planText(value.trim().slice(0,700)):'';
+    const definitions=[['goal','01','Зорилго','◎'],['current','02','Одоо хийж буй','◷'],['evidence','03','Баталсан зүйл','✓'],['issues','04','Шийдэх зүйл','!'],['next','05','Дараагийн алхам','→']];
+    const lenses=Array.isArray(note.lenses)?note.lenses:[];
+    // A partial or duplicated set must not look like a complete project view.
+    if(!text(note.current_focus)||lenses.length!==definitions.length||definitions.some(([id])=>lenses.filter(item=>item&&item.id===id).length!==1))return;
+    $('projectNoteFocus').textContent=text(note.current_focus);$('projectNoteStatus').textContent=text(note.status_label);
+    $('projectNoteUpdated').textContent=note.updated_date?`Шинэчилсэн · ${date(text(note.updated_date))}`:'Шинэчилсэн огноо бүртгээгүй';
+    definitions.forEach(([id,number,label,glyph])=>{
+      const item=lenses.find(value=>value.id===id),card=element('article',`project-lens lens-${id}`),heading=element('div','project-lens-heading'),icon=element('span','project-lens-icon',glyph);
+      icon.setAttribute('aria-hidden','true');heading.append(icon,element('span','project-lens-number',number),element('h3','',label));card.append(heading);
+      const summary=text(item.summary);if(summary)card.append(element('p','project-lens-summary',summary));
+      const items=planStrings(item.items).slice(0,4);if(items.length){const list=element('ul','project-lens-items');items.forEach(value=>list.append(element('li','',text(value))));card.append(list);}
+      target.append(card);
+    });
+    const streams=Array.isArray(note.workstreams)?note.workstreams:[];
+    if(streams.length===3&&['I','II','III'].every(id=>streams.filter(item=>item&&item.id===id).length===1)){
+      ['I','II','III'].forEach(id=>{
+        const item=streams.find(value=>value.id===id),state=['verified_pack','next','supporting','active','planned'].includes(item.state)?item.state:'planned',step=element('li',`project-route-step route-${state}`),head=element('div','project-route-heading');
+        head.append(element('span','project-route-id',id),element('h3','',text(item.label)||`Хэсэг ${id}`));step.append(head,element('strong','project-route-state',text(item.status_label)),element('p','',text(item.detail)));route.append(step);
+      });
+    }
+    route.hidden=!route.children.length;
+    // Only this reviewed public note can become an active link. Other API text
+    // stays inert, including local/private paths and untrusted URL schemes.
+    if(note.note_url==='https://github.com/sereeindahouse/THesisS/blob/main/CORE/PROJECT-NOTE.mn.md'){
+      link.href=note.note_url;link.hidden=false;
+    }
+    board.hidden=false;
+  }
   function renderPlanCurrent(plan) {
     const target=$('planCurrent');target.replaceChildren();const current=plan.current&&typeof plan.current==='object'?plan.current:{};
     const header=element('div','plan-current-header');header.append(element('span','eyebrow muted','ЯГ ОДОО'),element('h3','',`${str(current.week_id||plan.current_week_id)} · ${planText(current.title||'Одоогийн ажил')}`));
@@ -203,6 +237,7 @@
   }
   function renderProgress() {
     const progress=state.data.progress||{},milestones=Array.isArray(progress.milestones)?progress.milestones:[],done=milestones.filter(m=>milestoneState(m.state)==='done').length;
+    renderProjectNote(progress);
     renderProjectPlan(progress);
     const summary=$('progressSummary');summary.replaceChildren();
     const counts=element('div','progress-count-card'),figure=element('div','progress-number',done);figure.append(element('small','',` / ${milestones.length}`));const description=element('div');description.append(element('h2','','Ажиллах хувилбарын дууссан шалгуур'),element('p','',progress.scope_label||'Доорх ажлын жагсаалтын төлөв. Дипломын нийт хувь гэж үзэхгүй.'));counts.append(figure,description);

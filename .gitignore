@@ -375,3 +375,11 @@ __pycache__/
 !/papers/thesis-draft.mn.md
 !/CORE/AUDIT-FOLLOWUP-2026-10-28.mn.md
 !/CORE/TEACHER-QUESTIONS.mn.md
+
+# Public, concise project handoff and its deterministic workspace snapshot.
+!/AGENTS.md
+!/CORE/PROJECT-NOTE.mn.md
+!/tools/sync_project_note.py
+!/tests/test_project_note.py
+!/tests/test_sync_project_note.py
+!/CORE/SCHOOL-THESIS-GUIDE.mn.md

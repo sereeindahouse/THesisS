@@ -302,3 +302,66 @@ def public_plan(root, status=None, today=None):
                     components=components, workstreams=workstreams, policy_notice=notice)
     except (OSError, RuntimeError, UnicodeError, ValueError, TypeError, OverflowError):
         return _unavailable()
+
+
+def public_project_note(progress, metadata):
+    """Five bounded perspectives on the existing plan, without reading notes.
+
+    The long handoff note remains a reviewed public Markdown file. This view
+    reuses the current plan's goals/work/evidence/next fields so the visual
+    overview does not become a second manually entered research result.
+    No configured path, URL, evidence file or runtime record is opened here.
+    """
+    unavailable = dict(available=False, lenses=[], workstreams=[])
+    if (not isinstance(progress, dict) or not isinstance(metadata, dict)
+            or type(metadata.get('schema_version')) is not int
+            or metadata.get('schema_version') != 1):
+        return unavailable
+    plan = progress.get('plan')
+    if not isinstance(plan, dict) or plan.get('available') is not True:
+        return unavailable
+    declared = metadata.get('workstreams')
+    if (not isinstance(declared, list) or len(declared) != 3
+            or any(not isinstance(item, dict) for item in declared)
+            or [item.get('id') for item in declared] != ['I', 'II', 'III']):
+        return unavailable
+    goals = plan.get('workstreams')
+    if (not isinstance(goals, list) or len(goals) != 3
+            or any(not isinstance(item, dict) for item in goals)
+            or [item.get('id') for item in goals] != ['I', 'II', 'III']):
+        return unavailable
+    states = {'verified_pack', 'next', 'supporting', 'active', 'planned'}
+    workstreams = []
+    for item, goal in zip(declared, goals):
+        if not isinstance(item.get('state'), str) or item['state'] not in states:
+            return unavailable
+        workstreams.append(dict(id=item['id'], label=_text(goal.get('title'), 300),
+            state=item['state'], status_label=_text(item.get('status_label'), 300),
+            detail=_text(item.get('detail'), 1000)))
+    current = plan.get('current')
+    current = current if isinstance(current, dict) else {}
+    active = _text(metadata.get('current_focus'), 700)
+    label = _text(metadata.get('status_label'), 300)
+    updated = _text(metadata.get('updated_date'), 10)
+    try:
+        date.fromisoformat(updated)
+    except (TypeError, ValueError):
+        return unavailable
+    if not active or not label:
+        return unavailable
+    next_actions = _strings(current.get('next'), count=5, limit=1000)
+    goals_text = [item['id'] + ' · ' + text for item in goals
+                  for text in _strings(item.get('goal'), count=1, limit=700)]
+    return dict(available=True, updated_date=updated, current_focus=active, status_label=label,
+        note_url='https://github.com/sereeindahouse/THesisS/blob/main/CORE/PROJECT-NOTE.mn.md',
+        lenses=[
+            dict(id='goal', summary='Гурван үр дүнгээр зорилгод хүрнэ.', items=goals_text),
+            dict(id='current', summary=active, items=[label, _text(current.get('status_label'), 500)]),
+            dict(id='evidence', summary=_text(progress.get('status_basis'), 1000),
+                 items=_strings(current.get('done'), count=3, limit=1000)),
+            dict(id='issues', summary='Шийдэх болон хэмжих зүйлс тусдаа хэвээр.',
+                 items=_strings(current.get('in_progress'), count=4, limit=1000)
+                       + _strings(current.get('human_tasks'), count=2, limit=700)),
+            dict(id='next', summary=next_actions[0] if next_actions else 'Дараагийн алхам хараахан бүртгэгдээгүй.',
+                 items=next_actions[1:]),
+        ], workstreams=workstreams)
