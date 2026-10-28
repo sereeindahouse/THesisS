@@ -1549,7 +1549,7 @@ def _announcement_field_present(text, field):
 
 
 def field_search_expansions(query):
-    """Search separately for the two explicitly compared admission stages.
+    """Search separately for the two requested admission confirmation roles.
 
     These are role words, not source IDs, amounts or reference answers. The
     caller must validate each supplemental candidate against its own field and
@@ -1561,6 +1561,28 @@ def field_search_expansions(query):
     terms={'registration':'элсэлтийн бүртгэл бүртгэлийн хураамж баталгаажна',
            'enrolment':'элсэн суралцах баталгаажна суралцах гэрээ сургалтын төлбөр'}
     return [dict(requirement=item,query=terms[item['stage']]) for item in requirements]
+
+
+def _payment_to_enrolment_question(q):
+    """Recognise a payment/registration premise linked to enrolment status.
+
+    This describes two evidence roles; it does not decide that a paid fee
+    grants student status. Ordinary fee/account/refund questions and olympiad
+    registration retain their own scope. Unknown words are not repaired.
+    """
+    if (not re.search(r'бүртгэл\w*|бүртгүүл\w*|элсэлт\w*\s+хураамж\w*', q)
+            or re.search(r'олимпиад|буцаа|цуцла|дотуур\s+байр|тэтгэл|цалин', q)):
+        return False
+    premise = (re.search(r'бүртгэл\w*\s+баталгааж\w*', q)
+               or (re.search(r'хураамж\w*|төлбөр\w*|мөнг[өэ]\w*', q)
+                   and re.search(r'төл\w*|шилжүүл\w*', q)))
+    outcome = re.search(
+        r'оюутан\s+бол\w*|оюутны\s+эрх\w*\s+баталгааж\w*|'
+        r'элссэн\s+(?:гэсэн|гэж|бол|тооц)|'
+        r'элсэн\s+суралцах(?:\s+эрх\w*)?\s+(?:ав\w*|баталгааж\w*|бол\w*)|'
+        r'суралцах\s+эрх(?:\s+(?:маань|минь|шууд))?\s+(?:шууд\s+)?баталгааж\w*|'
+        r'элсэх\s+эрх\w*\s+(?:ав\w*|баталгааж\w*)', q)
+    return bool(premise and outcome)
 
 
 def field_evidence_requirements(query):
@@ -1630,9 +1652,9 @@ def field_evidence_requirements(query):
 
     shared_confirmation = re.search(r'(?:бүртгэл\w*\s+(?:болон|ба)\s+элсэлт\w*|'
         r'элсэлт\w*\s+(?:болон|ба)\s+бүртгэл\w*)\s+баталгааж',q)
-    if (paired and (shared_confirmation or
+    if (_payment_to_enrolment_question(q) or (paired and (shared_confirmation or
             (re.search(r'бүртгэл\w*\s+баталгааж',q)
-             and re.search(r'элсэн\s+суралцах\w*\s+баталгааж',q)))):
+             and re.search(r'элсэн\s+суралцах\w*\s+баталгааж',q))))):
         add('admission_registration_confirmation','бүртгэл баталгаажих нөхцөл',[],
             'admission_stage',stage='registration')
         add('admission_enrolment_confirmation','элсэн суралцах баталгаажих гэрээ ба төлбөрийн нөхцөл',[],

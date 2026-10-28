@@ -153,6 +153,114 @@ def personal_identifier_request(query):
     return False
 
 
+def personal_record_request(query):
+    """Recognise a private student-record lookup, not public policy or help.
+
+    A person/possessive, a record field and a request to retrieve that record
+    must occur together. General requirements, instructions for checking one's
+    own portal and supplied-value conditional questions remain ordinary school
+    questions. This is a bounded wording guard, not identity or account access.
+    """
+    if not isinstance(query, str):
+        return False
+    owner = (r'(?<!\w)(?:миний|минийх|надад|би|бидний|өөрийн|түүний|'
+             r'оюутны|сурагчийн|суралцагчийн)(?!\w)|'
+             r'(?<!\w)манай\s+(?:ангийн|бүлгийн|курсын)(?!\w)|'
+             r'(?<!\w)[а-яөүё]\.\s*[а-яөүё]{2,40}')
+    academic = (r'(?<!\w)(?:голч(?:оо|ийн|ийг)?(?:\s+дүн(?:г|гээ|гийн)?)?|'
+                r'дүн(?:г|гээ|гийн(?:\s+хуудас)?)?|ирц(?:ээ|ийн|ийг)?)(?!\w)')
+    payment = (r'(?<!\w)(?:төлбөр(?:өө|ийн|ийг|ийнхээ)?|хураамж(?:аа|ийн|ийг)?|'
+               r'мөнгө(?:өө|ний|ийг)?|гүйлгээ(?:ний|гээ|г)?|данс(?:ны|аа)?)(?!\w)')
+    record_state = (r'үлдэгд(?:эл|лээ|лийг|лийн)|түүх|төлсөн|төлөөгүй|төлөгдсөн|'
+                    r'орсон|шилжсэн|өр(?:тэй|ийг|ийн)?(?!\w)|баримт|баталгаажсан')
+    possessive = (r'(?<!\w)(?:голчоо|дүнгээ|ирцээ|төлбөрөө|хураамжаа|мөнгөө|'
+                  r'үлдэгдлээ|гүйлгээгээ)(?!\w)|'
+                  r'(?<!\w)(?:минь|маань)(?!\w)')
+    lookup = (r'(?<!\w)(?:хэд(?:эн)?|ямар|аль|харуул\w*|үзүүл\w*|шалг\w*|'
+              r'хэл\w*|өг(?:нө|өөч|ч|өх)|гарга\w*|илгээ\w*|мэдмээр|мэдэх)(?!\w)')
+    help_or_policy = (r'(?<!\w)(?:яаж|хэрхэн|хаана(?:ас)?|яагаад|шаардлага\w*|шаарддаг|'
+                      r'тооцдог|тооцоолдог|тооцох|тооцоолох)(?!\w)|'
+                      r'байх\s+ёстой|юу\s+гэсэн\s+үг|ямар\s+(?:систем|цэс|хэсэг)')
+    direct_lookup = (r'харуул\w*|үзүүл\w*|(?:шалг\w*|хэл\w*|гарга\w*)\s+'
+                     r'(?:(?:надад|нь|даа)\s+)?өг(?:өөч|нө|ч|өх)|'
+                     r'(?<!\w)хэд\s+(?:гарсан|байгааг|гарсныг)(?!\w)')
+    for clause in re.split(r'[!?;\n]|\.(?=\s+(?:миний|би|надад|харин|мөн|түүний)\b)',
+                           query.casefold()):
+        field = re.search(academic, clause)
+        financial_record = bool(re.search(payment, clause) and re.search(record_state, clause))
+        if not (field or financial_record):
+            continue
+        if not (re.search(owner, clause) or re.search(possessive, clause)):
+            continue
+        if financial_record and not field:
+            # A supplied payment is an input to an admission-policy question,
+            # not a request to discover whether that payment is in an account.
+            # Keep an additional explicit account lookup in the same clause.
+            premise = re.search(payment + r'\s+(?:төлсөн|төлөгдсөн|шилжүүлсэн)\s+'
+                                r'(?:бол|байвал)(?!\w)', clause)
+            outcome = re.search(r'оюутан\s+бол\w*|суралцах\s+эрх\w*|'
+                                r'элсэх\s+эрх\w*|элсэн\s+суралцах', clause)
+            if premise and outcome:
+                remainder = clause[:premise.start()] + ' ' + clause[premise.end():]
+                other_account_request = (re.search(payment, remainder)
+                    and re.search(record_state, remainder)
+                    and re.search(lookup + r'|(?<!\w)(?:уу|үү|юу|эсэх)(?!\w)', remainder))
+                if not other_account_request:
+                    continue
+        if re.search(r'(?:харуул|үзүүл|шалг|хэл|гарга|илгээ)\w*\s+'
+                     r'(?:хэрэггүй|шаардлагагүй)(?!\w)|'
+                     r'(?<!\w)(?:битгий|бүү)\s+(?:харуул|үзүүл|шалг|хэл|гарга|илгээ)', clause):
+            continue
+        # A supplied GPA/attendance is an input to a policy question, not a
+        # request to discover a hidden recorded value. A separate preceding
+        # lookup clause is still handled independently by this loop.
+        if field:
+            following = clause[field.end():]
+            if re.match(r'\s+(?:биш|асуугаагүй|хүсээгүй)(?!\w)', following):
+                continue
+            supplied = re.match(r'\s*(?:маань\s+|минь\s+)?\d+(?:[.,]\d+)?\s*%?'
+                                r'\s*(?:байвал|бол|болбол|хүрвэл|тохиолдолд|'
+                                r'(?:байсан|байгаа)\s+бол|гэж\s+үзвэл)(?!\w)', following)
+            if supplied:
+                continue
+        if re.search(help_or_policy, clause) and not re.search(direct_lookup, clause):
+            continue
+        # A yes/no question about a recorded payment is also an account lookup.
+        payment_check = financial_record and bool(re.search(r'(?<!\w)(?:уу|үү|юу|эсэх)(?!\w)', clause))
+        if re.search(lookup, clause) or payment_check:
+            return True
+    return False
+
+
+def personal_record_service_request(query):
+    """Identify help accessing one's records without claiming a record lookup.
+
+    The application has no student-account/portal integration. This capability
+    boundary is separate from published grading methods, eligibility policies,
+    admission-result announcements and a supplied GPA used in a condition.
+    """
+    if not isinstance(query, str):
+        return False
+    for clause in re.split(r'[!?;\n]', query.casefold()):
+        if not re.search(r'(?<!\w)(?:яаж|хэрхэн|хаана(?:ас)?)(?!\w)', clause):
+            continue
+        if re.search(r'тооц|шаардлага|шаарддаг|байх\s+ёстой', clause):
+            continue
+        owner = re.search(r'(?<!\w)(?:миний|өөрийн|надад)(?!\w)|'
+                          r'(?<!\w)(?:голчоо|дүнгээ|ирцээ|төлбөрөө|үлдэгдлээ)(?!\w)', clause)
+        academic = re.search(r'(?<!\w)(?:голч(?:оо|ийн|ийг)?|дүн(?:г|гээ|гийн)?|'
+                             r'ирц(?:ээ|ийн|ийг)?)(?!\w)', clause)
+        payment = bool(re.search(r'төлбөр|гүйлгээ|хураамж', clause)
+                       and re.search(r'үлдэгд|төлсөн|орсон|түүх|баримт|эсэх', clause))
+        access = re.search(r'хар(?:ах|ж|даг|на)|үз(?:эх|эж|дэг|нэ)|шалг(?:ах|аж|адаг|ана)|'
+                           r'нэвтр|ав(?:ах|ч|даг|на)', clause)
+        if owner and (academic or payment) and access:
+            if re.search(r'\d+(?:[.,]\d+)?\s*(?:байвал|бол|болбол|хүрвэл)(?!\w)', clause):
+                continue
+            return True
+    return False
+
+
 def _requested_year_value(query):
     """A requested output year is distinct from a missing input year scope."""
     if re.search(r'(?<!\w)(?:аль|ямар|хэдэн)\s+(?:хичээлийн\s+жил(?:ийн|д)?|'
@@ -289,6 +397,20 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
         return finish('E',['personal_identifier_outside_scope'],
             'Энэ сургуулийн мэдээллийн систем хүний регистр, паспорт, иргэний үнэмлэхийн дугаар өгөхгүй. '
             'Нийтэлсэн албан утас, имэйлийг асуусан хувийн дугаарын оронд үзүүлэхгүй.')
+
+    if personal_record_request(query):
+        result.update(citations=[], candidates=[], exact_matches=[], binding_faq_id=None)
+        return finish('E', ['personal_record_outside_scope'],
+            'Энэ чат таны болон бусад суралцагчийн хувийн дүн, ирц, төлбөрийн бүртгэлд хандахгүй. '
+            'Өөрийн эрхтэй сургалтын систем эсвэл сургалтын албаар мэдээллээ шалгана уу. '
+            'Ерөнхий элсэлт, сургалтын шаардлагыг хувийн бүртгэлийн хариу болгон орлуулахгүй.')
+
+    if personal_record_service_request(query):
+        result.update(citations=[], candidates=[], exact_matches=[], binding_faq_id=None)
+        return finish('E', ['personal_record_service_unavailable'],
+            'Та өөрийн дүн, ирц эсвэл төлбөрийн бүртгэлээ хаанаас, хэрхэн харахыг асууж байна. '
+            'Энэ чат суралцагчийн хувийн бүртгэлтэй системд холбогдоогүй. '
+            'Тухайн системийн нэр, хаяг, нэвтрэх цэсийг баталгаатай зааж өгөх боломжгүй байна.')
 
     if any(int(start) > int(end) for start, end in YEAR_RANGE_RE.findall(query)):
         return finish('E', ['invalid_year_range'],

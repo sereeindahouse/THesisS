@@ -367,3 +367,11 @@ __pycache__/
 !/tests/test_programme_event_refinement.py
 !/tests/test_rag_direct_scope.py
 !/tests/test_rag_query_scope.py
+
+# Audit follow-up: synthetic wording regressions and a reviewed text-only draft.
+!/tests/test_private_record_scope.py
+!/tests/test_admission_audit_wording.py
+!/tests/test_eligibility_guard.py
+!/papers/thesis-draft.mn.md
+!/CORE/AUDIT-FOLLOWUP-2026-10-28.mn.md
+!/CORE/TEACHER-QUESTIONS.mn.md

@@ -539,13 +539,109 @@ def registration_process_query(query):
     evidence checks rather than being replaced by generic registration steps.
     """
     from website_retrieval import search_terms
-    if re.search(r'хэзээ|хаана|хэд|хураамж|төлбөр|дуус|эхлэх|нээлт|үргэлжил', query.casefold()):
+    if re.search(r'хэзээ|хаана|(?<!\w)хэд\w*|хураамж|төлбөр|дуус|эхлэх|нээлт|үргэлжил', query.casefold()):
         return False
-    terms = set(search_terms(query)) - {'сургууль', 'шинэ', 'монгол', 'сургалт', 'nmct', 'шмтк'}
+    # Normalise only process/action wording in this detection view. Search and
+    # the displayed query still receive the original text. A remaining named
+    # subject, exception or extra requested field must fail the closed grammar.
+    process = re.sub(r'(?<!\w)(?:алхам(?:ыг|ын|аар|аа)?|алхм(?:ууд(?:ыг|ын|аар|аа)?|ыг|ын)|'
+                     r'дараалал(?:ыг|ын|аар|тай)?|дарааллыг|дарааллаар|'
+                     r'үе\s+шат(?:ууд(?:ыг|ын|аар)?|ыг|ын)?)(?!\w)', 'алхм', query.casefold())
+    process = re.sub(r'(?<!\w)(?:хэл(?:ээд|ж|эх|нэ|ээрэй)|тайлбарла(?:ад|ж|на)|'
+                     r'заа(?:ж|гаад|х)|өгнө|бүрийг|бүрээр)(?!\w)', '', process)
+    process = re.sub(r'(?<!\w)хийхэд(?!\w)', 'хийх', process)
+    terms = set(search_terms(process)) - {'сургууль', 'шинэ', 'монгол', 'сургалт', 'nmct', 'шмтк'}
     terms = {term for term in terms if not re.fullmatch(r'(?:19|20)\d{2}', term)}
     return bool(terms and terms <= {'элсэлт', 'бүртгэл', 'алхм', 'онлайн', 'цахим', 'хийх'}
         and terms & {'элсэлт', 'бүртгэл'}
         and (terms & {'алхм', 'онлайн', 'цахим'} or re.search(r'яаж|хэрхэн', query.casefold())))
+
+
+def supplied_grade_study_eligibility(query):
+    """A stated GPA is a premise, not access to an individual grade record.
+
+    This bounded conditional question needs a concrete study-eligibility rule.
+    A job roadmap or a qualitative "high grades" description cannot decide it.
+    No grade scale, cutoff or admission decision is invented here.
+    """
+    if not isinstance(query, str):
+        return False
+    # Bind the number to the supplied grade itself; a date elsewhere in a
+    # public-requirements question is not a personal grade premise. Decimal
+    # punctuation stays inside a clause. No grading scale is inferred.
+    grade = (r'(?<!\w)(?:голч(?:оо|ийн|ийг)?(?:\s+дүн(?:г|гээ|гийн)?)?|'
+             r'gpa(?:-?(?:ийн|ийг))?)(?!\w)\s*[:=]?\s*'
+             r'(?:(?:маань|минь|нь)\s+)?\d+(?:[.,]\d+)?\s*'
+             r'(?:байвал|бол|болбол|хүрвэл|(?:байгаа|байсан)\s+бол|гэж\s+үзвэл)(?!\w)')
+    for clause in re.split(r'[!?;\n]|(?<!\d)\.(?!\d)', query.casefold()):
+        if (re.search(r'асуугаагүй|хүсээгүй|хэрэггүй|шаардлагагүй|(?<!\w)биш(?!\w)', clause)
+                or not re.search(grade, clause)):
+            continue
+        if (re.search(r'япон\w*', clause)
+                and re.search(r'дэвш\w*|суралц\w*|(?<!\w)сурах(?!\w)', clause)
+                and re.search(r'боломж\w*|(?<!\w)эрх(?:тэй|ээ|ийг|ийн)?(?!\w)|'
+                              r'тэнц\w*|болох\s+уу|болно\s+уу', clause)):
+            return True
+    return False
+
+
+def registration_process_excerpt(source):
+    """Copy an ordered source list with its conditions and all supplied steps.
+
+    Roles identify a registration workflow, not a fixed number of steps. The
+    existing physical/DOM parser supplies each whole step's end, so a later
+    condition is not lost merely because it wraps to another line. Gaps,
+    reordering, missing roles or hidden dependency context fail closed.
+    """
+    text = source['text']
+    units = evidence_units([source])
+    steps = []
+    included = set()
+    started = False
+    for unit in units:
+        headings = list(re.finditer(r'(?m)^(\d+)\.\s+([^\n]+)$', unit['text']))
+        if not started:
+            start = next((heading for heading in headings if heading[1] == '1'
+                          and re.fullmatch(r'бүртгүүлэх', heading[2], re.I)), None)
+            if start is None:
+                continue
+            # An explicit condition in the same source prefix must not be
+            # detached by the shortcut. The selector can preserve its context.
+            if re.search(r'хэрэв|зөвхөн|тохиолдолд|\bбиш\b|боловч|харин|хүчингүй',
+                         text[:unit['start'] + start.start()], re.I):
+                return None
+            headings = [heading for heading in headings if heading.start() >= start.start()]
+            started = True
+        elif not headings:
+            if ((re.match(r'хэрэв|зөвхөн|анхаарах\b', unit['text'], re.I)
+                 or unit['text'].splitlines()[0].rstrip().endswith(('.', '!', '?')))
+                    and set(unit.get('context_unit_ids', [])) <= included):
+                included.add(unit['unit_id'])
+                steps[-1]['end'] = unit['end']
+                continue
+            break
+        if not set(unit.get('context_unit_ids', [])) <= included:
+            return None
+        for index, heading in enumerate(headings):
+            if int(heading[1]) != len(steps) + 1:
+                return None
+            body_end = headings[index + 1].start() if index + 1 < len(headings) else len(unit['text'])
+            if not unit['text'][heading.end():body_end].strip():
+                return None
+            steps.append(dict(label=heading[2], start=unit['start'] + heading.start(), end=unit['end']))
+        included.add(unit['unit_id'])
+    labels = [step['label'].casefold() for step in steps]
+    if (not steps or not any(re.fullmatch(r'хураамж\s+төлөх', label) for label in labels)
+            or not any(re.fullmatch(r'хувийн\s+хэсэг', label) for label in labels)):
+        return None
+    excerpt = text[steps[0]['start']:steps[-1]['end']]
+    if re.match(r'\s*\d+\.\s', text[steps[-1]['end']:]):
+        # An oversized/unexposed next step cannot make the preceding prefix
+        # appear to be the complete process.
+        return None
+    if len(excerpt) > 1800:
+        return None
+    return excerpt
 
 
 def _source_extract_candidate(query, sources):
@@ -579,8 +675,7 @@ def _source_extract_candidate(query, sources):
             match = re.search(r'Элсэлтэд оролцох эрх\n(.+?)\nХолбоо барих', text, re.S)
             excerpt = match.group(1) if match else None
         elif registration_process_query(query):
-            match = re.search(r'1\. Бүртгүүлэх\n.+?\n3\. Хувийн хэсэг\n[^\n]+', text, re.S)
-            excerpt = match.group() if match else None
+            excerpt = registration_process_excerpt(source)
         if excerpt:
             return source, excerpt
     return None
@@ -1279,6 +1374,18 @@ class ChatRAG:
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
         if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
+                and result.get('reason_code') in self.EXTEND | {'missing_entity',
+                    'constrained_wording_not_exact', 'constraints_not_supported_together',
+                    'unmatched_numeric_constraints'}
+                and supplied_grade_study_eligibility(query)):
+            result.update(route='E',answer=None,citations=[],candidates=[],clarification=None,
+                reason_code='supplied_grade_eligibility_not_verified',
+                message='Таны өгсөн голчийн тоонд үндэслэн Японд дэвшин суралцах эрхтэй эсэхийг баталж чадсангүй. '
+                        'Хадгалсан ерөнхий шаардлага дахь чанарын тайлбарыг тодорхой тоон босго гэж үзэхгүй. '
+                        'Ажилд зуучлах эсвэл ажлын шаардлагаар суралцах эрхийг орлуулахгүй; '
+                        'дэвшин суралцах хөтөлбөрийн албан шалгуурыг сургуулиас тодруулаарай.')
+            return self._remember(result,allow_draft)
+        if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
                 and result.get('reason_code') in self.EXTEND|{'missing_entity','constrained_wording_not_exact',
                     'constraints_not_supported_together'} and broad_school_information_request(query)):
             result.update(route='D',answer=None,citations=[],candidates=[],clarification=None,
@@ -1548,7 +1655,10 @@ class ChatRAG:
                     if path == '/elselt' or path.startswith('/elseltiin-juram/'):
                         return 'admission'
                     return None
-                selected = 'olympiad' if 'олимпиад' in q else 'admission' if 'элс' in q else None
+                compared_stages = {field['stage'] for field in field_evidence_requirements(query)
+                                   if field['type'] == 'admission_stage'}
+                selected = ('olympiad' if 'олимпиад' in q else 'admission'
+                            if 'элс' in q or compared_stages == {'registration', 'enrolment'} else None)
                 # Retrieval rank is not permission to assume which registration
                 # the user meant, even if just one known fee scope was found.
                 if selected is None:
