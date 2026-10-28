@@ -25,7 +25,8 @@
         "ARC/Sunny-ийн өөр компанийн хэсэг, лабораторийн клуб, контактын маягт болон давхардсан эшлэлийг цөөлсөн.",
         "42 шалгалт:32 зөв/2 дутуу/8 алдаа→42/0/0;32 мэдээлэлтэй асуулт+10 татгалзах хяналт. Хүний accuracy биш.",
         "Ижил20 production context: Gemma20, BM25top1 13, top3 17, талбар шалгадаг BM25 20. Gemma-ийн давуу тал нотлогдоогүй.",
-        "1512 тест PASS;1 Windows-symlink SKIP. Raw/API/браузерийн нотолгоо тусдаа хадгалсан."
+        "1512 тест PASS;1 Windows-symlink SKIP. Raw/API/браузерийн нотолгоо тусдаа хадгалсан.",
+        "GitHub-д d20716b шинэчлэл нийтлэгдсэн. Том backup-ийг цуцалж 53.91 GiB зай цэвэрлэсэн. Цэвэрлэгээний үеийн 367 хамгаалсан файлын checksum таарсан; дараа нь явцын 5 файлыг зориуд шинэчилсэн."
       ],
       "in_progress": [
         "9 хариултад урт эхийн тайлбар үлдсэн. Гол талбар бүрэн гэдгийг бүх хариулт товч/төгс болсон гэж тооцохгүй.",
@@ -1228,8 +1229,8 @@
     "scope": "Local implementation and functional verification; not raw ASR gain, human quality or thesis completion."
   },
   "latest_update": {
-    "date": "2026-10-27",
-    "title": "RAG-ийн илүүдэл эх, ижил context-ийн Gemma харьцуулалт шалгагдав",
+    "date": "2026-10-28",
+    "title": "RAG шинэчлэл GitHub-д нийтлэгдэв; түр backup цуцалж зай цэвэрлэв",
     "items": [
       "Зарын хугацаа, бүх утсыг нэг нийтлэлийн өөрийн эхтэй холбож, өөр мэдээний огноогоор орлуулахыг шалгасан.",
       "ARC/Sunny-ийн өөр компанийн хэсэг, лабораторийн клуб, контактын маягт болон давхардсан эшлэлийг цөөлсөн.",
@@ -1237,7 +1238,9 @@
       "Ижил20 production context: Gemma20, BM25top1 13, top3 17, талбар шалгадаг BM25 20. Gemma-ийн давуу тал нотлогдоогүй.",
       "1512 тест PASS;1 Windows-symlink SKIP. Raw/API/браузерийн нотолгоо тусдаа хадгалсан.",
       "STT/TTS raw чанарын өсөлт гэж тооцоогүй; өөр speech аргын сонгосон уншлага papers/04-д нэмсэн.",
-      "2026.10.28-ны GitHub нийтлэх багц: код/тест/төлөвлөгөө; аудио/reference/DB/runtime/модельд тусдаа artifact бэлтгэнэ. Нийтлэх нь чанарын шинэ хэмжилт биш."
+      "Код, тест, төлөвлөгөөний 52 файлыг GitHub-д d20716b commit-оор нийтэлсэн; репод нийт 273 файл байна.",
+      "Том backup цуцлагдсан; нийт 53.91 GiB түр хуулбар, кэш цэвэрлэсэн. Үндсэн модель, аудио, DB, reference, туршилтын эх дүн хэвээр.",
+      "Хувийн өгөгдөл, моделийн release нийтлээгүй; өөрийн draft release-ийг устгасан. Дахин clone, архив, том upload ажил эхлүүлэхгүй."
     ]
   },
   "quality_media_20261021": {
@@ -2822,13 +2825,24 @@
     "evidence": "runtime/rag-context-ablation-20261027/completion-checkpoint.json"
   },
   "publication_20261028": {
-    "status": "code_release_prepared",
+    "status": "code_published_verified_bulk_backup_cancelled_cleanup_complete",
     "destination": "https://github.com/sereeindahouse/THesisS",
     "repository_visibility_verified": "public",
     "code_tests_plan_docs": true,
-    "user_requested_audio_reference_db_runtime_models": true,
-    "data_artifacts_status": "local_sanitized_export_being_prepared",
+    "user_requested_audio_reference_db_runtime_models": false,
+    "data_artifacts_status": "cancelled; own unpublished draft and temporary local copies deleted",
     "credentials_browser_profiles_environments_excluded": true,
-    "model_quality_change_from_publication": false
+    "model_quality_change_from_publication": false,
+    "code_commit": "d20716b7694ba6a0438fe302bcc9cbfe5a4df792",
+    "user_current_scope": "Current code/progress only; user cancelled bulk model/audio/DB/runtime upload",
+    "previous_broader_scope_cancelled": true,
+    "release_published": false,
+    "draft_release_deleted": true,
+    "cleanup_bytes": 57881289206,
+    "cleanup_gib": 53.91,
+    "protected_hashes": 367,
+    "protected_hash_drift": 0,
+    "protected_check_scope": "During cleanup, before five intentional progress documentation/config edits",
+    "original_models_preserved": 130
   }
 }
