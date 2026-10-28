@@ -2,7 +2,8 @@
 
 Explicit currency, standalone 2000–2099 calendar years and labelled eight-digit
 phone numbers have bounded verbalizers. The explicit educational acronym ЕБС
-and its reviewed possessive ЕБС-ийн expand for speech only. Dates, ranges, other identifiers and
+and its reviewed possessive ЕБС-ийн expand for speech only. Explicit consecutive
+academic-year ranges have their own grammar. Other dates, ranges, identifiers and
 ambiguous forms remain literal. This formats text; it does not establish human
 intelligibility or change the displayed evidence.
 """
@@ -11,14 +12,19 @@ import re
 _ONES = ('', 'нэг', 'хоёр', 'гурван', 'дөрвөн', 'таван', 'зургаан', 'долоон', 'найман', 'есөн')
 _TENS = ('', 'арван', 'хорин', 'гучин', 'дөчин', 'тавин', 'жаран', 'далан', 'наян', 'ерэн')
 _AMOUNT = re.compile(
-    r'(?<![\w.,:+/–—-])(?P<number>[1-9]\d{0,2}(?:,\d{3})+|0|[1-9]\d*)'
-    r'\s*(?P<unit>₮|төгрөг(?:ийн|өөр|ийг|өөс)?|MNT)(?!\w)', re.I)
+    r'(?<![\w.,/\\@+~%=:?#&|$–—-])(?P<number>[1-9]\d{0,2}(?:,\d{3})+|0|[1-9]\d*)'
+    r'\s*(?P<unit>₮|төгрөг(?:ийн|өөр|ийг|өөс)?|MNT)'
+    r'(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])', re.I)
 _YEAR = re.compile(
-    r'(?<![\w.,:/+–—-])(?P<number>20[0-9]{2})(?P<space>[ \t]+)'
-    r'(?P<unit>оны|онд|он)(?!\w)', re.I)
+    r'(?<![\w.,/\\@+~%=:?#&|$–—-])(?P<number>20[0-9]{2})(?P<space>[ \t]+)'
+    r'(?P<unit>оны|онд|он)(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])', re.I)
 _PHONE = re.compile(
-    r'(?P<label>(?<!\w)утас(?:ны[ \t]+дугаар)?[ \t]*:?[ \t]*)'
-    r'(?P<number>[0-9]{8})(?![\w/+–—-]|[.,][0-9])', re.I)
+    r'(?P<label>(?<![\w/\\@.+~%=:?#&|$–—-])утас(?:ны[ \t]+дугаар)?[ \t]*:?[ \t]*)'
+    r'(?P<number>[0-9]{8})(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])', re.I)
+_ACADEMIC_YEAR = re.compile(
+    r'(?<![\w.,/\\@+~%=:?#&|$–—-])(?P<first>20[0-9]{2})[ \t]*[–—-][ \t]*(?P<last>20[0-9]{2})'
+    r'(?P<unit>[ \t]+оны[ \t]+хичээлийн[ \t]+жил(?:ийн|д|ээр|ээс|ийг)?)'
+    r'(?![\w/\\@+~%=#&|$–—-]|[.:?][\w])', re.I)
 _DIGITS = ('тэг', 'нэг', 'хоёр', 'гурав', 'дөрөв', 'тав', 'зургаа', 'долоо', 'найм', 'ес')
 _EDUCATIONAL_ACRONYM = re.compile(
     r'(?<![\w/\\@.+~%=:?#&|$–—-])ЕБС(?P<possessive>-ийн)?'
@@ -90,6 +96,32 @@ def _calendar_year(number):
     else:
         tail = _small(remainder)
     return 'хоёр мянга ' + tail
+
+
+def normalize_spoken_academic_years(text):
+    """Read both endpoints only for an explicit one-year academic interval.
+
+    Bare numeric ranges, other documents/units, reversed or longer intervals
+    and identifiers remain literal. No missing year or duration is inferred.
+    """
+    ablative_ones=('', 'нэгээс', 'хоёроос', 'гурваас', 'дөрвөөс', 'таваас',
+                   'зургаагаас', 'долоогоос', 'наймаас', 'есөөс')
+    ablative_tens=('', 'арваас', 'хориос', 'гучаас', 'дөчөөс', 'тавиас',
+                   'жараас', 'далаас', 'наяас', 'ерөөс')
+    def expand(match):
+        first,last=int(match['first']),int(match['last'])
+        before=text[:match.start()]
+        if last!=first+1 or re.search(r'(?:код|id|файл|url|хаяг)\s*[:=#]?\s*$',before,re.I):
+            return match.group()
+        remainder=first-2000
+        if remainder==0:
+            start='хоёр мянгаас'
+        elif remainder%10:
+            start='хоёр мянга '+((_TENS[remainder//10]+' ') if remainder>=10 else '')+ablative_ones[remainder%10]
+        else:
+            start='хоёр мянга '+ablative_tens[remainder//10]
+        return start+' '+_calendar_year(last)+match['unit']
+    return _ACADEMIC_YEAR.sub(expand,text)
 
 
 def normalize_spoken_years_and_phones(text):
@@ -186,7 +218,8 @@ def normalize_spoken_notation(text, *, official_extract=False):
         if separator:
             heading = re.sub(r'\A([^\n]+) \(татсан: \d{4}-\d{2}-\d{2}\)(?=\n|$)', r'\1', heading)
             text = heading.rstrip('. ') + '.\n\n' + body
-    text = re.sub(r'(?<!\w)QR(?=\s+код)', 'кью ар', text, flags=re.I)
+    text = re.sub(r'(?<![\w/\\@.+~%=:?#&|$–—-])QR(?=\s+код)', 'кью ар', text, flags=re.I)
     text = normalize_spoken_educational_acronyms(text)
     text = normalize_spoken_educational_credits(text)
+    text = normalize_spoken_academic_years(text)
     return normalize_spoken_years_and_phones(text)

@@ -274,6 +274,16 @@ function renderTeacherCards(cards){
   article.append(info);list.append(article);if(++count===6)break;
  }return count?list:null;
 }
+function distinctClaimQuotes(result){
+ const rows=[],seen=new Set(),citations=Array.isArray(result.citations)?result.citations:[];
+ for(const claim of Array.isArray(result.rag?.claims)?result.rag.claims:[]){
+  const index=citations.findIndex(c=>c.document_id===claim.source_id);
+  if(index<0||typeof claim.quote!=="string"||!claim.quote.trim())continue;
+  const citation=citations[index],key=JSON.stringify([citation.document_id,citation.version??null,claim.quote]);
+  if(seen.has(key))continue;seen.add(key);rows.push({index,quote:claim.quote});
+  if(rows.length===3)break;
+ }return rows;
+}
 function renderTurn(turn,result){
  if(!result||typeof result!=="object"||Array.isArray(result))throw Error("Хариултын мэдээлэл дутуу ирлээ.");
  turn.result=result;turn.element.dataset.route=result.route;const target=turn.body;target.replaceChildren();
@@ -314,10 +324,8 @@ function renderTurn(turn,result){
   const unique=new Set(result.citations.map(c=>c.source_url_or_filename));
   sources.append(node("summary","Эх сурвалж · "+unique.size),compactSourceList(result.citations));
   if(result.answer_kind==="rag_generated"&&Array.isArray(result.rag?.claims)){
-   for(const claim of result.rag.claims.slice(0,3)){
-    const index=result.citations.findIndex(c=>c.document_id===claim.source_id);
-    if(index<0||typeof claim.quote!=="string"||!claim.quote.trim())continue;
-    sources.append(node("p","["+(index+1)+"] Эхэд ингэж бичсэн:","chat-hint"),node("blockquote",claim.quote,"evidence-quote"));
+   for(const row of distinctClaimQuotes(result)){
+    sources.append(node("p","["+(row.index+1)+"] Эхэд ингэж бичсэн:","chat-hint"),node("blockquote",row.quote,"evidence-quote"));
    }
   }
   target.append(sources);

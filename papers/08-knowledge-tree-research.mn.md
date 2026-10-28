@@ -1,3 +1,11 @@
+## 2026.10.27 — Хүрээний шийдвэр ба өнөөдрийн уншсан хязгаар
+
+Энэ удаа [Lewis нарын RAG abstract/архитектурын тайлбар](https://arxiv.org/abs/2005.11401), [Whisper-ийн албан transcribe.py дахь initial_prompt ба previous-text тайлбар](https://github.com/openai/whisper/blob/main/whisper/transcribe.py), [Microsoft-ийн pronunciation/say-as/sub баримтын сонгосон хэсэг](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/speech-synthesis-markup-pronunciation), [edge-tts-ийн custom SSML ба rate/voice хязгаарын хэсгийг](https://github.com/rany2/edge-tts) нягталсан. Эдгээрийг шинээр бүтэн өгүүлэл уншсан тоонд нэмээгүй; доорх15-ын түүхэн уншлагыг энэ удаа давтаж дуусгасан гэж хэлэхгүй.
+
+Шийдвэр: сургуулийн8 мэдээллийн хүрээ/33 сэдэв нь эхийн навигац ба хамрах/хасах/unknown гэрээ байна. RAPTOR clustering, ontology reasoning, LLM-ийн сурсан «тархи» гэж нэрлэхгүй. C зам нь хайлтаар олдсон эхийн ID-г Gemma-гаар сонгож үгчлэн сэргээх хязгаарласан QA; анхны RAG-ийн хамтарсан сургалтын reproduction биш. TTS-ийн он/тоо/товчлолын унших бэлтгэл нь жингийн сургалт биш; Azure-ийн SSML бүх боломжийг Edge TTS дэмжинэ гэж үзэхгүй. Кодын шалгалт ба audio decode нь хүний ойлгомжийн үнэлгээний оронд орохгүй.
+
+Хэрэгжилт/хэмжилт: [мэдлэгийн хүрээ](../CORE/KNOWLEDGE-TREE.mn.md), [гурван үр дүнгийн төлөвлөгөө](../CORE/WEEKLY-PLAN-2026-2027.mn.md), хувийн `runtime/thesis-three-pillars-20261027/completion-checkpoint.json`. Raw STT болон хүний сонсголын шинэ gain хэмжээгүй; TTS spoken-text-ийн тодорхой алдаануудыг засаж, эцсийн1387суит ба бодит дууны урсгалаар шалгасан.
+
 # Сургуулийн мэдлэгийн мод: 15 өгүүллийн судалгаа ба аргын шийдвэр
 
 2026.10.23. **15 давхцаагүй өгүүллийн үндсэн бүтэн текст, арга, туршилт/кейс, хэлэлцүүлэг, хязгаарлалтыг уншсан; хавсралттай бүтээлүүдийн бүх хавсралтын substantive текстийг мөн уншсан.** Abstract-аар хязгаарласан бүтээл энэ 15-д байхгүй. Зохиогчид, DOI/arXiv ID, яг уншсан хувилбар, огноо, хэсэг, хуудас болон хязгаарлалтыг [машинаар унших бүртгэлд](../data/knowledge-tree-research-20261023.json) хадгалав.

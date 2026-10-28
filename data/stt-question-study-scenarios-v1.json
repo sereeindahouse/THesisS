@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "material_kind": "spontaneous_school_question_scenario_cards",
+  "material_id": "stt-question-study-scenarios-v1",
+  "prepared_at": "2026-10-26",
+  "updated_at": "2026-10-27",
+  "status": "development_task_material_only_no_recordings",
+  "language": "mn",
+  "source_commit": "fee003cc4178a26f8f14c8010fbc8b37e8e4321d",
+  "source_files": [
+    {"path": "config/knowledge-topics.json", "git_blob_sha256": "86e14e3fc0c9104af5abc3c84e6c85f40da8c159e2671a4395de322fb50080ef"},
+    {"path": "data/content-draft-v2-20261015.json", "git_blob_sha256": "3c5c13bc4ffa231548549fba21e5495cacbeeafc02e032578a27c5bf38077652"}
+  ],
+  "source_limit_mn": "Нэр, сэдэв, он, хамрах хүрээг дээрх хоёр нийтэд нээлттэй файлын хадгалсан хувилбараас холбов. Эхүүд draft; өнөөдрийн хүчинтэй үнэ, хуваарь, батлагдсан хариултын gold биш. Хувийн аудио, хуучин reference, STT гаралт ашиглаагүй.",
+  "participant_instruction_mn": "Нөхцөлийг дотроо уншаад, үнэхээр тэр мэдээлэл хэрэгтэй хүн шиг өөрийн үгээр нэг асуулт асуугаарай. Энэ бичвэрийг чангаар уншихгүй. Өгүүлбэрээ өөрөө сонгоно; зөв хариултыг мэдэх шаардлагагүй. Асуултад шаардлагатай нэр, он, курсийг өөрийн ярьдаг хэлбэрээр хэлж болно. Хувийн утас, регистр, хүний нууц мэдээлэл хэлэхгүй.",
+  "facilitator_instruction_mn": "Нэг удаад зөвхөн нэг картын нөхцөл, шаардлагатай сонголтыг харуул. Бэлэн асуулт, жишиг дуудлага, reference, ASR/LLM хариу бүү үзүүл. Байгалийн эргэлзээ, үгээ зассан хэсгийг шууд засаж дахин хэлүүлэхгүй; утга нь даалгавартай таараагүй бол учрыг тусад нь тэмдэглэ. Хариулттай эсэхийн шошго нь ASR transcript-ийн үнэн зөвийг тогтоохгүй.",
+  "reference_rule_mn": "Бүх картын natural_language_task нь даалгавар бөгөөд сонсож баталсан transcript reference биш. Reference-ийг зөвхөн бодит аудио бичигдсэний дараа хүн сонсож, яг хэлснийг буулгана.",
+  "partition_rule_mn": "Одоогийн хувийн pilot-д эдгээр 24 карт зөвхөн dev, evaluation_only материал. Нэг хүнийг өөр ID эсвэл session-аар олон хүн болгон хуваахгүй; энэ протоколоор аудиог жин сургахад ашиглахгүй. Олон хэлэгчийн нэмэлт судалгаа хожим боломжтой бол хүнээр тусгаарласан тусдаа протокол, шинэ test материал бэлтгэнэ. Эдгээр карт өөрсдөө сонсож баталсан transcript эсвэл final test биш.",
+  "coverage_groups": [
+    {"group_id": "names_and_programs", "card_count": 4},
+    {"group_id": "years_courses_and_counts", "card_count": 4},
+    {"group_id": "fees_and_periods", "card_count": 4},
+    {"group_id": "place_and_contact", "card_count": 4},
+    {"group_id": "documents_and_multiattribute", "card_count": 4},
+    {"group_id": "ambiguity_and_unsupported", "card_count": 4}
+  ],
+  "planning_targets": {
+    "active_personal_pilot": {
+      "study_kind": "single_speaker_school_question_pilot",
+      "canonical_speakers": 1,
+      "initial_question_clips_min": 3,
+      "initial_question_clips_max": 6,
+      "later_scenario_question_clips_target": 24,
+      "split": "dev",
+      "consent_scope": "evaluation_only",
+      "speaker_independent": false,
+      "eligible_for_weight_training": false,
+      "heldout_test": false,
+      "general_accuracy_claim": false,
+      "status_mn": "Эхлээд өөрийн үгээр 3–6 асуулт, дараа нь боломжтой бол24 сценарийг цуглуулах төлөвлөгөө. Бодит бичлэг/баталсан reference байгаа гэсэн үр дүн биш. Туслах хүн олдсон тухай хэрэглэгч мэдээлсэн; тэр хүний сонсолт эсвэл оролцсон бичлэгийг урьдчилан тооцоогүй."
+    },
+    "optional_future_extension": {
+      "required_for_current_work": false,
+      "primary": {"speakers": 40, "question_clips_per_speaker": 25, "question_clips": 1000, "train": {"speakers": 24, "clips": 600}, "dev": {"speakers": 8, "clips": 200}, "test": {"speakers": 8, "clips": 200}},
+      "smaller_pilot": {"speakers": 20, "question_clips_per_speaker": 20, "question_clips": 400, "train": {"speakers": 12, "clips": 240}, "dev": {"speakers": 4, "clips": 80}, "test": {"speakers": 4, "clips": 80}},
+      "status_mn": "Өмнөх олон хэлэгчийн хэмжээнүүд нь зөвхөн боломж гарвал тусдаа протоколоор өргөжүүлэх хувилбар. Одоогийн хөгжүүлэлт, RAG/TTS/LLM болон дипломын ажлыг эдгээр хүн/сонсголын тоо гүйцэхийг хүлээн зогсоохгүй. Тоо нь цугларсан өгөгдөл, статистикийн хүчний баталгаа биш.",
+      "repeat_rule_mn": "Үндсэн нэмэлт хувилбарт24 өөр нөхцөл + төгсгөлд нэг нөхцөлийг өөрийн үгээр давтах1бичлэг=25. Жижиг нэмэлт хувилбарт бүлэг бүрээс3нөхцөл(18)+давталт2=20. Давталт, canonical хүн бүр ижил split-д үлдэнэ. Test-ийн нөхцөлүүд тусдаа шинэ утгатай, гаралтаас өмнө царцаасан байна."
+    }
+  },
+  "actual_counts": {"enrolled_speakers": 0, "recorded_question_clips": 0, "human_confirmed_references": 0, "frozen_test_clips": 0, "training_runs": 0, "human_rating_records": 0},
+  "sources": [
+    {"source_id": "departments-v2", "document_id": "nmct-departments-web-20261007", "version": 2, "url": "https://nmct.edu.mn/departments", "scope_mn": "2026-10-10-нд хадгалсан тэнхимийн нэрс."},
+    {"source_id": "admissions-v2", "document_id": "nmct-admissions-web-20261007", "version": 2, "url": "https://nmct.edu.mn/elselt", "scope_mn": "2026 оны элсэлтийн хадгалсан мэдээлэл; 2027 оны үнэ, өнөөдрийн бүртгэлийн төлөв биш."},
+    {"source_id": "cs-v1", "document_id": "nmct-cs-web-20261007", "version": 1, "url": "https://nmct.edu.mn/departments/computer-science", "scope_mn": "Компьютерын ухааны тэнхимийн сонгосон мэдээлэл, ARC/Sakura Internet-ийн нэр ба тайлбар."},
+    {"source_id": "cs-program-v1", "document_id": "nmct-cs-program-web-20261009", "version": 1, "url": "https://nmct.edu.mn/programs/computer-science-program", "scope_mn": "Хөтөлбөрийн ерөнхий чиглэл, сургалтын хэлбэр; курс/улирлын бүтэн төлөвлөгөө биш."},
+    {"source_id": "contact-v1", "document_id": "nmct-contact-web-20261007", "version": 1, "url": "https://nmct.edu.mn/contact", "scope_mn": "Ерөнхий холбоо барих сонгосон мэдээлэл; тусгай албаны дугаар биш."},
+    {"source_id": "contact-v2", "document_id": "nmct-contact-web-20261007", "version": 2, "url": "https://nmct.edu.mn/contact", "scope_mn": "2026-10-10-нд хадгалсан ерөнхий хаяг, ажлын цаг, нийтэлсэн хариулах амлалт."},
+    {"source_id": "rule-page1-v1", "document_id": "nmct-admission-rule-page1-snapshot-20261010", "version": 1, "url": "https://nmct.edu.mn/elseltiin-juram/page-1.png", "scope_mn": "2026–2027 оны журмын I.1, III.2 сонгосон заалт."},
+    {"source_id": "rule-page2-v1", "document_id": "nmct-admission-rule-page2-snapshot-20261010", "version": 1, "url": "https://nmct.edu.mn/elseltiin-juram/page-2.png", "scope_mn": "2026–2027 оны журмын IV.6, IV.8–11, V.4 сонгосон заалт."},
+    {"source_id": "rule-page3-v1", "document_id": "nmct-admission-rule-page3-snapshot-20261010", "version": 1, "url": "https://nmct.edu.mn/elseltiin-juram/page-3.png", "scope_mn": "2026–2027 оны журмын VI.3, VI.5–6, VII.1–2 сонгосон заалт."},
+    {"source_id": "appendix-v1", "document_id": "nmct-admission-appendix-snapshot-20261010", "version": 1, "url": "https://nmct.edu.mn/elseltiin-juram/12.png", "scope_mn": "2026 оны өнгөрсөн шалгалтын хуваарь; өнөөдрийн тов биш."},
+    {"source_id": "olympiad-v1", "document_id": "nmct-olympiad-rule-snapshot-20261010", "version": 1, "url": "https://nmct.edu.mn/olympiad/o-2025-2026.pdf", "scope_mn": "2025–2026 оны Байгалийн ухааны VII олимпиадын хадгалсан заалт; өнгөрсөн арга хэмжээ."}
+  ],
+  "cards": [
+    {
+      "card_id": "sq-v1-01", "topic_id": "academics", "coverage_group": "names_and_programs", "task_features": ["school_name", "department_names"],
+      "source_binding": {"source_ids": ["departments-v2"], "fact_ids": ["school.departments.snapshot20261010"], "binding_role": "published_names_and_topic"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Шинэ Монгол Коосэнд суралцах чиглэлээ судалж байна. Сургуулийн нэрийг өөрийн хэрэглэдэг хэлбэрээр хэлээд, ямар тэнхимүүд байдгийг мэдэхээр нэг асуулт асуу."
+    },
+    {
+      "card_id": "sq-v1-02", "topic_id": "academics", "coverage_group": "names_and_programs", "task_features": ["long_department_names", "two_entities"],
+      "source_binding": {"source_ids": ["departments-v2"], "fact_ids": ["school.departments.snapshot20261010"], "binding_role": "published_names_only_no_department_attribute_claim"},
+      "proper_name_choices": ["Ерөнхий Эрдмийн тэнхим", "Компьютерын ухааны тэнхим", "Механик инженерийн тэнхим", "Барилгын дэд бүтцийн инженерийн тэнхим", "Цахилгаан электроникийн инженерийн тэнхим", "Химийн инженерийн тэнхим"],
+      "facilitator_note_mn": "Жагсаалтаас 2 нэр сонгон харуул; хосыг оролцогчдын хооронд ээлжил. Бүтэн асуулт бичиж өгөхгүй.",
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Танд харуулсан хоёр тэнхимийн нэрийг сонирхож байгаа хүн гэж төсөөл. Хоёулаа энэ сургуулийн тэнхимийн жагсаалтад ордог эсэхийг өөрийн үгээр лавла. Нэг амьсгаагаар уншиж дуусгах шаардлагагүй."
+    },
+    {
+      "card_id": "sq-v1-03", "topic_id": "academics.computer-science", "coverage_group": "names_and_programs", "task_features": ["program_name", "technical_topics"],
+      "source_binding": {"source_ids": ["cs-program-v1"], "fact_ids": ["cs.program.topics"], "binding_role": "general_program_scope"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Компьютерын ухааны хөтөлбөрийг сонгох эсэхээ шийдээгүй байна. Ямар чиглэлийн зүйл сурдаг талаар ерөнхий мэдээлэл авах нэг асуулт асуу. Өөрөө хичээлийн нэрийн жагсаалт зохиохгүй."
+    },
+    {
+      "card_id": "sq-v1-04", "topic_id": "academics.computer-science", "coverage_group": "names_and_programs", "task_features": ["program_name", "learning_methods"],
+      "source_binding": {"source_ids": ["cs-program-v1"], "fact_ids": ["cs.program.practice"], "binding_role": "general_learning_methods"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Компьютерын ухааны хөтөлбөрт бодитоор хийж турших ажил байдаг эсэхийг сонирхож байна. Сургалтын практик хэлбэрийн талаар өөрийн үгээр асуу."
+    },
+    {
+      "card_id": "sq-v1-05", "topic_id": "academics.programs", "coverage_group": "years_courses_and_counts", "task_features": ["year", "first_second_course", "duration_comparison"],
+      "source_binding": {"source_ids": ["admissions-v2"], "fact_ids": ["admission.course_duration.2026"], "binding_role": "2026_saved_duration_scope"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026 оны хадгалсан элсэлтийн мэдээллийг судалж байна. Нэгдүгээр курст орох, хоёрдугаар курст шилжин орох хоёр замын суралцах хугацааг харьцуулж мэдэхээр асуу. Оныг асуултдаа ойлгомжтой хэл."
+    },
+    {
+      "card_id": "sq-v1-06", "topic_id": "admissions.requirements", "coverage_group": "years_courses_and_counts", "task_features": ["academic_year_range", "first_second_course", "eligibility"],
+      "source_binding": {"source_ids": ["rule-page1-v1"], "fact_ids": ["admission.course_qualification.2026_2027"], "binding_role": "2026_2027_saved_eligibility_scope"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026–2027 оны журмаас аль курст бүртгүүлэх боломжтойгоо ойлгохыг хүсэж байна. Нэгдүгээр болон хоёрдугаар курст элсэх боловсролын шаардлагын ялгааг асуу. Өөрийн хувийн боловсролын түүх хэлэх шаардлагагүй."
+    },
+    {
+      "card_id": "sq-v1-07", "topic_id": "career.japan", "coverage_group": "years_courses_and_counts", "task_features": ["academic_year_range", "ARC_name", "course_count_and_names"],
+      "source_binding": {"source_ids": ["cs-v1"], "fact_ids": ["cs.arc.courses"], "binding_role": "2025_2026_autumn_selected_courses_only"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Компьютерын ухааны тэнхимийн ARC-тэй холбоотой сургалтыг сонирхож байна. 2025–2026 оны намрын улиралд дурдсан хичээлийн тоо болон нэрийг хамтад нь мэдэх нэг асуулт асуу. ARC гэсэн нэрийг өөрийн дууддаг хэлбэрээр хэлж болно."
+    },
+    {
+      "card_id": "sq-v1-08", "topic_id": "admissions.exams", "coverage_group": "years_courses_and_counts", "task_features": ["academic_year_range", "duration", "score", "accompanying_person", "multiattribute"],
+      "source_binding": {"source_ids": ["rule-page2-v1"], "fact_ids": ["admission.interview.2026_2027"], "binding_role": "2026_2027_saved_interview_scope"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026–2027 оны элсэлтийн ярилцлагад хэрхэн бэлдэхээ мэдмээр байна. Үргэлжлэх хугацаа, үнэлэх оноо, хэнтэй хамт орохыг нэг асуултаар лавла. Хариултын тоонуудыг таахгүй."
+    },
+    {
+      "card_id": "sq-v1-09", "topic_id": "admissions.fees", "coverage_group": "fees_and_periods", "task_features": ["year", "tuition", "annual_monthly_period"],
+      "source_binding": {"source_ids": ["admissions-v2"], "fact_ids": ["admission.annual_tuition.2026"], "binding_role": "2026_saved_annual_tuition_not_current_price"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026 оны нийтэлсэн сургалтын төлбөрөөр зардлаа ойлгохыг хүсэж байна. Төлбөрийн хэмжээ болон тэр нь жилийнх үү, сарынх уу гэдгийг тодруулж асуу. Мөнгөн дүн өөрөө зохиож хэлэхгүй."
+    },
+    {
+      "card_id": "sq-v1-10", "topic_id": "admissions.fees", "coverage_group": "fees_and_periods", "task_features": ["year", "admission_registration_fee", "tuition_distinction"],
+      "source_binding": {"source_ids": ["admissions-v2", "rule-page2-v1"], "fact_ids": ["admission.registration_fee.2026", "admission.registration_fee_payment.2026_2027", "admission.annual_tuition.2026"], "binding_role": "distinct_saved_fee_types"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026 оны элсэлтэд бүртгүүлэхэд гарах хураамжийг сургалтын төлбөртэй андуурч байна. Бүртгэлийн хураамжийн хэмжээ болон сургалтын төлбөрөөс тусдаа эсэхийг өөрийн үгээр лавла."
+    },
+    {
+      "card_id": "sq-v1-11", "topic_id": "admissions.olympiad", "coverage_group": "fees_and_periods", "task_features": ["academic_year_range", "olympiad_name", "registration_fee", "participant_rule"],
+      "source_binding": {"source_ids": ["olympiad-v1"], "fact_ids": ["olympiad.registration.2025_2026"], "binding_role": "past_2025_2026_VII_olympiad_scope"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та өнгөрсөн 2025–2026 оны Байгалийн ухааны VII олимпиадын мэдээллийг судалж байна. Тэр олимпиадын бүртгэлийн хураамж болон хэн оролцож болох нөхцөлийг хамтад нь асуу. Үүнийг одоо болох арга хэмжээ гэж хэлэхгүй."
+    },
+    {
+      "card_id": "sq-v1-12", "topic_id": "admissions.fees", "coverage_group": "fees_and_periods", "task_features": ["deliberate_ambiguity", "unspecified_fee_type", "unspecified_year"],
+      "source_binding": {"source_ids": ["admissions-v2", "olympiad-v1"], "fact_ids": ["admission.registration_fee.2026", "olympiad.registration.2025_2026"], "binding_role": "ambiguity_control_not_answer_gold"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та бүртгэлийн хураамжийг л мэдэхээр яарч асууж байгаа хүн гэж төсөөл. Эхний асуултдаа элсэлтийнх үү, олимпиадынх уу, аль он бэ гэдгийг зориуд бүү заа. Өөрийн үгээр богино асуулт асуу; бэлэн өгүүлбэр уншихгүй."
+    },
+    {
+      "card_id": "sq-v1-13", "topic_id": "contact", "coverage_group": "place_and_contact", "task_features": ["place", "opening_hours", "multiattribute"],
+      "source_binding": {"source_ids": ["contact-v2"], "fact_ids": ["school.location.snapshot20261010", "school.general_hours.snapshot20261010"], "binding_role": "saved_general_contact_not_department_service"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та сургуульд биеэр очихоор төлөвлөж байна. Хаана байдаг болон ерөнхий ажлын цагийн мэдээллийг хамтад нь асуу. Өрөөний дугаар, замын чиглэл таамаглахгүй."
+    },
+    {
+      "card_id": "sq-v1-14", "topic_id": "contact", "coverage_group": "place_and_contact", "task_features": ["general_phone", "email", "school_name"],
+      "source_binding": {"source_ids": ["contact-v1"], "fact_ids": ["school.general_phone", "school.general_email"], "binding_role": "saved_general_contact_only"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Шинэ Монгол Коосэнтэй эхлээд зайнаас холбоо барихыг хүсэж байна. Сургуулийн ерөнхий утас, цахим шуудангийн хаягийг нэг асуултаар лавла. Өөрийн эсвэл бусдын утасны дугаар хэлэхгүй."
+    },
+    {
+      "card_id": "sq-v1-15", "topic_id": "contact", "coverage_group": "place_and_contact", "task_features": ["year", "admission_inquiry_service", "phone_role"],
+      "source_binding": {"source_ids": ["admissions-v2"], "fact_ids": ["admission.inquiry_phones.2026"], "binding_role": "2026_admission_inquiry_not_named_office"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026 оны элсэлтийн бүртгэл, шалгалт, төлбөрийн талаар утсаар лавлах нийтэлсэн мэдээллийг хайж байна. Ямар холбоогоор лавлаж болохыг асуу. Тусгай албаны нэр, ажилтны нэр зохиож оруулахгүй."
+    },
+    {
+      "card_id": "sq-v1-16", "topic_id": "contact", "coverage_group": "place_and_contact", "task_features": ["day_choice", "general_hours", "published_reply_promise"],
+      "source_binding": {"source_ids": ["contact-v2"], "fact_ids": ["school.general_hours.snapshot20261010", "school.contact_reply_promise.snapshot20261010"], "binding_role": "published_hours_and_promise_not_measured_response_time"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та амралтын өдөр очих уу эсвэл цахимаар хүсэлт үлдээх үү гэж шийдэж байна. Амралтын өдрийн ерөнхий ажлын цаг болон сайтад хүсэлтэд хариулах тухай юу гэж нийтэлснийг лавла. Бодитоор хариу ирсэн хугацаа гэж бүү таамагла."
+    },
+    {
+      "card_id": "sq-v1-17", "topic_id": "admissions.exams", "coverage_group": "documents_and_multiattribute", "task_features": ["academic_year_range", "essay_word_count", "submission_format", "multiattribute"],
+      "source_binding": {"source_ids": ["rule-page2-v1", "admissions-v2"], "fact_ids": ["admission.essay_rule.2026_2027", "admission.essay_format.2026"], "binding_role": "2026_saved_page_and_2026_2027_rule_with_distinct_scopes"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026–2027 оны журам болон 2026 оны элсэлтийн хуудсаар эссэгээ бэлдэх шаардлагыг судалж байна. Үгийн тоо, ямар хэлбэрээр өгөхийг хамтад нь асуу. Шинэ элсэлтийн журам гэж хэлэхгүй."
+    },
+    {
+      "card_id": "sq-v1-18", "topic_id": "admissions.documents", "coverage_group": "documents_and_multiattribute", "task_features": ["academic_year_range", "photo_recency", "file_format"],
+      "source_binding": {"source_ids": ["rule-page2-v1"], "fact_ids": ["admission.photo_requirements.2026_2027"], "binding_role": "2026_2027_saved_photo_requirements"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026–2027 оны журмын бүртгэлийн цээж зургийн шаардлагыг ойлгомоор байна. Зургийг хэр саяхан авахуулсан байх болон файлын ямар хэлбэрээр оруулахыг нэг асуултаар лавла. Регистрийн дугаар хэлэх шаардлагагүй."
+    },
+    {
+      "card_id": "sq-v1-19", "topic_id": "admissions.rules", "coverage_group": "documents_and_multiattribute", "task_features": ["academic_year_range", "second_choice", "enrollment_confirmation", "multiattribute"],
+      "source_binding": {"source_ids": ["rule-page2-v1", "rule-page3-v1"], "fact_ids": ["admission.second_choice.2026_2027", "admission.enrollment_confirmation.2026_2027"], "binding_role": "2026_2027_distinct_registration_and_confirmation_stages"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2026–2027 оны журмын бүртгэлийн шат ба элсэн суралцахаа баталгаажуулах шатыг ялгаж ойлгохыг хүсэж байна. Хоёр дахь мэргэжлийн сонголт болон суралцах эрхээ баталгаажуулах нөхцөлийг хамтад нь лавла."
+    },
+    {
+      "card_id": "sq-v1-20", "topic_id": "career.japan", "coverage_group": "documents_and_multiattribute", "task_features": ["Sakura_Internet_name", "ARC_name", "start_month", "multiattribute"],
+      "source_binding": {"source_ids": ["cs-v1"], "fact_ids": ["cs.sakura.start_month", "cs.arc.start_month", "cs.sakura.activities"], "binding_role": "saved_partnership_details_not_current_service_guarantee"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Компьютерын ухааны тэнхимийн Sakura Internet болон ARC-тай хамтын ажиллагааны түүхийг сонирхож байна. Хоёр хамтын ажиллагаа хэзээ эхэлсэн болон Sakura Internet-ийн хүрээнд юу хийдэг гэж тайлбарласныг нэг асуултаар лавла. Нэрсийг өөрийн хэлдэг дуудлагаар хэлж болно."
+    },
+    {
+      "card_id": "sq-v1-21", "topic_id": "academics", "coverage_group": "ambiguity_and_unsupported", "task_features": ["deliberate_ambiguity", "missing_department_name"],
+      "source_binding": {"source_ids": ["departments-v2", "cs-program-v1"], "fact_ids": ["school.departments.snapshot20261010", "cs.program.topics"], "binding_role": "missing_entity_control_not_answer_gold"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та нэг тэнхимд юу сурдгийг сонирхож байгаа ч нэрийг нь эхний асуултдаа хэлээгүй хүн гэж төсөөл. Тэнхимийн нэрийг зориуд орхин, юу сурдаг талаар өөрийн үгээр асуу. Аль тэнхимийг бодсоноо бичлэгийн дараах цуглуулагчийн тэмдэглэлд тусад нь хэлж болно; аудиод хэлээгүй үгийг reference-д нэмэхгүй."
+    },
+    {
+      "card_id": "sq-v1-22", "topic_id": "admissions.fees", "coverage_group": "ambiguity_and_unsupported", "task_features": ["future_year_2027", "unpublished_fee_control"],
+      "source_binding": {"source_ids": ["admissions-v2"], "fact_ids": ["admission.annual_tuition.2026"], "binding_role": "scope_boundary_2026_does_not_establish_2027_price"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2027 онд суралцах зардлаа төлөвлөж байна. 2027 оны сургалтын төлбөрийн тодорхой хэмжээг асуу. Энэ карт үнэ мэдэгдсэн гэж батлахгүй; өөрөө мөнгөн дүн санал болгохгүй."
+    },
+    {
+      "card_id": "sq-v1-23", "topic_id": "admissions.exams", "coverage_group": "ambiguity_and_unsupported", "task_features": ["future_year_2027", "unpublished_date_time_control"],
+      "source_binding": {"source_ids": ["appendix-v1"], "fact_ids": ["admission.exam_schedule.2026"], "binding_role": "scope_boundary_past_2026_schedule_not_2027_schedule"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та 2027 оны элсэлтийн шалгалтад оролцох боломжоо төлөвлөж байна. Тэр оны шалгалтын яг өдөр, эхлэх цагийг лавла. Тов гарсан гэж урьдчилан батлахгүй; хуучин оны огноог өөрөө санал болгохгүй."
+    },
+    {
+      "card_id": "sq-v1-24", "topic_id": "academics.computer-science", "coverage_group": "ambiguity_and_unsupported", "task_features": ["course_and_semester_numbers", "weekly_hours", "unsupported_detail_control"],
+      "source_binding": {"source_ids": ["cs-program-v1"], "fact_ids": ["cs.program.topics", "cs.program.practice"], "binding_role": "scope_boundary_general_overview_not_semester_timetable"},
+      "reference_status": "not_a_transcript_reference",
+      "natural_language_task": "Та Компьютерын ухааны хөтөлбөрийн хоёрдугаар курсийн эхний улиралд нэг долоо хоногт хичнээн цаг хичээллэхийг тодорхой мэдмээр байна. Курс, улирал, долоо хоногийн цагийг асуултдаа ялгаж асуу. Ийм нарийвчилсан хуваарь байгаа гэж бүү батал."
+    }
+  ],
+  "optional_read_controls": {
+    "included_in_question_corpus": false,
+    "status": "optional_future_material_no_values_generated",
+    "purpose_mn": "Тоон дараалал унших чадварыг тусад нь ажиглах нэмэлт материал. Байгалийн сургуулийн асуулт, сургуулийн бодит утас/огноо/төлбөр, хүний transcript reference гэж тооцохгүй.",
+    "types": ["neutral_number_sequence", "fictional_phone_format_digit_sequence", "fictional_date_and_time"],
+    "handling_mn": "Цуглуулах шаардлагатай бол шинэ зохиомол утгыг model output-оос өмнө тусдаа багцад үүсгэн, сургуулийн бодит баримт биш гэж тэмдэглэнэ. Хувийн эсвэл хуучин case-ийн тоог хуулж авахгүй. Чангаар уншуулсан материалын elicitation нь read_control байх тул spontaneous_question manifest-д оруулахгүй, үндсэн 1000/400 бичлэгт нэмэхгүй."
+  }
+}

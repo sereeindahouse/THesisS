@@ -53,10 +53,11 @@ def save_new(path, value):
 def scoped_sources(query, sources):
     # Exactly the filters preceding evidence_units in GroundedGenerator.generate.
     from rag_runtime import (department_evidence_sources, dated_news_evidence_sources,
-        article_evidence_sources, year_evidence_sources)
+        article_evidence_sources, year_evidence_sources, admission_announcement_sources, admission_stage_sources)
     sources = department_evidence_sources(query, sources, all_attributes=True)
-    sources = dated_news_evidence_sources(query, article_evidence_sources(query, sources))
-    return year_evidence_sources(query, sources)
+    sources = admission_announcement_sources(query,
+        dated_news_evidence_sources(query, article_evidence_sources(query, sources)))
+    return admission_stage_sources(query,year_evidence_sources(query, sources))
 
 
 def lexical_selection(query, units, count=1):
@@ -75,11 +76,17 @@ def lexical_selection(query, units, count=1):
         description='Fixed top-k selection, not an adaptive semantic selector.')
 
 
-def common_render(query, ids, units, *, abstained=False):
-    """The same final guards/render for all conditions; no reference access."""
+def common_render(query, ids, units, *, abstained=False, sources=None):
+    """The same final guards/render for all conditions; no reference access.
+
+    Current comparisons supply their complete frozen scoped source pool so an
+    explicit ALL-phones request binds to the article inventory, including
+    numbers the proposed selection omitted. Legacy callers without a source
+    pool retain query-only guards and cannot establish that inventory.
+    """
     from evidence_contract import resolve_evidence_selection
     from source_fields import (field_evidence_requirements, missing_field_evidence,
-        requested_detail, detail_supported)
+        requested_detail, detail_supported, source_bound_field_requirements)
     from rag_runtime import compound_exam_duration, both_exam_durations_supported, refine_evidence_selection
     from answer_contract import (render_claims, MAX_SPEECH_CHARACTERS,
         interview_attribute, ATTRIBUTE_LABELS, supports_interview_attribute)
@@ -87,11 +94,21 @@ def common_render(query, ids, units, *, abstained=False):
         return dict(accepted=False, answer=None, claims=[], reason='selector_abstained')
     if len(ids) > 3:
         return dict(accepted=False, answer=None, claims=[], reason='selector_exceeds_three_units')
+    scoped = scoped_sources(query,sources) if sources is not None else None
+    if scoped is not None and not scoped:
+        return dict(accepted=False, answer=None, claims=[], reason='no_scoped_sources')
     resolved = resolve_evidence_selection(query, ids, units, max_characters=1800, max_claims=6)
     if not resolved['accepted']:
         return dict(resolved, answer=None)
+    if scoped is not None:
+        allowed={source['source_id'] for source in scoped}
+        lookup={unit['unit_id']:unit for unit in units}
+        if any(lookup[sid]['source_id'] not in allowed for sid in resolved['selected_unit_ids']):
+            return dict(accepted=False,answer=None,claims=[],reason='source_scope_mismatch')
     texts = [claim['text'] for claim in resolved['claims']]
-    missing = missing_field_evidence(field_evidence_requirements(query), texts)
+    requirements=(source_bound_field_requirements(query,scoped) if scoped is not None
+                  else field_evidence_requirements(query))
+    missing = missing_field_evidence(requirements, texts)
     selected = '\n'.join(texts)
     detail, attribute = requested_detail(query), interview_attribute(query)
     reason = ('requested_fields_not_in_selection' if missing else
@@ -103,6 +120,10 @@ def common_render(query, ids, units, *, abstained=False):
     refinement = None
     if not reason:
         resolved, refinement = refine_evidence_selection(query, ids, units, resolved)
+        # The same frozen inventory applies after any subset refinement too.
+        missing=missing_field_evidence(requirements,[claim['text'] for claim in resolved['claims']])
+        if missing:
+            reason='requested_fields_not_in_selection'
     answer, _ = render_claims(resolved['claims'])
     if len(answer) > MAX_SPEECH_CHARACTERS:
         reason = 'answer_exceeds_speech_budget'
@@ -245,18 +266,20 @@ def run(frozen_path, output_dir, root=ROOT):
         for count in (1, 3):
             started=time.perf_counter()
             selection=lexical_selection(case['query'],case['units'],count)
-            output=common_render(case['query'],selection['selected_unit_ids'],case['units'],abstained=selection['abstained'])
+            output=common_render(case['query'],selection['selected_unit_ids'],case['units'],abstained=selection['abstained'],sources=case['sources'])
             row['conditions']['bm25_best_'+str(count)+'_units']=dict(selection=selection,common_output=output,
                 wall_ms=round((time.perf_counter()-started)*1000,3),llm_calls=0,literal_reference_screen=slot_screen(case,output))
         before=len(exchanges)
         started=time.perf_counter()
         result=generator.generate(case['query'],deepcopy(case['sources']))
         if result.get('evidence_units'):
-            keys=('unit_id','source_id','text','start','end','context_unit_ids')
+            keys=('unit_id','source_id','text','start','end','context_unit_ids','page_span')
             expected=[{key:u.get(key) for key in keys} for u in case['units']]
             if result['evidence_units'] != expected:
                 raise ValueError('Gemma saw different units: '+case['id'])
-        output=common_render(case['query'],result.get('proposed_unit_ids',[]),case['units'],abstained=not result.get('generated'))
+        canonical=result.get('marker_repair_context_equivalence',{}).get('canonical_root_ids')
+        render_roots=canonical if canonical is not None else result.get('proposed_unit_ids',[])
+        output=common_render(case['query'],render_roots,case['units'],abstained=not result.get('generated'),sources=case['sources'])
         row['conditions']['gemma_production_selector']=dict(selection=result,common_output=output,
             wall_ms=round((time.perf_counter()-started)*1000,3),llm_calls=result.get('llm_calls',0),
             literal_reference_screen=slot_screen(case,output),provider_exchanges=deepcopy(exchanges[before:]))

@@ -5,7 +5,7 @@ import unittest
 
 from evidence_contract import evidence_units
 from tools.evaluate_llm_selection import (lexical_selection, common_render, slot_screen,
-    blind_forms, digest, save_new)
+    blind_forms, digest, save_new, scoped_sources)
 
 
 def source(text):
@@ -67,6 +67,68 @@ class SelectorComparisonTests(unittest.TestCase):
             path=Path(directory)/'first.json';save_new(path,{'original':True})
             with self.assertRaises(FileExistsError):save_new(path,{'original':False})
             self.assertTrue(json.loads(path.read_text())['original'])
+
+    def notice_sources(self):
+        query=('2038 оны 1 сарын нэмэлт элсэлтийн зарын бүртгэл дуусах өдөр '
+               'болон холбоо барих бүх утсыг хэлнэ үү.')
+        main=dict(source_id='notice-main',url='https://nmct.edu.mn/news/notice',
+            title='НЭМЭЛТ ЭЛСЭЛТ',version=1,page_years=['2038'],
+            page_header='НЭМЭЛТ ЭЛСЭЛТ\n2038 оны нэгдүгээр сарын 7 17 үзсэн',
+            text='НЭМЭЛТ ЭЛСЭЛТ\n2038 оны нэгдүгээр сарын 7 17 үзсэн\n'
+                 'Сул суудлын нэмэлт элсэлтээ 1 сарын 23-ны өдрийг дуустал зарлаж байна. '
+                 'Лавлах утас 76543210.')
+        continuation=dict(main,source_id='notice-continuation',text='Лавлах утас 88001122.')
+        other=dict(main,source_id='jobs',url='https://nmct.edu.mn/news/jobs',
+            title='АЖЛЫН ШАЛГАЛТ',page_header='АЖЛЫН ШАЛГАЛТ\n2038 оны нэгдүгээр сарын 9 17 үзсэн',
+            text='АЖЛЫН ШАЛГАЛТ\n2038 оны нэгдүгээр сарын 9 17 үзсэн\n'
+                 'Ажлын ур чадварын шалгалтын бүртгэл 1 сарын 27-ны өдрийг дуустал үргэлжилнэ. '
+                 'Лавлах утас 11335577.')
+        return query,main,continuation,other
+
+    def test_shared_render_all_phone_inventory_cannot_shrink_to_proposed_selection(self):
+        query,main,continuation,_=self.notice_sources()
+        sources=scoped_sources(query,[main,continuation])
+        units=evidence_units(sources)
+        first=[u['unit_id'] for u in units if '76543210' in u['text']]
+        second=[u['unit_id'] for u in units if '88001122' in u['text']]
+        self.assertEqual(len(first),1);self.assertEqual(len(second),1)
+        # A chosen span contains the deadline and one phone. The frozen article
+        # has TWO phones, so the omitted continuation cannot disappear from the
+        # shared requirements merely because a selector did not choose it.
+        partial=common_render(query,first,units,sources=sources)
+        self.assertFalse(partial['accepted'])
+        self.assertIn('announcement_contact_phone',partial.get('missing_fields',[]))
+        complete=common_render(query,first+second,units,sources=sources)
+        self.assertTrue(complete['accepted'],complete)
+        self.assertIn('76543210',complete['answer']);self.assertIn('88001122',complete['answer'])
+
+    def test_comparison_article_scope_matches_production_scoped_evidence_units(self):
+        from rag_runtime import GroundedGenerator
+        query,main,continuation,other=self.notice_sources()
+        supplied=[other,main,continuation]
+        filtered=scoped_sources(query,supplied)
+        self.assertEqual(filtered,[main,continuation])
+        captured=[]
+        def transport(method,url,payload,timeout,max_bytes):
+            if method=='GET':return {'models':[{'name':'notice-fixture'}]}
+            captured.extend(json.loads(payload['messages'][1]['content'])['EVIDENCE_UNITS'])
+            return dict(done=True,done_reason='stop',message=dict(content=json.dumps(
+                dict(insufficient=True,unit_ids=[]))))
+        generator=GroundedGenerator(Path(__file__).resolve().parents[1],transport=transport)
+        generator.model='notice-fixture';generator.configured=True
+        output=generator.generate(query,supplied)
+        expected=evidence_units(filtered,max_characters=900)
+        self.assertEqual([row['text'] for row in captured],[row['text'] for row in expected])
+        keys=('unit_id','source_id','text','start','end','context_unit_ids','page_span')
+        self.assertEqual(output['evidence_units'],[{key:row.get(key) for key in keys} for row in expected])
+        self.assertFalse(any(row['source_id']=='jobs' for row in captured))
+
+    def test_shared_render_refuses_root_from_article_excluded_by_frozen_scope(self):
+        query,main,continuation,other=self.notice_sources()
+        units=evidence_units([main,continuation,other])
+        ids=[unit['unit_id'] for unit in units if unit['source_id']=='jobs']
+        output=common_render(query,ids,units,sources=[main,continuation,other])
+        self.assertFalse(output['accepted'])
 
 
 if __name__=='__main__':

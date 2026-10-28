@@ -1,10 +1,90 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-25",
-  "target_date": "2026-11-10",
-  "scope_label": "11.10-ны ажиллах demo ба багшид үзүүлэх ноорог. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "10.25: RAG-ийн талбар/нэрийн засвар, кредит цагийн дууны хэлбэр, тусдаа холбоостой SVG жишээ. Raw STT36.02% хэвээр.",
-  "status_basis": "1262 local PASS;9 new observed-development handling checks;12RAG regression;2paired TTS provider calls+actual Brave playback;19STTcandidate rejected.",
+  "updated_date": "2026-10-27",
+  "target_date": "2027-05-31",
+  "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
+  "current_week": "W01 · I-ийн эхийн илүүдэл ба Gemma харьцуулалтын багц шалгагдсан; дараагийн гол багц II · STT/TTS.",
+  "status_basis": "1513 тест: 1512 PASS /1 Windows-symlink SKIP; 200 source hash drift0. Ижил42 development:32/2/8→42/0/0, өөр субъектын илүүдэл0. Хүний/heldout accuracy биш.",
+  "weekly_plan": {
+    "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
+    "start_date": "2026-10-26",
+    "planning_end_date": "2027-05-31",
+    "current_id": "W01",
+    "november_10_target_cancelled": true,
+    "whole_thesis_completion_percentage": null
+  },
+  "plan_status": {
+    "updated_date": "2026-10-27",
+    "policy_notice": "Одоогийн төвлөрөл I · мэдлэгийн хүрээ, эхийн сан, хайлт ба эхтэй хариулт. Дараагийн гол багц II · STT/TTS. III-ийн тест, нотолгоо, бичвэр энэ ажлыг дагана. Огноо өнгөрсөн нь completion биш.",
+    "current": {
+      "week_id": "W01",
+      "title": "I хэсэг · эхийн илүүдэл ба Gemma-ийн бодит харьцуулалт",
+      "status_label": "Энэ багц шалгагдсан · хөгжүүлэлтийн дүн; нийт дипломын completion биш",
+      "done": [
+        "Зарын хугацаа, бүх утсыг нэг нийтлэлийн өөрийн эхтэй холбож, өөр мэдээний огноогоор орлуулахыг шалгасан.",
+        "ARC/Sunny-ийн өөр компанийн хэсэг, лабораторийн клуб, контактын маягт болон давхардсан эшлэлийг цөөлсөн.",
+        "42 шалгалт:32 зөв/2 дутуу/8 алдаа→42/0/0;32 мэдээлэлтэй асуулт+10 татгалзах хяналт. Хүний accuracy биш.",
+        "Ижил20 production context: Gemma20, BM25top1 13, top3 17, талбар шалгадаг BM25 20. Gemma-ийн давуу тал нотлогдоогүй.",
+        "1512 тест PASS;1 Windows-symlink SKIP. Raw/API/браузерийн нотолгоо тусдаа хадгалсан."
+      ],
+      "in_progress": [
+        "9 хариултад урт эхийн тайлбар үлдсэн. Гол талбар бүрэн гэдгийг бүх хариулт товч/төгс болсон гэж тооцохгүй.",
+        "Ирээдүйн хараат бус шинэ асуулт ба хэрэглээний үнэлгээ; одоогийн асуултууд хөгжүүлэлтэд ашиглагдсан."
+      ],
+      "next": [
+        "II · STT/TTS: нэр/тоо/он ба ердийн үгийн алдааг ялгаж, өөр механизмын candidate-ийг ижил аудиотой суурьтай харьцуулах.",
+        "TTS-ийн spoken-text/дуудлага, хэрэглээнд чухал утгыг хэмжих. Хүний оноо, шинэ бичлэгийг зохиож нөхөхгүй.",
+        "III · тухайн үр дүнгийн сэргээх ажиллагаа, нотолгоо ба дипломын бичвэрийг шинэчлэх."
+      ],
+      "human_tasks": []
+    },
+    "weeks": {
+      "W01": {
+        "state": "in_progress",
+        "label": "I-ийн энэ багц:42 шалгалт ба20 ижил context-ийн харьцуулалт дууссан",
+        "evidence": [
+          "1513 тест: 1512 PASS /1 Windows-symlink SKIP; 200 source hash drift0. Ижил42 development:32/2/8→42/0/0, өөр субъектын илүүдэл0. Хүний/heldout accuracy биш.",
+          "Gemma20/20 ба хүчтэй LLM-гүй20/20 тэнцсэн; ерөнхий давуу талын дүгнэлт биш.",
+          "Raw STT36.02% хэвээр; энэ RAG багцад шинэ speech inference/сургалт0."
+        ],
+        "next_actions": [
+          "II · STT/TTS: нэр/тоо/он ба ердийн үгийн алдааг ялгаж, өөр механизмын candidate-ийг ижил аудиотой суурьтай харьцуулах.",
+          "TTS-ийн spoken-text/дуудлага, хэрэглээнд чухал утгыг хэмжих. Хүний оноо, шинэ бичлэгийг зохиож нөхөхгүй.",
+          "III · тухайн үр дүнгийн сэргээх ажиллагаа, нотолгоо ба дипломын бичвэрийг шинэчлэх."
+        ]
+      }
+    },
+    "components": [
+      {
+        "id": "rag",
+        "label": "RAG · эхтэй хариулт",
+        "state": "in_progress",
+        "detail": "Ижил эхийн субъект/огноо/бүх талбарыг шалгаж, хамааралгүй өөр компанийн хэсэг ба UI давхардлыг цөөлсөн. Эхийн нөхцөлийг хадгална.",
+        "evidence_label": "42development:32/2/8→42/0/0;өөр субъектын илүүдэл0;урт тайлбар9 үлдсэн. Хүний accuracy биш."
+      },
+      {
+        "id": "stt",
+        "label": "STT · Whisper",
+        "state": "in_progress",
+        "detail": "Үндсэн raw WER36.02%, CER16.90% хэвээр. Сурсан domain candidate41.40% болж муудсан тул анхны жинг хадгалсан. Өөрийн ярианы pilot ба туслагчийн нэмэлт хяналт боломжтой; шинэ бодит gain хэмжигдээгүй.",
+        "evidence_label": "Ижил13 reference:67/184→77/221 үг/тэмдэгтийн алдаа; candidate татгалзсан."
+      },
+      {
+        "id": "tts",
+        "label": "TTS · дуугаар унших",
+        "state": "in_progress",
+        "detail": "Батаа/Есүй бэлэн хоолой хэвээр. Тодорхой хичээлийн жилийн хоёр оныг үгээр унших бэлтгэл, QR/утасны URL/имэйлийн хамгаалалт нэмсэн. Дэлгэцийн эх өөрчлөгдөхгүй. Энэ нь жингийн сургалт эсвэл хүний сонсголын gain биш.",
+        "evidence_label": "Холбогдох106шалгалтPASS;2хоолой×өмнө/дараа4provider synthesis/decode PASS. Хүний сонсголын gain хэмжээгүй."
+      },
+      {
+        "id": "llm",
+        "label": "LLM · Gemma",
+        "state": "in_progress",
+        "detail": "Gemma C замд эхийн ID сонгоно; сервер эхийг сэргээнэ. Ижил20 context дээр хүчтэй LLM-гүй аргын адил шаардсан талбараа бүрэн олсон. Ерөнхий давуу тал нотлогдоогүй.",
+        "evidence_label": "Gemma20/20,25provider call;талбар шалгадагBM25 20/20,0call. Нэгжийн сонголтын хөгжүүлэлтийн харьцуулалт."
+      }
+    ]
+  },
   "milestones": [
     {
       "id": "schema",
@@ -42,7 +122,7 @@
       "id": "grounded-rag",
       "label": "Эхтэй Gemma хариулт ба fallback",
       "state": "done",
-      "detail": "Шинэ 9 найруулгад 2 бүтэн, эх дутуу 1 хэсэгчилсэн, эхгүй эсвэл хүрээ тодорхойгүй 6 үр дүн гарсан. Талбарын дараалал, албаны бүтэн нэр, курс бүрийн хүснэгтийг шалгана. Хүний эсвэл ерөнхий accuracy биш.",
+      "detail": "Gemma-гаар эхийн ID сонгож, сервер эхийг сэргээх зам ба fallback хэрэгжсэн. Одоогийн 42 хөгжүүлэлтийн шалгалт: 32 мэдээлэлтэй хариулт, 10 зөв татгалзах хяналт; 9 хариултад урт тайлбар үлдсэн. Ижил 20 context дээр хүчтэй BM25-аас давуу тал нотлогдоогүй. Хүний эсвэл ерөнхий accuracy биш.",
       "evidence": [
         "rag_runtime.py",
         "tools/evaluate_answer_quality.py"
@@ -52,7 +132,7 @@
       "id": "voice-stability",
       "label": "Дууны урсгалын тогтвортой ажиллагаа",
       "state": "in_progress",
-      "detail": "Raw WER 36.02% хэвээр; шинэ 19 prompt туршилт муудсан тул нэвтрүүлээгүй. Дуугаар «90 кр цаг»-ийг «90 кредит цаг» гэж уншина. Хоёр provider хүсэлт, MP3 decode, 8.736 секундийн Brave playback тэнцсэн. Хүний чанарын шинэ өсөлт хэмжээгүй.",
+      "detail": "Үндсэн raw WER36.02% хэвээр. Шинэ domain сургалтын synthetic gain61→45үг бодит13-д шилжээгүй:67→77үг тул нэвтрүүлээгүй. Бодит асуултын шинэ corpus, consent/reference/speaker-split шалгалтын суурь бэлтгэсэн. TTS-ийн кредит цагийн бэлтгэл хэвээр; шинэ хүний чанарын өсөлт хэмжээгүй.",
       "evidence": [
         "voice_runtime.py",
         "requirements.txt"
@@ -217,11 +297,11 @@
   "limitations": [
     "10.15-ны шинэ16-ийн анхны AI оношлогоо5зөв/6дутуу/5алдаа байсан; энэ багц одоо засварт ашигласан development. Үгчлэн эх хуулсан нь зөв хариултын баталгаа биш; хүний бие даасан хариултын үнэлгээ үлдсэн.",
     "5/8 нь тогтоосон инженерийн checklist-ийн тоолол; нийт дипломын 62.5% гэсэн утгагүй.",
-    "Моделиудын бэлэн жинг ашигласан; өөрийн ASR/LLM сургалт хийгээгүй.",
+    "Үндсэн STT бэлэн Cafet жинтэй. Хоёр бодит ASR LoRA сургалтын туршилт хийсэн ч raw яриаг муутгасан тул нэвтрүүлээгүй; LLM/TTS-ийн өөрийн жинг сургаагүй.",
     "Автомат тест болон Support@k нь хариултын correctness хувь биш.",
     "Анхны roadmap болон өмнөх өдрийн түүхэн evidence өөрчлөгдөөгүй."
   ],
-  "evaluation_label": "Ижил 24 development асуултын AI үнэлгээ: 23 бүрэн/1 хэсэгчилсэн; өөр 12 найруулгын ажиллагаа тэнцсэн. Хүний эсвэл хараат бус нийт accuracy биш.",
+  "evaluation_label": "42 хөгжүүлэлтийн шалгалт: 32 мэдээлэлтэй хариулт + 10 зөв татгалзах хяналт; шаардсан мэдээлэл/шийдвэр зөв, өөр субъектын илүүдэл 0, урт тайлбартай 9 үлдсэн. Ижил 20 context дээр Gemma ба талбар шалгадаг BM25 бүрэн талбараар тэнцсэн. AI үнэлгээ; хүний эсвэл хараат бус нийт accuracy биш.",
   "week04": {
     "state": "in_progress",
     "development_cases": 88,
@@ -1148,13 +1228,16 @@
     "scope": "Local implementation and functional verification; not raw ASR gain, human quality or thesis completion."
   },
   "latest_update": {
-    "date": "2026-10-24",
-    "title": "Бодит браузерээр мод, багшийн картыг шалгав",
+    "date": "2026-10-27",
+    "title": "RAG-ийн илүүдэл эх, ижил context-ийн Gemma харьцуулалт шалгагдав",
     "items": [
-      "Модны хулганын товшилт, үндсэн дэлгэрэнгүй харагдац, найруулгын багшийн хүсэлтийг засав.",
-      "Brave-ийн desktop болон374/376CSSpx харагдац, эх нээх, STT/Gemma урсгал,4карт/2зураг шалгав.",
-      "24+12HTTP дахин шалгав:23бүрэн/1partial;12найруулгаPASS. Хүний accuracyбиш.",
-      "RawSTT36.02%хэвээр; patience2-г нэвтрүүлээгүй."
+      "Зарын хугацаа, бүх утсыг нэг нийтлэлийн өөрийн эхтэй холбож, өөр мэдээний огноогоор орлуулахыг шалгасан.",
+      "ARC/Sunny-ийн өөр компанийн хэсэг, лабораторийн клуб, контактын маягт болон давхардсан эшлэлийг цөөлсөн.",
+      "42 шалгалт:32 зөв/2 дутуу/8 алдаа→42/0/0;32 мэдээлэлтэй асуулт+10 татгалзах хяналт. Хүний accuracy биш.",
+      "Ижил20 production context: Gemma20, BM25top1 13, top3 17, талбар шалгадаг BM25 20. Gemma-ийн давуу тал нотлогдоогүй.",
+      "1512 тест PASS;1 Windows-symlink SKIP. Raw/API/браузерийн нотолгоо тусдаа хадгалсан.",
+      "STT/TTS raw чанарын өсөлт гэж тооцоогүй; өөр speech аргын сонгосон уншлага papers/04-д нэмсэн.",
+      "2026.10.28-ны GitHub нийтлэх багц: код/тест/төлөвлөгөө; аудио/reference/DB/runtime/модельд тусдаа artifact бэлтгэнэ. Нийтлэх нь чанарын шинэ хэмжилт биш."
     ]
   },
   "quality_media_20261021": {
@@ -2420,5 +2503,332 @@
       "TTS pronunciation formatting works technically; fresh human quality improvement not measured.",
       "Missing official office/platform fields, teacher summary5/profile4 gap, independent study, permanent HTTPS, clean-machine recovery and final thesis review remain."
     ]
+  },
+  "plan_web_20261027": {
+    "date": "2026-10-27",
+    "weeks": 32,
+    "full_explanatory_sections": 9,
+    "core_components": 4,
+    "tests_run": 1368,
+    "tests_passed": 1367,
+    "tests_skipped": 1,
+    "test_seconds": 203.4681716999985,
+    "source_drift_during_tests": 0,
+    "live_brave": true,
+    "measured_css_widths": [
+      1396,
+      341
+    ],
+    "horizontal_overflow": false,
+    "course_wording_fixed": true,
+    "source_course_rows_verified": 5,
+    "own_training_new": 0,
+    "new_stt_inferences": 0,
+    "new_tts_requests": 0,
+    "new_human_reviews": 0,
+    "whole_thesis_completion_percent": null
+  },
+  "rag_context_ablation_20261027": {
+    "scope": "42development probes;20wordings/10known topics selector comparison;nohuman/heldout",
+    "qa": {
+      "cases": 42,
+      "correct": 42,
+      "partial": 0,
+      "fail": 0,
+      "extra_wrong_subject": 0,
+      "core_complete_and_no_wrong_subject_extra": 42,
+      "material_clutter": 9,
+      "minor_clutter": 6
+    },
+    "comparison": {
+      "gemma_production_selector": {
+        "cases": 20,
+        "requested_fields_correct": 20,
+        "correct": 20,
+        "partial": 0,
+        "no_answer": 0,
+        "wrong_requested_value": 0,
+        "wrong_subject_extra": 0,
+        "unverified_live_state_extra": 1,
+        "material_clutter": 6,
+        "minor_clutter": 4,
+        "complete_without_material_clutter_or_wrong_subject": 14,
+        "whole_answer_assessment_counts": {
+          "complete_supported_and_focused": 10,
+          "complete_with_minor_clutter": 4,
+          "complete_with_material_clutter": 6
+        }
+      },
+      "bm25_best_1_units": {
+        "cases": 20,
+        "requested_fields_correct": 13,
+        "correct": 13,
+        "partial": 0,
+        "no_answer": 7,
+        "wrong_requested_value": 0,
+        "wrong_subject_extra": 0,
+        "unverified_live_state_extra": 0,
+        "material_clutter": 2,
+        "minor_clutter": 4,
+        "complete_without_material_clutter_or_wrong_subject": 11,
+        "whole_answer_assessment_counts": {
+          "complete_supported_and_focused": 7,
+          "complete_with_minor_clutter": 4,
+          "no_answer": 7,
+          "complete_with_material_clutter": 2
+        }
+      },
+      "bm25_best_3_units": {
+        "cases": 20,
+        "requested_fields_correct": 17,
+        "correct": 17,
+        "partial": 0,
+        "no_answer": 3,
+        "wrong_requested_value": 0,
+        "wrong_subject_extra": 5,
+        "unverified_live_state_extra": 1,
+        "material_clutter": 15,
+        "minor_clutter": 1,
+        "complete_without_material_clutter_or_wrong_subject": 2,
+        "whole_answer_assessment_counts": {
+          "complete_with_material_clutter": 10,
+          "complete_with_minor_clutter": 1,
+          "scope_error_in_extra_content": 5,
+          "no_answer": 3,
+          "complete_supported_and_focused": 1
+        }
+      },
+      "bm25_bounded_complete_subset": {
+        "cases": 20,
+        "requested_fields_correct": 20,
+        "correct": 20,
+        "partial": 0,
+        "no_answer": 0,
+        "wrong_requested_value": 0,
+        "wrong_subject_extra": 0,
+        "unverified_live_state_extra": 0,
+        "material_clutter": 2,
+        "minor_clutter": 6,
+        "complete_without_material_clutter_or_wrong_subject": 18,
+        "whole_answer_assessment_counts": {
+          "complete_supported_and_focused": 12,
+          "complete_with_minor_clutter": 6,
+          "complete_with_material_clutter": 2
+        }
+      }
+    },
+    "paired": {
+      "core": {
+        "win": 0,
+        "tie": 20,
+        "loss": 0
+      },
+      "core_then_scope_then_clutter": {
+        "win": 0,
+        "tie": 16,
+        "loss": 4
+      },
+      "rows": [
+        {
+          "case_id": "context-01-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 197,
+          "strong_characters": 197
+        },
+        {
+          "case_id": "context-01-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 197,
+          "strong_characters": 197
+        },
+        {
+          "case_id": "context-02-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 288,
+          "strong_characters": 288
+        },
+        {
+          "case_id": "context-02-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 288,
+          "strong_characters": 288
+        },
+        {
+          "case_id": "context-03-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 122,
+          "strong_characters": 122
+        },
+        {
+          "case_id": "context-03-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 122,
+          "strong_characters": 122
+        },
+        {
+          "case_id": "context-04-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 299,
+          "strong_characters": 299
+        },
+        {
+          "case_id": "context-04-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 299,
+          "strong_characters": 299
+        },
+        {
+          "case_id": "context-05-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 195,
+          "strong_characters": 195
+        },
+        {
+          "case_id": "context-05-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 195,
+          "strong_characters": 195
+        },
+        {
+          "case_id": "context-06-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "loss",
+          "gemma_characters": 789,
+          "strong_characters": 217
+        },
+        {
+          "case_id": "context-06-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "loss",
+          "gemma_characters": 789,
+          "strong_characters": 217
+        },
+        {
+          "case_id": "context-07-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 603,
+          "strong_characters": 603
+        },
+        {
+          "case_id": "context-07-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 603,
+          "strong_characters": 603
+        },
+        {
+          "case_id": "context-08-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "loss",
+          "gemma_characters": 633,
+          "strong_characters": 438
+        },
+        {
+          "case_id": "context-08-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "loss",
+          "gemma_characters": 693,
+          "strong_characters": 438
+        },
+        {
+          "case_id": "context-09-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 666,
+          "strong_characters": 666
+        },
+        {
+          "case_id": "context-09-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 666,
+          "strong_characters": 666
+        },
+        {
+          "case_id": "context-10-1",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 654,
+          "strong_characters": 654
+        },
+        {
+          "case_id": "context-10-2",
+          "gemma_requested_fields": "correct",
+          "strong_requested_fields": "correct",
+          "core_outcome": "tie",
+          "core_then_scope_then_clutter_outcome": "tie",
+          "gemma_characters": 654,
+          "strong_characters": 654
+        }
+      ]
+    },
+    "tests": {
+      "tests_run": 1513,
+      "passed": 1512,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1,
+      "source_files": 200
+    },
+    "evidence": "runtime/rag-context-ablation-20261027/completion-checkpoint.json"
+  },
+  "publication_20261028": {
+    "status": "code_release_prepared",
+    "destination": "https://github.com/sereeindahouse/THesisS",
+    "repository_visibility_verified": "public",
+    "code_tests_plan_docs": true,
+    "user_requested_audio_reference_db_runtime_models": true,
+    "data_artifacts_status": "local_sanitized_export_being_prepared",
+    "credentials_browser_profiles_environments_excluded": true,
+    "model_quality_change_from_publication": false
   }
 }

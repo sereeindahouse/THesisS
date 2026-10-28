@@ -152,6 +152,57 @@ class KnowledgeTreeTests(unittest.TestCase):
                 write_output(first, {'unexpected': 'replacement'})
             self.assertEqual(first.read_bytes(), before)
 
+    def test_information_scope_uses_existing_roots_and_observed_counts(self):
+        config=taxonomy();result=build_tree(config,invented_inputs());scope=result['information_scope']
+        self.assertEqual(scope['domain_count'],8)
+        self.assertEqual(scope['topic_count'],len(config['topics']))
+        self.assertEqual(scope['counts'],result['counts'])
+        self.assertFalse(scope['automatic_answerability_claim'])
+        self.assertFalse(scope['affects_retrieval'])
+        self.assertTrue(scope['requires_matching_saved_evidence'])
+        self.assertNotIn('review-needed',[item['topic_id'] for item in scope['domains']])
+        for domain in scope['domains']:
+            node=next(item for item in result['topics'] if item['topic_id']==domain['topic_id'])
+            self.assertEqual(domain['counts'],node['subtree_counts'])
+            self.assertTrue(domain['request_fields_mn'])
+            self.assertIn(domain['topic_id'],domain['subtopic_ids'])
+
+    def test_information_scope_does_not_turn_source_presence_into_full_answers(self):
+        scope=build_tree(taxonomy(),invented_inputs())['information_scope']
+        student=next(item for item in scope['domains'] if item['topic_id']=='student')
+        self.assertEqual(student['source_status'],'source_present')
+        self.assertEqual(student['structured_status'],'records_missing')
+        gap=next(item for item in scope['gaps'] if item['topic_id']=='student.environment')
+        self.assertTrue(gap['source_present']);self.assertEqual(gap['facts'],0)
+        self.assertNotIn('answerable',student)
+        school=next(item for item in scope['domains'] if item['topic_id']=='school')
+        self.assertEqual(school['source_status'],'source_missing')
+
+    def test_information_scope_only_exports_public_contract_not_private_provenance(self):
+        config=taxonomy();inputs=invented_inputs()
+        config['information_scope']['private_path']='SECRET-CONFIG-PATH'
+        config['information_scope']['domains'][0]['secret']='SECRET-DOMAIN'
+        inputs['provenance']={'path':'SECRET-PROVENANCE'}
+        scope=build_tree(config,inputs)['information_scope']
+        rendered=json.dumps(scope)
+        for secret in ('SECRET-CONFIG-PATH','SECRET-DOMAIN','SECRET-PROVENANCE'):
+            self.assertNotIn(secret,rendered)
+        scope['domains'][0]['counts']['facts']=999
+        self.assertNotEqual(build_tree(config,inputs)['information_scope']['domains'][0]['counts']['facts'],999)
+
+    def test_scope_is_optional_and_invalid_domain_declaration_fails_closed(self):
+        config=taxonomy();del config['information_scope']
+        self.assertEqual(build_tree(config,invented_inputs())['information_scope'],{})
+        for invalid in ('school.history','missing'):
+            config=taxonomy();config['information_scope']['domains'][0]['topic_id']=invalid
+            self.assertEqual(build_tree(config,invented_inputs())['information_scope'],{})
+
+    def test_empty_corpus_has_no_false_source_or_fact_promotion(self):
+        scope=build_tree(taxonomy(),{})['information_scope']
+        self.assertTrue(all(item['source_status']=='source_missing' for item in scope['domains']))
+        self.assertTrue(all(item['structured_status']=='records_missing' for item in scope['domains']))
+        self.assertTrue(all(not value for value in scope['counts'].values()))
+
 
 def captured_data(root):
     """Minimal real SQLite stores and captured bytes, all invented for tests."""

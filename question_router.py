@@ -123,6 +123,55 @@ def _guard_codes(preview, allow_draft):
     return codes or ['answer_guard_blocked']
 
 
+def personal_identifier_request(query):
+    """Recognise a person's identifier lookup, not organisation IDs or form help.
+
+    A published teacher contact card cannot answer a register/passport request.
+    The institutional information scope does not expose those personal fields.
+    No identifier values, names or guessed identity are stored in this rule.
+    """
+    if not isinstance(query,str):
+        return False
+    q=query.casefold()
+    person=(r'(?:багш(?:ийн|ын)?|эрхлэгч(?:ийн)?|захир(?:ал|лын)|ажилт(?:ан|ны)|'
+            r'оюут(?:ан|ны)|суралцагч(?:ийн)?|түүний|миний|өөрийн|'
+            r'(?<!\w)[а-яөүё]\.\s*[а-яөүё]{2,40})')
+    identifier=(r'(?:регистр(?:ийн|ын)?|паспорт(?:ын)?|иргэний\s+үнэмлэх(?:ийн)?|'
+                r'иргэний\s+бүртгэл(?:ийн)?)\s*(?:дугаар(?:ыг|ийг|аа)?|№)')
+    explicit_lookup=r'хэд|харуул|өг(?:нө|өөч|ч|өх)|хэл(?:нэ|ээч|ж|ээд)?(?!\w)'
+    for clause in re.split(r'[!?;,\n]|(?<=[а-яөүё]{2})\.\s+',q):
+        if not re.search(explicit_lookup+r'|ямар|аль',clause):
+            continue
+        if (re.search(r'формат|хэрхэн|яаж|хаана\s+(?:бич|оруул)',clause)
+                and not re.search(explicit_lookup,clause)):
+            continue
+        pattern=person+r'(?P<bridge>(?:\s+[а-яөүё.\-]+){0,2})\s+'+identifier
+        for match in re.finditer(pattern,clause):
+            if re.search(r'сургуул|компани|байгууллаг|коллеж|тэнхим',match['bridge']):
+                continue
+            return True
+    return False
+
+
+def _requested_year_value(query):
+    """A requested output year is distinct from a missing input year scope."""
+    if re.search(r'(?<!\w)(?:аль|ямар|хэдэн)\s+(?:хичээлийн\s+жил(?:ийн|д)?|'
+                 r'он(?:ы|д|оос)?)(?!\w)',query,re.I):
+        return True
+    # An explicit requested-field list can omit "аль": "Хичээлийн жил,
+    # улирал ... хэлнэ үү" still asks the system to FIND those values. Keep
+    # the list and request predicate in the same clause; a mention of missing
+    # year/term metadata alone does not authorize this handoff.
+    for clause in re.split(r'[.!?;]',query.casefold()):
+        if re.search(r'хэрэггүй|асуугаагүй|шаардлагагүй|хамаагүй',clause):
+            continue
+        if (re.search(r'(?<!\w)хичээлийн\s+жил(?:ийг)?\s*(?:,|болон|ба)\s*улирал(?:ыг)?(?!\w)',clause)
+                and re.search(r'(?<!\w)(?:хэл(?:нэ|ж|ээд|ээрэй)|өг(?:нө|өөч)|'
+                              r'нэрл(?:э|энэ|ээрэй)|дурд(?:на|аач)|мэдмээр)(?!\w)',clause)):
+            return True
+    return False
+
+
 def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=None):
     """Route without changing DB, generating text, training or downloading.
 
@@ -219,6 +268,13 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
                      for faq_id in options], supported_years=sorted(years)))
 
     def clarify_year(faq_id):
+        if _requested_year_value(query):
+            # Preserve the entire question for the web evidence pipeline; do
+            # not ask the user to supply the very year they asked us to find.
+            result.update(citations=[],candidates=[],clarification=None)
+            return finish('E',['requested_year_value_lookup'],
+                'Асуусан он, хичээлийн жилийг эхээс хайж тогтооно. '
+                'Хадгалсан богино FAQ-аар асуултын бусад талбарыг орлуулахгүй.')
         years = sorted(set(YEAR_RE.findall(support[faq_id])))
         year_label = '–'.join(years)
         value = clarify('missing_year', 'Аль оны эсвэл хичээлийн жилийн мэдээлэл хэрэгтэй вэ?', [], years)
@@ -227,6 +283,12 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
                 question=f'{year_label} оны {faqs[faq_id]["question"]}',
                 binding='explicit_year_literal_base', supplied_years=years)]
         return value
+
+    if personal_identifier_request(query):
+        result.update(citations=[],candidates=[],exact_matches=[])
+        return finish('E',['personal_identifier_outside_scope'],
+            'Энэ сургуулийн мэдээллийн систем хүний регистр, паспорт, иргэний үнэмлэхийн дугаар өгөхгүй. '
+            'Нийтэлсэн албан утас, имэйлийг асуусан хувийн дугаарын оронд үзүүлэхгүй.')
 
     if any(int(start) > int(end) for start, end in YEAR_RANGE_RE.findall(query)):
         return finish('E', ['invalid_year_range'],

@@ -10,6 +10,23 @@ NODE = shutil.which('node')
 
 @unittest.skipUnless(NODE, 'Node is optional; browser-handler checks require its JS runtime')
 class VoiceUIRecoveryTests(unittest.TestCase):
+    def test_source_quotes_deduplicate_without_losing_other_sources(self):
+        script=r'''const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const html=fs.readFileSync(process.argv[1],'utf8');
+const source=html.slice(html.indexOf('function distinctClaimQuotes('),html.indexOf('function renderTurn('));
+const context=vm.createContext({Set,JSON});vm.runInContext(source,context);
+const result={citations:[{document_id:'a',version:1},{document_id:'b',version:2}],rag:{claims:[
+{source_id:'missing',quote:'ignore'},{source_id:'a',quote:'same'},{source_id:'a',quote:'same'},
+{source_id:'a',quote:'same'},{source_id:'b',quote:'same'},{source_id:'a',quote:'different'},
+{source_id:'a',quote:'fourth'}]}};
+assert.equal(JSON.stringify(context.distinctClaimQuotes(result)),JSON.stringify([
+{index:0,quote:'same'},{index:1,quote:'same'},{index:0,quote:'different'}]));
+assert.equal(context.distinctClaimQuotes({}).length,0);
+console.log('passed');'''
+        result=subprocess.run([NODE,'-e',script,str(ROOT/'demo/index.html')],capture_output=True,text=True,
+            encoding='utf-8',timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
     def scenario(self, name):
         result = subprocess.run([NODE, str(ROOT/'tests/voice_ui_recovery_harness.js'),
             str(ROOT/'demo/index.html'), name], capture_output=True, text=True,

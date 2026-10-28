@@ -16,6 +16,7 @@ from CORE.website_corpus import readonly
 from CORE.document_corpus import official
 from sqlite_retrieval import ReadOnlyContentStore
 from website_retrieval import WebsiteRetriever
+from project_plan import public_plan
 
 
 def source_id(kind, url, version=1):
@@ -42,7 +43,7 @@ def progress(root):
     path=root/'config/project-progress.json'
     if not path.is_file():
         return dict(scope_label='Үе шатны бүртгэл энэ хувилбарт байхгүй.',
-                    milestones=[],completed=0,total=0,limitations=[])
+                    milestones=[],completed=0,total=0,limitations=[],plan=public_plan(root))
     if path.stat().st_size>262144:
         raise ValueError('Progress manifest too large.')
     data=json.loads(path.read_text(encoding='utf-8-sig'))
@@ -55,6 +56,9 @@ def progress(root):
         raise ValueError('Invalid milestone states/IDs.')
     # Do not trust an independently entered percentage/total.
     data.update(completed=sum(m['state']=='done' for m in milestones),total=len(milestones))
+    # The public Markdown is the sole calendar/task source. Status is explicit;
+    # a past date never marks a thesis task complete.
+    data['plan']=public_plan(root,data.pop('plan_status',None))
     return data
 
 
@@ -110,6 +114,7 @@ class SourceExplorer:
                            'sources':list(links.values()),'source_references':references,
                            'fact_records':facts,'faq_records':faqs})
         return dict(schema_version=1,relation='topic_contains',counts=tree['counts'],topics=public,
+                    information_scope=tree.get('information_scope',{}),
                     taxonomy_sha256=tree['taxonomy_sha256'],readonly=True,llm_calls=0,
                     affects_retrieval=False,membership_establishes_answer_truth=False,
                     gaps={k:tree[k] for k in ('missing_source_topics','missing_fact_topics')},

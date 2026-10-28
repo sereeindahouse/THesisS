@@ -97,6 +97,32 @@ def direction_card_bindings(text):
 
 def _structural_spans(text, spans):
     """Keep tightly adjacent source cards and same-entity paragraphs intact."""
+    form_split=[]
+    for start,end in spans:
+        lines=_lines(text[start:end])
+        split=None
+        for index,line in enumerate(lines):
+            # A flattened contact card and its adjacent input form are two UI
+            # records. Keep every character and the complete form, but let the
+            # selector choose contact hours without also reading input labels.
+            # A prose/conditional prefix cannot be detached by this structure.
+            prefix=[item[2] for item in lines[:index]]
+            tail=[item[2] for item in lines[index:]]
+            if (start==spans[0][0] and index and line[2].casefold()=='мэдэгдэл илгээх' and len(tail)==7
+                    and any(re.fullmatch(r'ажлын\s+цаг\s*[:：]?',p,re.I) for p in prefix)
+                    and sum(bool(re.match(r'(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)\b',p,re.I)) for p in prefix)>=2
+                    and not any(_prose(p) for p in prefix)
+                    and not re.search(r'хэрэв|зөвхөн|\bбиш\b|боловч|харин|тохиолдолд','\n'.join(prefix),re.I)
+                    and re.fullmatch(r'нэр\s*\*',tail[1],re.I)
+                    and re.fullmatch(r'имэйл\s*\*',tail[2],re.I)
+                    and re.fullmatch(r'утас\s*\*?',tail[3],re.I)
+                    and re.match(r'сэдэв\s*\*',tail[4],re.I)
+                    and re.fullmatch(r'мэдэгдэл\s*\*',tail[5],re.I)
+                    and tail[6].casefold()=='илгээх'):
+                split=(start+lines[index-1][1],start+line[0]);break
+        if split is not None:form_split.extend([(start,split[0]),(split[1],end)])
+        else:form_split.append((start,end))
+    spans=form_split
     table_split=[]
     for start,end in spans:
         lines=_lines(text[start:end])
@@ -271,8 +297,12 @@ def _after_template_counters(text, start, end):
         if index + 1 >= len(lines):
             continue
         labels = {re.sub(r'\s+', ' ', item[2]).casefold() for item in lines[index:index + 2]}
-        if labels == {'0 хөтөлбөр', '0 багш'}:
-            trim = lines[index + 1][1]
+        inline_pair = re.fullmatch(r'0\s+(?:хөтөлбөр\s+0\s+багш|багш\s+0\s+хөтөлбөр)',line[2],re.I)
+        if labels == {'0 хөтөлбөр', '0 багш'} or inline_pair:
+            if re.search(r'хэрэв|зөвхөн|тохиолдолд|\bбиш\b|боловч|харин|хүчингүй|батлагдаагүй|'
+                         r'хамаарахгүй',text[:start+line[1]],re.I):
+                return start
+            trim = line[1] if inline_pair else lines[index + 1][1]
     if trim:
         remainder = text[start + trim:end]
         start += trim + len(remainder) - len(remainder.lstrip())
@@ -388,7 +418,7 @@ _ROLE_PATTERNS = {
     'total': r'нийт',
     'per_group': r'тус\s+бүр|бүрээс|бүрийн',
     'primary': r'үндсэн',
-    'part_time': r'цагийн',
+    'part_time': r'цагийн\s+(?:багш\w*|орон\s+тоо\w*|ажилтан\w*)',
     'doctorate': r'доктор',
     'masters': r'магистр',
 }

@@ -24,8 +24,11 @@ from historical_fields import event_search_query, event_requirements, event_supp
 from source_fields import (ambiguity, requested_detail, detail_supported, DETAIL_LABELS,
     field_extract, registration_amount_query, registration_payment_query, department_evidence_sources,
     field_evidence_requirements, missing_field_evidence, closed_field_selection_query,
-    single_purpose_selection_scope, staff_query_scope, structured_field_extract,
-    followup_field_request, cooperation_entity_choices)
+    single_purpose_selection_scope, single_company_selection_scope, laboratory_overview_scope,
+    programme_event_scope, programme_event_record, staff_query_scope, structured_field_extract,
+    followup_field_request, cooperation_entity_choices, direct_lookup_contract,
+    direct_lookup_allowed, programming_language_line, field_search_expansions,
+    source_bound_field_requirements)
 from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
     interview_attribute, supports_interview_attribute, ATTRIBUTE_LABELS,
     quantity_context_supported, tuition_amount_query, tuition_label_query, tuition_period_notice)
@@ -240,6 +243,79 @@ def dated_news_evidence_sources(query,sources):
     return [source for source in sources if source['url'] in matched] if matched else sources
 
 
+def admission_announcement_sources(query, sources):
+    """Keep a uniquely dated supplemental-admission notice's own page only.
+
+    Another article's registration deadline cannot fill this notice's deadline,
+    even if both share the same month. Unknown/ambiguous article identity yields
+    no answer rather than mixing pages. No publication date or URL is stored.
+    """
+    q=query.casefold()
+    if (not re.search(r'нэмэлт\s+элсэлт\w*',q)
+            or re.search(r'харьцуул|ялгаа|хоёр\s+(?:зар|мэдээ)|зарууд|хоёул',q)
+            or not any(item['type']=='announcement_field' for item in field_evidence_requirements(query))):
+        return sources
+    names=('нэгдүгээр','хоёрдугаар','гуравдугаар','дөрөвдүгээр','тавдугаар','зургадугаар',
+           'долдугаар','наймдугаар','есдүгээр','аравдугаар','арван нэгдүгээр','арван хоёрдугаар')
+    month_numbers={name:index+1 for index,name in enumerate(names)}
+    month_pattern='(?:'+'|'.join(sorted(map(re.escape,names),key=len,reverse=True))+r'|\d{1,2})'
+    wanted=list(re.finditer(r'(?<!\d)((?:19|20)\d{2})\s+оны\s+('+month_pattern+r')\s+сар(?:ын|д)?(?!\w)',q))
+    if len(wanted)!=1:
+        return sources
+    year,month=wanted[0].groups()
+    month=int(month_numbers.get(month,month))
+    identity_sources={}
+    for source in sources:
+        if '/news/' not in source.get('url',''):
+            continue
+        identity=(source.get('url'),source.get('version'))
+        identity_sources.setdefault(identity,[]).append(source)
+    matched=[]
+    publication=r'((?:19|20)\d{2})\s+оны\s+('+month_pattern+r')\s+сарын\s+\d{1,2}(?:\s+\d+\s+үзсэн)?'
+    for identity,rows in identity_sources.items():
+        # A related-news link in an unrelated article is not its own subject.
+        # Use the stored page title and positive main prose before footer labels.
+        topic=False
+        for source in rows:
+            title=source.get('title','')
+            if (not re.search(r'элсэлт\w*|бүртгэл\w*',title,re.I)
+                    or re.search(r'ажлын\s+байр|олимпиад|ур\s+чадварын\s+шалгалт',title,re.I)):
+                continue
+            main=re.split(r'(?im)^\s*(?:холбоотой\s+мэдээ|бусад\s+мэдээ|'
+                          r'сүүлийн\s+мэдээ|буцах)\s*$',source.get('text',''),maxsplit=1)[0]
+            for clause in re.split(r'\n|(?<=[.!?])\s+',main):
+                if (re.search(r'нэмэлт\s+элсэлт\w*',clause,re.I)
+                        and re.search(r'зарла\w*|явуул\w*|үргэлжл\w*|эхэл\w*|нээлттэй',clause,re.I)
+                        and not re.search(r'холбоос|ишил|эшил|холбоотой\s+мэдээ|гарчиг|'
+                                          r'үгүйсгэ|няцаа|хүчингүй|\bбиш\b|тодорхойгүй|байхгүй|'
+                                          r'(?:зарла|явуул|үргэлжл|эхэл)\w*гүй',clause,re.I)):
+                    topic=True
+                    break
+        dated=False
+        for source in rows:
+            for line in (source.get('page_header','')+'\n'+source.get('text','')).splitlines()[:9]:
+                pub=re.fullmatch(publication,line.strip(),re.I)
+                if pub and pub[1]==year and int(month_numbers.get(pub[2].casefold(),pub[2]))==month:
+                    dated=True
+        if topic and dated:matched.append(identity)
+    return [source for source in sources if (source.get('url'),source.get('version'))==matched[0]] if len(matched)==1 else []
+
+
+def admission_stage_sources(query, sources):
+    """An olympiad payment clause cannot fill an enrolment-stage question.
+
+    Explicit comparisons mentioning olympiads retain their original evidence.
+    This excludes only a positively identified other registration category.
+    It does not manufacture admission evidence or rewrite any source.
+    """
+    stages={r['stage'] for r in field_evidence_requirements(query) if r['type']=='admission_stage'}
+    if stages!={'registration','enrolment'} or re.search(r'олимпиад',query,re.I):
+        return sources
+    return [source for source in sources if not (
+        re.search(r'(?<!\w)олимпиад',source.get('title',''),re.I)
+        or urlsplit(source.get('url') or '').path.rstrip('/').startswith('/olympiad'))]
+
+
 def official(url):
     try:
         parts = urlsplit(url)
@@ -437,7 +513,7 @@ def focused_extract(query, sources):
                 return source, text
             if ('ярилцлага' in terms and interview_attribute(query) in {'duration', 'companion', 'maximum_score'}
                     and not re.search(r'бичгийн|босго|тэнцэх|хамгийн бага|эхлэх|хэзээ', q)
-                    and 'Ярилцлагын шалгалт 15 минут' in text):
+                    and direct_lookup_allowed(query, source)):
                 return source, text
             if (re.search(r'элс', q) and 'эрх' in q and re.search(r'шилжүүл', q)
                     and 'Элсэх эрхийг бусдад шилжүүлэхийг хориглоно.' == text):
@@ -449,12 +525,10 @@ def focused_extract(query, sources):
                 start = text.find('Амжилттай оролцсон 10 сурагчдад')
                 if start >= 0:
                     return source, text[start:]
-        if (source['url'] == 'https://nmct.edu.mn/programs/computer-science-program'
-                and 'програм' in terms and 'хэл' in terms
-                and not re.search(r'заадаггүй|үздэггүй|хэдэн цаг|хэдэн кредит', q)):
-            match = re.search(r'[^\n]*C/C\+\+, Java, Python[^\n]*', text)
-            if match:
-                return source, match.group()
+        if ('програм' in terms and 'хэл' in terms
+                and direct_lookup_allowed(query, source)):
+            line = programming_language_line(text)
+            if line:return source, line
     return None
 
 
@@ -474,7 +548,7 @@ def registration_process_query(query):
         and (terms & {'алхм', 'онлайн', 'цахим'} or re.search(r'яаж|хэрхэн', query.casefold())))
 
 
-def source_extract(query, sources):
+def _source_extract_candidate(query, sources):
     """Narrow direct lookups copy source text; all other questions use generation.
 
     This is an explicit development rule, not an inferred semantic guarantee.
@@ -512,6 +586,129 @@ def source_extract(query, sources):
     return None
 
 
+def source_extract(query, sources):
+    """Apply the same known-field completeness screen to every direct answer.
+
+    A source-exact single clause cannot bypass a compound question's second
+    field merely because a shortcut found it before the generator ran.
+    """
+    candidate=_source_extract_candidate(query,sources)
+    if candidate and missing_field_evidence(source_bound_field_requirements(query,sources),candidate[1]):
+        return None
+    return candidate
+
+
+def _company_root_identity(root, lookup):
+    """Read an explicit company owner through an existing dependency closure.
+
+    A later heading cannot erase an unidentified prefix. Multiple owners and
+    broken/cyclic links stay unknown. This uses only already supplied units.
+    """
+    closure, visiting = [], set()
+    def append(identifier):
+        if identifier in closure:
+            return True
+        if identifier in visiting or identifier not in lookup:
+            return False
+        visiting.add(identifier)
+        for context in lookup[identifier].get('context_unit_ids', []):
+            if not append(context):
+                return False
+        visiting.remove(identifier)
+        closure.append(identifier)
+        return True
+    if not append(root):
+        return None, []
+    owners = set()
+    for identifier in closure:
+        lines = [line.strip() for line in lookup[identifier]['text'].splitlines() if line.strip()]
+        own = []
+        for line in lines:
+            heading = re.fullmatch(r'([A-Za-z][A-Za-z0-9 &./()\-]{0,90}?)\s+'
+                r'(?:Co\.?,?\s*)?(?:Ltd\.?|Inc\.?|Corp\.?|LLC|PLC)', line, re.I)
+            prose = re.match(r'^([A-Za-z][A-Za-z0-9 &./()\-]{1,90}?)\s+компани\s+нь\b', line, re.I)
+            if heading or prose:
+                own.append((heading or prose)[1].strip().casefold())
+        # A company appearing later in a packed unit cannot identify an
+        # unlabelled preceding paragraph as its own description.
+        first_owned = bool(lines and (re.fullmatch(r'[A-Za-z][A-Za-z0-9 &./()\-]{0,90}\s+'
+            r'(?:Co\.?,?\s*)?(?:Ltd\.?|Inc\.?|Corp\.?|LLC|PLC)', lines[0], re.I)
+            or re.match(r'^[A-Za-z][A-Za-z0-9 &./()\-]{1,90}?\s+компани\s+нь\b', lines[0], re.I)))
+        if own and not first_owned:
+            return None, closure
+        owners.update(own)
+    return (next(iter(owners)) if len(owners) == 1 else None), closure
+
+
+def _company_course_metadata_supported(scope, lookup, selected):
+    """Require the requested count/year/term in one owner's course clause."""
+    alias = r'(?<![a-z0-9])' + scope['requested_alias'] + r'(?![a-z0-9])'
+    for identifier in selected:
+        owner, closure = _company_root_identity(identifier, lookup)
+        if owner != scope['requested_name']:
+            continue
+        if not any(re.search(alias, lookup[sid]['text'], re.I) for sid in closure):
+            continue
+        for clause in re.split(r'\n|(?<=[.!?])\s+', lookup[identifier]['text']):
+            titles = {title.strip().casefold() for title in re.findall(r'[“"«]([^”"»\n]+)[”"»]', clause)}
+            if (not re.search(r'хичээл\w*', clause, re.I)
+                    or len(titles) < (scope.get('requested_count') or 1)
+                    or not re.search(r'(?:19|20)\d{2}\s*[-–—]\s*(?:19|20)\d{2}\s+оны\s+хичээлийн\s+жил', clause, re.I)
+                    or not re.search(r'(?:намрын|хаврын|өвлийн|зуны)\s+улирал', clause, re.I)):
+                continue
+            return True
+    return False
+
+
+def _independent_student_activity(text):
+    """An explicit unrelated activity/table, never an unidentified qualifier."""
+    if re.search(r'лаборатор\w*|төхөөрөмж\w*|зөвшөөр\w*|шаардлаг\w*|эрхтэй|хамаар\w*|'
+                 r'бүртгүүлсэн|хамрагдсан|(?<!\w)(?:тэд|эдгээр|тухайн)(?!\w)',text,re.I):return False
+    lines=[line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:return False
+    if lines[0].casefold()=='оюутны үйл ажиллагаа':
+        lines=lines[1:]
+    if not lines:return False
+    clauses=re.split(r'(?<=[.!?])\s+',' '.join(lines))
+    if (len(clauses)==2 and re.fullmatch(r'оюутнууд\s+мэргэжлийн\s+клуб(?:,|\s).{1,350}'
+            r'үйл\s+ажиллагаанд\s+идэвхтэй\s+оролцож\s+байна[.]',clauses[0],re.I)
+            and re.fullmatch(r'үүнд\s+.{1,350}\s+багтана[.]',clauses[1],re.I)):
+        return True
+    course=r'\d+-р\s+курс\s+\d+\s+оюутан'
+    club=r'мэргэжлийн\s+клубийн\s+үйл\s+ажиллагаанд\s+\d+\s+оюутан\s+хамрагдаж\s+байна[.]?'
+    return (sum(bool(re.fullmatch(course,line,re.I)) for line in lines)>=2
+            and all(re.fullmatch(course,line,re.I) or re.fullmatch(club,line,re.I) for line in lines))
+
+
+def _programme_other_company_root(root,lookup,scope,partner_words):
+    """An explicit independent company and its own proven continuation only."""
+    _,closure=_company_root_identity(root,lookup)
+    if not closure:return False
+    alias=r'(?<![a-z0-9])'+re.escape(scope['programme'])+r'(?![a-z0-9])'
+    texts=[lookup[identifier]['text'] for identifier in closure]
+    if any(re.search(alias,text,re.I) for text in texts):return False
+    owners=set()
+    for text in texts:
+        clauses=re.split(r'\n|(?<=[.!?])\s+',text)
+        owned=False
+        for index,clause in enumerate(clauses):
+            match=re.match(r'^(?:(?:Өнөөдөр|Мөн)\s+)?'
+                r'(?P<name>[A-ZА-ЯӨҮЁ][A-Za-zА-ЯӨҮЁа-яөүё0-9&.\-]*(?:\s+[A-Za-zА-ЯӨҮЁа-яөүё0-9&.\-]+){0,4})'
+                r'\s+компани(?:тай|йн|д)?(?=\s|[,.:])',clause.strip())
+            if not match:continue
+            name=match['name'].casefold()
+            if name.split()[0] in {'тус','энэ','эдгээр','манай','тухайн','тэд','иймд','тэнхим','сургууль','шмтк'}:
+                continue
+            if set(re.findall(r'[a-zа-яёөү0-9]+',name)) & partner_words:return False
+            owners.add(name)
+            if index==0:owned=True
+        # An unlabelled prefix cannot be erased by a named company later.
+        # A linked "Тус компани" unit may inherit its explicit physical parent.
+        if not owned and not re.match(r'^(?:Мөн\s+)?(?:Тус|Энэ)\s+компани\w*',text.strip(),re.I):
+            return False
+    return len(owners)==1
+
+
 def refine_evidence_selection(query, roots, units, resolved):
     """Remove surplus selected roots only for fully screened field grammars.
 
@@ -531,7 +728,9 @@ def refine_evidence_selection(query, roots, units, resolved):
         return resolved, diagnostics
     original_text = '\n'.join(c['text'] for c in resolved['claims'])
     # "тасралтгүй" describes continuous activity, not an exception/denial.
-    negatives = set(re.findall(r'\b[а-яёөү]+гүй\b', original_text.casefold())) - {'тасралтгүй'}
+    additive_words={'тасралтгүй'}
+    if programme_event_scope(query):additive_words.add('төдийгүй')
+    negatives = set(re.findall(r'\b[а-яёөү]+гүй\b', original_text.casefold())) - additive_words
     if negatives or re.search(r'\b(?:хэрэв|зөвхөн|биш|боловч|харин|эсвэл)\b|тохиолдолд|'
                               r'бусад\s+нөхцөл', original_text, re.I):
         diagnostics['reason'] = 'condition_or_exception_preserved'
@@ -539,24 +738,62 @@ def refine_evidence_selection(query, roots, units, resolved):
     diagnostics.update(eligible=True, reason='no_shorter_complete_subset')
     preserve_roots = set()
     preserve_context = set()
-    scope = single_purpose_selection_scope(query)
+    scope = (single_purpose_selection_scope(query) or single_company_selection_scope(query)
+             or laboratory_overview_scope(query) or programme_event_scope(query))
     if scope:
         lookup = {unit['unit_id']: unit for unit in units}
-        for root in roots:
-            text = lookup[root]['text']
-            requested = re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)', text, re.I)
-            # Only an explicit opposing heading or subject clause authorizes
-            # exclusion. Unidentified/pronominal roots remain, as does EVERY
-            # root mentioning the requested subject, even if a shorter root
-            # happens to pass an imperfect purpose-predicate screen.
-            opposing = re.match(r'(?:' + scope['other_alias']
-                + r')(?=\s*(?:\n|$)|\s+(?:нь|бол|гэдэг|гэж)(?:\s|$))', text.lstrip(), re.I)
-            if requested or not opposing:
-                preserve_roots.add(root)
+        if scope.get('kind')=='programme_event':
+            records=[(identifier,programme_event_record(lookup[identifier]['text'],scope))
+                     for identifier in resolved['selected_unit_ids']]
+            records=[(identifier,record) for identifier,record in records if record]
+            if not records:
+                diagnostics.update(eligible=False,reason='programme_roles_not_in_own_paragraph')
+                return resolved,diagnostics
+            partner_words={word for _,record in records for word in re.findall(
+                r'[a-zа-яёөү0-9]+',record['partner'].casefold())}
+            preserve_roots={root for root in roots if not _programme_other_company_root(root,lookup,scope,partner_words)}
+            preserve_context={identifier for identifier,_ in records}
+            diagnostics['programme_scope']=scope['programme']
+        elif scope.get('kind')=='laboratory_overview':
+            for root in roots:
+                _,closure=_company_root_identity(root,lookup)
+                # Every unknown/pronominal/laboratory-bearing root remains.
+                # Only a closed independent activity or course-count table can
+                # be removed, and never through laboratory dependencies.
+                if not closure or any(not _independent_student_activity(lookup[sid]['text']) for sid in closure):
+                    preserve_roots.add(root)
+            preserve_context={identifier for identifier in resolved['selected_unit_ids']
+                if re.search(r'лаборатор\w*|төхөөрөмж\w*',lookup[identifier]['text'],re.I)}
+            diagnostics['laboratory_scope']=scope['subject']
+        elif scope.get('kind') == 'company':
+            alias = r'(?<![a-z0-9])' + scope['requested_alias'] + r'(?![a-z0-9])'
+            for root in roots:
+                owner, closure = _company_root_identity(root, lookup)
+                # An explicitly different independent company (including its
+                # dependency-bound continuation) may go. Unknown, mixed and
+                # requested-subject roots must remain, regardless of length.
+                if owner is None or owner == scope['requested_name'] or any(
+                        re.search(alias, lookup[sid]['text'], re.I) for sid in closure):
+                    preserve_roots.add(root)
+            preserve_context = {identifier for identifier in resolved['selected_unit_ids']
+                if re.search(alias, lookup[identifier]['text'], re.I)}
+            diagnostics['company_scope'] = scope['requested_name']
+        else:
+            for root in roots:
+                text = lookup[root]['text']
+                requested = re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)', text, re.I)
+                # Only an explicit opposing heading or subject clause authorizes
+                # exclusion. Unidentified/pronominal roots remain, as does EVERY
+                # root mentioning the requested subject, even if a shorter root
+                # happens to pass an imperfect purpose-predicate screen.
+                opposing = re.match(r'(?:' + scope['other_alias']
+                    + r')(?=\s*(?:\n|$)|\s+(?:нь|бол|гэдэг|гэж)(?:\s|$))', text.lstrip(), re.I)
+                if requested or not opposing:
+                    preserve_roots.add(root)
+            preserve_context = {identifier for identifier in resolved['selected_unit_ids']
+                if re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)',
+                             lookup[identifier]['text'], re.I)}
         diagnostics['subject_identity_preserved_root_ids'] = sorted(preserve_roots)
-        preserve_context = {identifier for identifier in resolved['selected_unit_ids']
-            if re.search(r'(?<!\w)(?:' + scope['requested_alias'] + r')(?!\w)',
-                         lookup[identifier]['text'], re.I)}
         diagnostics['subject_identity_preserved_context_ids'] = sorted(preserve_context)
     best, best_roots, best_length = resolved, roots, len(before)
     for count in range(1, len(roots)):
@@ -573,6 +810,9 @@ def refine_evidence_selection(query, roots, units, resolved):
             texts = [claim['text'] for claim in candidate['claims']]
             selected_text = '\n'.join(texts)
             if missing_field_evidence(requirements, texts):
+                continue
+            if scope and scope.get('kind') == 'company' and not _company_course_metadata_supported(
+                    scope, lookup, candidate['selected_unit_ids']):
                 continue
             if compound_exam_duration(query) and not both_exam_durations_supported(selected_text):
                 continue
@@ -628,11 +868,11 @@ class GroundedGenerator(LLMRuntime):
             result['department_scope_filter'] = dict(before=original_source_ids,
                 after=[source['source_id'] for source in sources], mechanism='literal_named_department_title')
         prior_article_sources=[source['source_id'] for source in sources]
-        sources=dated_news_evidence_sources(query,article_evidence_sources(query,sources))
+        sources=admission_announcement_sources(query,dated_news_evidence_sources(query,article_evidence_sources(query,sources)))
         if [source['source_id'] for source in sources]!=prior_article_sources:
             result['article_scope_filter']=dict(before=prior_article_sources,
                 after=[source['source_id'] for source in sources],mechanism='literal_article_title_or_publication_date')
-        sources = year_evidence_sources(query, sources)
+        sources = admission_stage_sources(query,year_evidence_sources(query, sources))
         if not sources:
             return finish("requested_year_not_supported")
         if not self.status()["available"]:
@@ -653,7 +893,7 @@ class GroundedGenerator(LLMRuntime):
             result["answer_text_generated"] = False
             result["evidence_unit_count"] = len(units)
             result["evidence_units"]=[{key:u.get(key) for key in ('unit_id','source_id','text','start','end','context_unit_ids','page_span')} for u in units]
-            requirements = field_evidence_requirements(query)
+            requirements = source_bound_field_requirements(query,sources)
             if requirements:
                 result['requested_fields'] = [field['name'] for field in requirements]
             payload = {"model": self.model, "stream": False, "format": schema,
@@ -932,7 +1172,7 @@ class GroundedGenerator(LLMRuntime):
 
 class ChatRAG:
     """Keep deterministic answers first; expand unsupported FAQ coverage to web sources."""
-    EXTEND = {"no_supported_question_match", "select_supported_question", "unmatched_named_entity"}
+    EXTEND = {"no_supported_question_match", "select_supported_question", "unmatched_named_entity", "requested_year_value_lookup"}
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
 
@@ -1113,6 +1353,31 @@ class ChatRAG:
             # the fee itself. Keep the original query/ranking, inspect up to ten
             # candidates, then require an actual registration amount clause.
             found = self.retriever.search(query, limit=10 if registration_amount_query(query) else 5)
+            expansions=field_search_expansions(query)
+            if expansions:
+                original=list(found.get('candidates',[]));seen={source['source_id'] for source in original}
+                additions=[];trace=[]
+                for expansion in expansions:
+                    primary_in_scope=year_evidence_sources(query,original)
+                    if any(not missing_field_evidence([expansion['requirement']],source['text']) for source in primary_in_scope):
+                        trace.append(dict(field=expansion['requirement']['name'],query=None,
+                                          status='already_in_primary',supplemental_source_ids=[]))
+                        continue
+                    search_query=expansion['query']+' '+ ' '.join(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)',query))
+                    supplemental=self.retriever.search(search_query.strip(),limit=5)
+                    if supplemental.get('corpus_id')!=found.get('corpus_id'):
+                        raise ValueError('Source corpus changed during field search.')
+                    accepted=[]
+                    for source in supplemental.get('candidates',[]):
+                        if len(accepted)>=2 or len(additions)>=max(0,10-len(original)):
+                            break
+                        if (source['source_id'] in seen or not official(source.get('url'))
+                                or missing_field_evidence([expansion['requirement']],source['text'])):
+                            continue
+                        seen.add(source['source_id']);additions.append(source);accepted.append(source['source_id'])
+                    trace.append(dict(field=expansion['requirement']['name'],query=search_query.strip(),status='searched_missing_field',
+                                      supplemental_source_ids=accepted))
+                found=dict(found,candidates=additions+original,field_query_expansion=trace)
             expanded = event_search_query(query)
             if expanded:
                 supplemented = self.retriever.search(expanded, limit=5)
@@ -1142,6 +1407,8 @@ class ChatRAG:
                              for source in candidates]}
         if found.get('event_query_expansion'):
             result['rag']['event_query_expansion'] = found['event_query_expansion']
+        if found.get('field_query_expansion'):
+            result['rag']['field_query_expansion'] = found['field_query_expansion']
         result["related_sources"] = [{"title": s["title"], "url": s["url"], "excerpt": s["excerpt"],
                                       "chunk_id": s["chunk_id"], "version": s["version"],
                                       "retrieved_at": s["retrieved_at"]} for s in candidates[:3]]
@@ -1164,7 +1431,7 @@ class ChatRAG:
         live = bool(re.search(r"өнөөдөр|өнөөдр\w*|яг одоо|одоогоор|энэ жил|одоо.*(?:бүртг|нээлт|элс)|бүртг.*(?:одоо|нээлт)", live_query))
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
         evidence = year_evidence_sources(query, candidates)
-        evidence=dated_news_evidence_sources(query,article_evidence_sources(query,evidence))
+        evidence=admission_stage_sources(query,admission_announcement_sources(query,dated_news_evidence_sources(query,article_evidence_sources(query,evidence))))
         office_scope = named_office_field_scope(query, evidence)
         if office_scope is not None and not office_scope['sources']:
             result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,
@@ -1372,6 +1639,14 @@ class ChatRAG:
                             ('unit_id','source_id','start','end','text','context_unit_ids','page_span')}
                             for unit in field_units])
                     return self._remember(result, allow_draft)
+            lookup_contract = direct_lookup_contract(query, evidence)
+            if lookup_contract and not lookup_contract['allowed_sources']:
+                result.update(route='E',answer=None,citations=[],related_sources=[],suggestions=[],clarification=None,
+                    reason_code='requested_direct_fields_not_supported',
+                    message=lookup_contract['message'],missing_fields=lookup_contract['missing_fields'])
+                result['rag'].update(reason='requested_direct_fields_not_supported',
+                    direct_lookup_kind=lookup_contract['kind'])
+                return self._remember(result,allow_draft)
             direct = source_extract(query, evidence)
             if direct:
                 source, excerpt = direct

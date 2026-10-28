@@ -33,7 +33,7 @@ MAX_BODY = 8192
 AUDIO_NAMES = ("q01.wav", "q02.wav", "q03.wav")
 CLARIFICATION_ARTIFACT_SHA256 = {
     name: hashlib.sha256((Path(__file__).parent/name).read_bytes()).hexdigest()
-    for name in ("clarification_context.py", "demo_server.py", "content_release.py", "release_runtime.py", "data_explorer.py", "teacher_media.py", "tools/build_knowledge_tree.py")
+    for name in ("clarification_context.py", "demo_server.py", "content_release.py", "release_runtime.py", "data_explorer.py", "project_plan.py", "teacher_media.py", "tools/build_knowledge_tree.py")
 }
 
 

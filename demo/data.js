@@ -8,6 +8,7 @@
   const treeState={data:null,pending:false,selected:null,query:'',expanded:new Set()};
   const topicGraph={layout:null,controller:null,nodes:new Map(),edges:[],key:null};
   const brainGraph={layout:null,controller:null,nodes:new Map(),edges:[],key:null};
+  const planFilters={month:'all',status:'all',workstream:'all',query:''};
   let toastTimer;
   const norm = text => String(text || '').normalize('NFKC').toLocaleLowerCase('mn');
   const words = text => norm(text).match(/[\p{L}\p{N}]+/gu)||[];
@@ -118,11 +119,94 @@
     target.append(body);
   }
   function milestoneState(value) {const v=norm(value);if(['done','complete','completed','implemented','pass','finished','ready','дууссан'].includes(v))return 'done';if(['in_progress','in-progress','partial','active','ongoing','үргэлжилж буй'].includes(v))return 'in-progress';return 'planned';}
+  const planStrings=value=>Array.isArray(value)?value.filter(item=>typeof item==='string'&&item.trim()).slice(0,150):[];
+  const planText=value=>str(value).replace(/\[([^\]]+)\]\([^)]*\)/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/`([^`]+)`/g,'$1');
+  const planStatus=value=>['done','in_progress','partial'].includes(value)?value:'planned';
+  const planStatusLabel=value=>({done:'Шалгалтаар дууссан',in_progress:'Хийж буй',partial:'Хэсэгчилсэн',planned:'Төлөвлөсөн'}[planStatus(value)]);
+  function planList(target,title,values,className='') {
+    const items=planStrings(values);if(!items.length)return;
+    const section=element('section',`plan-task-group ${className}`);section.append(element('h4','',title));const list=element('ul');
+    items.forEach(text=>list.append(element('li','',planText(text))));section.append(list);target.append(section);
+  }
+  function renderPlanCurrent(plan) {
+    const target=$('planCurrent');target.replaceChildren();const current=plan.current&&typeof plan.current==='object'?plan.current:{};
+    const header=element('div','plan-current-header');header.append(element('span','eyebrow muted','ЯГ ОДОО'),element('h3','',`${str(current.week_id||plan.current_week_id)} · ${planText(current.title||'Одоогийн ажил')}`));
+    if(current.status_label)header.append(element('p','',planText(current.status_label)));target.append(header);
+    const groups=element('div','plan-current-grid');planList(groups,'Дууссан',current.done,'is-done');planList(groups,'Одоо хийж буй',current.in_progress,'is-active');planList(groups,'Дараагийн алхам',current.next,'is-next');planList(groups,'Хүний оролцоотой тусдаа ажил',current.human_tasks,'is-human');target.append(groups);
+    if(!groups.children.length)target.append(element('p','plan-empty','Энэ долоо хоногийн биелэлтийн дэлгэрэнгүй бүртгэл хараахан алга. Доорх төлөвлөгөөгөөс хийх ажлыг харна уу.'));
+  }
+  function renderPlanComponents(plan) {
+    const target=$('planComponents');target.replaceChildren();
+    (Array.isArray(plan.components)?plan.components:[]).filter(item=>item&&typeof item==='object').slice(0,12).forEach(item=>{
+      const status=planStatus(item.state),card=element('article',`plan-component ${status}`),top=element('div','plan-component-heading');top.append(element('h4','',planText(item.label||item.id)),element('span','plan-status',planText(item.status_label||planStatusLabel(status))));card.append(top,element('p','',planText(item.detail)));
+      if(item.evidence_label)card.append(element('small','plan-evidence',`Нотолгоо · ${planText(item.evidence_label)}`));target.append(card);
+    });
+    if(!target.children.length)target.append(element('p','plan-empty','Үндсэн хэсгүүдийн шинэ төлөв хараахан бүртгэгдээгүй. Доорх инженерийн бүртгэлийг харна уу.'));
+  }
+  function renderPlanWorkstreams(plan) {
+    const target=$('planWorkstreams');target.replaceChildren();
+    const items=(Array.isArray(plan.workstreams)?plan.workstreams:[]).filter(item=>item&&['I','II','III'].includes(item.id));
+    $('planWorkstreamsSection').hidden=items.length!==3;
+    items.slice(0,3).forEach(item=>{
+      const card=element('details','plan-workstream');card.id=`planWorkstream-${item.id}`;card.dataset.workstreamId=item.id;
+      const summary=element('summary');summary.append(element('span','eyebrow muted',`ҮНДСЭН ХЭСЭГ ${item.id}`),element('h3','',planText(item.title)),element('p','',planStrings(item.goal).map(planText).join(' ')));card.append(summary);
+      const body=element('div','plan-workstream-body');planList(body,'Дэд ажлууд',item.subgoals);planList(body,'Бэлэн суурь',item.done,'is-done');planList(body,'Гүйцээх ажил',item.remaining,'is-active');planList(body,'Дуусах шалгуур',item.acceptance);planList(body,'Нотолгоо',item.evidence);
+      const weeks=planStrings(item.week_ids);if(weeks.length)body.append(element('p','plan-workstream-weeks',`Холбогдох хугацаа · ${weeks.join(', ')}`));
+      const jump=element('button','text-button','Энэ хэсгийн долоо хоногуудыг харах →');jump.type='button';jump.addEventListener('click',()=>{planFilters.workstream=item.id;planFilters.month='all';planFilters.status='all';planFilters.query='';$('planWorkstreamFilter').value=item.id;$('planMonthFilter').value='all';$('planStatusFilter').value='all';$('planSearch').value='';renderPlanWeeks();$('planWorkstreamFilter').scrollIntoView({block:'center',behavior:'auto'});$('planWorkstreamFilter').focus({preventScroll:true});});body.append(jump);card.append(body);target.append(card);
+    });
+  }
+  function planWeeks(plan) {return (Array.isArray(plan?.weeks)?plan.weeks:[]).filter(week=>week&&typeof week==='object'&&/^W\d{2}$/.test(week.id));}
+  function renderPlanWeeks() {
+    const plan=state.data?.progress?.plan||{},weeks=planWeeks(plan),target=$('planWeeks');target.replaceChildren();
+    const query=words(planFilters.query),filtered=weeks.filter(week=>{
+      const status=planStatus(week.status),month=planFilters.month;
+      const monthMatch=month==='all'||(/^\d{4}-\d{2}/.test(str(week.start_date))&&str(week.start_date).slice(0,7)<=month&&month<=str(week.end_date||week.start_date).slice(0,7));
+      const stateMatch=planFilters.status==='all'||(planFilters.status==='current'?week.id===plan.current_week_id:planFilters.status==='upcoming'?week.calendar_state==='upcoming':planFilters.status==='in_progress'?['in_progress','partial'].includes(status):status==='done');
+      const workstreamMatch=planFilters.workstream==='all'||planStrings(week.workstream_ids).includes(planFilters.workstream);
+      const haystack=words([week.id,week.title,...planStrings(week.work),...planStrings(week.deliverables),...planStrings(week.acceptance),...planStrings(week.dependencies),...planStrings(week.evidence),...planStrings(week.next_actions)].join(' '));return monthMatch&&stateMatch&&workstreamMatch&&matchesWords(query,haystack);
+    });
+    $('planResultCount').textContent=`${filtered.length} / ${weeks.length} долоо хоног харагдаж байна`;
+    filtered.forEach(week=>{
+      const status=planStatus(week.status),calendar=['current','past','upcoming'].includes(week.calendar_state)?week.calendar_state:'upcoming',working=week.id===plan.current_week_id,card=element('details',`plan-week ${status} calendar-${calendar}${working?' work-current':''}`);card.dataset.weekId=week.id;card.open=working;
+      const summary=element('summary','plan-week-summary'),label=element('div','plan-week-heading');label.append(element('span','plan-week-id',week.id),element('h3','',planText(week.title||'Долоо хоногийн ажил')),element('span','plan-week-dates',`${date(week.start_date)} — ${date(week.end_date||week.start_date)}`));
+      const badges=element('div','plan-week-badges');if(working)badges.append(element('span','plan-calendar-badge','Идэвхтэй ажил'));if(calendar==='current')badges.append(element('span','plan-calendar-badge','Энэ өдрийн хуваарь'));else if(calendar==='past')badges.append(element('span','plan-calendar-badge is-past','Хугацаа өнгөрсөн'));
+      const workstreams=planStrings(week.workstream_ids);if(workstreams.length)badges.append(element('span','plan-badge',`Үндсэн хэсэг · ${workstreams.join(', ')}`));badges.append(element('span','plan-status',planText(week.status_label||planStatusLabel(status))));summary.append(label,badges);card.append(summary);
+      const body=element('div','plan-week-body');planList(body,'Хийх ажил',week.work);planList(body,'Гарах үр дүн',week.deliverables);planList(body,'Дууссан гэж үзэх шалгуур',week.acceptance);planList(body,'Хариуцлага, хамаарал',week.dependencies);planList(body,'Бүртгэгдсэн нотолгоо',week.evidence,'is-done');planList(body,'Үлдсэн дараагийн алхам',week.next_actions,'is-next');
+      if(Array.isArray(week.blocks)&&week.blocks.length){const extra=element('div','plan-week-extra');renderPlanBlocks(extra,week.blocks);body.append(extra);}
+      if(!body.children.length)body.append(element('p','plan-empty','Энэ долоо хоногийн дэлгэрэнгүй ажил хараахан бүртгэгдээгүй.'));card.append(body);target.append(card);
+    });
+    if(!filtered.length)target.append(element('p','plan-empty','Энэ шүүлтүүрт тохирох долоо хоног алга. Сар, төлөв эсвэл хайлтаа өөрчилнө үү.'));
+  }
+  function renderPlanBlocks(target,blocks) {
+    let list=null,table=null,tableBody=null;
+    (Array.isArray(blocks)?blocks:[]).filter(block=>block&&typeof block.text==='string').slice(0,500).forEach(block=>{
+      if(block.type==='table_row'){
+        list=null;const cells=block.text.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(cell=>planText(cell.trim()));
+        if(cells.every(cell=>/^:?-{2,}:?$/.test(cell)))return;
+        if(!table){const wrap=element('div','plan-table-wrap');wrap.tabIndex=0;wrap.setAttribute('aria-label','Хүснэгтийг хажуу тийш гүйлгэж унших');table=element('table','plan-table');const head=element('thead'),row=element('tr');cells.forEach(cell=>{const th=element('th','',cell);th.setAttribute('scope','col');row.append(th);});head.append(row);tableBody=element('tbody');table.append(head,tableBody);wrap.append(table);target.append(wrap);return;}
+        const row=element('tr');cells.forEach(cell=>row.append(element('td','',cell)));tableBody.append(row);return;
+      }
+      table=null;tableBody=null;
+      if(block.type==='list_item'){if(!list){list=element('ul','plan-text-list');target.append(list);}list.append(element('li','',planText(block.text)));return;}
+      list=null;target.append(element(block.type==='heading'?'h4':'p','',planText(block.text)));
+    });
+  }
+  function renderProjectPlan(progress) {
+    const plan=progress.plan,available=Boolean(plan&&typeof plan==='object'&&plan.available===true),notice=$('planUnavailable');$('planContent').hidden=!available;notice.hidden=available;$('planRange').textContent='';
+    if(!available){notice.textContent=planText(plan?.message||'Долоо хоногийн төлөвлөгөө энэ хувилбарт хараахан холбогдоогүй байна. Доорх бодит явцын бүртгэл хэвээр ажиллана.');return;}
+    $('planRange').textContent=`${date(plan.start_date)} — ${date(plan.end_date)}`;$('planPolicy').textContent=planText(plan.policy_notice||'Хуваарь нь хийх ажил; биелэлт нь тусдаа нотолгоотой бүртгэл.');renderPlanWorkstreams(plan);renderPlanCurrent(plan);renderPlanComponents(plan);
+    const select=$('planMonthFilter');select.replaceChildren();const all=element('option','','Бүх сар');all.value='all';select.append(all);
+    const months=[...new Set(planWeeks(plan).flatMap(week=>[week.start_date,week.end_date]).filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(str(value))).map(value=>str(value).slice(0,7)))].sort();months.forEach(month=>{const option=element('option','',`${month.slice(0,4)} оны ${Number(month.slice(5))}-р сар`);option.value=month;select.append(option);});
+    if(!months.includes(planFilters.month))planFilters.month='all';select.value=planFilters.month;$('planStatusFilter').value=planFilters.status;$('planWorkstreamFilter').value=planFilters.workstream;$('planSearch').value=planFilters.query;renderPlanWeeks();
+    const sections=$('planSections');sections.replaceChildren();(Array.isArray(plan.sections)?plan.sections:[]).filter(section=>section&&typeof section==='object').slice(0,60).forEach(section=>{const details=element('details','plan-section');details.append(element('summary','',planText(section.title||'Дэлгэрэнгүй')));const content=element('div','plan-section-body');renderPlanBlocks(content,section.blocks);details.append(content);sections.append(details);});
+    if(!sections.children.length)sections.append(element('p','plan-empty','Нэмэлт арга, дүрмийн хэсэг хараахан бүртгэгдээгүй.'));
+  }
   function renderProgress() {
     const progress=state.data.progress||{},milestones=Array.isArray(progress.milestones)?progress.milestones:[],done=milestones.filter(m=>milestoneState(m.state)==='done').length;
+    renderProjectPlan(progress);
     const summary=$('progressSummary');summary.replaceChildren();
     const counts=element('div','progress-count-card'),figure=element('div','progress-number',done);figure.append(element('small','',` / ${milestones.length}`));const description=element('div');description.append(element('h2','','Ажиллах хувилбарын дууссан шалгуур'),element('p','',progress.scope_label||'Доорх ажлын жагсаалтын төлөв. Дипломын нийт хувь гэж үзэхгүй.'));counts.append(figure,description);
-    const calendar=element('div','progress-calendar');[['Идэвхтэй хүрээ',progress.current_week||'Явцын бүртгэлээс харна'],['Ажиллах хувилбарын зорилт',date(progress.target_date||'2026-11-10')],['Үнэлгээний төлөв',progress.evaluation_label||'Ерөнхий зөв хариултын хувь батлагдаагүй']].forEach(([label,value])=>{const row=element('div');row.append(element('span','',label),element('strong','',str(value)));calendar.append(row);});summary.append(counts,calendar);
+    const calendar=element('div','progress-calendar');[['Идэвхтэй хүрээ',progress.current_week||'Явцын бүртгэлээс харна'],['Төлөвлөлтийн хязгаар',date(progress.target_date)],['Үнэлгээний төлөв',progress.evaluation_label||'Ерөнхий зөв хариултын хувь батлагдаагүй']].forEach(([label,value])=>{const row=element('div');row.append(element('span','',label),element('strong','',str(value)));calendar.append(row);});summary.append(counts,calendar);
     const latest=progress.latest_update;
     if(latest && Array.isArray(latest.items) && latest.items.some(item=>typeof item==='string' && item.trim())){
       const card=element('section','week-summary');card.style.gridColumn='1 / -1';card.style.marginBottom='0';
@@ -136,11 +220,11 @@
     });
     if(!milestones.length)list.append(element('p','scope-note','Явцын шалгуур API-д хараахан бүртгэгдээгүй. CORE/ROADMAP-PROGRESS.mn.md-ээс бодит нотолгоог харна уу.'));
     const week=progress.week03,weekTarget=$('week03Summary');weekTarget.replaceChildren();weekTarget.hidden=!week;
-    if(week){const title=element('h2','',week.complete?'3-р долоо хоногийн техникийн үе · дууссан':'3-р долоо хоногийн техникийн үе · үргэлжилж буй');weekTarget.append(title,element('p','',str(week.scope_label)));
+    if(week){const title=element('h2','',`Өмнөх техникийн үе${week.completed_date?' · '+date(week.completed_date):''} · ${week.complete?'дууссан':'үргэлжилж буй'}`);weekTarget.append(title,element('p','',str(week.scope_label)));
       if(Array.isArray(week.criteria)){const details=element('details');details.append(element('summary','',`${week.criteria.filter(c=>milestoneState(c.state)==='done').length} / ${week.criteria.length} шалгуур · нотолгоог харах`));const ul=element('ul');week.criteria.forEach(c=>{const li=element('li');li.append(element('strong','',str(c.label)),element('span','',str(c.detail)));if(c.evidence)li.append(element('small','',`Нотолгоо: ${str(c.evidence)}`));ul.append(li);});details.append(ul);weekTarget.append(details);}
     }
     const research=Array.isArray(progress.research)?progress.research:[];$('researchSection').hidden=!research.length;const researchList=$('researchMilestones');researchList.replaceChildren();research.forEach(item=>{const status=milestoneState(item.state),row=element('article',`research-item ${status}`),content=element('div');content.append(element('h3','',str(item.label)),element('p','',str(item.detail)));row.append(content,element('span','milestone-state',status==='done'?'Дууссан':status==='in-progress'?'Үргэлжилж буй':'Үлдсэн'));researchList.append(row);});
-    const limits=$('progressLimits');limits.replaceChildren();const messages=Array.isArray(progress.limitations)?progress.limitations:['Хөгжүүлэлтийн асуултуудын үр дүн нь хараат бус тестийн дүн биш.','Гуравдагч талын урьдчилан сурсан моделиудыг ашиглаж байна; өөрийн модель сургалт хийгээгүй.','Албан сайтаас татсан эх ашиглах зөвшөөрөл нь хүний хариултын чанарын үнэлгээг орлохгүй.'];messages.forEach(item=>limits.append(element('li','',str(item))));
+    const limits=$('progressLimits');limits.replaceChildren();const messages=Array.isArray(progress.limitations)?progress.limitations:['Хөгжүүлэлтийн асуултуудын үр дүн нь хараат бус тестийн дүн биш.','Модель сурсан эсэх болон чанар сайжирсан эсэхийг тусдаа нотолгоогоор харуулна.','Албан сайтаас татсан эх ашиглах зөвшөөрөл нь хүний хариултын чанарын үнэлгээг орлохгүй.'];messages.forEach(item=>limits.append(element('li','',str(item))));
   }
   function sourceRefs(refs,curated) {
     const holder=element('div','curated-refs');
@@ -306,12 +390,24 @@
     }
     target.append(branch(null));if(!matches.size)target.append(element('p','tree-no-match','Тохирох сэдэв алга. Өөр нэрээр хайж үзээрэй.'));renderKnowledgeGraph(matches,visible);return {matches,visible};
   }
+  function renderInformationScope() {
+    const scope=treeState.data?.information_scope,host=$('informationScope');
+    host.hidden=!(scope&&scope.schema_version===1&&Array.isArray(scope.domains));if(host.hidden)return;
+    $('informationScopePurpose').textContent=str(scope.purpose_mn);const rules=$('scopeRules');rules.replaceChildren();
+    [['Хамрах мэдээлэл','included_mn'],['Хүрээнээс гадуурх хүсэлт','excluded_mn'],['Тодруулах, мэдэхгүй гэж хэлэх нөхцөл','unknown_mn']].forEach(([title,key])=>{const card=element('details','scope-rule');card.append(element('summary','',title));const list=element('ul');planStrings(scope[key]).forEach(value=>list.append(element('li','',value)));card.append(list);rules.append(card);});
+    const domains=$('scopeDomains');domains.replaceChildren();scope.domains.filter(item=>item&&typeof item==='object'&&treeState.data.topics.some(topic=>topic.topic_id===item.topic_id)).slice(0,32).forEach(item=>{
+      const card=element('details','scope-domain'),summary=element('summary');summary.append(element('strong','',item.label_mn),element('small','',`${number(item.counts?.passages||0)} хайлтын хэсэг · ${number(item.counts?.facts||0)} баримт · ${number(item.counts?.faqs||0)} FAQ`));card.append(summary);
+      const body=element('div','scope-domain-body');body.append(element('p','',item.source_status==='source_present'?'Холбосон эхийн бүртгэлтэй. Талбар бүрийн хариуг өөрийн эхээр нь шалгана.':'Эхийн бүртгэл дутуу. Хариулт таамаглахгүй.'));const list=element('ul');planStrings(item.request_fields_mn).forEach(value=>list.append(element('li','',value)));body.append(list);
+      const jump=element('button','text-button','Энэ салааны эх, дэд сэдвийг харах →');jump.type='button';jump.setAttribute('aria-controls','treeDetail');jump.addEventListener('click',()=>{selectGraphTopic(item.topic_id,true);$('topicTree').scrollIntoView({block:'start',behavior:'auto'});document.querySelector(`[data-tree-topic="${treeState.data.topics.findIndex(topic=>topic.topic_id===item.topic_id)}"]`)?.focus({preventScroll:true});});body.append(jump);card.append(body);domains.append(card);
+    });
+    $('scopeCoverageNote').textContent=[scope.coverage_note_mn,scope.tree_role_mn].filter(value=>typeof value==='string').join(' ');
+  }
   function renderTree() {
     const data=treeState.data,totals=$('treeTotals');totals.replaceChildren();[['pages','HTML хуудас'],['passages','Хайлтын хэсэг'],['facts','Бүтэцтэй баримт'],['faqs','FAQ']].forEach(([key,label])=>{const card=element('div');card.append(element('strong','',number(data.counts?.[key]||0)),element('span','',label));totals.append(card);});
     $('treeTopicCount').textContent=`${number(data.topics.length)} сэдэв`;
     const jump=$('treeTopicJump');jump.replaceChildren(element('option','','Сэдэв сонгох…'));jump.children[0].value='';data.topics.forEach(topic=>{const option=element('option','',(topic.parent_id?'↳ ':'')+topic.label_mn);option.value=topic.topic_id;jump.append(option);});
     const release=data.release||{};$('treeRelease').textContent=release.release_id?`Идэвхтэй эхийн хувилбар: ${str(release.release_id)}`:'Идэвхтэй өгөгдлийн сангийн сэдвийн зураглал.';
-    renderTopicTree();renderTreeDetail();renderSystemGraph();
+    renderInformationScope();renderTopicTree();renderTreeDetail();renderSystemGraph();
   }
   async function loadTree() {
     if(treeState.data||treeState.pending)return;treeState.pending=true;$('treeLoadState').hidden=false;$('treeError').hidden=true;$('treeContent').hidden=true;
@@ -340,6 +436,14 @@
   $('brainZoomIn').addEventListener('click',()=>brainGraph.controller?.zoom(1.25));$('brainZoomOut').addEventListener('click',()=>brainGraph.controller?.zoom(.8));$('brainFit').addEventListener('click',()=>brainGraph.controller?.fit());
   let graphResizeTimer;window.addEventListener('resize',()=>{clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(()=>{if(state.view==='tree'){topicGraph.controller?.resize();brainGraph.controller?.resize();}},120);});
   $('curatedSearch').addEventListener('input',renderCurated);
+  $('planMonthFilter').addEventListener('change',event=>{planFilters.month=event.target.value;renderPlanWeeks();});
+  $('planStatusFilter').addEventListener('change',event=>{planFilters.status=event.target.value;renderPlanWeeks();});
+  $('planWorkstreamFilter').addEventListener('change',event=>{planFilters.workstream=event.target.value;renderPlanWeeks();});
+  $('planSearch').addEventListener('input',event=>{planFilters.query=event.target.value;renderPlanWeeks();});
+  $('planSearch').addEventListener('keydown',event=>{if(event.key==='Escape'){event.target.value='';planFilters.query='';renderPlanWeeks();}});
+  $('planExpandAll').addEventListener('click',()=>{$('planWeeks').querySelectorAll('details').forEach(card=>card.open=true);});
+  $('planCollapseAll').addEventListener('click',()=>{$('planWeeks').querySelectorAll('details').forEach(card=>card.open=false);});
+  $('planCurrentButton').addEventListener('click',()=>{planFilters.month='all';planFilters.status='all';planFilters.workstream='all';planFilters.query='';$('planMonthFilter').value='all';$('planStatusFilter').value='all';$('planWorkstreamFilter').value='all';$('planSearch').value='';renderPlanWeeks();const id=state.data?.progress?.plan?.current_week_id,card=Array.from($('planWeeks').children).find(item=>item.dataset.weekId===id);if(card){card.open=true;card.scrollIntoView({block:'start',behavior:'auto'});card.querySelector('summary')?.focus();}});
   $('sourceSearch').addEventListener('input',event=>{state.query=event.target.value;state.page=1;applyFilters();});
   $('sourceSearch').addEventListener('keydown',event=>{if(event.key==='Escape'){event.target.value='';state.query='';state.page=1;applyFilters();}});
   $('kindFilter').addEventListener('change',event=>{state.kind=event.target.value;state.page=1;applyFilters();});

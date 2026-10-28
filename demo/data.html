@@ -56,6 +56,7 @@
       <div id="treeLoadState" class="tree-load" role="status" aria-live="polite">Мэдлэгийн модыг уншиж байна…</div>
       <div id="treeError" class="tree-error" hidden><p id="treeErrorMessage">Мэдлэгийн модыг нээж чадсангүй.</p><button id="retryTree" class="text-button" type="button">Дахин оролдох ↻</button></div>
       <div id="treeContent" hidden>
+        <section id="informationScope" class="information-scope" aria-labelledby="informationScopeTitle" hidden><div class="section-title"><div><span class="eyebrow muted">МЭДЭХ МЭДЭЭЛЛИЙН ЗААГ</span><h2 id="informationScopeTitle">Систем ямар мэдээлэлд хариулах вэ?</h2></div></div><p id="informationScopePurpose"></p><div id="scopeRules" class="scope-rules"></div><div id="scopeDomains" class="scope-domains"></div><p id="scopeCoverageNote" class="scope-coverage-note"></p></section>
         <div id="treeTotals" class="tree-totals" aria-label="Мэдлэгийн модны бүртгэл"></div>
         <section class="knowledge-map-panel" aria-labelledby="treeTitle">
           <div class="graph-heading"><div><span class="eyebrow muted">САЛААЛСАН МЭДЛЭГИЙН ЗУРАГ</span><h2 id="treeTitle">Шинэ Монгол Коосэн</h2></div><span id="treeTopicCount" class="graph-total"></span></div>
@@ -96,7 +97,28 @@
       <section class="curated-section" aria-labelledby="curatedSourcesTitle"><div class="section-title"><div><span class="eyebrow muted">ТУЛГУУР ЭХИЙН БҮРТГЭЛ</span><h2 id="curatedSourcesTitle">Холбосон эхүүд</h2></div></div><div id="curatedSourcesList" class="curated-sources-list"></div></section>
     </section>
     <section id="progressView" class="view" role="tabpanel" aria-labelledby="progressTab" hidden>
-      <div class="progress-hero"><div class="eyebrow"><span></span>ХИЙСЭН АЖИЛ БА ҮЛДСЭН ШАЛГУУР</div><h1>Систем ажиллаж байна.<br><em>Нотолгоо нь өсөж байна.</em></h1><p>Код ажиллах, эх олох, зөв хариулах гурвын явцыг тусад нь харъя.</p></div>
+      <div class="progress-hero"><div class="eyebrow"><span></span>ТӨЛӨВЛӨГӨӨ · БОДИТ ЯВЦ · НОТОЛГОО</div><h1>Төлөвлөгөө ба бодит явц.<br><em>Одоогийн ажил, дараагийн алхам.</em></h1><p>Долоо хоногийн зорилго, хийсэн ажил, чанарын дүнг нэг дор.</p></div>
+      <section id="projectPlanSection" class="project-plan" aria-labelledby="projectPlanTitle">
+        <div class="section-title"><div><span class="eyebrow muted">ДИПЛОМЫН АЖЛЫН ДАРААЛАЛ</span><h2 id="projectPlanTitle">Долоо хоногийн төлөвлөгөө</h2></div><span id="planRange" class="small-label"></span></div>
+        <p id="planUnavailable" class="plan-unavailable" role="status" hidden></p>
+        <div id="planContent" hidden>
+          <p id="planPolicy" class="plan-policy"></p>
+          <section id="planWorkstreamsSection" class="plan-workstreams-section" aria-labelledby="planWorkstreamsTitle" hidden><div class="section-title"><div><span class="eyebrow muted">ТАВДУГААР САРД ТАЙЛАГНАХ 3 ҮР ДҮН</span><h2 id="planWorkstreamsTitle">Дипломын 3 үндсэн хэсэг</h2></div></div><p>Одоо I хэсгийн мэдлэг, RAG-д төвлөрнө. Дараагийн гол багц II · STT/TTS. Хэсэг бүрийн дэд ажил, хийсэн зүйл, шалгуурыг нээж харна.</p><div id="planWorkstreams" class="plan-workstreams"></div></section>
+          <div id="planCurrent" class="plan-current"></div>
+          <section class="plan-component-section" aria-labelledby="planComponentsTitle"><h3 id="planComponentsTitle">Үндсэн хэсгүүдийн одоогийн төлөв</h3><div id="planComponents" class="plan-components"></div></section>
+          <div class="plan-toolbar">
+            <label for="planWorkstreamFilter">Үндсэн хэсгээр<select id="planWorkstreamFilter"><option value="all">Гурван хэсэг бүгд</option><option value="I">I · Мэдлэг ба RAG</option><option value="II">II · STT ба TTS</option><option value="III">III · Систем ба нотолгоо</option></select></label>
+            <label for="planMonthFilter">Сараар харах<select id="planMonthFilter"><option value="all">Бүх сар</option></select></label>
+            <label for="planStatusFilter">Төлөвөөр харах<select id="planStatusFilter"><option value="all">Бүх долоо хоног</option><option value="current">Идэвхтэй ажлын долоо хоног</option><option value="upcoming">Хугацаа нь болоогүй</option><option value="in_progress">Хийж буй / хэсэгчилсэн</option><option value="done">Шалгалтаар дууссан</option></select></label>
+            <label for="planSearch" class="plan-search-label">Төлөвлөгөөнөөс хайх<input id="planSearch" type="search" placeholder="STT, эх, багш, хугацаа…" autocomplete="off"></label>
+          </div>
+          <div class="plan-list-controls"><p id="planResultCount" role="status" aria-live="polite"></p><div><button id="planCurrentButton" type="button" class="text-button" aria-controls="planWeeks">Идэвхтэй ажил руу</button><button id="planExpandAll" type="button" class="text-button" aria-controls="planWeeks">Харагдаж буйг дэлгэх</button><button id="planCollapseAll" type="button" class="text-button" aria-controls="planWeeks">Хураах</button></div></div>
+          <p class="plan-calendar-note">Хугацаа өнгөрсөн нь ажил дууссан гэсэн үг биш. Биелэлтийг нотолгооны бүртгэлээр харуулна.</p>
+          <div id="planWeeks" class="plan-weeks"></div>
+          <section class="plan-full-section" aria-labelledby="planSectionsTitle"><h3 id="planSectionsTitle">Төлөвлөгөөний үндэслэл ба ажиллах дүрэм</h3><p>Арга, хэмжилт, хязгаар болон хариуцлагын дэлгэрэнгүй хэсгүүдийг нээж уншина.</p><div id="planSections" class="plan-sections"></div></section>
+        </div>
+      </section>
+      <div class="section-title engineering-title"><div><span class="eyebrow muted">ИНЖЕНЕРИЙН ШАЛГУУР · ТУСДАА БҮРТГЭЛ</span><h2>Системийн хэрэгжилт</h2></div></div>
       <div id="progressSummary" class="progress-summary"></div>
       <div class="workflow" aria-label="Системийн урсгал"><span>Яриа <small>STT</small></span><i aria-hidden="true">→</i><span>Хайлт <small>BM25 · E5</small></span><i aria-hidden="true">→</i><span>Эхтэй хариулт <small>Router · Gemma</small></span><i aria-hidden="true">→</i><span>Сонсох <small>TTS</small></span></div>
       <div id="week03Summary" class="week-summary" hidden></div>

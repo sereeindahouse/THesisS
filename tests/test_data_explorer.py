@@ -66,6 +66,32 @@ class ExplorerTests(unittest.TestCase):
         path.write_text(json.dumps(value),encoding='utf-8')
         with self.assertRaises(ValueError):progress(self.root)
 
+    def test_progress_includes_canonical_plan_without_raw_status_extras(self):
+        (self.root/'config').mkdir()
+        (self.root/'CORE').mkdir(exist_ok=True)
+        (self.root/'CORE/WEEKLY-PLAN-2026-2027.mn.md').write_text(
+            '# Test plan\n\n### W01 · 2026.10.26–11.01 — First\n\n'
+            '- **Хийх:** A real task\n- **Гарах:** A reviewable result\n'
+            '- **Тэнцэх:** Evidence required\n',encoding='utf-8')
+        source=dict(schema_version=1,milestones=[],plan_status=dict(
+            current=dict(week_id='W01',title='Current goal',done=['Prepared']),
+            weeks={'W01':dict(state='in_progress',evidence=['Test evidence'])},
+            private_secret='must not be exported'))
+        (self.root/'config/project-progress.json').write_text(json.dumps(source),encoding='utf-8')
+        with patch('website_retrieval._LocalE5.load',side_effect=AssertionError('No model needed')):
+            value=progress(self.root)
+        self.assertTrue(value['plan']['available'])
+        self.assertEqual(value['plan']['weeks'][0]['work'],['A real task'])
+        self.assertEqual(value['plan']['weeks'][0]['status'],'in_progress')
+        self.assertEqual(value['plan']['current']['title'],'Current goal')
+        self.assertNotIn('plan_status',value)
+        self.assertNotIn('must not be exported',json.dumps(value))
+
+    def test_missing_progress_manifest_still_exposes_plan_unavailability(self):
+        value=progress(self.root)
+        self.assertFalse(value['plan']['available'])
+        self.assertEqual((value['completed'],value['total']),(0,0))
+
     def test_curated_facts_and_faqs_whitelisted_without_private_notes(self):
         import test_demo_server as content_fixture
         from content_store import ContentStore
@@ -114,6 +140,9 @@ class ExplorerTests(unittest.TestCase):
         with patch('website_retrieval._LocalE5.load',side_effect=AssertionError('No inference')):
             result=SourceExplorer(self.root,self.db,selected).knowledge_tree()
         self.assertEqual(result['counts'],dict(pages=1,passages=1,sources=1,facts=1,faqs=1))
+        self.assertEqual(result['information_scope']['domain_count'],8)
+        self.assertEqual(result['information_scope']['counts'],result['counts'])
+        self.assertFalse(result['information_scope']['automatic_answerability_claim'])
         root=next(n for n in result['topics'] if n['parent_id'] is None)
         self.assertEqual(root['subtree_counts'],result['counts'])
         contact=next(n for n in result['topics'] if n['topic_id']=='contact')

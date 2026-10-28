@@ -206,6 +206,7 @@ def build_tree(config, inputs):
         and not n['subtree_source_reference_count']
         and not any(n['subtree_counts'][g] for g in ('pages', 'passages', 'sources'))]
     return dict(schema_version=1, relation='topic_contains', label_scope=config['label_scope'],
+        information_scope=information_scope(config,nodes,totals),
         coverage_notes=dict(source_presence='At least one captured source or explicit source reference; not full topic coverage.',
             fact_presence='Existing structured fact records only; no facts extracted from page labels or body text.',
             passage_view='Existing retrieval-preparation rows at the recorded as-of date; not all captured text.'),
@@ -218,6 +219,67 @@ def build_tree(config, inputs):
             if n['topic_id'] != fallback and not n['subtree_counts']['facts']],
         review_needed_record_ids=[r['content_id'] for rows in records.values()
                                   for r in rows if r['primary_topic_id'] == fallback])
+
+
+def information_scope(config, nodes, totals):
+    """Public authored bounds plus observed coverage; no answerability score.
+
+    The authored fields describe which questions may be supported, not which
+    values exist. Counts always come from this selected database pair. Neither
+    body text nor private provenance is exported or used to invent a fact.
+    """
+    declared=config.get('information_scope')
+    if not isinstance(declared,dict) or declared.get('schema_version')!=1:
+        return {}
+    def text(value):
+        return value.strip()[:2000] if isinstance(value,str) and not any(ord(c)<32 for c in value) else ''
+    def strings(values):
+        return [value for item in values[:24] if (value:=text(item))] if isinstance(values,list) else []
+    by_id={node['topic_id']:node for node in nodes}
+    root=next(node['topic_id'] for node in nodes if node['parent_id'] is None)
+    fallback=config['fallback_topic_id']
+    content_roots=[node for node in nodes if node['parent_id']==root and node['topic_id']!=fallback]
+    raw_domains=declared.get('domains',[])
+    if not isinstance(raw_domains,list) or len(raw_domains)>32:
+        return {}
+    fields={}
+    for item in raw_domains:
+        if not isinstance(item,dict) or item.get('topic_id') not in {node['topic_id'] for node in content_roots} or item['topic_id'] in fields:
+            return {}
+        fields[item['topic_id']]=strings(item.get('request_fields_mn'))
+    domains=[]
+    for node in content_roots:
+        descendants=[]
+        for candidate in nodes:
+            current=candidate['topic_id']
+            while current is not None and current!=node['topic_id']:
+                current=by_id[current]['parent_id']
+            if current==node['topic_id']:
+                descendants.append(candidate['topic_id'])
+        counts=copy.deepcopy(node['subtree_counts'])
+        has_source=bool(node['subtree_source_reference_count'] or any(counts[key] for key in ('pages','passages','sources')))
+        domains.append(dict(topic_id=node['topic_id'],label_mn=node['label_mn'],
+            subtopic_ids=descendants,request_fields_mn=fields.get(node['topic_id'],[]),counts=counts,
+            source_status='source_present' if has_source else 'source_missing',
+            structured_status='records_present' if counts['facts'] or counts['faqs'] else 'records_missing'))
+    gaps=[]
+    for node in nodes:
+        if node['topic_id'] in (root,fallback):
+            continue
+        counts=node['subtree_counts']
+        has_source=bool(node['subtree_source_reference_count'] or any(counts[key] for key in ('pages','passages','sources')))
+        if not has_source or not counts['facts']:
+            gaps.append(dict(topic_id=node['topic_id'],label_mn=node['label_mn'],source_present=has_source,
+                             facts=counts['facts'],faqs=counts['faqs']))
+    return dict(schema_version=1,title_mn=text(declared.get('title_mn')),
+        purpose_mn=text(declared.get('purpose_mn')),included_mn=strings(declared.get('included_mn')),
+        excluded_mn=strings(declared.get('excluded_mn')),unknown_mn=strings(declared.get('unknown_mn')),
+        domains=domains,domain_count=len(domains),topic_count=len(nodes),counts=copy.deepcopy(totals),
+        gaps=gaps,review_bucket_topic_id=fallback,
+        requires_matching_saved_evidence=True,automatic_answerability_claim=False,
+        affects_retrieval=False,
+        coverage_note_mn='Эх байгаа нь бүтэн, өнөөдөр хүчинтэй хариултын баталгаа биш. Бүтэцтэй баримтгүй салааны HTML текст хайлтад орсон байж болно. Нэг эх олон сэдэвтэй холбоотой тул салааны тоонуудыг нэмээд нийт гэж үзэхгүй.',
+        tree_role_mn='Сэдэв → дэд сэдэв → эх/баримт/FAQ-ийн навигац. Энэ нь Gemma-ийн сурсан жин, нейрон сүлжээ эсвэл бүх асуултыг шийдэх reasoning мод биш.')
 
 
 def load_inputs(root, *, website_database=None, content_database=None):
