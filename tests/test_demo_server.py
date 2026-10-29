@@ -84,6 +84,8 @@ class DemoServerTests(unittest.TestCase):
         self.assertFalse(result["microphone_connected"])
         self.assertTrue(result["stt"]["historical_development_result"])
         self.assertFalse(result["retrieval"]["human_gold_approved"])
+        self.assertEqual(result['clarification']['loaded_artifact_sha256']['sqlite_retrieval.py'],
+            hashlib.sha256((Path(__file__).resolve().parents[1] / 'sqlite_retrieval.py').read_bytes()).hexdigest())
 
     def test_public_manifest_fields_are_whitelisted_to_only_three_samples(self):
         manifest = {"publication_authorized_by_user": True, "samples": [

@@ -381,7 +381,9 @@ __pycache__/
 !/CORE/PROJECT-NOTE.mn.md
 !/tools/sync_project_note.py
 !/tools/compare_stt_candidate.py
+!/tools/evaluate_stt_candidate_rag.py
 !/tests/test_stt_candidate.py
+!/tests/test_stt_candidate_rag.py
 !/papers/09-stt-candidate-review-20261029.mn.md
 !/tests/test_project_note.py
 !/tests/test_sync_project_note.py

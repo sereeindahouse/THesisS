@@ -24,10 +24,10 @@
 **Одоогийн бүртгэл — 2026-10-29**
 
 - **Одоо:** II · STT судалгаа ба Cafet–Gemini харьцуулалтын бэлтгэл
-- **Төлөв:** Бэлтгэл шалгагдсан:20 өгүүлэл,129 тест,15 файлын dry-run · бодит Gemini туршилт зөвшөөрөл хүлээж буй
+- **Төлөв:** STT ба typed/raw RAG runner бэлэн · бодит ASR/task хэмжилт зөвшөөрөл,оролт хүлээж буй
 - **Идэвхтэй хэсэг:** II
 - **Сүүлд бүртгэсэн шалгагдсан кодын суурь:** `e79a8ea3452ae7c1a2d10870c8b701f850e8662f`
-- **Бүртгэсэн нотолгоо:** II-ийн бэлтгэл:129 чиглэсэн тест PASS,208 код/хөрөнгийн hash тестийн үед drift0;32 хамгаалсан файл drift0. 20 өгүүллийн үндсэн уншлага ба2 хэсэгчилсэн тайлан тусдаа.13 аудио152s +2 control6s;dry-run сүлжээ/модель0. Бодит Gemini inference/сургалт/хүний шинэ оноо0;raw WER36.02% хэвээр.
+- **Бүртгэсэн нотолгоо:** II-ийн бэлтгэл:129 чиглэсэн тест PASS,208 код/хөрөнгийн hash тестийн үед drift0;32 хамгаалсан файл drift0. 20 өгүүллийн үндсэн уншлага ба2 хэсэгчилсэн тайлан тусдаа.13 аудио152s +2 control6s;dry-run сүлжээ/модель0. Бодит Gemini inference/сургалт/хүний шинэ оноо0;raw WER36.02% хэвээр. RAG-ийн дараах шат:33 шинэ contract тесттэй тусдаа60 PASS;серверийнSQLite attestation-г нөхөж22 loaded SHA таарсан. Бодит RAG POST0;хүнийtask accuracy pending.
 
 | Хэсэг | Бүртгэсэн төлөв |
 |---|---|
@@ -41,6 +41,10 @@
 <!-- project-state:end -->
 
 **II-ийн бэлтгэл шалгагдсан:** runner-ийн39 тестийг багтаасан129 чиглэсэн тест PASS;208 код/хөрөнгийн hash тестийн үед drift0,32 хамгаалсан файл drift0. Вэбийн5өнгөний тайлбар самбарын дээд талд;API нь II active төлөв үзүүлнэ. Бодит браузерийн visual QA-г API/DOM шалгалттай адилтгахгүй.
+
+**Дараах RAG шат мөн хэрэгжсэн — 10.29:** `tools/evaluate_stt_candidate_rag.py` нь зөвхөн дууссан STT run-оос typed/reference, Cafet raw, candidate raw оролтыг тулгаж авна. Тусдаа offline prepare → ижил loopback `/api/route` дээр ээлжилсэн39-өөс ихгүй POST → bound human review гэсэн урсгалтай.33 шинэ contract тестийг багтаасан тусдаа60 шалгалт PASS;өмнөх129-тэй нэг хэмжилт болгон нийлүүлээгүй. Бодит серверийн status анх SQLite хайлтын hash-ийг дутуу өгч байсныг засаж,өөрийн owner/PID/script/start/listener-ийг тулгаад зөвхөн тухайн серверийг сэргээсэн;22 ачаалсан кодын hash таарсан. Ollama,эх DB,аудио/reference,жин өөрчлөгдөөгүй. Бодит RAG POST0;хүний task үнэлгээ pending.
+
+**RAG-ийн үргэлжлэл:** бодит `paired-first` STT run байхгүй тул RAG packet-ийг одоо зохиож үүсгэхгүй. `runtime/stt-candidate-20261029/task-rubric-draft.json` нь13 ID/typed reference-тэй боловч бүх task applicability/answerability/required fields/source нь pending;хүний gold биш. Хуучин13-ын зарим нь асуулт бус өгүүлбэр тул бүгдийг13 task гэж хүчээр оноохгүй. Бодит STT-ийн дараа `prepare --stt-run ... --output <new-private-packet> --rubric <human-reviewed-reference>`;дараа нь `run --stt-run ... --packet ... --output <new-private-run>`, `summarize --run ...` хэрэглэнэ. Rubric-ийг output-оос өмнө царцаана;дараа өөрчилж denominator засахгүй. `rag-stage-tests.json` нь60 тест,шинэ22 кодын status compatibility,хуучин STT `review-v3` хэвээр хүчинтэйг холбоно.
 
 **Дараагийн агентын яг эхлэх цэг:** `runtime/stt-candidate-20261029/review-v3/` нь одоогийн бэлэн packet. `review-v1`, `review-v2` нь дараагийн код/hash ба paid project-ийн хамгаалалтаас өмнөх түүх;тэдгээрээр run эхлүүлэхгүй. Одоогийн багц15файл158s,480output-token хязгаар/хүсэлт,15танилтын оролдлого,автомат retry0;болгоомжтой token тооцоо$0.0943,санал болгосон budget$0.10. Энэ нь бодит bill-ийн баталгаа биш. `approval-template.json`-ийн хоёр зөвшөөрөл болон paid project-ийн баталгаа false хэвээр. Хэрэглэгчийн бодит зөвшөөрөл,идэвхтэй paid project-ийн тэмдэглэл ба credential ирээгүй бол API run хийхгүй;эдгээрийг агент зохиож бөглөхгүй. Critical18 literal span нь AI draft,хүний баталгаа pending;эргэлзээтэй он/мөнгөний утгыг засаж таамаглаагүй.
 

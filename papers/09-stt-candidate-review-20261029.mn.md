@@ -145,3 +145,15 @@
 Одоогийн бэлэн packet нь хувийн `runtime/stt-candidate-20261029/review-v3/`;15 файл158s.480output-token/хүсэлт гэсэн хязгаартай болгоомжтой token тооцоо **$0.0943**;ердийн минутын тарифын ~$0.02 тойм тооцоогоос өөр зориулалттай. Хоёулаа бодит bill-ийн баталгаа биш.18 critical literal span-ыг output-оос өмнө reference-ээс царцаасан;энэ нь AI draft,шинэ хүний баталгаа биш. Эргэлзээтэй он/мөнгөний утгыг засаж таамаглаагүй.
 
 39 runner тестийг багтаасан129 чиглэсэн тест PASS. Тестийн үед208 код/хөрөнгийн hash drift0;эх аудио/reference,хоёр DB,Cafet asset-уудтай32 хамгаалсан файл drift0. Эдгээр нь зохиомол fixture/transport ба offline packet-ийн шалгалт;бодит Gemini-тай амжилттай ажилласан эсвэл raw STT сайжирсан гэсэн дүгнэлт биш. Бодит run-ийн дараа bound RAG input,төрөлжсөн S/D/I,клип тус бүрийн хугацаа ба хүн үнэлэх template гарна;хүний үнэлээгүй мөр pending хэвээр.
+
+## Typed/raw оролтын ижил RAG харьцуулалт
+
+`tools/evaluate_stt_candidate_rag.py` нь дууссан,model/reference/ID/hash нь батлагдсан STT run-ийн `rag-inputs.json`-ийг авна. `prepare --stt-run <private-STT-run> --output <new-private-packet> [--rubric <private-reference>]` нь сүлжээгүй. `run --stt-run ... --packet ... --output <new-private-run>` нь зөвхөн `127.0.0.1:8765/api/route` руу typed/Cafet raw/candidate raw гурван нөхцөлийг clip бүрт ээлжилсэн дарааллаар өгнө;хамгийн их39 POST,автомат retry0. Follow-up/transcription ID,STT correction,TTS,admin урсгалыг хэрэглэхгүй. Хоосон raw нь `no_question`;хэт уртыг тайрч асуултыг солихгүй.
+
+Дөрвөн RAG код,хоёр DB,серверийн ачаалсан код,эхийн release/corpus ба локал Ollama model identity-г өмнө/явцад/дараа тулгана. Бодит status дээр SQLite хайлтын код attestation дутуу байсан тул metadata-г нөхөж,owner-ийг тулгасан локал серверийг сэргээн22 ачаалсан hash-ийг баталсан;шалгагчийг сулруулаагүй. Энэ нь хариултын алгоритмын шинэ gain биш.
+
+`summarize --run <private-RAG-run>` нь хугацаа/алгаа/route-ийн техникийн бүртгэлийг гаргана;A–E route-ийг correctness гэж өөрөө оноохгүй. Хүний reference,required fields/source,task applicability болон run/results/rubric hash-тай human review бүрдээгүй бол task accuracy `null` хэвээр. Хоосон raw-аас хариулт гараагүйг applicable task-ийн амжилт гэж тооцохгүй. Typed дээр ч байсан RAG алдааг ASR-ээс шалтгаалсан алдаанаас ялгана.
+
+Хуучин13 ярианы зарим нь асуулт бус өгүүлбэр тул13 task гэж хүчээр denominator тогтоохгүй. Хүн output харахаас өмнө rubric-ийг хянаж,ямар тохиолдол үнэлэгдэхийг царцаана;хойно нь rubric засаж амжилтын хувийг өсгөхгүй. Одоогийн хувийн13 мөрийн draft rubric-ийн бүх үнэлгээ pending.
+
+Энэ шатны33 шинэ contract тестийг багтаасан тусдаа60 шалгалт PASS;өмнөх129-ийн суиттэй нэг шинэ accuracy болгон нийлүүлээгүй. Бодит серверийн status-ийг зөвхөн уншсан;бодит query POST,шинэ ASR/Gemini/TTS inference болон хүний шинэ оноо0. Бодит `paired-first` STT run байхгүй үед prepare зогсож,хуурамч RAG packet үүсгээгүй. Хуучин STT `review-v3`-ийн code/manifest binding хэвээр хүчинтэй.
