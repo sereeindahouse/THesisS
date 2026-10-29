@@ -21,14 +21,14 @@
       "**/CORE/website/snapshots": true
     },
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#44316A",
+      "titleBar.activeBackground": "#203F70",
       "titleBar.activeForeground": "#FFFFFF",
-      "titleBar.inactiveBackground": "#342C46",
+      "titleBar.inactiveBackground": "#24354F",
       "titleBar.inactiveForeground": "#E0DFE8",
-      "statusBar.background": "#44316A",
+      "statusBar.background": "#203F70",
       "statusBar.foreground": "#FFFFFF",
-      "activityBar.activeBorder": "#C6A8EF"
+      "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · III] III · төслийн үндсэн тэмдэглэл, агентын үргэлжлэл ба өнгөт явцын самбар ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · STT судалгаа ба Cafet–Gemini харьцуулалтын бэлтгэл ${separator} ${dirty}${activeEditorShort}"
   }
 }

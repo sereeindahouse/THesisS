@@ -380,6 +380,9 @@ __pycache__/
 !/AGENTS.md
 !/CORE/PROJECT-NOTE.mn.md
 !/tools/sync_project_note.py
+!/tools/compare_stt_candidate.py
+!/tests/test_stt_candidate.py
+!/papers/09-stt-candidate-review-20261029.mn.md
 !/tests/test_project_note.py
 !/tests/test_sync_project_note.py
 !/CORE/SCHOOL-THESIS-GUIDE.mn.md
