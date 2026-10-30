@@ -67,10 +67,12 @@ async function run(code){return await vm.runInContext(code,context)}
  assert(get('measurement').textContent.includes('1/4'));
  assert(get('measurement').textContent.includes('2014, 2020, 2024, 2025'));
  assert(get('raw').textContent.includes('fixture Gemini raw'));
+ assert(get('raw').textContent.startsWith('Gemini 3.5 Live'));
  assert(!source.includes('api_key'));
  const restored={...task,reference:{text:'fixed fixture reference'},reference_draft:null,transcript:{text:'fixture Gemini raw'},measurement};
  await run('restoreTask('+JSON.stringify(restored)+')');
  assert(get('measurement').textContent.includes('25.0%'));
+ assert(get('raw').textContent.includes('түүхэн'));
  checks.push('Explicit Gemini action sends only the current task and restores descriptive raw measurements without key entry');
  process.stdout.write(JSON.stringify({passed:checks.length,checks,constructed_fixtures:true,browser_visual_qa:false,model_calls:0}));
 })().catch(error=>{console.error(error.stack);process.exitCode=1});
