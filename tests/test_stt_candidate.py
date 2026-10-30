@@ -677,6 +677,25 @@ class CandidateContracts(unittest.TestCase):
         self.assertIsNone(state['observed_token_cost_estimate_usd'])
         self.assertIsNone(state['actual_billed_cost_usd'])
 
+    def test_completed_zero_token_response_without_output_is_empty_transcript(self):
+        value = dict(status='completed', model=candidate.MODEL,
+                     usage=dict(total_input_tokens=76, total_output_tokens=0, total_tokens=76))
+        result = candidate.parse_interaction(value)
+        self.assertEqual(result['text'], '')
+        self.assertEqual(result['usage']['total_output_tokens'], 0)
+
+    def test_missing_output_without_explicit_zero_tokens_remains_an_error(self):
+        for usage in (None, {}, dict(total_output_tokens=1), dict(total_output_tokens=False)):
+            with self.subTest(usage=usage), self.assertRaises(candidate.CandidateError):
+                candidate.parse_interaction(dict(status='completed', model=candidate.MODEL, usage=usage))
+
+    def test_zero_tokens_do_not_hide_incomplete_or_truncated_responses(self):
+        for changes in (dict(status='in_progress'), dict(finish_reason='max_tokens'), dict(steps=None)):
+            value = dict(status='completed', model=candidate.MODEL, usage=dict(total_output_tokens=0))
+            value.update(changes)
+            with self.subTest(changes=changes), self.assertRaises(candidate.CandidateError):
+                candidate.parse_interaction(value)
+
 
 if __name__ == '__main__':
     unittest.main()

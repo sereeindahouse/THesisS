@@ -410,6 +410,11 @@ def parse_interaction(value):
     elif isinstance(value.get('output_text'), str):
         # Some documented SDK-facing responses expose this convenience field.
         texts = [value['output_text']]
+    elif ('steps' not in value and 'output_text' not in value
+          and usage is not None and usage.get('total_output_tokens') == 0):
+        # Observed completed nonspeech responses omit the empty repeated output
+        # field. Zero output usage distinguishes this from missing/lost text.
+        texts = ['']
     else:
         raise CandidateError('missing_interaction_output')
     text = ''.join(texts)
