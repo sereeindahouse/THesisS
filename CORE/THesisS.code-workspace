@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · II] II · STT судалгаа ба Cafet–Gemini харьцуулалтын бэлтгэл ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Бодит STT/RAG туршилт ба хүний сонсгол, шинэ асуултын үнэлгээ ${separator} ${dirty}${activeEditorShort}"
   }
 }
