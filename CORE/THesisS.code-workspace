@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · II] II · Gemini 3.5 Transcribe-ийг үндсэн чатанд өөрөө турших ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Хэрэглэгчийн Live Translate Монгол input transcript ба model сонголтын засвар ${separator} ${dirty}${activeEditorShort}"
   }
 }

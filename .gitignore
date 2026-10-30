@@ -313,6 +313,7 @@ __pycache__/
 !/tests/test_gemini_stt.py
 !/gemini_stt_runtime.py
 !/CORE/GEMINI-SELF-TEST.mn.md
+!/papers/11-stt-model-identity-review-20261030.mn.md
 !/CORE/HUMAN-QUALITY-CHECK.mn.md
 !/tests/test_structure_context.py
 !/tests/test_history_evidence.py

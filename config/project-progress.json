@@ -4,7 +4,7 @@
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
   "current_week": "W01 · II-ийн эхний бодит15 оролдлого дууссан; алдаатай хязгаарласан trial,II үргэлжилнэ.",
-  "status_basis": "10.30: Gemini 3.5 Transcribe сонголт үндсэн чатанд нэвтэрсэн.197 холбогдох тест PASS; provider/HTTP/нууц түлхүүр/зөвшөөрөл/квот/lineage ба UI handler шалгалт багтсан. Шинэ холболтын шалгалт Google руу аудио илгээгээгүй; түлхүүр хэрэглэгч өөрөө UI-д оруулна. Хүний session сэргээхэд59 эх файл SHA өөрчлөгдөөгүй;12 сонсгол,22.92s бичлэг,ноорог сэргэсэн. Дараа нь1 шинэ reference STT-ээс өмнө хүн баталж,локал raw танилт болон1 task ажиглалт хадгалагдсан. II-ийн critical утга,RAG/task-ийн бүрэн хүний үнэлгээ үлдсэн. Native browser-ийн эцсийн харагдац automatic-review usage limit-ээр шалгагдаагүй; HTTP+synthetic UI шалгалт тэнцсэн.",
+  "status_basis": "10.30: Хэрэглэгчийн screenshot дахь model нь gemini-3.5-live-translate-preview; өмнөх бодит API model нь gemini-3.5-transcribe. Google-ийн албан зааварт inputAudioTranscription → inputTranscription.text ба Монгол mn дэмжлэгийг шалгасан. 15 аудио/hash/result холбоо, pinned Cafet model checksum, 12 matched raw score-ийг offline дахин тулгасан. Буруу хэл/task/sample-rate тохиргооны илэрхий зөрүү олдоогүй; бүх runtime алдааг үгүйсгээгүй. Raw WER ба тооны бичлэгийн хэлбэрийн хязгаарыг тусад нь тайлбарласан. Шинэ API/inference/сургалт/хүний оноо 0. Өмнөх Transcribe дүнг Live Translate-ийн чанар болгон хэрэглэхгүй.",
   "weekly_plan": {
     "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
     "start_date": "2026-10-26",
@@ -15,12 +15,16 @@
   },
   "plan_status": {
     "updated_date": "2026-10-30",
-    "policy_notice": "I-ийн сүүлийн засвар шалгагдсан; I бүхэлдээ дуусаагүй. Одоо II · бодит STT/RAG харьцуулалт, хүний сонсгол ба шинэ асуултын үнэлгээ. III-ийн тест/бичвэр хамт явна. Өнгө/огноо нь completion хувь биш.",
+    "policy_notice": "Одоо II · screenshot-оор баталсан Live Translate-ийн Монгол оролтын танилтыг холбох чиглэл. Өмнөх Transcribe туршилт тусдаа. I/III-ийн шаардлагатай эх,үнэлгээ,бичвэр зэрэг явна; хийгдээгүй inference/хүний үр дүнг нөхөхгүй.",
     "current": {
       "week_id": "W01",
-      "title": "II · Gemini 3.5 Transcribe-ийг үндсэн чатанд өөрөө турших",
-      "status_label": "Gemini чатанд нэвтэрсэн · түр түлхүүрийн тохиргоотой · шинэ бодит cloud туршилт хэрэглэгчийн үйлдлээр",
+      "title": "II · Хэрэглэгчийн Live Translate Монгол input transcript ба model сонголтын засвар",
+      "status_label": "Model зөрүү батлагдсан · Transcribe туршсан; screenshot-ийн Live Translate хараахан холбогдоогүй",
       "done": [
+        "10.30: Хэрэглэгчийн бүтэн screenshot model ID-г тодруулсан: gemini-3.5-live-translate-preview. Хэрэгтэй гаралт нь Монгол Input transcript; англи орчуулгын чанараар тайлбарлахгүй.",
+        "Google-ийн албан Live Translation заавраар inputAudioTranscription болон serverContent.inputTranscription.text, Монгол mn, 16 kHz mono PCM16/100 ms stream-ийг шалгасан. Өмнөх файлын Transcribe API нь өөр model/path.",
+        "15 аудионы hash/result холбоо, pinned Cafet жингийн checksum,12 matched raw score-ийг offline тулгасан. Шинэ танилт/модель таталт/сургалт/хүний үнэлгээ хийгээгүй.",
+        "Модель зөрүү, жижиг dev багц/aggregate WER-ийн хязгаар, тоо-үгээрх бичлэгийн жишээ, Cafet small checkpoint-ийн хүрээг шинэ судалгааны тэмдэглэлд бүртгэсэн. Өмнөх raw/ref/оноо өөрчлөгдөөгүй.",
         "10.30: Хэрэглэгчийн шинэ хүсэлтээр үндсэн чатанд Gemini 3.5 Transcribe / локал Cafet сонголт орсон. Gemini нь mn-MN/verbatim; raw текст, provider ил харагдана. Gemini текстэд local LLM автоматаар засварлахгүй.",
         "Түлхүүр зөвхөн серверийн санах ойд; файл/Git/browser storage-д хадгалахгүй. Free tier, өгөгдлийн нөхцөл ба бичлэг бүрийн Google дамжуулалтыг хүн өөрөө сонгоно. Нэг тохиргоонд 5 хүртэл оролдлого; 429 үед retry, өөр provider эсвэл paid fallback үгүй.",
         "197 холбогдох тест PASS: 9 Gemini contract, 29 voice UI recovery, 41 human-study болон бусад voice/HTTP/lineage/audio/портатив шалгалт. Шинэ холболтын тестүүд mock/synthetic; Google руу шинэ аудио илгээгээгүй.",
@@ -47,16 +51,15 @@
         "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0."
       ],
       "in_progress": [
-        "Gemini-г өөрөө турших холболт нэвтэрсэн; өмнөх API түлхүүр файлд хадгалагдаагүй. Хэрэглэгч UI-ийн нууц талбарт түлхүүрээ оруулж, шинэ бичлэгээ өөрөө илгээнэ. Апп төслийн billing-ийг бие даан батлахгүй.",
-        "Нэг шинэ баталсан reference/локал raw бий. Түүн дээр шинэ Gemini paired гаралт болон бүх typed/raw/edited task ажиглалт бүрдээгүй; хүний дутуу оноог нөхөхгүй.",
-        "12 TTS сонсгол хадгалагдсан. Нэр/тоо/оны тодорхойгүй утгын хүний баталгаа болон 39 RAG source-review үлдсэн.",
-        "Хуучин task-ийн TTS capability хугацаа дууссан 409 алдаанууд хадгалагдсан. Шинэ чатанд шинэ асуултаа илгээгээд тухайн хариуг сонсоно; хуучин алдааг зөв хариулт болгохгүй.",
-        "Браузерийн эцсийн native visual шалгалт automatic-review usage limit-ээр ажиллаагүй. Үндсэн localhost HTTP API, нийлүүлж буй HTML, UI handler ба серверийн төлөв тулгагдсан."
+        "Одоогийн чатанд gemini-3.5-transcribe холбогдсон; хэрэглэгчийн screenshot дахь gemini-3.5-live-translate-preview хараахан холбогдоогүй. Өмнөх амжилтгүй/амжилттай дүнг шинэ model-ийн дүн гэж нэрлэхгүй.",
+        "Яг Live Translate-ийн Монгол input transcript-ийг provider болгон холбох хэрэгтэй. WebSocket/stream болон эцсийн transcript-ийн заагийг шалгана; файлын API payload-ийг шууд хуулж болохгүй.",
+        "Cafet small checkpoint-ийн муу танилтын шалтгааныг domain/audio/quantization-аар тусгаарлаагүй. Тохиргоонд mn/transcribe/16kHz байна; CPU эсвэл INT8-ийг дан шалтгаан гэж зарлахгүй.",
+        "Шинэ бодит paired audio/reference, нэр/тоо/оны утгын хяналт, RAG/task-ийн хүний үнэлгээ хэвээр үлдсэн. Хүний шинэ сонссон reference эсвэл score-ийг AI нөхөхгүй."
       ],
       "next": [
-        "Үндсэн чат http://127.0.0.1:8765/-д Gemini түлхүүрээ түр тохируулна. Өөрийн 5–15s шинэ бичлэгийг сонсоод Google руу илгээх чагтаа сонгон «Дууг текст болгох»-ыг дарна. Анхны текстээ нягтлаад чат руу илгээнэ.",
-        "Судалгааны шинэ paired харьцуулалт хийхдээ тусдаа audio/reference/зөвшөөрөл/хязгаарласан protocol хэрэглэнэ; өөрөө туршсан гаралтыг heldout accuracy болгохгүй.",
-        "Critical нэр/тоо/он, RAG эхтэй review болон typed/raw/edited task-ийн дутуу хүний ажиглалтыг бодитоор үргэлжлүүлнэ."
+        "Яг gemini-3.5-live-translate-preview-ийн inputTranscription.text-ийг Монгол STT гаралт болгон тусдаа provider замаар холбоно. Орчуулсан output-ийг RAG асуулт болгохгүй; одоогоор холбогдсон мэт тайлагнахгүй.",
+        "Ижил шинэ аудио/reference дээр model ID, stream setup, PCM/hash-тай харьцуулж raw WER/CER-ээс гадна нэр/тоо/оны утга,засах хугацаа,RAG task-ийг тусад нь үнэлнэ.",
+        "Өмнөх 15 файлын дамжуулалтын эрхийг дахин эхлүүлэхгүй. Шинэ model-ийн хувийн аудио дамжуулалтыг хэрэглэгчийн тодорхой сонголттой холбоно."
       ],
       "human_tasks": [
         "API түлхүүрээ зөвхөн локал нууц талбарт оруулна. Шинэ дууны хэлсэн үг, сонссон утга, хариултын үнэлгээг хүн өөрөө батална. Хуучин 15 файлын budget-ийг дахин эхлүүлэхгүй."
@@ -67,6 +70,10 @@
         "state": "in_progress",
         "label": "II · Gemini чатанд өөрөө турших сонголт, шинэ хүний reference ба task үргэлжилнэ",
         "evidence": [
+          "10.30: Хэрэглэгчийн бүтэн screenshot model ID-г тодруулсан: gemini-3.5-live-translate-preview. Хэрэгтэй гаралт нь Монгол Input transcript; англи орчуулгын чанараар тайлбарлахгүй.",
+          "Google-ийн албан Live Translation заавраар inputAudioTranscription болон serverContent.inputTranscription.text, Монгол mn, 16 kHz mono PCM16/100 ms stream-ийг шалгасан. Өмнөх файлын Transcribe API нь өөр model/path.",
+          "15 аудионы hash/result холбоо, pinned Cafet жингийн checksum,12 matched raw score-ийг offline тулгасан. Шинэ танилт/модель таталт/сургалт/хүний үнэлгээ хийгээгүй.",
+          "Модель зөрүү, жижиг dev багц/aggregate WER-ийн хязгаар, тоо-үгээрх бичлэгийн жишээ, Cafet small checkpoint-ийн хүрээг шинэ судалгааны тэмдэглэлд бүртгэсэн. Өмнөх raw/ref/оноо өөрчлөгдөөгүй.",
           "10.30: Хэрэглэгчийн шинэ хүсэлтээр үндсэн чатанд Gemini 3.5 Transcribe / локал Cafet сонголт орсон. Gemini нь mn-MN/verbatim; raw текст, provider ил харагдана. Gemini текстэд local LLM автоматаар засварлахгүй.",
           "Түлхүүр зөвхөн серверийн санах ойд; файл/Git/browser storage-д хадгалахгүй. Free tier, өгөгдлийн нөхцөл ба бичлэг бүрийн Google дамжуулалтыг хүн өөрөө сонгоно. Нэг тохиргоонд 5 хүртэл оролдлого; 429 үед retry, өөр provider эсвэл paid fallback үгүй.",
           "197 холбогдох тест PASS: 9 Gemini contract, 29 voice UI recovery, 41 human-study болон бусад voice/HTTP/lineage/audio/портатив шалгалт. Шинэ холболтын тестүүд mock/synthetic; Google руу шинэ аудио илгээгээгүй.",
@@ -83,9 +90,9 @@
           "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0."
         ],
         "next_actions": [
-          "Үндсэн чат http://127.0.0.1:8765/-д Gemini түлхүүрээ түр тохируулна. Өөрийн 5–15s шинэ бичлэгийг сонсоод Google руу илгээх чагтаа сонгон «Дууг текст болгох»-ыг дарна. Анхны текстээ нягтлаад чат руу илгээнэ.",
-          "Судалгааны шинэ paired харьцуулалт хийхдээ тусдаа audio/reference/зөвшөөрөл/хязгаарласан protocol хэрэглэнэ; өөрөө туршсан гаралтыг heldout accuracy болгохгүй.",
-          "Critical нэр/тоо/он, RAG эхтэй review болон typed/raw/edited task-ийн дутуу хүний ажиглалтыг бодитоор үргэлжлүүлнэ."
+          "Яг gemini-3.5-live-translate-preview-ийн inputTranscription.text-ийг Монгол STT гаралт болгон тусдаа provider замаар холбоно. Орчуулсан output-ийг RAG асуулт болгохгүй; одоогоор холбогдсон мэт тайлагнахгүй.",
+          "Ижил шинэ аудио/reference дээр model ID, stream setup, PCM/hash-тай харьцуулж raw WER/CER-ээс гадна нэр/тоо/оны утга,засах хугацаа,RAG task-ийг тусад нь үнэлнэ.",
+          "Өмнөх 15 файлын дамжуулалтын эрхийг дахин эхлүүлэхгүй. Шинэ model-ийн хувийн аудио дамжуулалтыг хэрэглэгчийн тодорхой сонголттой холбоно."
         ]
       }
     },
@@ -101,8 +108,8 @@
         "id": "stt",
         "label": "STT · Cafet суурь / Gemini candidate",
         "state": "in_progress",
-        "detail": "Локал Cafet суурь ба Gemini3.5Transcribe онлайн сонголт чатанд байна. Хэрэглэгч Gemini-г өөрөө туршихыг хүссэн;бичлэг бүрийн дамжуулалт ил тод. Өмнөх12pairedдүн нь modelдэвшүүлэхбаталгаа болоогүй.",
-        "evidence_label": "Gemini adapter/HTTP/UI contract тэнцсэн. Шинэхолболтынlivecloudcall0;түлхүүрээUI-доруулжөөрөөтуршина."
+        "detail": "Одоогийн сонголт Cafet ба gemini-3.5-transcribe. Screenshot-ийн сайн Монгол танилт нь gemini-3.5-live-translate-preview; яг тэр input transcript замыг хараахан холбоогүй. Өмнөх model-ийн WER шинэ model-ийг шийдэхгүй.",
+        "evidence_label": "Model-identity зөрүү батлагдсан;15 audio/hash ба pinned model checksum offline тэнцсэн. Шинэ Live API inference0."
       },
       {
         "id": "tts",
@@ -2923,8 +2930,8 @@
     "updated_date": "2026-10-30",
     "active_workstream": "II",
     "verified_code_commit": "2103d65824d405237f7bd932f5cd102cb71430f9",
-    "current_focus": "II · Gemini 3.5 Transcribe-ийг үндсэн чатанд өөрөө турших",
-    "status_label": "Gemini чатанд нэвтэрсэн · түр түлхүүрийн тохиргоотой · шинэ бодит cloud туршилт хэрэглэгчийн үйлдлээр",
+    "current_focus": "II · Хэрэглэгчийн Live Translate Монгол input transcript ба model сонголтын засвар",
+    "status_label": "Model зөрүү батлагдсан · Transcribe туршсан; screenshot-ийн Live Translate хараахан холбогдоогүй",
     "workstreams": [
       {
         "id": "I",
@@ -2935,8 +2942,8 @@
       {
         "id": "II",
         "state": "active",
-        "status_label": "Gemini-г чатанд өөрөө турших боломжтой · II бүхэлдээ дуусаагүй",
-        "detail": "Хэрэглэгчийн10.30-ны шинэ хүсэлтээр Gemini сонголтыг чатанд нэвтрүүлсэн. Түлхүүр түр санах ойд; бичлэг тус бүр Google дамжуулалтыг хүн өөрөө сонгоно. Өмнөх харьцуулалт ба шинэ self-test тусдаа."
+        "status_label": "Яг Live Translate-ийн Монгол танилтыг холбох чиглэлээр зассан · II үргэлжилнэ",
+        "detail": "Screenshot нь gemini-3.5-live-translate-preview гэж баталсан. Манай хийсэн туршилт/чат gemini-3.5-transcribe байсан. Оролтын Монгол transcript-ийг тусад нь авч болно; энэ model хараахан манай системд туршигдаагүй."
       },
       {
         "id": "III",
@@ -3064,5 +3071,21 @@
     "guide": "CORE/GEMINI-SELF-TEST.mn.md",
     "native_visual_check": "automatic_review_usage_limit",
     "human_scores_fabricated": false
+  },
+  "stt_model_identity_review_20261030": {
+    "status": "research_and_offline_audit_complete_integration_pending",
+    "screenshot_model": "gemini-3.5-live-translate-preview",
+    "implemented_model": "gemini-3.5-transcribe",
+    "models_match": false,
+    "desired_field": "serverContent.inputTranscription.text",
+    "audio_bindings_verified": 15,
+    "matched_score_rows_recounted": 12,
+    "pinned_model_checksum_verified": true,
+    "wrong_language_task_found": false,
+    "new_api_calls": 0,
+    "new_inference": 0,
+    "new_human_ratings": 0,
+    "report": "papers/11-stt-model-identity-review-20261030.mn.md",
+    "private_scores_published": false
   }
 }

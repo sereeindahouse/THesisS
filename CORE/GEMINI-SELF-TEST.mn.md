@@ -1,5 +1,11 @@
 # Gemini 3.5 Transcribe-ийг өөрөө турших
 
+**10.30-ны model тодруулга:** энэ хуудсын одоогийн холболт нь
+`gemini-3.5-transcribe`. Хэрэглэгчийн шинэ screenshot дахь
+`gemini-3.5-live-translate-preview`-ийн Монгол **Input transcript** нь өөр
+provider зам. Тэр Live model хараахан манай чатанд холбогдоогүй.
+[Ялгаа, кодын аудит ба зассан шийдвэр](../papers/11-stt-model-identity-review-20261030.mn.md).
+
 Энэ ажил дипломын **II хэсэг — Монгол STT/TTS**-т хамаарна. I нь сургуулийн
 мэдлэг/RAG, III нь нэгдсэн систем, үнэлгээ ба дипломын бичвэр.
 
