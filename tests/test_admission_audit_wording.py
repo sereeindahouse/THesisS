@@ -20,6 +20,44 @@ STEPS = ('1. Бүртгүүлэх\nМэдээллээ бөглөнө.\n2. Хур
 
 
 class AdmissionAuditWordingTests(unittest.TestCase):
+    def test_admission_fee_amount_does_not_require_a_registration_inflection(self):
+        paragraph='Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж 7,301 төгрөгийг зааврын дагуу төлнө.'
+        source=dict(SOURCE,text=paragraph,excerpt=paragraph,text_scope='document_visual_excerpt',
+                    url='https://nmct.edu.mn/elseltiin-juram/fixture.png')
+        for question in [
+            'Элсэлтийн хураамж хэдэн төгрөг вэ?',
+            'Шинэ Монгол коллеж сургуулийн элсэлтийн хураамж хэдэн төгрөг вэ? Бүртгүүл хийн тулд төлөх мөнгөний дүнг хэлж өгнө',
+            'Элсэх хураамжийн хэмжээ хэд вэ?',
+            'Элсэлтийн хураамж нь сургалтын төлбөрөөс тусдаа хэдэн төгрөг вэ?',
+        ]:
+            with self.subTest(question=question):
+                self.assertEqual(source_extract(question,[source]),(source,paragraph))
+
+    def test_fee_alias_keeps_refund_other_registration_and_extra_fields_separate(self):
+        paragraph='Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж 7,301 төгрөгийг зааврын дагуу төлнө.'
+        source=dict(SOURCE,text=paragraph,excerpt=paragraph,text_scope='document_visual_excerpt',
+                    url='https://nmct.edu.mn/elseltiin-juram/fixture.png')
+        for question in [
+            'Элсэлтийн хураамжийг буцааж авахад хэдэн төгрөг вэ?',
+            'Элсэлтийн хураамж биш олимпиадын бүртгэлийн хураамж хэд вэ?',
+            'Элсэлтийн хураамж хэд вэ, дотуур байрны төлбөр хэд вэ?',
+            'Элсэлтийн хураамж хэд вэ, сургалтын төлбөр хэд вэ?',
+        ]:
+            with self.subTest(question=question):
+                self.assertIsNone(source_extract(question,[source]))
+
+    def test_fee_alias_routes_to_exact_source_without_model_selection(self):
+        paragraph='Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж 7,301 төгрөгийг зааврын дагуу төлнө.'
+        source=dict(SOURCE,text=paragraph,excerpt=paragraph,text_scope='document_visual_excerpt',
+                    url='https://nmct.edu.mn/elseltiin-juram/fixture.png')
+        retriever,generator=Retriever(),Generator()
+        retriever.sources=[source]
+        result=ChatRAG('.',Policy(),retriever,generator).route(None,'Элсэлтийн хураамж хэдэн төгрөг вэ?')
+        self.assertEqual(result['route'],'A')
+        self.assertTrue(result['answer'].endswith(paragraph))
+        self.assertEqual(generator.calls,0)
+        self.assertEqual(result['llm_calls'],0)
+
     def test_payment_to_student_outcome_requires_both_distinct_stages(self):
         questions = [
             'Бүртгэлийн мөнгөө шилжүүлчихвэл би оюутан болсон гэсэн үг үү?',

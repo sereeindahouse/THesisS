@@ -395,3 +395,6 @@ __pycache__/
 !/CORE/SCHOOL-THESIS-GUIDE.mn.md
 !/gemini_live_transport.py
 !/tests/test_gemini_live.py
+!/gemini_credentials.py
+!/tests/test_gemini_credentials.py
+!/papers/12-gemini-single-provider-repair-20261030.mn.md

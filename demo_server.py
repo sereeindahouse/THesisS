@@ -74,7 +74,7 @@ def _transcription_corrector(root, rag, supplied=None):
     return candidate if candidate.configured else runtime
 
 
-def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None, teacher_service=None):
+def make_server(db_path=None, *, port=8765, project_root=None, voice_service=None, review_service=None, llm_service=None, rag_service=None, clarification_service=None, teacher_service=None, legacy_stt=False):
     """Bind loopback only; open each worker connection read-only per request."""
     root = Path(project_root or ROOT).resolve()
     database = Path(db_path or root / "runtime" / "content.db").resolve()
@@ -394,6 +394,11 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     website = {"available": False, "pages": 0, "chunks": 0, "documents": 0,
                                "message": "Албан сайтын мэдээллийг эхлээд цуглуулна."}
                 voice_state = voice.status()
+                if not legacy_stt:
+                    cloud = voice_state.get('gemini', {})
+                    voice_state.update(active_stt_provider='gemini_live', model='gemini-3.5-live-translate-preview',
+                        stt_ready=cloud.get('ready', False), local_files_only=False,
+                        device='Google Live API', compute_type=None, revision=None, model_sha256=None)
                 rag_state = rag.status()
                 return self.send_json(200, {
                     "website": website, "content_policy": content_policy.status(), "llm": llm.status(),
@@ -482,7 +487,9 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             try:
                 if path == "/api/voice/transcribe":
                     audio = self.read_body(MAX_AUDIO_BYTES)
-                    provider = self.headers.get('X-STT-Provider', 'cafet')
+                    provider = self.headers.get('X-STT-Provider', 'cafet' if legacy_stt else 'gemini_live')
+                    if not legacy_stt and provider != 'gemini_live':
+                        raise ValueError('Одоогийн дуу таних үйлчилгээ нь зөвхөн Gemini 3.5 Live байна.')
                     if provider in {'gemini', 'gemini_live'}:
                         supplied = self.headers.get('X-Gemini-Token', '')
                         if not supplied.isascii() or not secrets.compare_digest(supplied, gemini_token):

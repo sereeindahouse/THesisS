@@ -36,9 +36,12 @@ def connect_live(key):
 
 def setup_message():
     return {'setup': {'model': 'models/' + LIVE_MODEL,
-        'inputAudioTranscription': {},
+        'inputAudioTranscription': {'languageCodes': ['mn-MN']},
         'generationConfig': {'responseModalities': ['AUDIO'],
             'translationConfig': {'targetLanguageCode': 'en', 'echoTargetLanguage': False}}}}
+
+
+LIVE_CONFIG_SHA256 = hashlib.sha256(json.dumps(setup_message(),sort_keys=True).encode()).hexdigest()
 
 
 class InputTranscript:
@@ -67,7 +70,7 @@ class InputTranscript:
                 raise ValueError()
             if 'error' in value:
                 code = value['error'].get('code') if isinstance(value['error'], dict) else None
-                raise CandidateError('http_429' if code == 429 else 'live_provider_error')
+                raise CandidateError('http_' + str(code) if code in {401, 403, 429} else 'live_provider_error')
             if 'goAway' in value:
                 raise CandidateError('live_disconnected')
             content = value.get('serverContent', {})
@@ -138,6 +141,7 @@ class GeminiLiveTransport:
                 completion_reason='audio_stream_end_and_quiet_window',
                 whole_clip_finality_guaranteed=False, user_review_required=True,
                 model_verification='requested_model_setup_acknowledged',
+                request_config_sha256=LIVE_CONFIG_SHA256,
                 target_language_code='en', echo_target_language=False,
                 translated_output_used=False, websocket_closed=True,
                 cleanup={'files_api_used': False, 'websocket_closed': True},
@@ -150,7 +154,8 @@ class GeminiLiveTransport:
             # Never include close reason, URL, headers or provider error text.
             status = getattr(getattr(error, 'response', None), 'status_code', None)
             close = getattr(getattr(error, 'rcvd', None), 'code', None)
-            code = 'http_429' if status == 429 or close == 1013 else 'live_connection_failed'
+            code = ('http_' + str(status) if status in {401, 403, 429} else
+                    'http_429' if close == 1013 else 'live_connection_failed')
             raise CandidateError(code) from None
 
     def _stream(self, socket, pcm, collector):

@@ -83,7 +83,7 @@ class LiveTransportTests(unittest.TestCase):
         self.assertFalse(result['translated_output_used'])
         setup = socket.sent[0]['setup']
         self.assertEqual(setup['model'], 'models/' + LIVE_MODEL)
-        self.assertEqual(setup['inputAudioTranscription'], {})
+        self.assertEqual(setup['inputAudioTranscription'], {'languageCodes': ['mn-MN']})
         self.assertNotIn('inputAudioTranscription', setup['generationConfig'])
         self.assertEqual(setup['generationConfig']['translationConfig'],
                          dict(targetLanguageCode='en', echoTargetLanguage=False))

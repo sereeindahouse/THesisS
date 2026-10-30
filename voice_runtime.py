@@ -274,8 +274,10 @@ async def _edge_audio(text, voice):
 class VoiceRuntime:
     def __init__(self, root):
         from gemini_stt_runtime import GeminiSTT
-        self.gemini = GeminiSTT()
         self.root = Path(root).resolve()
+        from gemini_credentials import WindowsCredentialStore
+        self.gemini = GeminiSTT(credential_store=WindowsCredentialStore(
+            self.root / 'runtime' / 'gemini-credentials.dpapi'))
         self._session = self.root / "runtime" / "voice-demo" / uuid.uuid4().hex
         self._model = None
         self._choice = None
@@ -508,17 +510,21 @@ class VoiceRuntime:
             result = self.gemini.transcribe(wav, consent=True, live=live)
         except GeminiSTTError as error:
             raise VoiceRuntimeError('gemini_' + error.code, str(error), 429 if error.code == 'http_429' else 503) from None
+        languages=result.get('detected_language_codes', [])
+        unexpected_language=bool(live and languages and not any(code.lower().split('-')[0]=='mn' for code in languages))
         details = dict(kind='stt', **result, segments=[],
             input_sha256=hashlib.sha256(audio_bytes).hexdigest(),
             transmitted_audio_sha256=hashlib.sha256(wav).hexdigest(),
             audio_seconds=len(pcm)/(SAMPLE_RATE*2), model_load_seconds=0,
             speech_text_available=bool(result['text'].strip()),
-            message=('Gemini 3.5 Live Translate · Монгол оролтын бичвэрийг цуглууллаа. '
+            message=(('Монгол хэлээр танигдсангүй ('+', '.join(languages)+'). Бүтэн Монгол асуултаа дахин хэлэх эсвэл текстээ засна уу.'
+                     if unexpected_language else 'Gemini 3.5 Live Translate · Монгол оролтын бичвэрийг цуглууллаа. '
                      + ('Төгсгөлийн үг орсон эсэхийг сонсож нягтална уу.'
                         if result.get('input_transcription_finished') else
-                        'Эцэслэх дохио ирээгүй; текст дутуу байж болно. Бичлэгтэйгээ тулгаж нягтална уу.') if live else
+                        'Текстээ бүтнээр нь, ялангуяа төгсгөлийн үгийг бичлэгтэйгээ тулгаж нягтална уу.')) if live else
                      'Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.'),
             recognition_review=dict(needs_extra_review=True,
+                unexpected_language=unexpected_language,
                 message='Gemini-ийн нэр, тоо, он болон үгүйсгэлийг өөрөө нягтална уу.'),
             local_files_only=False, language_codes=result.get('detected_language_codes', []) if live else ['mn-MN'], cloud_audio_consent=True,
             reference_confirmed=False, human_review_required=True, fine_tuning_performed=False,

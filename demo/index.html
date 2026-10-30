@@ -58,17 +58,17 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
   <section class="composer-area" aria-label="Асуултаа илгээх">
     <div class="composer-width">
       <section id="sttProviderPanel" class="notice" aria-label="Дуу таних үйлчилгээ">
-        <label for="sttProvider">Дуу таних</label> <select id="sttProvider"><option value="gemini_live" selected>Gemini 3.5 Live Translate · Монгол input transcript</option><option value="gemini">Gemini 3.5 Transcribe · тусдаа модель</option><option value="cafet">Cafet Whisper · локал</option></select>
-        <span id="sttProviderStatus" role="status">Gemini тохиргоог шалгаж байна…</span>
-        <div id="geminiControls"><details><summary>Gemini түлхүүр тохируулах</summary>
-          <p>Түлхүүр энэ серверийн санах ойд л байна; сервер дахин асахад мартагдана. Чатанд түлхүүрээ бичихгүй.</p>
+        <strong>Gemini 3.5 · Монгол дуу таних</strong>
+        <span id="sttProviderStatus" role="status">Холболтыг шалгаж байна…</span>
+        <p>Микрофоны бичлэгээ дуусгах эсвэл аудио файл сонгоход Google руу илгээж текст болгоно. Текстээ нягтлаад асуултаа илгээнэ.</p>
+        <details id="geminiSettings"><summary>Gemini холболтын тохиргоо</summary>
+          <p>Түлхүүрийг Windows хэрэглэгчийн хамгаалалттай хадгална. Хуудас, сервер дахин асахад сэргээнэ.</p>
           <label>AI Studio API түлхүүр <input id="geminiKey" type="password" autocomplete="off" spellcheck="false"></label>
           <label><input id="geminiFreeTier" type="checkbox"> Миний AI Studio төсөл Free tier; төлбөртэй горим ашиглахгүй.</label>
-          <label><input id="geminiTerms" type="checkbox"> Үнэгүй үйлчилгээний аудио/текстийг Google бүтээгдэхүүн сайжруулахад ашиглаж, хүн хянаж болохыг ойлгосон.</label>
-          <button id="geminiConfigure" type="button">Түлхүүрийг түр холбоод 5 хүртэл бичлэг турших</button><button id="geminiClear" type="button">Түлхүүрийг мартах</button>
-          <p><a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Google-ийн үнэ ба Free tier</a>. Энэ апп төслийн billing-ийг бие даан батлахгүй.</p>
-        </details><label><input id="geminiConsent" type="checkbox"> Энэ нэг бичлэгийг Google Gemini рүү илгээхийг зөвшөөрч байна.</label>
-        <p>Live Translate нь таны үзүүлсэн model: <code>gemini-3.5-live-translate-preview</code>. Монгол Input transcript-ийг цуглуулна; хэлээ автоматаар танина. Бичлэгээ сонсоод «Дууг текст болгох»-ыг дарна. 30 секунд хүртэл бичлэгийг streaming-ээр илгээгээд төгсгөлийн хэсгийг хүлээнэ. Текстээ нягталсны дараа асуултаа илгээнэ. Автоматаар дахин оролдохгүй.</p></div>
+          <label><input id="geminiTerms" type="checkbox"> Үнэгүй үйлчилгээний өгөгдлийг Google сайжруулалтад ашиглаж, хүн хянаж болохыг ойлгосон.</label>
+          <button id="geminiConfigure" type="button">Нэг удаа холбоод хадгалах</button><button id="geminiClear" type="button">Хадгалсан түлхүүрийг арилгах</button>
+          <p><code>gemini-3.5-live-translate-preview</code> · <a href="https://ai.google.dev/gemini-api/docs/pricing" target="_blank" rel="noreferrer">Google Free tier</a>. Апп billing-ийг бие даан батлахгүй.</p>
+        </details>
       </section>
       <p id="voiceStatus" class="status composer-status" role="status" aria-live="polite"></p>
       <div id="micLevel" hidden><meter id="micLevelMeter" min="0" max="1" value="0" aria-label="Микрофоны дууны түвшин"></meter> <span id="micLevelText" class="small muted">Асуултаа тайван, тод хэлнэ үү.</span></div>
@@ -403,6 +403,7 @@ $("websiteForm").addEventListener("submit",async e=>{
 $("websiteDraft").addEventListener("change",()=>{++websiteGeneration;$("websiteForm").querySelector("button").disabled=false;$("websiteResults").replaceChildren();$("websiteStatus").textContent="Горим өөрчлөгдлөө. Дахин хайна уу."});
 
 let geminiSessionToken='';
+let geminiStatusTimer=null;
 let voiceState={},voiceGeneration=0,voiceBusy=false,selectedAudio=null,inputURL=null;
 let llmState={},correctionGeneration=0,correctionBusy=false,correctionValue=null,activeCorrection=null;
 let micStream=null,micRecorder=null,micTimer=null,micEpoch=0,micStarting=false;
@@ -413,27 +414,27 @@ let activeTranscription=null;
 function clearSpeech(){const p=$("voiceReplyPlayer");p.pause();p.removeAttribute("src");p.load();p.hidden=true;$("audioDock").hidden=true;$("ttsStatus").textContent="";$("spokenText").textContent="";$("speakButton").disabled=true}
 function cancelTranscription(){const request=activeTranscription;if(!request)return;activeTranscription=null;clearTimeout(request.timer);request.controller.abort();voiceBusy=false}
 function invalidateVoiceAnswer({preserveTranscription=false}={}){cancelTranscription();clearCorrection();const keep=preserveTranscription?currentTranscription?.id:null;const cleanup=discardVoice([...ownedVoiceIds].filter(id=>id!==keep));if(!preserveTranscription)currentTranscription=null;++voiceGeneration;++routeGeneration;latestRoute=null;routeBusy=false;clearSpeech();for(const waiting of document.querySelectorAll(".waiting"))waiting.textContent="Энэ хүсэлтийг цуцалсан.";$("routeStatus").textContent="";return cleanup}
-function selectedSTTProvider(){return ["gemini","gemini_live"].includes($("sttProvider").value)?$("sttProvider").value:"cafet"}
-function selectedSTTReady(){return selectedSTTProvider()!=="cafet"?voiceState.gemini?.ready===true:voiceState.stt_ready===true}
-function renderGeminiStatus(){const cloud=voiceState.gemini||{};$("geminiControls").hidden=selectedSTTProvider()==="cafet";$("sttProviderStatus").textContent=selectedSTTProvider()==="cafet"?"Cafet Whisper · энэ компьютерт танина":cloud.ready?`Gemini бэлэн · ${cloud.remaining_attempts} оролдлого үлдсэн`:cloud.last_error==="http_429"?"Gemini квот хүрсэн (429). Дахин автоматаар илгээхгүй.":"Gemini түлхүүр болон Free tier нөхцөлийг доор тохируулна уу."}
+function selectedSTTProvider(){return "gemini_live"}
+function selectedSTTReady(){return voiceState.gemini?.ready===true}
+function renderGeminiStatus(){const cloud=voiceState.gemini||{};$("geminiSettings").open=!cloud.configured;$("sttProviderStatus").textContent=cloud.ready?(cloud.key_persisted?"Бэлэн · түлхүүр хамгаалалттай хадгалагдсан":"Бэлэн"):cloud.configured?(cloud.retry_after_seconds>0?`Google квот: ${cloud.retry_after_seconds} секундийн дараа дахин туршина. Түлхүүрээ дахин оруулах шаардлагагүй.`:"Gemini холболтыг шалгана уу. Хадгалсан түлхүүр хэвээр."):"Нэг удаа түлхүүрээ холбоно.";if(cloud.retry_after_seconds>0&&!geminiStatusTimer)geminiStatusTimer=setTimeout(()=>{geminiStatusTimer=null;loadGeminiSession().catch(()=>{})},10000)}
 async function loadGeminiSession(){const r=await fetch('/api/voice/gemini/session');const value=await r.json();if(!r.ok)throw Error(value.error||'Gemini тохиргоо уншсангүй');geminiSessionToken=value.csrf_token;voiceState.gemini=value;renderGeminiStatus();refreshVoiceControls()}
-$("sttProvider").addEventListener('change',()=>{cancelTranscription();$("geminiConsent").checked=false;renderGeminiStatus();refreshVoiceControls();$("voiceStatus").textContent='Сонгосон provider: '+$("sttProvider").selectedOptions[0].textContent});
-$("geminiConsent").addEventListener('change',refreshVoiceControls);
-$("geminiConfigure").addEventListener('click',async()=>{const key=$("geminiKey").value;$("geminiKey").value='';try{if(!geminiSessionToken)await loadGeminiSession();const response=await fetch('/api/voice/gemini/configure',{method:'POST',headers:{'Content-Type':'application/json','X-Gemini-Token':geminiSessionToken},body:JSON.stringify({api_key:key,free_tier_confirmed:$("geminiFreeTier").checked,data_terms_confirmed:$("geminiTerms").checked,max_attempts:5})});const value=await response.json();if(!response.ok)throw Error(value.error||'Gemini тохиргоо амжилтгүй');voiceState.gemini=value;renderGeminiStatus();refreshVoiceControls();$("voiceStatus").textContent='Gemini түлхүүр түр холбогдлоо. Одоо өөрийн бичлэгээ туршиж болно.'}catch(error){$("sttProviderStatus").textContent=error.message}});
-$("geminiClear").addEventListener('click',async()=>{try{if(!geminiSessionToken)await loadGeminiSession();const response=await fetch('/api/voice/gemini/clear',{method:'POST',headers:{'Content-Type':'application/json','X-Gemini-Token':geminiSessionToken},body:'{}'});const value=await response.json();if(!response.ok)throw Error(value.error||'Түлхүүр мартаж чадсангүй');voiceState.gemini=value;$("geminiConsent").checked=false;renderGeminiStatus();refreshVoiceControls()}catch(error){$("sttProviderStatus").textContent=error.message}});
+
+
+$("geminiConfigure").addEventListener('click',async()=>{const key=$("geminiKey").value;$("geminiKey").value='';try{if(!geminiSessionToken)await loadGeminiSession();const response=await fetch('/api/voice/gemini/configure',{method:'POST',headers:{'Content-Type':'application/json','X-Gemini-Token':geminiSessionToken},body:JSON.stringify({api_key:key,free_tier_confirmed:$("geminiFreeTier").checked,data_terms_confirmed:$("geminiTerms").checked,max_attempts:0,remember:true,continuous_use:true})});const value=await response.json();if(!response.ok)throw Error(value.error||'Gemini тохиргоо амжилтгүй');voiceState.gemini=value;renderGeminiStatus();refreshVoiceControls();$("voiceStatus").textContent='Gemini түлхүүр хамгаалалттай хадгалагдлаа. Одоо өөрийн бичлэгээ туршиж болно.'}catch(error){$("sttProviderStatus").textContent=error.message}});
+$("geminiClear").addEventListener('click',async()=>{try{if(!geminiSessionToken)await loadGeminiSession();const response=await fetch('/api/voice/gemini/clear',{method:'POST',headers:{'Content-Type':'application/json','X-Gemini-Token':geminiSessionToken},body:'{}'});const value=await response.json();if(!response.ok)throw Error(value.error||'Түлхүүр мартаж чадсангүй');voiceState.gemini=value;renderGeminiStatus();refreshVoiceControls()}catch(error){$("sttProviderStatus").textContent=error.message}});
 function refreshVoiceControls(){
  const recording=micRecorder?.state==="recording",active=micStarting||recording,busy=voiceBusy||active||routeBusy;
  $("recordStart").hidden=recording;$("recordStop").hidden=!recording;
  $("recordStart").disabled=!selectedSTTReady()||busy||!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder;
  $("recordStop").disabled=!recording;
  $("attachAudio").disabled=busy;$("voiceFile").disabled=busy;
- $("transcribeButton").disabled=!selectedSTTReady()||!selectedAudio||busy||(selectedSTTProvider()!=="cafet"&&!$("geminiConsent").checked);$("sttProvider").disabled=busy;
+ $("transcribeButton").disabled=!selectedSTTReady()||!selectedAudio||busy;
  $("ttsVoice").disabled=busy;$("routeQuery").disabled=voiceBusy||active;$("routeDraft").disabled=busy;$("clearClarification").disabled=busy;
  $("routeButton").disabled=busy||!$("routeQuery").value.trim();
  document.querySelectorAll("[data-route-example],[data-followup-query]").forEach(b=>b.disabled=busy);
  document.querySelectorAll(".play-message").forEach(b=>{b.disabled=!voiceState.tts_ready||busy;b.title=voiceState.tts_ready?"Хариултыг дуугаар сонсох":"Дуут хариултын үйлчилгээ бэлэн биш"});
  $("speakButton").disabled=!voiceState.tts_ready||!hasSpokenReply(latestRoute?.result)||latestRoute?.result?.can_speak===false||busy;
- $("correctTranscriptButton").hidden=!llmState.configured;
+ $("correctTranscriptButton").hidden=selectedSTTProvider()!=="cafet"||!llmState.configured;
  $("correctTranscriptButton").disabled=!llmState.configured||correctionBusy||busy||!$("routeQuery").value.trim();
 }
 async function discardVoice(ids){
@@ -446,7 +447,7 @@ async function discardVoice(ids){
 }
 function ownResponse(r){ownedVoiceIds.add(r.id)}
 function clearInput(){$("capturePreview").hidden=true;selectedAudio=null;if(inputURL){URL.revokeObjectURL(inputURL);inputURL=null}const p=$("voiceInputPlayer");p.pause();p.removeAttribute("src");p.load();p.hidden=true;$("voiceFile").value="";$("sttDetails").hidden=true;$("sttOriginal").textContent="";$("sttTiming").textContent=""}
-function chooseAudio(blob){clearInput();$("geminiConsent").checked=false;selectedAudio=blob;$("capturePreview").hidden=false;$("captureLabel").textContent=blob.name||"Микрофоны бичлэг";inputURL=URL.createObjectURL(blob);$("voiceInputPlayer").src=inputURL;$("voiceInputPlayer").hidden=false;refreshVoiceControls()}
+function chooseAudio(blob){clearInput();selectedAudio=blob;$("capturePreview").hidden=false;$("captureLabel").textContent=blob.name||"Микрофоны бичлэг";inputURL=URL.createObjectURL(blob);$("voiceInputPlayer").src=inputURL;$("voiceInputPlayer").hidden=false;refreshVoiceControls()}
 function stopMicLevel(){if(micLevelTimer)clearInterval(micLevelTimer);micLevelTimer=null;const context=micAudioContext;micAudioContext=null;if(context)context.close().catch(()=>{});$("micLevel").hidden=true;$("micLevelMeter").value=0}
 function startMicLevel(stream,epoch){
  stopMicLevel();const AudioContextClass=window.AudioContext||window.webkitAudioContext;if(!AudioContextClass)return;
@@ -456,18 +457,18 @@ function startMicLevel(stream,epoch){
  }catch{stopMicLevel()}
 }
 function stopMic(abandon=false){if(abandon)++micEpoch;if(micTimer)clearTimeout(micTimer);micTimer=null;stopMicLevel();if(micRecorder?.state==="recording")micRecorder.stop();if(micStream)micStream.getTracks().forEach(track=>track.stop());micStream=null;micStarting=false;refreshVoiceControls()}
-async function transcribeSelected(){if(!selectedAudio||voiceBusy)return;const sttProvider=selectedSTTProvider();if(sttProvider!=="cafet"&&!$("geminiConsent").checked){$("voiceStatus").textContent="Бичлэг бэлэн. Google руу илгээх чагтыг сонгоод «Дууг текст болгох»-ыг дарна уу.";return}if(!selectedSTTReady()){$("voiceStatus").textContent="Сонгосон STT үйлчилгээний тохиргоог шалгана уу.";return}invalidateVoiceAnswer();$("routeQuery").value="";voiceBusy=true;const generation=voiceGeneration;let correctionReady=null;refreshVoiceControls();$("voiceStatus").textContent="Дууг текст болгож байна…";
+async function transcribeSelected(){if(!selectedAudio||voiceBusy)return;const sttProvider=selectedSTTProvider();if(!selectedSTTReady()){$("voiceStatus").textContent="Сонгосон STT үйлчилгээний тохиргоог шалгана уу.";return}invalidateVoiceAnswer();$("routeQuery").value="";voiceBusy=true;const generation=voiceGeneration;let correctionReady=null;refreshVoiceControls();$("voiceStatus").textContent="Gemini 3.5 дууг таньж байна…";
  const request={controller:new AbortController(),timer:null};activeTranscription=request;
  // This bounds the browser wait; aborting it does not cancel server inference.
  request.timer=setTimeout(()=>{if(activeTranscription!==request)return;cancelTranscription();$("voiceStatus").textContent="Дууг таних хүлээлгийн хугацаа дууслаа. Бичлэгээ дахин таних эсвэл асуултаа бичиж илгээж болно.";refreshVoiceControls()},STT_REQUEST_TIMEOUT_MS);
  try{const response=await fetch("/api/voice/transcribe",{method:"POST",headers:{"Content-Type":selectedAudio.type||"audio/wav","X-STT-Provider":sttProvider,...(sttProvider!=="cafet"?{"X-Gemini-Token":geminiSessionToken,"X-Gemini-Audio-Consent":"send-this-audio"}:{})},body:selectedAudio,signal:request.controller.signal});const r=await response.json();if(!response.ok)throw Error(r.error||"STT алдаа");ownResponse(r);
   if(activeTranscription!==request||generation!==voiceGeneration){await discardVoice([r.id]);return}currentTranscription=r.speech_text_available!==false&&typeof r.text==="string"&&r.text.trim()?{id:r.id,rawText:r.text}:null;$("routeQuery").value=r.text;sizeComposer();$("sttOriginal").textContent=r.text;$("sttTiming").textContent=(r.provider==="google_gemini_live"?"Gemini 3.5 Live Translate · input transcript · ":r.provider==="google_gemini"?"Gemini 3.5 Transcribe · онлайн · ":"Cafet Whisper · локал · ")+"Модель ачаалах "+Number(r.model_load_seconds).toFixed(2)+" s · таних "+Number(r.transcription_seconds).toFixed(2)+" s · аудио "+Number(r.audio_seconds).toFixed(2)+" s";$("sttDetails").hidden=false;$("voiceStatus").textContent=(r.speech_text_available===false||r.recognition_review?.needs_extra_review)?r.message:"Текстээ нягтлаад ↑ дарж илгээнэ үү.";
   if(currentTranscription)correctionReady=currentTranscription.id;
- }catch(e){if(activeTranscription===request&&generation===voiceGeneration)$("voiceStatus").textContent=e.message}finally{if(sttProvider!=="cafet"){$("geminiConsent").checked=false;loadGeminiSession().catch(()=>{})}clearTimeout(request.timer);if(activeTranscription===request){activeTranscription=null;voiceBusy=false;refreshVoiceControls();if(correctionReady&&generation===voiceGeneration&&currentTranscription?.id===correctionReady&&llmState.configured&&llmState.available===true&&sttProvider==="cafet")requestCorrection({automatic:true})}}}
+ }catch(e){if(activeTranscription===request&&generation===voiceGeneration)$("voiceStatus").textContent=e.message}finally{if(sttProvider!=="cafet"){loadGeminiSession().catch(()=>{})}clearTimeout(request.timer);if(activeTranscription===request){activeTranscription=null;voiceBusy=false;refreshVoiceControls();if(correctionReady&&generation===voiceGeneration&&currentTranscription?.id===correctionReady&&llmState.configured&&llmState.available===true&&sttProvider==="cafet")requestCorrection({automatic:true})}}}
 $("voiceFile").addEventListener("change",()=>{
  const file=$("voiceFile").files[0];if(!file)return;invalidateVoiceAnswer();$("routeQuery").value="";sizeComposer();
  if(file.size>8*1024*1024){clearInput();$("voiceStatus").textContent="8 MiB хүртэл хэмжээтэй файл сонгоно.";refreshVoiceControls();return}
- chooseAudio(file);if(selectedSTTProvider()==="cafet")transcribeSelected();else $("voiceStatus").textContent="Бичлэг бэлэн. Сонсоод Google руу илгээх чагтаа сонгон «Дууг текст болгох»-ыг дарна уу.";
+ chooseAudio(file);transcribeSelected();
 });
 $("removeCapture").addEventListener("click",()=>{invalidateVoiceAnswer({preserveTranscription:true});clearInput();$("voiceStatus").textContent="";refreshVoiceControls()});
 $("transcribeButton").addEventListener("click",transcribeSelected);

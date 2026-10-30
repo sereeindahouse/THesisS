@@ -2894,8 +2894,10 @@ def field_extract(query, sources):
             elif ('эсс' in q and re.search(r'гараар|хэвл|a4|цаас|авч ир', q)
                     and not re.search(r'фонт|пункт|үсгийн хэмжээ', q)):
                 match = re.search(r'Анхаарах: Эссэгээ[^\n]+', text)
-        if (visual and 'бүртгэ' in q and re.search(r'хураамж|төлбөр', q)
-                and re.search(r'хэд|төгрөг|хэмжээ', q) and 'элс' in q
+        if (visual and registration_amount_query(query)
+                and not re.search(r'сургалт\w*\s+(?:төлбөр|хураамж|үнэ)\w*\s+(?:нь\s+)?(?:хэд|ямар|хэмжээ)', q)
+                and not re.search(r'(?:болон|\bба\b|\bбас\b|\bмөн\b)\s+сургалт\w*\s+(?:төлбөр|хураамж|үнэ)', q)
+                and 'элс' in q and 'олимпиад' not in q
                 and text.startswith('Цахимаар бүртгэл хийхдээ бүртгэлийн хураамж')):
             return source, text
         if match and len(match.group()) <= 1500:

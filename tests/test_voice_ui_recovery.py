@@ -10,9 +10,9 @@ NODE = shutil.which('node')
 
 @unittest.skipUnless(NODE, 'Node is optional; browser-handler checks require its JS runtime')
 class VoiceUIRecoveryTests(unittest.TestCase):
-    def test_gemini_requires_per_clip_consent_and_keeps_provider_and_raw_text_visible(self):
+    def test_single_gemini_provider_keeps_raw_text_visible_without_repeated_setup(self):
         self.scenario('gemini')
-    def test_exact_live_provider_requires_consent_and_labels_input_transcript(self):
+    def test_exact_live_provider_restores_ready_state_without_selection_or_extra_checkbox(self):
         self.scenario('gemini-live')
     def test_source_quotes_deduplicate_without_losing_other_sources(self):
         script=r'''const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');

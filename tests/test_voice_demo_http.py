@@ -98,7 +98,7 @@ class VoiceDemoHTTPTests(unittest.TestCase):
         self.before = hashlib.sha256(self.db.read_bytes()).hexdigest()
         self.voice, self.review = FakeVoice(), FakeReview()
         self.llm = FakeLLM()
-        self.server = make_server(self.db, port=0, project_root=self.root,
+        self.server = make_server(self.db, port=0, project_root=self.root, legacy_stt=True,
                                   voice_service=self.voice, review_service=self.review, llm_service=self.llm)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -271,7 +271,7 @@ class OfficialFAQSearchHTTPTests(unittest.TestCase):
         with ContentStore(self.db) as store:
             store.import_content(data or self.data, allow_draft=True)
         self.before = hashlib.sha256(self.db.read_bytes()).hexdigest()
-        self.server = make_server(self.db, port=0, project_root=self.root,
+        self.server = make_server(self.db, port=0, project_root=self.root, legacy_stt=True,
                                   voice_service=FakeVoice(), review_service=FakeReview(),
                                   llm_service=FakeLLM())
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)

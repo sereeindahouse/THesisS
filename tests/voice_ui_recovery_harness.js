@@ -56,7 +56,7 @@ const context = vm.createContext({
 });
 function $(id) { return element(id); }
 vm.runInContext(`
-  let geminiSessionToken='fixture-token';
+  let geminiSessionToken='fixture-token',geminiStatusTimer=null;
   let voiceState={stt_ready:true,tts_ready:true},llmState={},voiceBusy=false,
       voiceGeneration=0,routeGeneration=0,routeBusy=false,micStarting=false,
       micRecorder=null,selectedAudio={type:'audio/wav'},currentTranscription=null,
@@ -72,6 +72,9 @@ if (active) vm.runInContext(active[0], context);
 if (source.includes('function cancelTranscription()'))
   vm.runInContext(between('function cancelTranscription()', 'function invalidateVoiceAnswer'), context);
 vm.runInContext(between('function invalidateVoiceAnswer', 'async function discardVoice'), context);
+// The legacy correction/recovery contracts explicitly exercise retained local branches.
+// Gemini scenarios below use the unmodified production provider/readiness functions.
+if (!scenario.startsWith('gemini')) vm.runInContext("selectedSTTProvider=()=> 'cafet';selectedSTTReady=()=>voiceState.stt_ready===true;",context);
 vm.runInContext(between('async function transcribeSelected()', '$("voiceFile").addEventListener'), context);
 vm.runInContext(between('function clearCorrection()', 'async function loadReviews()'), context);
 vm.runInContext(source.split(/\r?\n/).find(line => line.startsWith('$("routeQuery").addEventListener("input"')), context);
@@ -102,27 +105,25 @@ const correctionReply = (request, overrides={}) => request.resolve({ok:true,asyn
 
 async function main() {
   if (scenario === 'gemini' || scenario === 'gemini-live') {
-    const live=scenario==='gemini-live';
-    element('sttProvider').value=live?'gemini_live':'gemini';
-    run('voiceState.gemini={ready:true,remaining_attempts:2};llmState={configured:true,available:true}');
-    await run('transcribeSelected()');
-    assert.equal(requests.length,0,'No cloud audio request without this-clip consent');
-    element('geminiConsent').checked=true;
+    assert(!source.includes('<select id="sttProvider"'));
+    assert(!source.includes('id="geminiConsent"'));
+    assert.equal(run('selectedSTTProvider()'),'gemini_live');
+    run('voiceState.gemini={ready:true,configured:true,key_persisted:true,continuous_use:true};llmState={configured:true,available:true}');
     const pending=run('transcribeSelected()');
     assert.equal(requests[0].path,'/api/voice/transcribe');
-    assert.equal(requests[0].options.headers['X-STT-Provider'],live?'gemini_live':'gemini');
+    assert.equal(requests[0].options.headers['X-STT-Provider'],'gemini_live');
     assert.equal(requests[0].options.headers['X-Gemini-Audio-Consent'],'send-this-audio');
     assert.equal(requests[0].options.headers['X-Gemini-Token'],'fixture-token');
-    requests[0].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:live?'google_gemini_live':'google_gemini',model:live?'gemini-3.5-live-translate-preview':'gemini-3.5-transcribe',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
+    requests[0].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini_live',model:'gemini-3.5-live-translate-preview',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
     await pending;await flush();
-    assert.equal(element('geminiConsent').checked,false,'One consent is consumed per attempted clip');
-    assert(element('sttTiming').textContent.includes(live?'Live Translate':'Transcribe'));
-    assert(element('sttTiming').textContent.includes(live?'Gemini 3.5 Live Translate':'Gemini 3.5 Transcribe'));
-    assert.equal(requests.filter(r=>r.path==='/api/voice/correct').length,0,'Cloud raw text receives no automatic local rewrite');
+    assert(element('sttTiming').textContent.includes('Live Translate'));
+    assert.equal(requests.filter(r=>r.path==='/api/voice/correct').length,0,'Cloud raw receives no automatic local rewrite');
     assert.equal(requests[1].path,'/api/voice/gemini/session');
-    requests[1].resolve({ok:true,async json(){return {csrf_token:'fixture-token',ready:true,remaining_attempts:1}}});
+    requests[1].resolve({ok:true,async json(){return {csrf_token:'fixture-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});
     await flush();
     assert.equal(element('routeQuery').value,'fixture cloud raw');
+    assert.equal(element('geminiSettings').open,false,'Remembered credentials do not reopen setup');
+    assert.equal(element('transcribeButton').disabled,false,'No re-entry or per-clip checkbox');
     console.log(JSON.stringify({scenario,passed:true,network_calls:0,model_calls:0,source_handlers_executed:true}));
     return;
   }

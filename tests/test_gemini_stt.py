@@ -104,6 +104,22 @@ class GeminiSessionTests(unittest.TestCase):
 
 
 class GeminiVoiceTests(unittest.TestCase):
+    def test_wrong_language_is_preserved_and_warned_instead_of_claiming_mongolian_success(self):
+        from gemini_live_transport import LIVE_MODEL
+        from test_gemini_live import wav_bytes
+        class WrongLanguage(Transport):
+            def transcribe(self,*_,**__):
+                return dict(text='日本語',model=LIVE_MODEL,detected_language_codes=['ja'])
+        with tempfile.TemporaryDirectory() as directory:
+            runtime=VoiceRuntime(directory)
+            runtime.gemini=GeminiSTT(live_transport_factory=WrongLanguage)
+            runtime.gemini.configure(CONFIG)
+            result=runtime.transcribe_gemini(wav_bytes(),'audio/wav',consent=True,live=True)
+        self.assertEqual(result['text'],'日本語')
+        self.assertTrue(result['recognition_review']['unexpected_language'])
+        self.assertIn('Монгол хэлээр танигдсангүй',result['message'])
+        self.assertFalse(result['accuracy_measured'])
+
     def test_native_audio_is_bounded_then_cloud_raw_is_bound_to_existing_lineage(self):
         with tempfile.TemporaryDirectory() as directory:
             runtime = VoiceRuntime(directory)
@@ -140,7 +156,7 @@ class GeminiHTTPTests(unittest.TestCase):
             store.import_content(fixture(), allow_draft=True)
         self.voice = VoiceRuntime(root)
         self.voice.gemini = GeminiSTT(Transport)
-        self.server = make_server(database, port=0, project_root=root, voice_service=self.voice)
+        self.server = make_server(database, port=0, project_root=root, voice_service=self.voice, legacy_stt=True)
         self.addCleanup(self.server.server_close)
         self.addCleanup(self.server.shutdown)
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
@@ -213,3 +229,29 @@ class GeminiHTTPTests(unittest.TestCase):
         self.assertFalse(result['translated_output_used'])
         self.assertFalse(result['reference_confirmed'])
         self.assertEqual(self.voice.transcription_lineage(result['id'],result['text'])['kind'],'raw_stt')
+
+    def test_main_has_only_live_and_default_request_never_routes_to_whisper(self):
+        from gemini_live_transport import LIVE_MODEL
+        from test_gemini_live import wav_bytes
+        class Live(Transport):
+            def transcribe(self,*args,**kwargs):
+                return dict(text='Зохиомол Монгол асуулт',model=LIVE_MODEL)
+        self.voice.gemini._live_factory=Live
+        root=Path(self.temp.name)
+        self.server=make_server(root/'content.db',port=0,project_root=root,voice_service=self.voice)
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        threading.Thread(target=self.server.serve_forever,daemon=True).start()
+        self.origin=f'http://127.0.0.1:{self.server.server_port}'
+        _,session=self.request('GET','/api/voice/gemini/session')
+        token={'X-Gemini-Token':session['csrf_token']}
+        self.request('POST','/api/voice/gemini/configure',CONFIG,token)
+        headers={**token,'Content-Type':'audio/wav','X-Gemini-Audio-Consent':'send-this-audio'}
+        with patch.object(self.voice,'transcribe') as whisper, patch.object(self.voice.gemini,'_factory') as transcribe:
+            for rejected in ['cafet','gemini']:
+                self.assertEqual(self.request('POST','/api/voice/transcribe',wav_bytes(),
+                    {**headers,'X-STT-Provider':rejected})[0],400)
+            status,result=self.request('POST','/api/voice/transcribe',wav_bytes(),headers)
+        self.assertEqual(status,200)
+        self.assertEqual(result['model'],LIVE_MODEL)
+        whisper.assert_not_called();transcribe.assert_not_called()
