@@ -273,6 +273,8 @@ async def _edge_audio(text, voice):
 
 class VoiceRuntime:
     def __init__(self, root):
+        from gemini_stt_runtime import GeminiSTT
+        self.gemini = GeminiSTT()
         self.root = Path(root).resolve()
         self._session = self.root / "runtime" / "voice-demo" / uuid.uuid4().hex
         self._model = None
@@ -321,6 +323,7 @@ class VoiceRuntime:
         with self._records_lock:
             last_tts = dict(self._last_tts_attempt) if self._last_tts_attempt else None
         return {"available": stt_ready or tts_ready, "stt_ready": stt_ready,
+                "gemini": self.gemini.status(),
                 "tts_ready": tts_ready, "tts_dependency_ready": tts_ready,
                 "tts_package_version": tts_version,
                 "tts_ready_checks_dependencies_only": True,
@@ -490,6 +493,33 @@ class VoiceRuntime:
                    "human_review_required": True, "fine_tuning_performed": False,
                    "accuracy_measured": False, "text_generated": False, "llm_calls": 0}
         return self._save(_wav_bytes(pcm), "audio/wav", details)
+
+    def transcribe_gemini(self, audio_bytes, content_type, *, consent=False):
+        from gemini_stt_runtime import GeminiSTTError
+        if consent is not True:
+            raise VoiceRuntimeError('gemini_consent', 'Энэ бичлэгийг Google руу илгээх чагтыг сонгоно уу.')
+        self._check_capacity()
+        demuxer, _ = _audio_format(audio_bytes, content_type)
+        pcm = _decode_pcm(audio_bytes, demuxer)
+        if not any(pcm):
+            raise VoiceRuntimeError('audio_silent', 'Бичлэг хоосон байна; микрофоноо шалгана уу.')
+        wav = _wav_bytes(pcm)
+        try:
+            result = self.gemini.transcribe(wav, consent=True)
+        except GeminiSTTError as error:
+            raise VoiceRuntimeError('gemini_' + error.code, str(error), 429 if error.code == 'http_429' else 503) from None
+        details = dict(kind='stt', **result, segments=[],
+            input_sha256=hashlib.sha256(audio_bytes).hexdigest(),
+            transmitted_audio_sha256=hashlib.sha256(wav).hexdigest(),
+            audio_seconds=len(pcm)/(SAMPLE_RATE*2), model_load_seconds=0,
+            speech_text_available=bool(result['text'].strip()),
+            message='Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.',
+            recognition_review=dict(needs_extra_review=True,
+                message='Gemini-ийн нэр, тоо, он болон үгүйсгэлийг өөрөө нягтална уу.'),
+            local_files_only=False, language_codes=['mn-MN'], cloud_audio_consent=True,
+            reference_confirmed=False, human_review_required=True, fine_tuning_performed=False,
+            accuracy_measured=False, text_generated=False, llm_calls=0)
+        return self._save(wav, 'audio/wav', details)
 
     def _tts_attempt(self, voice, started, *, success, error=None, service_status=None):
         # No text, URLs, service tokens or raw exception messages in public status.

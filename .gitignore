@@ -309,6 +309,10 @@ __pycache__/
 !/tests/test_llm_selection_comparison.py
 !/tools/human_quality_trial.py
 !/tests/test_human_quality_trial.py
+!/tests/human_quality_ui_harness.js
+!/tests/test_gemini_stt.py
+!/gemini_stt_runtime.py
+!/CORE/GEMINI-SELF-TEST.mn.md
 !/CORE/HUMAN-QUALITY-CHECK.mn.md
 !/tests/test_structure_context.py
 !/tests/test_history_evidence.py

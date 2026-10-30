@@ -45,11 +45,15 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 class HumanTrial:
-    def __init__(self, run_dir, audio_results, review_file, upstream='http://127.0.0.1:8765'):
+    def __init__(self, run_dir, audio_results, review_file, upstream='http://127.0.0.1:8765', *, resume=False):
         self.directory = Path(run_dir).resolve()
         if ROOT.joinpath('runtime').resolve() not in self.directory.parents:
             raise ValueError('Human records must remain in a private runtime subdirectory.')
-        self.directory.mkdir(parents=True, exist_ok=False)
+        if resume:
+            if not self.directory.is_dir():
+                raise ValueError('Resume requires an existing private study directory.')
+        else:
+            self.directory.mkdir(parents=True, exist_ok=False)
         self.audio_manifest = Path(audio_results).resolve()
         raw = self.audio_manifest.read_bytes()
         self.audio_manifest_sha = sha(raw)
@@ -85,12 +89,148 @@ class HumanTrial:
         self.sessions = {}
         self.lock = threading.RLock()
         self.token = secrets.token_hex(32)
-        self._write_new('manifest.json', dict(created_utc=utc(), audio_manifest_sha256=self.audio_manifest_sha,
-            listening_samples=len(self.samples), expected_answer_file=str(self.review_file.relative_to(ROOT)),
-            scores_fabricated=False, human_review_source='explicit_browser_self_report',
-            human_scores_observer_verified=False, public_server=False,
-            audio_reference_not_inferred_from_stt=True,
-            human_answer_or_listening_results_at_preparation=0))
+        self._restoring = resume
+        if resume:
+            self._restore()
+            self._restoring = False
+        else:
+            self._write_new('manifest.json', dict(created_utc=utc(), audio_manifest_sha256=self.audio_manifest_sha,
+                listening_samples=len(self.samples), expected_answer_file=str(self.review_file.relative_to(ROOT)),
+                scores_fabricated=False, human_review_source='explicit_browser_self_report',
+                human_scores_observer_verified=False, public_server=False,
+                audio_reference_not_inferred_from_stt=True,
+                human_answer_or_listening_results_at_preparation=0))
+
+    def _saved(self, name):
+        path = (self.directory / name).resolve(strict=True)
+        if not path.is_relative_to(self.directory) or not path.is_file():
+            raise ValueError('Unsafe saved study path.')
+        with path.open('rb') as stream:
+            raw = stream.read(MAX_AUDIO + 1)
+        if len(raw) > MAX_AUDIO:
+            raise ValueError('Saved study item exceeds its bound.')
+        return raw
+
+    @staticmethod
+    def _new_task(task_id, text, context):
+        return dict(id=task_id, intended_request=text, recording=None, reference=None,
+                    reference_draft=None, transcription_attempted=False, context=context,
+                    transcript=None, results={}, audio_ids=set(), lock=threading.RLock(),
+                    observations=set(), synthesized=set(), last_error=None)
+
+    def _restore(self):
+        """Validate the journal before appending. Replay never calls models or creates human events."""
+        def require(condition):
+            if not condition:
+                raise ValueError('Saved study evidence is inconsistent; original files were not changed.')
+        manifest = json.loads(self._saved('manifest.json'))
+        require(manifest['audio_manifest_sha256'] == self.audio_manifest_sha
+                and manifest['listening_samples'] == len(self.samples)
+                and manifest['expected_answer_file'] == str(self.review_file.relative_to(ROOT)))
+        # A task-only session can precede the first answer-page load. Do not
+        # create a new review snapshot merely by restoring that session.
+        rows = ({row['review_id'] for row in self._answers()}
+                if (self.directory / 'frozen-answer-review.json').is_file() else set())
+        paths = sorted(p for p in self.directory.iterdir()
+                       if re.fullmatch(r'[0-9a-f]{32}-[0-9]{4}-[a-z-]+\.json', p.name))
+        require(len(paths) <= 10000)
+        total = 0
+        for path in paths:
+            raw = self._saved(path.name)
+            total += len(raw)
+            require(total <= 64 * 1024 * 1024)
+            event = json.loads(raw)
+            sid, number, kind = path.name[:-5].split('-', 2)
+            require(event['session_id'] == sid and event['kind'] == kind
+                    and re.fullmatch(r'[0-9a-f]{32}', event['id']) is not None
+                    and event['audio_manifest_sha256'] == self.audio_manifest_sha
+                    and event['answer_bundle_sha256'] in (None, self.review_sha))
+            if kind == 'consent':
+                require(sid not in self.sessions and int(number) == 1)
+                consent = {k: event[k] for k in ('pseudonym', 'consent', 'audio_storage_consent', 'implementation_participation')}
+                require(re.fullmatch(r'P[0-9]{3,6}', consent['pseudonym']) is not None
+                        and consent['consent'] is True
+                        and type(consent['audio_storage_consent']) is bool
+                        and type(consent['implementation_participation']) is bool)
+                order = list(self.samples)
+                random.Random(sid).shuffle(order)
+                self.sessions[sid] = dict(id=sid, events=0, last_sha=None, consent=consent,
+                    listening_order=order, listening={}, reviews={}, tasks={})
+            require(sid in self.sessions)
+            session = self.sessions[sid]
+            require(int(number) == session['events'] + 1
+                    and event['previous_event_sha256'] == session['last_sha']
+                    and event['speaker_id'] == event['speaker_group_id'] == session['consent']['pseudonym']
+                    and event['human_observer_verified'] is False)
+            if kind == 'listening':
+                sample = self.samples.get(event['sample_id'])
+                require(sample is not None and event['sample_id'] not in session['listening']
+                        and event['audio_sha256'] == sample['sha256']
+                        and set(event['heard_values']) == set(sample['keys'])
+                        and event['listened'] is True and event['playback_ended'] is True
+                        and all(type(event[k]) is int and 1 <= event[k] <= 5 for k in ('intelligibility', 'naturalness')))
+                session['listening'][event['sample_id']] = event['id']
+            elif kind == 'answer-review':
+                require(event['review_id'] in rows and event['review_id'] not in session['reviews'])
+                session['reviews'][event['review_id']] = event['id']
+            elif kind == 'task-start':
+                task_id = event['task_id']
+                require(re.fullmatch(r'[0-9a-f]{32}', task_id) is not None and task_id not in session['tasks'])
+                session['tasks'][task_id] = self._new_task(task_id, event['intended_request'], event['recording_context'])
+            elif kind.startswith('task-'):
+                require(event['task_id'] in session['tasks'])
+                task = session['tasks'][event['task_id']]
+                if kind == 'task-recording':
+                    require(task['recording'] is None and session['consent']['audio_storage_consent'])
+                    for filename, digest in (('audio_file', 'audio_sha256'), ('original_audio_file', 'original_audio_sha256'),
+                                             ('provenance_file', 'provenance_sha256')):
+                        require(sha(self._saved(event[filename])) == event[digest])
+                    task['recording'] = copy.deepcopy(event)
+                    task['last_error'] = None
+                elif kind in {'task-reference', 'task-reference-pending'}:
+                    require(task['recording'] is not None and task['reference'] is None
+                            and not task['transcription_attempted']
+                            and event['audio_sha256'] == task['recording']['audio_sha256'])
+                    if kind == 'task-reference':
+                        require(event['human_utterance_reference_confirmed'] is True
+                                and event['reference_confirmed_before_asr'] is True
+                                and event['listened'] is True and event['playback_ended'] is True
+                                and event['uncertainties'] == [])
+                        task['reference'] = {k: copy.deepcopy(event[k]) for k in (
+                            'text', 'audio_sha256', 'confirmed_utc', 'uncertainties', 'reference_origin', 'observer_verified')}
+                    else:
+                        task['reference_draft'] = dict(text=event['reference_draft'], uncertainties=event['uncertainties'])
+                elif kind == 'task-stt-attempt':
+                    require(task['reference'] is not None and not task['transcription_attempted']
+                            and event['uploaded_audio_sha256'] == task['recording']['audio_sha256'])
+                    task['transcription_attempted'] = True
+                elif kind == 'task-stt':
+                    require(task['transcription_attempted'] and task['transcript'] is None
+                            and event['uploaded_audio_sha256'] == task['recording']['audio_sha256']
+                            and event['asr_utterance_reference'] == task['reference']['text'])
+                    task['transcript'] = copy.deepcopy(event['actual_response'])
+                    task['audio_ids'].add(task['transcript']['id'])
+                elif kind == 'task-route':
+                    condition = event['condition']
+                    require(condition in {'typed', 'raw', 'explicit-edited'} and condition not in task['results']
+                            and (condition == 'typed' or task['transcript'] is not None))
+                    task['results'][condition] = dict(query=event['actual_sent_text'], result=copy.deepcopy(event['actual_response']))
+                elif kind == 'task-tts':
+                    require(event['condition'] in task['results'])
+                    task['audio_ids'].add(event['actual_response']['id'])
+                    task['synthesized'].add(event['condition'])
+                elif kind == 'task-observation':
+                    require(event['condition'] in task['results'] and event['condition'] not in task['observations'])
+                    task['observations'].add(event['condition'])
+                elif kind == 'task-error':
+                    if event.get('operation') == 'prepare_audio':
+                        require(sha(self._saved(event['audio_file'])) == event['input_sha256'])
+                    task['last_error'] = dict(operation=event['operation'], message=event['error'])
+                else:
+                    raise ValueError('Unsupported saved study event; preserve the original journal.')
+            elif kind != 'consent':
+                raise ValueError('Unsupported saved study event; preserve the original journal.')
+            session['events'], session['last_sha'] = int(number), sha(raw)
 
     def _write_new(self, name, value):
         with (self.directory / name).open('x', encoding='utf-8', newline='\n') as stream:
@@ -129,7 +269,12 @@ class HumanTrial:
                  'answer_sources', 'reference_sources')})
         self.review_sha = sha(raw)
         self.rows = result
-        self._write_new('frozen-answer-review.json', dict(input_sha256=self.review_sha, bundle=value))
+        frozen = dict(input_sha256=self.review_sha, bundle=value)
+        if self._restoring:
+            if json.loads(self._saved('frozen-answer-review.json')) != frozen:
+                raise ValueError('Frozen answer review changed; original study cannot be resumed.')
+        else:
+            self._write_new('frozen-answer-review.json', frozen)
         return result
 
     def audio(self, identifier):
@@ -163,6 +308,9 @@ class HumanTrial:
             with (self.directory / f'{session["id"]}-{number:04d}-{kind}.json').open('xb') as stream:
                 stream.write(raw)
             session['events'], session['last_sha'] = number, sha(raw)
+            if kind == 'task-error' and payload.get('task_id') in session['tasks']:
+                session['tasks'][payload['task_id']]['last_error'] = dict(
+                    operation=payload['operation'], message=payload['error'])
             return dict(saved=True, event_sha256=session['last_sha'], id=record['id'])
 
     def start(self, body):
@@ -193,8 +341,26 @@ class HumanTrial:
             completed_reviews=list(session['reviews']) if session else [],
             audio_storage_consent=session['consent']['audio_storage_consent'] if session else False,
             reference_reveal_allowed=bool(session and len(session['listening']) == len(self.samples)),
-            initial_results_are_empty=True, local_audio_processing=True, answer_tts_online=True,
+            active_task=self._public_task(session) if session else None,
+            initial_results_are_empty=not bool(session and (session['listening'] or session['reviews'] or session['tasks'])),
+            local_audio_processing=True, answer_tts_online=True,
             listening_text_scope=self.text_scope)
+
+    def _public_task(self, session):
+        if not session['tasks']:
+            return None
+        task = next(reversed(session['tasks'].values()))
+        with task['lock']:
+            recording = task['recording']
+            return dict(task_id=task['id'], intended_request=task['intended_request'], context=task['context'],
+                recording=dict(audio_sha256=recording['audio_sha256'], duration_seconds=recording['duration_seconds'],
+                    audio_url=f'/api/task-recording/{task["id"]}?session_id={session["id"]}') if recording else None,
+                reference=copy.deepcopy(task['reference']), reference_draft=copy.deepcopy(task['reference_draft']),
+                transcription_attempted=task['transcription_attempted'], transcript=copy.deepcopy(task['transcript']),
+                results=[dict(condition=k, answer=v['result'].get('answer'), route=v['result'].get('route'),
+                    citations=v['result'].get('citations'), input_lineage=v['result'].get('input_lineage'),
+                    observation_saved=k in task['observations']) for k,v in task['results'].items()],
+                last_error=copy.deepcopy(task['last_error']))
 
     def review(self, body):
         required = {'session_id', 'review_id', 'correctness', 'completeness', 'citation_support', 'reason'}
@@ -266,9 +432,7 @@ class HumanTrial:
                 not isinstance(value, str) or not 1 <= len(value.strip()) <= 200 for value in context.values()):
             raise ValueError('State the recording device, room and question scenario.')
         task_id = uuid.uuid4().hex
-        task = dict(id=task_id, intended_request=text.strip(), recording=None, reference=None,
-                    transcription_attempted=False, context=context, transcript=None, results={}, audio_ids=set(),
-                    lock=threading.RLock(), observations=set(), synthesized=set())
+        task = self._new_task(task_id, text.strip(), context)
         session['tasks'][task_id] = task
         self._event(session, 'task-start', dict(task_id=task_id, intended_request=text.strip(),
             recording_context=context, recording_context_reported=context_fields <= set(body),
@@ -342,6 +506,7 @@ class HumanTrial:
             self._event(session, 'task-recording', dict(task_id=task_id, **recording,
                 asr_performed=False, human_utterance_reference_confirmed=False))
             task['recording'] = recording
+            task['last_error'] = None
             return dict(audio_sha256=recording['audio_sha256'],
                 audio_url=f'/api/task-recording/{task_id}?session_id={sid}', asr_performed=False)
 
@@ -383,11 +548,17 @@ class HumanTrial:
                 raise ValueError('List unresolved words or numbers explicitly.')
             self.recording_audio(body['session_id'], body['task_id'])
             if uncertainties or not body['confirmed']:
-                self._event(session, 'task-reference-pending', dict(task_id=body['task_id'],
-                    reference_draft=text.strip(), uncertainties=copy.deepcopy(uncertainties),
-                    audio_sha256=body['audio_sha256'], human_utterance_reference_confirmed=False,
-                    reference_confirmed_before_asr=False, asr_performed=False))
-                return dict(saved=True, reference_confirmed_before_asr=False, asr_performed=False)
+                draft = dict(text=text.strip(), uncertainties=copy.deepcopy(uncertainties))
+                duplicate = task['reference_draft'] == draft
+                if not duplicate:
+                    self._event(session, 'task-reference-pending', dict(task_id=body['task_id'],
+                        reference_draft=text.strip(), uncertainties=copy.deepcopy(uncertainties),
+                        audio_sha256=body['audio_sha256'], human_utterance_reference_confirmed=False,
+                        reference_confirmed_before_asr=False, asr_performed=False))
+                    task['reference_draft'] = draft
+                return dict(saved=True, reference_confirmed_before_asr=False, asr_performed=False,
+                    duplicate_draft=duplicate, unresolved_count=len(uncertainties),
+                    pending_reason='unresolved_words' if uncertainties else 'confirmation_required')
             reference = dict(text=text.strip(), audio_sha256=body['audio_sha256'], confirmed_utc=utc(),
                 uncertainties=[], reference_origin='human_listened_before_asr', observer_verified=False)
             self._event(session, 'task-reference', dict(task_id=body['task_id'], **reference,
@@ -567,9 +738,9 @@ PAGE = r'''<!doctype html><html lang="mn"><meta charset="utf-8"><meta name="view
 <section id="listen"><h2>1. Он, тоо, нэрийг дуунаас ойлгох</h2><p><span id="listeningScope"></span> Текст, өмнөх/шинэ хувилбарын нэрийг түр нуусан. Сонссоноо бичнэ үү; ойлгомжгүй бол <b>?</b> гэж бич. Бүх дуу дууссаны дараа эх текстийг харуулна.</p><p id="listenProgress"></p><div id="listenCard"></div><div id="reveal"></div></section>
 <section id="answer"><h2>2. Эхтэй нь тулгаж хариултыг үнэлэх</h2><p>Зөв, дутуу, бурууг эхийн баримтаар дүгнэнэ. Хариулт үүсгэсэн арга, model-ийг нуусан. Та хөгжүүлэгч бол энэ нь хараат бус үнэлгээ гэж тооцогдохгүй.</p><p id="answerProgress"></p><div id="answerCard"></div><button id="refreshAnswers">Шинэ асуултын багцыг шалгах</button></section>
 <section id="voice"><h2>3. Шинэ асуултаа бичиж, сонсож батлаад STT турших</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь өөрийн үгээр ярьж бичнэ. Санаагаа бичсэн текст болон зассан STT нь аудиогийн reference болохгүй. Танилт ажиллуулахаас өмнө бичлэгээ бүтнээр сонсож, яг хэлсэн үгээ тусад нь бичиж батална. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй. Энэ хуудсанд WER автоматаар тооцохгүй.</p>
-<p>Нэг хүн өөр session-д орсон ч ижил оролцогчийн ID-гаа хэрэглэнэ. Шинэ асуулт нь шинэ хүн гэсэн үг биш.</p><label>Бичлэгийн төхөөрөмж<input id="device" maxlength="200" placeholder="Жишээ: laptop-ийн дотоод микрофон"></label><label>Бичлэгийн орчин<input id="room" maxlength="200" placeholder="Жишээ: гэрт, чимээгүй"></label><label>Асуултын нөхцөл / сэдэв<input id="scenario" maxlength="200" placeholder="Жишээ: элсэлтийн оныг лавлах"></label><label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Бичлэгийг зогсоох</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><audio id="recordedAudio" controls preload="none"></audio><label>Танилтаас өмнө сонсож буулгасан яг үг<textarea id="reference" placeholder="Бичлэгээ сонсоод бүх хэлсэн үгээ бичнэ үү. Энд бэлэн текст байхгүй."></textarea></label><label>Эргэлзээтэй үг, тоо (нэг мөрөнд нэгийг; байвал батлагдахгүй)<textarea id="uncertainties" placeholder="Эргэлзээтэй бол таамгаар нөхөхгүй"></textarea></label><label><input id="referenceConfirmed" type="checkbox"> Би бичлэгийг бүтнээр сонсож, яг хэлсэн бүх үгийг нягталсан. Эргэлзээтэй үг, тоо үлдээгүй.</label><button id="saveReference" disabled>Сонссон текст / эргэлзээг хадгалах</button><button id="recognize" disabled>Одоо локал STT ажиллуулах</button><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ засвар анхны reference-ийг өөрчлөхгүй.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div><button id="nextTask">Дараагийн шинэ асуулт</button></div></section></div></main>
+<p>Нэг хүн өөр session-д орсон ч ижил оролцогчийн ID-гаа хэрэглэнэ. Шинэ асуулт нь шинэ хүн гэсэн үг биш.</p><label>Бичлэгийн төхөөрөмж<input id="device" maxlength="200" placeholder="Жишээ: laptop-ийн дотоод микрофон"></label><label>Бичлэгийн орчин<input id="room" maxlength="200" placeholder="Жишээ: гэрт, чимээгүй"></label><label>Асуултын нөхцөл / сэдэв<input id="scenario" maxlength="200" placeholder="Жишээ: элсэлтийн оныг лавлах"></label><label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Бичлэгийг зогсоох</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><audio id="recordedAudio" controls preload="metadata"></audio><label>Танилтаас өмнө сонсож буулгасан яг үг<textarea id="reference" placeholder="Бичлэгээ сонсоод бүх хэлсэн үгээ бичнэ үү. Энд бэлэн текст байхгүй."></textarea></label><label>Эргэлзээтэй үг, тоо (нэг мөрөнд нэгийг; байвал батлагдахгүй)<textarea id="uncertainties" aria-describedby="referenceHelp" placeholder="Эргэлзээтэй үг байвал л бичнэ. Байхгүй бол хоосон үлдээнэ."></textarea></label><label><input id="referenceConfirmed" type="checkbox"> Би бичлэгийг бүтнээр сонсож, яг хэлсэн бүх үгийг нягталсан. Эргэлзээтэй үг, тоо үлдээгүй.</label><p id="referenceHelp" role="status" aria-live="polite">Дуугаа бүтнээр сонсоод яг хэлсэн үгээ бичнэ. Эргэлзээтэй үггүй бол дээрх эргэлзээний талбарыг хоосон үлдээж, батлах чагтыг сонгоно.</p><button id="saveReference" disabled>Сонссон текстийг хадгалах</button><button id="recognize" disabled>Одоо локал STT ажиллуулах</button><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ засвар анхны reference-ийг өөрчлөхгүй.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div><button id="nextTask">Дараагийн шинэ асуулт</button></div></section></div></main>
 <script>
-const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false,recordingSha='',referenceHeard=false;
+const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false,recordingSha='',referenceHeard=false,recordingClock=null,recordingSaving=false;
 const words={year:'Он',phone:'Утасны цифр',name:'Нэр',negation:'Үгүйсгэсэн үг',amount:'Мөнгөн дүн',unit:'Мөнгөний нэгж'};
 function el(tag,text,parent){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.append(n);return n}
 function status(text,error=false){$('status').textContent=text;$('status').className=error?'error':''}
@@ -584,19 +755,38 @@ function renderListening(){if(!sid)return;const remaining=state.listening.filter
 function sourceBlock(parent,title,refs){el('strong',title,parent);if(!refs?.length)el('p','Энэ хариултад эшилсэн эх байхгүй.',parent);for(const ref of refs||[]){if(ref.citation_number)el('p','Эшлэл ['+ref.citation_number+']',parent);el('blockquote',ref.quote,parent);if(/^https:\/\/nmct\.edu\.mn(?:\/|$)/.test(ref.url||'')){const a=el('a',ref.title||'Албан эх',parent);a.href=ref.url;a.target='_blank';a.rel='noreferrer'}}}
 function renderAnswer(){if(!sid)return;const box=$('answerCard');box.replaceChildren();const rows=state.answers.filter(x=>!state.completed_reviews.includes(x.review_id));$('answerProgress').textContent=`Хадгалсан ${state.completed_reviews.length}/${state.answers.length} · Хэсэгчлэн хадгалаад завсарлаж болно.`;if(!state.answer_ready){el('p','Шинэ асуултын гаралтын багц бэлтгэгдэж байна. Дуу болон бодит асуултын хэсгийг хийж болно.',box);return}if(!rows.length){el('p','Багцын бүх хариултыг үнэлсэн байна. Баярлалаа.',box);return}const row=rows[0];el('h3',row.query,box);el('strong','Системийн хариулт:',box);el('p',row.answer||row.abstention_reason||'Хариулт өгөөгүй.',box);const details=el('details',undefined,box);details.open=true;el('summary','Эхийн нотолгоог харьцуулах',details);sourceBlock(details,'Системийн хариулт бодитоор эшилсэн эх',row.answer_sources);el('hr',undefined,details);el('strong','Гаралтаас өмнө бэлтгэсэн шалгах мэдээлэл (хүн батлаагүй)',details);for(const fact of row.required_facts)el('p','• '+fact,details);sourceBlock(details,'Энэ шалгах мэдээллийн эх',row.reference_sources||row.source_refs);const options=[['correct','Зөв / бүрэн дэмжигдсэн'],['partial','Дутуу / хэсэгчлэн'],['wrong','Буруу / дэмжигдээгүй'],['not_applicable','Энэ тохиолдолд хамаарахгүй']];const c=rating(box,'Утгын зөв байдал',options),m=rating(box,'Шаардсан мэдээллийн бүрэн байдал',options),s=rating(box,'Системийн эшлэлийн нотолгоо',options);const l=el('label','Ямар баримтаар ингэж дүгнэв?',box),reason=el('textarea',undefined,l),b=el('button','Үнэлгээг хадгалах',box);b.onclick=()=>action(async()=>{await api('/api/review',{session_id:sid,review_id:row.review_id,correctness:c.value,completeness:m.value,citation_support:s.value,reason:reason.value});status('Хүний өөрийн үнэлгээг хадгаллаа.');await refresh()})}
 $('refreshAnswers').onclick=()=>action(refresh);
-$('taskBegin').onclick=()=>action(async()=>{const r=await api('/api/task/begin',{session_id:sid,intended_request:$('intent').value,device:$('device').value,room:$('room').value,scenario:$('scenario').value});taskId=r.task_id;$('intent').disabled=true;$('taskBegin').disabled=true;$('taskBody').classList.remove('hidden');$('record').disabled=!state.audio_storage_consent;$('upload').disabled=!state.audio_storage_consent;status('Санааг STT-ээс өмнө хадгаллаа. Бичсэн нөхцөлийг эхэлж илгээж болно.')});
+function restoreTask(task){
+ if(!task)return;taskId=task.task_id;$('intent').value=task.intended_request;$('intent').disabled=true;$('taskBegin').disabled=true;
+ for(const key of ['device','room','scenario']){$(key).value=task.context[key]||'';$(key).disabled=true}
+ $('taskBody').classList.remove('hidden');const clip=task.recording,ref=task.reference,raw=task.transcript;
+ $('record').disabled=!!clip||!state.audio_storage_consent;$('upload').disabled=$('record').disabled;$('stop').disabled=true;
+ $('saveReference').disabled=!clip||!!ref||task.transcription_attempted;$('reference').disabled=!!ref;$('uncertainties').disabled=!!ref;$('referenceConfirmed').disabled=!!ref;
+ $('recognize').disabled=!ref||task.transcription_attempted;
+ if(clip){recordingSha=clip.audio_sha256;$('recordedAudio').src=clip.audio_url;$('recordStatus').textContent=`Бичлэг хадгалагдсан (${clip.duration_seconds.toFixed(2)} секунд). Бүтнээр сонсоод яг хэлсэн үгээ батална.`}
+ if(task.reference_draft){$('reference').value=task.reference_draft.text;$('uncertainties').value=task.reference_draft.uncertainties.join('\n');referenceFeedback('Хадгалсан ноорог сэргэсэн. Эргэлзээний талбар хоосон, батлах чагт сонгосон үед л STT нээгдэнэ.',true)}
+ if(ref){$('reference').value=ref.text;$('referenceConfirmed').checked=true;$('recordStatus').textContent='Сонсож баталсан reference сэргэсэн. Анхны баталгаа өөрчлөгдөөгүй.'}
+ if(raw){$('raw').textContent='Анхны STT: '+raw.text;$('edited').value=raw.text}
+ $('rawSend').disabled=!raw||!raw.text||task.results.some(r=>r.condition==='raw');$('editedSend').disabled=!raw||task.results.some(r=>r.condition==='explicit-edited');
+ $('typed').disabled=task.results.some(r=>r.condition==='typed');for(const value of task.results)renderResult(value);
+ if(task.last_error)$('recordStatus').textContent=task.last_error.message+' Эх файл хадгалагдсан. Дахин богино бичлэг хийх эсвэл шинэ асуулт эхлүүлж болно.';
+ if(task.transcription_attempted&&!raw)$('recordStatus').textContent='Өмнөх STT оролдлого амжилтгүй/тасарсан. Автоматаар давтахгүй; шинэ асуулт эхлүүлнэ үү.';
+}
+$('taskBegin').onclick=()=>action(async()=>{const r=await api('/api/task/begin',{session_id:sid,intended_request:$('intent').value,device:$('device').value,room:$('room').value,scenario:$('scenario').value});sessionStorage.removeItem('humanTrialNewTask:'+sid);restoreTask({task_id:r.task_id,intended_request:$('intent').value,context:{device:$('device').value,room:$('room').value,scenario:$('scenario').value},recording:null,reference:null,transcript:null,transcription_attempted:false,results:[]});status('Санааг STT-ээс өмнө хадгаллаа. Бичсэн нөхцөлийг эхэлж илгээж болно.')});
 async function sendCondition(condition){const v=await api('/api/task/route',{session_id:sid,task_id:taskId,condition,edited_text:condition==='explicit-edited'?$('edited').value:null,edit_confirmed:condition==='explicit-edited'?$('editConfirmed').checked:false});renderResult(v);status(condition+' нөхцөлийн бодит гаралтыг хадгаллаа.')}
 $('typed').onclick=()=>action(async()=>{await sendCondition('typed');$('typed').disabled=true});$('rawSend').onclick=()=>action(async()=>{await sendCondition('raw');$('rawSend').disabled=true});$('editedSend').onclick=()=>action(async()=>{await sendCondition('explicit-edited');$('editedSend').disabled=true});
 async function capture(blob){$('recordStatus').textContent='Бичлэгийг локал хадгалж байна…';try{const mime=(blob.type||'audio/webm').split(';')[0];const r=await fetch('/api/task/record',{method:'POST',headers:{'Content-Type':mime,'X-Trial-Token':token,'X-Session-Id':sid,'X-Task-Id':taskId},body:blob});const v=await r.json();if(!r.ok)throw Error(v.error||'Бичлэг хадгалсангүй');recordingSha=v.audio_sha256;referenceHeard=false;$('recordedAudio').src=v.audio_url;$('saveReference').disabled=false;$('record').disabled=true;$('upload').disabled=true;$('recordStatus').textContent='Бичлэг хадгалсан. Бүтнээр сонсоод яг хэлсэн үгээ бичнэ үү. STT хараахан ажиллаагүй.'}catch(error){$('recordStatus').textContent=error.message;$('record').disabled=false;$('upload').disabled=false;$('stop').disabled=true;throw error}}
+async function saveStoppedRecording(blob){recordingSaving=true;try{await capture(blob)}catch(error){status(error.message,true)}finally{recordingSaving=false}}
 $('recordedAudio').onended=()=>{referenceHeard=true};
-$('saveReference').onclick=()=>action(async()=>{const result=await api('/api/task/reference',{session_id:sid,task_id:taskId,audio_sha256:recordingSha,reference:$('reference').value,uncertainties:$('uncertainties').value.split('\n').map(x=>x.trim()).filter(Boolean),listened:$('referenceConfirmed').checked,playback_ended:referenceHeard,confirmed:$('referenceConfirmed').checked});if(!result.reference_confirmed_before_asr){status('Ноорог / эргэлзээг хадгаллаа. Яг хэлсэн үгээ шийдээгүй тул STT ажиллахгүй.');return}$('reference').disabled=true;$('uncertainties').disabled=true;$('referenceConfirmed').disabled=true;$('saveReference').disabled=true;$('recognize').disabled=false;status('Хүний сонсож буулгасан текст хадгалагдлаа. Одоо локал STT ажиллуулж болно.')});
+function referenceFeedback(message,error=false){$('referenceHelp').textContent=message;$('referenceHelp').className=error?'error':''}
+function pendingReferenceHelp(count){const message=count?`Эргэлзээний талбарт ${count} мөр байна. Ноорог хадгалагдсан, STT нээгдэхгүй. Бичлэгээ дахин сонсож эргэлзээгээ шийднэ үү. Эргэлзээгүй болсон үедээ л энэ талбарыг хоосолж, чагтаа сонгоод дахин хадгална.`:'Ноорог хадгалагдсан. Яг хэлсэн бүх үгээ сонсож нягталсан бол батлах чагтыг сонгоод дахин хадгална.';referenceFeedback(message,true);status(message,true);$('recognize').disabled=true;$('uncertainties').setAttribute('aria-invalid',count?'true':'false');$('referenceHelp').scrollIntoView({block:'center',behavior:'smooth'});if(count)$('uncertainties').focus();else $('referenceConfirmed').focus()}
+$('saveReference').onclick=()=>action(async()=>{try{if(!referenceHeard)throw Error('Эхлээд хадгалсан бичлэгээ бүтнээр тоглуулж сонсоно уу.');const result=await api('/api/task/reference',{session_id:sid,task_id:taskId,audio_sha256:recordingSha,reference:$('reference').value,uncertainties:$('uncertainties').value.split('\n').map(x=>x.trim()).filter(Boolean),listened:referenceHeard,playback_ended:referenceHeard,confirmed:$('referenceConfirmed').checked});if(!result.reference_confirmed_before_asr){pendingReferenceHelp(result.unresolved_count);return}$('reference').disabled=true;$('uncertainties').disabled=true;$('referenceConfirmed').disabled=true;$('saveReference').disabled=true;$('recognize').disabled=false;referenceFeedback('Reference батлагдаж хадгалагдсан. «Одоо локал STT ажиллуулах» товч нээгдлээ.');status('Сонсож баталсан текст хадгалагдлаа. Одоо локал STT ажиллуулж болно.');$('recognize').scrollIntoView({block:'center',behavior:'smooth'});}catch(error){referenceFeedback(error.message,true);throw error}});
 $('recognize').onclick=()=>action(async()=>{$('recognize').disabled=true;$('recordStatus').textContent='Дууг локал Whisper таньж байна…';const v=await api('/api/task/transcribe',{session_id:sid,task_id:taskId});$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Өмнө баталсан reference тусдаа хэвээр.'});
 $('upload').onchange=()=>action(async()=>{const f=$('upload').files[0];if(f)await capture(f)});
-$('record').onclick=()=>action(async()=>{stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{stream.getTracks().forEach(t=>t.stop());action(()=>capture(new Blob(chunks,{type:recording.mimeType})));};recording.start();$('record').disabled=true;$('stop').disabled=false;$('recordStatus').textContent='Бичиж байна. Нэг асуултаа 5–15 секундэд хэлээд зогсооно уу. Дээд хязгаар 30 секунд.'});
+$('record').onclick=()=>action(async()=>{if(recordingSaving)return;stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{clearInterval(recordingClock);stream.getTracks().forEach(t=>t.stop());saveStoppedRecording(new Blob(chunks,{type:recording.mimeType}));};recording.start();const started=Date.now();const tick=()=>{const seconds=Math.floor((Date.now()-started)/1000);$('recordStatus').textContent=`Бичиж байна: ${seconds} секунд. Нэг асуултыг 5–15 секундэд хэлээд зогсооно уу. Дээд хязгаар 30 секунд.`;$('recordStatus').className=seconds>=25?'error':''};tick();recordingClock=setInterval(tick,1000);$('record').disabled=true;$('stop').disabled=false;});
 $('stop').onclick=()=>{if(recording?.state==='recording'){recording.stop();$('stop').disabled=true}};
-$('nextTask').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());location.reload()};
-function renderResult(value){const box=el('article',undefined,$('taskResults'));el('h3',value.condition,box);el('p',value.answer||'Систем эхтэй хариулт өгөөгүй / тодруулга шаардсан.',box);const audio=el('audio',undefined,box);audio.controls=true;let listened=false;audio.onended=()=>{listened=true};const speak=el('button','Энэ хариуг сонсох (онлайн TTS)',box);speak.onclick=()=>action(async()=>{const v=await api('/api/task/speak',{session_id:sid,task_id:taskId,condition:value.condition});audio.src=v.audio_url;await audio.play()});const success=rating(box,'Таны асуух гэсэн зүйлийг шийдэж чадсан уу?',[['yes','Тийм'],['partial','Хэсэгчлэн'],['no','Үгүй']]);const l=el('label','Та хариултаас юу ойлгов? (сонссон бол сонссон зүйлээ)',box),heard=el('textarea',undefined,l);const int=rating(box,'Сонссон бол ойлгомж 1–5',scale),nat=rating(box,'Сонссон бол жам ёсны байдал 1–5',scale),n=el('label','Тэмдэглэл',box),notes=el('textarea',undefined,n);const save=el('button','Энэ нөхцөлийн ажиглалтыг хадгалах',box);save.onclick=()=>action(async()=>{await api('/api/task/observe',{session_id:sid,task_id:taskId,condition:value.condition,task_success:success.value,heard_answer:heard.value,tts_listened:listened,intelligibility:listened?Number(int.value):null,naturalness:listened?Number(nat.value):null,notes:notes.value});save.disabled=true;status('Бодит даалгаврын ажиглалт хадгалагдлаа.')})}
-window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});(async()=>{try{await refresh();if(sid){$('start').classList.add('hidden');$('workspace').classList.remove('hidden');status('Өмнөх session-ийн хадгалсан үнэлгээг үргэлжлүүлж байна.')}}catch(e){if(sid){sid='';sessionStorage.removeItem('humanTrialSession');await refresh();status('Шинэ серверийн session эхлүүлнэ үү.')}else status(e.message,true)}})();
+$('nextTask').onclick=()=>{if(recording?.state==='recording'||recordingSaving){status('Эхлээд бичлэгийг зогсоож хадгална уу.',true);return}if(busy)return;if(stream)stream.getTracks().forEach(t=>t.stop());sessionStorage.setItem('humanTrialNewTask:'+sid,'1');location.reload()};
+function renderResult(value){const box=el('article',undefined,$('taskResults'));el('h3',value.condition,box);el('p',value.answer||'Систем эхтэй хариулт өгөөгүй / тодруулга шаардсан.',box);const audio=el('audio',undefined,box);audio.controls=true;let listened=false;audio.onended=()=>{listened=true};const speak=el('button','Энэ хариуг сонсох (онлайн TTS)',box);speak.onclick=()=>action(async()=>{const v=await api('/api/task/speak',{session_id:sid,task_id:taskId,condition:value.condition});audio.src=v.audio_url;await audio.play()});const success=rating(box,'Таны асуух гэсэн зүйлийг шийдэж чадсан уу?',[['yes','Тийм'],['partial','Хэсэгчлэн'],['no','Үгүй']]);const l=el('label','Та хариултаас юу ойлгов? (сонссон бол сонссон зүйлээ)',box),heard=el('textarea',undefined,l);const int=rating(box,'Сонссон бол ойлгомж 1–5',scale),nat=rating(box,'Сонссон бол жам ёсны байдал 1–5',scale),n=el('label','Тэмдэглэл',box),notes=el('textarea',undefined,n);const save=el('button','Энэ нөхцөлийн ажиглалтыг хадгалах',box);save.onclick=()=>action(async()=>{await api('/api/task/observe',{session_id:sid,task_id:taskId,condition:value.condition,task_success:success.value,heard_answer:heard.value,tts_listened:listened,intelligibility:listened?Number(int.value):null,naturalness:listened?Number(nat.value):null,notes:notes.value});save.disabled=true;status('Бодит даалгаврын ажиглалт хадгалагдлаа.')});if(value.observation_saved)save.disabled=true;}
+window.addEventListener('pagehide',()=>{clearInterval(recordingClock);if(stream)stream.getTracks().forEach(t=>t.stop())});(async()=>{try{await refresh();if(sid){$('start').classList.add('hidden');$('workspace').classList.remove('hidden');if(sessionStorage.getItem('humanTrialNewTask:'+sid)!=='1')restoreTask(state.active_task);status('Өмнөх session-ийн хадгалсан үнэлгээг үргэлжлүүлж байна.')}}catch(e){status(e.message+' Хадгалсан session-ийг устгаагүй. Холболт сэргэсний дараа хуудсаа дахин ачаална уу.',true)}})();
 </script></html>'''
 
 
@@ -715,10 +905,11 @@ def main():
     parser.add_argument('--review-file', type=Path,
         default=ROOT/'runtime/quality-media-20261021/llm-comparison/human-review-v2.json')
     parser.add_argument('--port', type=int, default=8790)
+    parser.add_argument('--resume', action='store_true', help='Validate and resume the existing immutable event journal.')
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error('Use a valid local port.')
-    trial = HumanTrial(args.run_dir, args.audio_results, args.review_file)
+    trial = HumanTrial(args.run_dir, args.audio_results, args.review_file, resume=args.resume)
     with make_server(trial, args.port) as server:
         print(f'Human trial: http://127.0.0.1:{server.server_port}/', flush=True)
         server.serve_forever()

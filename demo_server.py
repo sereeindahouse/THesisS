@@ -90,6 +90,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     live_content = LiveContentRuntime(root, database, rag, explorer, content_policy,
                                       manager=releases, clarification=clarification_context)
     admin_token = secrets.token_urlsafe(32)
+    gemini_token = secrets.token_urlsafe(32)
     teachers = teacher_service if teacher_service is not None else TeacherMedia(root)
 
     class Handler(BaseHTTPRequestHandler):
@@ -274,6 +275,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 return self.error(403, 'Өөр сайтаас локал өгөгдөл уншихгүй.')
             if path == '/api/teachers':
                 return self.send_json(200, {**teachers.status(), 'profiles': teachers.catalog()})
+            if path == '/api/voice/gemini/session':
+                return self.send_json(200, dict(**voice.gemini.status(), csrf_token=gemini_token))
             if path.startswith('/api/teacher-media/'):
                 identifier = path.removeprefix('/api/teacher-media/')
                 try:
@@ -473,14 +476,34 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             if path not in {"/api/search", "/api/preview", "/api/website-search", "/api/route",
                             "/api/conversation/reset",
                             "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset", "/api/voice/correct",
+                            "/api/voice/gemini/configure", "/api/voice/gemini/clear",
                             "/api/review/stt-confirm", "/api/review/tts-confirm"}:
                 return self.error(404, "Энэ API нээлттэй биш.")
             try:
                 if path == "/api/voice/transcribe":
                     audio = self.read_body(MAX_AUDIO_BYTES)
-                    result = voice.transcribe(audio, self.headers.get_content_type())
+                    provider = self.headers.get('X-STT-Provider', 'cafet')
+                    if provider == 'gemini':
+                        supplied = self.headers.get('X-Gemini-Token', '')
+                        if not supplied.isascii() or not secrets.compare_digest(supplied, gemini_token):
+                            raise PermissionError('Gemini session-ийг энэ хуудаснаас нээнэ үү.')
+                        result = voice.transcribe_gemini(audio, self.headers.get_content_type(),
+                            consent=self.headers.get('X-Gemini-Audio-Consent') == 'send-this-audio')
+                    elif provider == 'cafet':
+                        result = voice.transcribe(audio, self.headers.get_content_type())
+                    else:
+                        raise ValueError('STT provider нь cafet эсвэл gemini байна.')
                     return self.send_json(200, result)
                 body = self.read_json(24576 if path.startswith("/api/review/") else MAX_BODY)
+                if path.startswith('/api/voice/gemini/'):
+                    supplied = self.headers.get('X-Gemini-Token', '')
+                    if not supplied.isascii() or not secrets.compare_digest(supplied, gemini_token):
+                        raise PermissionError('Gemini session-ийг энэ хуудаснаас нээнэ үү.')
+                    if path.endswith('/clear'):
+                        if body != {}:
+                            raise ValueError('Түлхүүр мартах хүсэлт хоосон object байна.')
+                        return self.send_json(200, voice.gemini.clear())
+                    return self.send_json(200, voice.gemini.configure(body))
                 if path == "/api/conversation/reset":
                     if set(body) != {"clarification_ids"}:
                         raise ValueError("Зөвхөн clarification_ids жагсаалт өгнө.")

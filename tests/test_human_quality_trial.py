@@ -8,6 +8,8 @@ import json
 import math
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import tempfile
 import threading
 import struct
@@ -16,6 +18,20 @@ import wave
 from unittest.mock import patch
 
 from tools import human_quality_trial as trial
+
+
+class HumanQualityPageTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which('node'), 'Node.js is optional for isolated UI checks.')
+    def test_reference_recovery_and_busy_recorder_handlers(self):
+        root = Path(__file__).resolve().parents[1]
+        script = trial.PAGE.split('<script>', 1)[1].split('</script>', 1)[0]
+        result = subprocess.run([shutil.which('node'), str(root/'tests/human_quality_ui_harness.js')],
+            input=script, capture_output=True, text=True, encoding='utf-8', timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout+result.stderr)
+        report = json.loads(result.stdout)
+        self.assertGreaterEqual(report['passed'], 7)
+        self.assertTrue(report['constructed_fixtures'])
+        self.assertEqual(report['model_calls'], 0)
 
 
 class TrialFixture(unittest.TestCase):
@@ -84,6 +100,136 @@ class TrialFixture(unittest.TestCase):
         return captured
 
 class HumanQualityTests(TrialFixture):
+    def resume(self):
+        return trial.HumanTrial(self.study.directory, self.audio_results, self.review_file, resume=True)
+
+    def snapshot(self):
+        return {p.relative_to(self.study.directory).as_posix(): p.read_bytes()
+                for p in self.study.directory.rglob('*') if p.is_file()}
+
+    def test_resume_retains_ratings_consent_chain_and_makes_no_new_human_events(self):
+        self.study.listen(self.listen_body())
+        self.study.review(self.review_body())
+        before = self.snapshot()
+        with patch.object(trial.HumanTrial, '_upstream') as upstream:
+            restored = self.resume()
+            state = restored.state(self.sid)
+        upstream.assert_not_called()
+        self.assertEqual(before, self.snapshot())
+        self.assertEqual(state['completed_listening'], self.study.state(self.sid)['completed_listening'])
+        self.assertEqual(state['completed_reviews'], ['R001'])
+        self.assertEqual(restored.sessions[self.sid]['consent'], self.study.sessions[self.sid]['consent'])
+        self.assertNotEqual(restored.token, self.study.token)
+        self.assertEqual(restored.sessions[self.sid]['last_sha'], self.study.sessions[self.sid]['last_sha'])
+        with self.assertRaises(trial.TrialConflict):
+            restored.listen(self.listen_body())
+        task_id = restored.begin_task(dict(session_id=self.sid, intended_request='A new explicit human task.'))['task_id']
+        self.assertEqual(restored.state(self.sid)['active_task']['task_id'], task_id)
+        last = sorted(self.study.directory.glob(self.sid + '-*.json'))[-1]
+        self.assertEqual(json.loads(last.read_bytes())['previous_event_sha256'], self.study.sessions[self.sid]['last_sha'])
+
+    def test_resume_keeps_recording_and_confirmed_reference_without_automatic_asr(self):
+        task_id = self.task()
+        captured = self.ready_recording(task_id)
+        before = self.snapshot()
+        with patch.object(trial.HumanTrial, '_upstream') as upstream:
+            restored = self.resume()
+        upstream.assert_not_called()
+        self.assertEqual(before, self.snapshot())
+        value = restored.state(self.sid)['active_task']
+        self.assertEqual(value['recording']['audio_sha256'], captured['audio_sha256'])
+        self.assertEqual(value['reference']['text'], self.reference_body(task_id, captured['audio_sha256'])['reference'])
+        self.assertFalse(value['transcription_attempted'])
+        with patch.object(restored, '_upstream', return_value=dict(kind='stt', id='a'*32, text='fixture raw')) as upstream:
+            restored.transcribe(self.sid, task_id)
+        self.assertEqual(upstream.call_count, 1)
+        self.assertEqual(upstream.call_args.args[1], restored.recording_audio(self.sid, task_id)[0])
+
+    def test_resume_pending_draft_never_becomes_confirmed_reference(self):
+        task_id = self.task()
+        clip = self.capture(task_id)
+        body = dict(self.reference_body(task_id, clip['audio_sha256']), uncertainties=['unclear number'])
+        self.study.confirm_reference(body)
+        restored = self.resume()
+        value = restored.state(self.sid)['active_task']
+        self.assertEqual(value['reference_draft']['uncertainties'], ['unclear number'])
+        self.assertIsNone(value['reference'])
+        with patch.object(restored, '_upstream') as upstream, self.assertRaises(ValueError):
+            restored.transcribe(self.sid, task_id)
+        upstream.assert_not_called()
+
+    def test_resume_failed_or_interrupted_asr_never_retries_the_attempt(self):
+        task_id = self.task()
+        self.ready_recording(task_id)
+        with patch.object(self.study, '_upstream', side_effect=ValueError('fixture failure')):
+            with self.assertRaises(ValueError):
+                self.study.transcribe(self.sid, task_id)
+        restored = self.resume()
+        self.assertTrue(restored.state(self.sid)['active_task']['transcription_attempted'])
+        with patch.object(restored, '_upstream') as upstream, self.assertRaises(trial.TrialConflict):
+            restored.transcribe(self.sid, task_id)
+        upstream.assert_not_called()
+        self.assertEqual(restored.state(self.sid)['active_task']['last_error']['operation'], 'transcribe')
+
+    def test_resume_preserves_saved_routes_tts_and_observations_without_regeneration(self):
+        task_id = self.task()
+        self.ready_recording(task_id)
+        with patch.object(self.study, '_upstream', side_effect=[
+                dict(kind='stt', id='a'*32, text='fixture raw'),
+                dict(answer='fixture', route='C', package_id='v1'), dict(id='b'*32)]):
+            self.study.transcribe(self.sid, task_id)
+            self.study.route(self.route_body(task_id, 'raw'))
+            self.study.speak(dict(session_id=self.sid, task_id=task_id, condition='raw'))
+        observation = dict(session_id=self.sid, task_id=task_id, condition='raw', task_success='partial',
+            heard_answer='fixture heard words', intelligibility=3, naturalness=3, tts_listened=True, notes='fixture note')
+        self.study.observe(observation)
+        before = self.snapshot()
+        with patch.object(trial.HumanTrial, '_upstream') as upstream:
+            restored = self.resume()
+        upstream.assert_not_called()
+        self.assertEqual(before, self.snapshot())
+        row = restored.state(self.sid)['active_task']['results'][0]
+        self.assertEqual(row['condition'], 'raw')
+        self.assertTrue(row['observation_saved'])
+        self.assertIn('b'*32, restored.sessions[self.sid]['tasks'][task_id]['audio_ids'])
+        with self.assertRaises(trial.TrialConflict):
+            restored.observe(observation)
+        with self.assertRaises(trial.TrialConflict):
+            restored.route(self.route_body(task_id, 'raw'))
+
+    def test_resume_rejects_changed_journal_manifest_bundle_and_audio_without_writes(self):
+        self.study.listen(self.listen_body())
+        task_id = self.task()
+        self.capture(task_id)
+        files = self.snapshot()
+        consent = next(p for p in self.study.directory.glob('*-consent.json'))
+        frozen = self.study.directory / 'frozen-answer-review.json'
+        audio = self.study.directory / self.study.sessions[self.sid]['tasks'][task_id]['recording']['audio_file']
+        for path in (consent, frozen, audio, self.study.directory / 'manifest.json'):
+            with self.subTest(path=path.name):
+                original = path.read_bytes()
+                path.write_bytes(original.replace(b'P001', b'P002') if path == consent else b'{}')
+                changed = self.snapshot()
+                with self.assertRaises((ValueError, KeyError)):
+                    self.resume()
+                self.assertEqual(changed, self.snapshot())
+                path.write_bytes(original)
+        missing = next(p for p in self.study.directory.glob('*-listening.json'))
+        original = missing.read_bytes()
+        missing.unlink()  # Fixture only; verifies a sequence gap cannot be ignored.
+        with self.assertRaises(ValueError):
+            self.resume()
+        missing.write_bytes(original)
+        self.assertEqual(files, self.snapshot())
+
+    def test_resume_is_explicit_and_does_not_create_a_missing_study(self):
+        with self.assertRaises(FileExistsError):
+            trial.HumanTrial(self.study.directory, self.audio_results, self.review_file)
+        missing = self.root / 'runtime/missing-study'
+        with self.assertRaises(ValueError):
+            trial.HumanTrial(missing, self.audio_results, self.review_file, resume=True)
+        self.assertFalse(missing.exists())
+
     def test_preparation_and_session_create_no_human_scores(self):
         state = self.study.state(self.sid)
         self.assertEqual(state['completed_reviews'], [])
@@ -264,6 +410,23 @@ class HumanQualityTests(TrialFixture):
         upstream.assert_not_called()
         self.assertEqual(len(list(self.study.directory.glob('*-task-reference-pending.json'))), 2)
         self.assertIsNone(self.study.sessions[self.sid]['tasks'][task_id]['reference'])
+
+    def test_unchanged_pending_draft_is_idempotent_and_never_opens_asr(self):
+        task_id = self.task()
+        clip = self.capture(task_id)
+        body = dict(self.reference_body(task_id, clip['audio_sha256']), uncertainties=['unclear year'])
+        first = self.study.confirm_reference(body)
+        second = self.study.confirm_reference(body)
+        self.assertEqual(first['unresolved_count'], 1)
+        self.assertEqual(second['pending_reason'], 'unresolved_words')
+        self.assertTrue(second['duplicate_draft'])
+        self.assertEqual(len(list(self.study.directory.glob('*-task-reference-pending.json'))), 1)
+        with patch.object(self.study, '_upstream') as upstream, self.assertRaises(ValueError):
+            self.study.transcribe(self.sid, task_id)
+        upstream.assert_not_called()
+        self.assertIsNone(self.study.state(self.sid)['active_task']['reference'])
+        # Only a new explicit human confirmation with no uncertainty opens ASR.
+        self.assertTrue(self.study.confirm_reference(dict(body, uncertainties=[]))['reference_confirmed_before_asr'])
 
     def test_reference_requires_exact_audio_listening_and_well_typed_fields(self):
         task_id = self.task()
