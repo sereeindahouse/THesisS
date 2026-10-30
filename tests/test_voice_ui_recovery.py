@@ -14,6 +14,14 @@ class VoiceUIRecoveryTests(unittest.TestCase):
         self.scenario('gemini')
     def test_exact_live_provider_restores_ready_state_without_selection_or_extra_checkbox(self):
         self.scenario('gemini-live')
+    def test_open_page_refreshes_server_token_before_upload_without_key_reentry(self):
+        self.scenario('gemini-session-refresh')
+    def test_failed_session_preflight_never_sends_audio_or_reconfigures_key(self):
+        self.scenario('gemini-session-failure')
+    def test_reset_during_session_preflight_cannot_send_old_audio(self):
+        self.scenario('gemini-reset-preflight')
+    def test_actual_microphone_stop_handler_starts_gemini_without_obsolete_checkbox(self):
+        self.scenario('gemini-mic-stop')
     def test_source_quotes_deduplicate_without_losing_other_sources(self):
         script=r'''const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(process.argv[1],'utf8');

@@ -104,28 +104,79 @@ const correctionReply = (request, overrides={}) => request.resolve({ok:true,asyn
 }});
 
 async function main() {
-  if (scenario === 'gemini' || scenario === 'gemini-live') {
+  if (scenario === 'gemini' || scenario === 'gemini-live' || scenario === 'gemini-session-refresh') {
     assert(!source.includes('<select id="sttProvider"'));
     assert(!source.includes('id="geminiConsent"'));
     assert.equal(run('selectedSTTProvider()'),'gemini_live');
     run('voiceState.gemini={ready:true,configured:true,key_persisted:true,continuous_use:true};llmState={configured:true,available:true}');
     const pending=run('transcribeSelected()');
-    assert.equal(requests[0].path,'/api/voice/transcribe');
-    assert.equal(requests[0].options.headers['X-STT-Provider'],'gemini_live');
-    assert.equal(requests[0].options.headers['X-Gemini-Audio-Consent'],'send-this-audio');
-    assert.equal(requests[0].options.headers['X-Gemini-Token'],'fixture-token');
-    requests[0].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini_live',model:'gemini-3.5-live-translate-preview',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
+    assert.equal(requests.length,1,'Only local session refresh can precede audio');
+    assert.equal(requests[0].path,'/api/voice/gemini/session');
+    requests[0].resolve({ok:true,async json(){return {csrf_token:'new-server-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});
+    await flush();
+    assert.equal(requests[1].path,'/api/voice/transcribe');
+    assert.equal(requests[1].options.headers['X-STT-Provider'],'gemini_live');
+    assert.equal(requests[1].options.headers['X-Gemini-Audio-Consent'],'send-this-audio');
+    assert.equal(requests[1].options.headers['X-Gemini-Token'],'new-server-token','Stale page token cannot reach the audio endpoint');
+    requests[1].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini_live',model:'gemini-3.5-live-translate-preview',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
     await pending;await flush();
     assert(element('sttTiming').textContent.includes('Live Translate'));
     assert.equal(requests.filter(r=>r.path==='/api/voice/correct').length,0,'Cloud raw receives no automatic local rewrite');
-    assert.equal(requests[1].path,'/api/voice/gemini/session');
-    requests[1].resolve({ok:true,async json(){return {csrf_token:'fixture-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});
+    assert.equal(requests[2].path,'/api/voice/gemini/session');
+    requests[2].resolve({ok:true,async json(){return {csrf_token:'new-server-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});
     await flush();
     assert.equal(element('routeQuery').value,'fixture cloud raw');
     assert.equal(element('geminiSettings').open,false,'Remembered credentials do not reopen setup');
     assert.equal(element('transcribeButton').disabled,false,'No re-entry or per-clip checkbox');
     console.log(JSON.stringify({scenario,passed:true,network_calls:0,model_calls:0,source_handlers_executed:true}));
     return;
+  }
+  if (scenario === 'gemini-session-failure' || scenario === 'gemini-reset-preflight') {
+    run('voiceState.gemini={ready:true,configured:true,key_persisted:true,continuous_use:true}');
+    if(scenario==='gemini-reset-preflight')ignoreAbort=true;
+    const pending=run('transcribeSelected()');
+    assert.equal(requests[0].path,'/api/voice/gemini/session');
+    if(scenario==='gemini-session-failure')requests[0].reject(Error('local session unavailable'));
+    else {
+      await handlers.get('voiceReset:click')();
+      requests[0].resolve({ok:true,async json(){return {csrf_token:'new-token',ready:true,configured:true,key_persisted:true}}});
+    }
+    await pending;await flush();
+    assert.equal(requests.filter(r=>r.path==='/api/voice/transcribe').length,0,'No audio on failed/cancelled preflight');
+    assert.equal(requests.filter(r=>r.path.includes('configure')).length,0,'No key re-entry or reconfiguration');
+    assert.equal(run('voiceBusy'),false);
+    if(scenario==='gemini-reset-preflight')assert.equal(element('routeQuery').value,'');
+    console.log(JSON.stringify({scenario,passed:true,network_calls:0,model_calls:0,source_handlers_executed:true}));return;
+  }
+  if (scenario === 'gemini-mic-stop') {
+    let trackStops=0;
+    const stream={getTracks(){return [{stop(){trackStops++;}}];}};
+    context.navigator.mediaDevices.getUserMedia=async()=>stream;
+    context.Blob=Blob;
+    context.URL={createObjectURL(){return 'blob:synthetic-mic';},revokeObjectURL(){}};
+    class Recorder {
+      static isTypeSupported(){return true;}
+      constructor(_stream,options){this.state='inactive';this.mimeType=options.mimeType;}
+      start(){this.state='recording';}
+      stop(){this.state='inactive';this.ondataavailable({data:new Blob(['synthetic'],{type:this.mimeType})});this.onstop();}
+    }
+    context.MediaRecorder=Recorder;
+    run('let micEpoch=0,micTimer=null,micStream=null,micLevelTimer=null,micAudioContext=null,inputURL=null;voiceState.gemini={ready:true,configured:true,key_persisted:true};');
+    vm.runInContext(between('function clearInput()', 'async function transcribeSelected()'),context);
+    vm.runInContext(between('$("recordStart").addEventListener', '$("routeQuery").addEventListener("input"'),context);
+    await handlers.get('recordStart:click')();
+    assert.equal(run('micRecorder.state'),'recording');
+    handlers.get('recordStop:click')();await flush();
+    assert.equal(requests[0].path,'/api/voice/gemini/session','Stopping mic starts transcription without obsolete checkbox');
+    requests[0].resolve({ok:true,async json(){return {csrf_token:'mic-fresh-token',ready:true,configured:true,key_persisted:true};}});
+    await flush();assert.equal(requests[1].path,'/api/voice/transcribe');
+    assert.equal(requests[1].options.headers['X-Gemini-Token'],'mic-fresh-token');
+    assert(requests[1].options.body.size>0);assert(trackStops>0);
+    success(requests[1],'mic raw text');await flush();
+    assert.equal(element('routeQuery').value,'mic raw text');
+    assert.equal(run('voiceBusy'),false);
+    assert(!element('voiceStatus').textContent.includes('чагт'));
+    console.log(JSON.stringify({scenario,passed:true,network_calls:0,model_calls:0,source_handlers_executed:true}));return;
   }
   if (scenario === 'correction-auto') {
     run('llmState={configured:true,available:true}');
