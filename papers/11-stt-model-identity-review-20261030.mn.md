@@ -81,7 +81,22 @@ RAG-ийн амжилтыг дангаараа орлохгүй. Энэ нь д�
    хугацаа, RAG task success-ийг тусад нь харьцуулна. Хараахан үзээгүй шинэ
    яриа хэрэгтэй; screenshot-ийн ганц амжилтыг ерөнхий accuracy болгохгүй.
 
-**Одоогийн бодит төлөв:** судалгаа ба model-identity аудит дууссан; яг
-Live Translate provider-ийн холболт болон шинэ paired inference хийгдээгүй.
+**10.30-ны үргэлжлэл:** яг Live Translate-ийн provider холболтыг код, чатны
+сонголт, локал серверт нэмсэн. 150 холбогдох автомат шалгалт PASS. Зөвхөн
+inputTranscription-ийн хэсгүүдийг цуглуулж, interim hypotheses болон
+outputTranscription-ийг хасна. Google-ийн SDK wire converter-той тулгахад
+inputAudioTranscription нь setup-д, translationConfig нь generationConfig-д
+байна; зааврын raw WebSocket жишээний nesting зөрүүг сохроор хуулсангүй.
+[Албан converter](https://github.com/googleapis/python-genai/blob/main/google/genai/_live_converters.py),
+[албан SDK auth](https://github.com/googleapis/python-genai/blob/main/google/genai/_api_client.py).
+
+PCM16 mono 16 kHz-ийг 100 ms хэсгээр бодит хугацаанд дамжуулж,
+audioStreamEnd-ийн дараа оролтын текст намжихыг хүлээнэ. finished дохио
+ирсэн ч бүх клипийн бүрэн байдлыг баталсан гэж үзэхгүй; дохиогүй үед UI
+дутуу байж болохыг хэлнэ. Текстийг хүн нягталсны дараа RAG руу илгээнэ.
+Түлхүүр header-д, санах ойд л; no retry, shared 5-attempt cap.
+
+Бодит Google Live танилт болон шинэ paired inference хараахан хийгдээгүй.
+Тестүүд нь синтетик protocol/HTTP/JS handler; хүний accuracy биш.
 Одоогийн түлхүүр, яриаг зөвшөөрөлгүй шинэ endpoint-д автоматаар илгээгээгүй.
 Whisper дахин сургах, шинэ жин татах нь энэ асуудлын эхний шийдэл биш.

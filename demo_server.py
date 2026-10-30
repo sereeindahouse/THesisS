@@ -483,16 +483,17 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 if path == "/api/voice/transcribe":
                     audio = self.read_body(MAX_AUDIO_BYTES)
                     provider = self.headers.get('X-STT-Provider', 'cafet')
-                    if provider == 'gemini':
+                    if provider in {'gemini', 'gemini_live'}:
                         supplied = self.headers.get('X-Gemini-Token', '')
                         if not supplied.isascii() or not secrets.compare_digest(supplied, gemini_token):
                             raise PermissionError('Gemini session-ийг энэ хуудаснаас нээнэ үү.')
                         result = voice.transcribe_gemini(audio, self.headers.get_content_type(),
-                            consent=self.headers.get('X-Gemini-Audio-Consent') == 'send-this-audio')
+                            consent=self.headers.get('X-Gemini-Audio-Consent') == 'send-this-audio',
+                            live=provider == 'gemini_live')
                     elif provider == 'cafet':
                         result = voice.transcribe(audio, self.headers.get_content_type())
                     else:
-                        raise ValueError('STT provider нь cafet эсвэл gemini байна.')
+                        raise ValueError('STT provider нь cafet, gemini эсвэл gemini_live байна.')
                     return self.send_json(200, result)
                 body = self.read_json(24576 if path.startswith("/api/review/") else MAX_BODY)
                 if path.startswith('/api/voice/gemini/'):

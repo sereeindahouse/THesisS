@@ -494,7 +494,7 @@ class VoiceRuntime:
                    "accuracy_measured": False, "text_generated": False, "llm_calls": 0}
         return self._save(_wav_bytes(pcm), "audio/wav", details)
 
-    def transcribe_gemini(self, audio_bytes, content_type, *, consent=False):
+    def transcribe_gemini(self, audio_bytes, content_type, *, consent=False, live=False):
         from gemini_stt_runtime import GeminiSTTError
         if consent is not True:
             raise VoiceRuntimeError('gemini_consent', 'Энэ бичлэгийг Google руу илгээх чагтыг сонгоно уу.')
@@ -505,7 +505,7 @@ class VoiceRuntime:
             raise VoiceRuntimeError('audio_silent', 'Бичлэг хоосон байна; микрофоноо шалгана уу.')
         wav = _wav_bytes(pcm)
         try:
-            result = self.gemini.transcribe(wav, consent=True)
+            result = self.gemini.transcribe(wav, consent=True, live=live)
         except GeminiSTTError as error:
             raise VoiceRuntimeError('gemini_' + error.code, str(error), 429 if error.code == 'http_429' else 503) from None
         details = dict(kind='stt', **result, segments=[],
@@ -513,10 +513,14 @@ class VoiceRuntime:
             transmitted_audio_sha256=hashlib.sha256(wav).hexdigest(),
             audio_seconds=len(pcm)/(SAMPLE_RATE*2), model_load_seconds=0,
             speech_text_available=bool(result['text'].strip()),
-            message='Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.',
+            message=('Gemini 3.5 Live Translate · Монгол оролтын бичвэрийг цуглууллаа. '
+                     + ('Төгсгөлийн үг орсон эсэхийг сонсож нягтална уу.'
+                        if result.get('input_transcription_finished') else
+                        'Эцэслэх дохио ирээгүй; текст дутуу байж болно. Бичлэгтэйгээ тулгаж нягтална уу.') if live else
+                     'Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.'),
             recognition_review=dict(needs_extra_review=True,
                 message='Gemini-ийн нэр, тоо, он болон үгүйсгэлийг өөрөө нягтална уу.'),
-            local_files_only=False, language_codes=['mn-MN'], cloud_audio_consent=True,
+            local_files_only=False, language_codes=result.get('detected_language_codes', []) if live else ['mn-MN'], cloud_audio_consent=True,
             reference_confirmed=False, human_review_required=True, fine_tuning_performed=False,
             accuracy_measured=False, text_generated=False, llm_calls=0)
         return self._save(wav, 'audio/wav', details)

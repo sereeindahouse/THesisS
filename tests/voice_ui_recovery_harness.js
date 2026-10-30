@@ -101,21 +101,23 @@ const correctionReply = (request, overrides={}) => request.resolve({ok:true,asyn
 }});
 
 async function main() {
-  if (scenario === 'gemini') {
-    element('sttProvider').value='gemini';
+  if (scenario === 'gemini' || scenario === 'gemini-live') {
+    const live=scenario==='gemini-live';
+    element('sttProvider').value=live?'gemini_live':'gemini';
     run('voiceState.gemini={ready:true,remaining_attempts:2};llmState={configured:true,available:true}');
     await run('transcribeSelected()');
     assert.equal(requests.length,0,'No cloud audio request without this-clip consent');
     element('geminiConsent').checked=true;
     const pending=run('transcribeSelected()');
     assert.equal(requests[0].path,'/api/voice/transcribe');
-    assert.equal(requests[0].options.headers['X-STT-Provider'],'gemini');
+    assert.equal(requests[0].options.headers['X-STT-Provider'],live?'gemini_live':'gemini');
     assert.equal(requests[0].options.headers['X-Gemini-Audio-Consent'],'send-this-audio');
     assert.equal(requests[0].options.headers['X-Gemini-Token'],'fixture-token');
-    requests[0].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini',model:'gemini-3.5-transcribe',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
+    requests[0].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:live?'google_gemini_live':'google_gemini',model:live?'gemini-3.5-live-translate-preview':'gemini-3.5-transcribe',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
     await pending;await flush();
     assert.equal(element('geminiConsent').checked,false,'One consent is consumed per attempted clip');
-    assert(element('sttTiming').textContent.includes('Gemini 3.5 Transcribe'));
+    assert(element('sttTiming').textContent.includes(live?'Live Translate':'Transcribe'));
+    assert(element('sttTiming').textContent.includes(live?'Gemini 3.5 Live Translate':'Gemini 3.5 Transcribe'));
     assert.equal(requests.filter(r=>r.path==='/api/voice/correct').length,0,'Cloud raw text receives no automatic local rewrite');
     assert.equal(requests[1].path,'/api/voice/gemini/session');
     requests[1].resolve({ok:true,async json(){return {csrf_token:'fixture-token',ready:true,remaining_attempts:1}}});

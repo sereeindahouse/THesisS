@@ -187,3 +187,29 @@ class GeminiHTTPTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertEqual(result['provider'],'google_gemini')
         self.assertEqual(self.voice.transcription_lineage(result['id'],result['text'])['kind'],'raw_stt')
+
+    def test_live_endpoint_uses_exact_model_input_caption_and_raw_lineage(self):
+        from gemini_live_transport import LIVE_MODEL
+        class Live(Transport):
+            def transcribe(self, wav, **kwargs):
+                return dict(text='Монгол асуулт', model=LIVE_MODEL,
+                    transcript_source='serverContent.inputTranscription',
+                    translated_output_used=False, input_transcription_finished=True)
+        self.voice.gemini._live_factory = Live
+        _, session = self.request('GET','/api/voice/gemini/session')
+        token={'X-Gemini-Token':session['csrf_token']}
+        self.request('POST','/api/voice/gemini/configure',CONFIG,token)
+        from test_gemini_live import wav_bytes
+        headers={**token, 'Content-Type':'audio/wav','X-STT-Provider':'gemini_live'}
+        with patch.object(self.voice, 'transcribe') as whisper, patch.object(self.voice.gemini, '_factory') as transcribe:
+            self.assertEqual(self.request('POST','/api/voice/transcribe',wav_bytes(),headers)[0],400)
+            status, result = self.request('POST','/api/voice/transcribe',wav_bytes(),
+                {**headers, 'X-Gemini-Audio-Consent':'send-this-audio'})
+        whisper.assert_not_called()
+        transcribe.assert_not_called()
+        self.assertEqual(status,200)
+        self.assertEqual(result['model'],LIVE_MODEL)
+        self.assertEqual(result['text'],'Монгол асуулт')
+        self.assertFalse(result['translated_output_used'])
+        self.assertFalse(result['reference_confirmed'])
+        self.assertEqual(self.voice.transcription_lineage(result['id'],result['text'])['kind'],'raw_stt')

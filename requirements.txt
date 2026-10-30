@@ -4,3 +4,4 @@ edge-tts==7.3.1
 sounddevice==0.5.6
 scipy==1.17.1
 ctranslate2==4.8.2
+websockets==15.0.1

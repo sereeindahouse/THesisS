@@ -393,3 +393,5 @@ __pycache__/
 !/tests/test_project_note.py
 !/tests/test_sync_project_note.py
 !/CORE/SCHOOL-THESIS-GUIDE.mn.md
+!/gemini_live_transport.py
+!/tests/test_gemini_live.py

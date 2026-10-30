@@ -4,6 +4,7 @@ import time
 import uuid
 
 from tools.compare_stt_candidate import CandidateError, GeminiTransport, MODEL
+from gemini_live_transport import GeminiLiveTransport, LIVE_MODEL
 
 
 class GeminiSTTError(ValueError):
@@ -13,8 +14,9 @@ class GeminiSTTError(ValueError):
 
 
 class GeminiSTT:
-    def __init__(self, transport_factory=GeminiTransport):
+    def __init__(self, transport_factory=GeminiTransport, live_transport_factory=GeminiLiveTransport):
         self._factory = transport_factory
+        self._live_factory = live_transport_factory
         self._lock = threading.Lock()
         self._key = None
         self._remaining = 0
@@ -22,12 +24,12 @@ class GeminiSTT:
         self._last_error = None
 
     def status(self):
-        return dict(model=MODEL, configured=self._key is not None,
+        return dict(model=LIVE_MODEL, available_models=[LIVE_MODEL, MODEL], configured=self._key is not None,
             ready=self._key is not None and self._remaining > 0 and self._last_error != 'http_429',
             remaining_attempts=self._remaining, attempted=self._attempts,
             last_error=self._last_error, key_persisted=False, automatic_retry=False,
             paid_fallback=False, account_tier_independently_verified=False,
-            session_scope='user_confirmed_free_tier', language='mn-MN', mode='verbatim')
+            session_scope='user_confirmed_free_tier', language='auto', mode='input_transcription')
 
     def configure(self, body):
         if not isinstance(body, dict) or set(body) != {'api_key', 'free_tier_confirmed', 'data_terms_confirmed', 'max_attempts'}:
@@ -55,7 +57,7 @@ class GeminiSTT:
         finally:
             self._lock.release()
 
-    def transcribe(self, wav, *, consent):
+    def transcribe(self, wav, *, consent, live=False):
         if consent is not True:
             raise GeminiSTTError('gemini_consent', 'Энэ бичлэгийг Google руу илгээх чагтыг сонгоно уу.')
         if not self._lock.acquire(blocking=False):
@@ -66,8 +68,10 @@ class GeminiSTT:
             self._remaining -= 1
             self._attempts += 1
             started = time.perf_counter()
+            expected_model = LIVE_MODEL if live else MODEL
             try:
-                result = self._factory(self._key).transcribe(wav, display_name='clip-' + uuid.uuid4().hex)
+                factory = self._live_factory if live else self._factory
+                result = factory(self._key).transcribe(wav, display_name='clip-' + uuid.uuid4().hex)
             except CandidateError as error:
                 self._last_error = error.code
                 message = ('Gemini-ийн үнэгүй квот хүрсэн (429). Автоматаар давтахгүй, төлбөртэй горимд шилжихгүй.'
@@ -77,14 +81,20 @@ class GeminiSTT:
             except Exception:
                 self._last_error = 'provider_failed'
                 raise GeminiSTTError('provider_failed', 'Gemini танилт амжилтгүй. Нууц мэдээлэлтэй алдааны эхийг харуулахгүй.') from None
-            if (result.get('model') != MODEL or not isinstance(result.get('text'), str)
+            if (result.get('model') != expected_model or not isinstance(result.get('text'), str)
                     or len(result['text']) > 2000):
                 self._last_error = 'invalid_transcript'
                 raise GeminiSTTError('invalid_transcript', 'Gemini-ийн model эсвэл текстийн хүрээ зөрсөн байна.')
-            return dict(text=result['text'], model=MODEL, usage=result.get('usage'),
+            details = {key: result[key] for key in (
+                'transcript_source', 'detected_language_codes', 'input_transcription_finished',
+                'completion_reason', 'whole_clip_finality_guaranteed', 'model_verification',
+                'target_language_code', 'echo_target_language', 'translated_output_used',
+                'websocket_closed') if key in result} if live else {}
+            return dict(text=result['text'], model=expected_model, usage=result.get('usage'),
                 cleanup=result.get('cleanup'), response_sha256=result.get('response_sha256'),
                 transcription_seconds=time.perf_counter()-started,
-                provider='google_gemini', mode='verbatim', automatic_retry=False,
-                account_tier_independently_verified=False, actual_billed_cost_usd=None)
+                provider='google_gemini_live' if live else 'google_gemini',
+                mode='input_transcription' if live else 'verbatim', automatic_retry=False,
+                account_tier_independently_verified=False, actual_billed_cost_usd=None, **details)
         finally:
             self._lock.release()

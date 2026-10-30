@@ -12,6 +12,8 @@ NODE = shutil.which('node')
 class VoiceUIRecoveryTests(unittest.TestCase):
     def test_gemini_requires_per_clip_consent_and_keeps_provider_and_raw_text_visible(self):
         self.scenario('gemini')
+    def test_exact_live_provider_requires_consent_and_labels_input_transcript(self):
+        self.scenario('gemini-live')
     def test_source_quotes_deduplicate_without_losing_other_sources(self):
         script=r'''const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(process.argv[1],'utf8');
