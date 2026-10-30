@@ -4,7 +4,7 @@
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
   "current_week": "W01 · II-ийн эхний бодит15 оролдлого дууссан; алдаатай хязгаарласан trial,II үргэлжилнэ.",
-  "status_basis": "10.30: 274 холбогдох тест PASS; HTML JavaScript syntax шалгалт PASS. Бодит Gemini API хариу model=gemini-3.5-transcribe; зөвшөөрсөн15 оролдлого,12 paired гаралт. RAG 39 логик мөрөөс38 бодит POST; quota-тай нэг candidate missing_input хэвээр. 3 хадгалсан эх ×2 хоолой ×2 бичвэрийн12 шинэ TTS дуу synthesis/decode тэнцсэн;12 хүний сонсгол хадгалагдаж,аудио SHA/event chain таарсан. Нэг урт шинэ бичлэгийг30s хязгаараар ASR-ээс өмнө татгалзаж эхийг хадгалсан. Хүний critical утгын баталгаа,шинэ богино audio/reference, RAG/task үнэлгээ үлдсэн. Хувийн оноо/raw зөвхөн runtime-д;production Cafet,нэмэлт Gemini API0.",
+  "status_basis": "10.30: Gemini 3.5 Transcribe сонголт үндсэн чатанд нэвтэрсэн.197 холбогдох тест PASS; provider/HTTP/нууц түлхүүр/зөвшөөрөл/квот/lineage ба UI handler шалгалт багтсан. Шинэ холболтын шалгалт Google руу аудио илгээгээгүй; түлхүүр хэрэглэгч өөрөө UI-д оруулна. Хүний session сэргээхэд59 эх файл SHA өөрчлөгдөөгүй;12 сонсгол,22.92s бичлэг,ноорог сэргэсэн. Дараа нь1 шинэ reference STT-ээс өмнө хүн баталж,локал raw танилт болон1 task ажиглалт хадгалагдсан. II-ийн critical утга,RAG/task-ийн бүрэн хүний үнэлгээ үлдсэн. Native browser-ийн эцсийн харагдац automatic-review usage limit-ээр шалгагдаагүй; HTTP+synthetic UI шалгалт тэнцсэн.",
   "weekly_plan": {
     "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
     "start_date": "2026-10-26",
@@ -18,9 +18,13 @@
     "policy_notice": "I-ийн сүүлийн засвар шалгагдсан; I бүхэлдээ дуусаагүй. Одоо II · бодит STT/RAG харьцуулалт, хүний сонсгол ба шинэ асуултын үнэлгээ. III-ийн тест/бичвэр хамт явна. Өнгө/огноо нь completion хувь биш.",
     "current": {
       "week_id": "W01",
-      "title": "II · Бодит STT/RAG туршилт ба хүний сонсгол, шинэ асуултын үнэлгээ",
-      "status_label": "Gemini бодитоор туршсан · RAG 38 хүсэлт, TTS 12 сонсгол хадгалагдсан · II үргэлжилнэ",
+      "title": "II · Gemini 3.5 Transcribe-ийг үндсэн чатанд өөрөө турших",
+      "status_label": "Gemini чатанд нэвтэрсэн · түр түлхүүрийн тохиргоотой · шинэ бодит cloud туршилт хэрэглэгчийн үйлдлээр",
       "done": [
+        "10.30: Хэрэглэгчийн шинэ хүсэлтээр үндсэн чатанд Gemini 3.5 Transcribe / локал Cafet сонголт орсон. Gemini нь mn-MN/verbatim; raw текст, provider ил харагдана. Gemini текстэд local LLM автоматаар засварлахгүй.",
+        "Түлхүүр зөвхөн серверийн санах ойд; файл/Git/browser storage-д хадгалахгүй. Free tier, өгөгдлийн нөхцөл ба бичлэг бүрийн Google дамжуулалтыг хүн өөрөө сонгоно. Нэг тохиргоонд 5 хүртэл оролдлого; 429 үед retry, өөр provider эсвэл paid fallback үгүй.",
+        "197 холбогдох тест PASS: 9 Gemini contract, 29 voice UI recovery, 41 human-study болон бусад voice/HTTP/lineage/audio/портатив шалгалт. Шинэ холболтын тестүүд mock/synthetic; Google руу шинэ аудио илгээгээгүй.",
+        "Хүний session-ийг journal/hash-тай сэргээж, 59 эх файл өөрчлөгдөөгүйг тулгасан. Шинэ 22.92s бичлэгийн reference-ийг хүн STT-ээс өмнө баталж, локал raw ба нэг task ажиглалт хадгалагдсан. Ижил pending нооргийг давтан хадгалахад шинэ event нэмэхгүй.",
         "10.30: STT/RAG/LLM/human/audio/самбар/портатив/серверийн274 холбогдох тест PASS; JS syntax PASS. Урт аудионы тодорхой алдаа, эх хадгалалт, богино бичлэгээр дахин оролдох regression тэнцсэн.",
         "10.30: Бодит API хариугаар gemini-3.5-transcribe model ID батлагдсан.15 өөр файлд нэг удаа оролдсон;12 хүний paired гаралт. Квот/adapter-ийн алдааг хадгалсан; Cafet хэвээр.",
         "10.30: Typed13/Cafet13/Gemini12 оролтод ижил локал RAG-ийн38 бодит POST дууссан.39 дэх логик мөр нь quota-тай missing_input; амжилттай хариулт болгож нөхөөгүй. Model digest,эх/кодын SHA тогтсон.",
@@ -43,27 +47,30 @@
         "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0."
       ],
       "in_progress": [
-        "Шинэ асуултын нэг34.92s бичлэг хадгалагдсан ч30s хязгаараар STT-ээс өмнө татгалзсан. Яг хэлсэн үгийн хүний reference хараахан батлагдаагүй; богино шинэ бичлэг хэрэгтэй.",
-        "18 STT critical span нь output-оос өмнөх AI draft. Literal audit бэлэн; утгын дүйцэл,эргэлзээтэй он/мөнгөний хүний баталгааг AI нөхөхгүй.",
-        "RAG-ийн39 мөртэй нууцалсан review бэлэн. Урьдчилан хүн баталсан хараат бус rubric байхгүй тул exploratory хөгжүүлэлтийн review; task accuracy null хэвээр.",
-        "12 TTS сонсгол хадгалагдсан ч чухал утгын тодорхойгүй хариу үлдсэн. Нэг хөгжүүлэгч-оролцогчийн self-report; хүн амын MOS/ерөнхий accuracy биш.",
-        "Сургуулийн pre/final, II улирлын яг тов болон 2023 оны хамт мөрдөх журмыг тодруулна. Тавдугаар сард анхны бүтэн ноорог гэсэн хуучин үеийг эцсийн хуваарь гэж үзэхгүй."
+        "Gemini-г өөрөө турших холболт нэвтэрсэн; өмнөх API түлхүүр файлд хадгалагдаагүй. Хэрэглэгч UI-ийн нууц талбарт түлхүүрээ оруулж, шинэ бичлэгээ өөрөө илгээнэ. Апп төслийн billing-ийг бие даан батлахгүй.",
+        "Нэг шинэ баталсан reference/локал raw бий. Түүн дээр шинэ Gemini paired гаралт болон бүх typed/raw/edited task ажиглалт бүрдээгүй; хүний дутуу оноог нөхөхгүй.",
+        "12 TTS сонсгол хадгалагдсан. Нэр/тоо/оны тодорхойгүй утгын хүний баталгаа болон 39 RAG source-review үлдсэн.",
+        "Хуучин task-ийн TTS capability хугацаа дууссан 409 алдаанууд хадгалагдсан. Шинэ чатанд шинэ асуултаа илгээгээд тухайн хариуг сонсоно; хуучин алдааг зөв хариулт болгохгүй.",
+        "Браузерийн эцсийн native visual шалгалт automatic-review usage limit-ээр ажиллаагүй. Үндсэн localhost HTTP API, нийлүүлж буй HTML, UI handler ба серверийн төлөв тулгагдсан."
       ],
       "next": [
-        "Нэг богино шинэ асуултаа5–15s-д бичиж,бүтнээр сонсоод яг хэлсэн үгээ STT-ээс өмнө батална. Дараа нь локал raw/edited task-ийг хүний ажиглалтаар үнэлнэ.",
-        "Хадгалсан RAG хариуг эхтэй нь тулгаж үнэлж,critical нэр/тоо/оны утгын баталгааг тусад нь өгнө. Шинэ cloud upload/reference/оноог зохиохгүй;15 файлын хуучин API budget дууссан.",
-        "TTS-ийн ойлгомжгүй нэр/сар/анги ба тоон утгыг хүний бичсэн хэлбэрээр хадгалж,форматын тааралт болон утгын зөв байдлыг тусад нь дүгнэнэ.",
-        "III · сургуулийн семинар/бодит зөвлөгөөтэй дэвтэр,pre/final-ийн яг хугацаа ба сэргээх нотолгоо зэрэг үргэлжилнэ."
+        "Үндсэн чат http://127.0.0.1:8765/-д Gemini түлхүүрээ түр тохируулна. Өөрийн 5–15s шинэ бичлэгийг сонсоод Google руу илгээх чагтаа сонгон «Дууг текст болгох»-ыг дарна. Анхны текстээ нягтлаад чат руу илгээнэ.",
+        "Судалгааны шинэ paired харьцуулалт хийхдээ тусдаа audio/reference/зөвшөөрөл/хязгаарласан protocol хэрэглэнэ; өөрөө туршсан гаралтыг heldout accuracy болгохгүй.",
+        "Critical нэр/тоо/он, RAG эхтэй review болон typed/raw/edited task-ийн дутуу хүний ажиглалтыг бодитоор үргэлжлүүлнэ."
       ],
       "human_tasks": [
-        "12 шинэ TTS сонсгол хадгалагдсан. Одоо шинэ богино аудио ба сонсож баталсан reference, RAG/task ба critical утгын хүний үнэлгээг үргэлжлүүлнэ. Өмнө өгсөн зөвшөөрлийг дахин асуухгүй; шинэ cloud багц бол тусдаа хүрээтэй."
+        "API түлхүүрээ зөвхөн локал нууц талбарт оруулна. Шинэ дууны хэлсэн үг, сонссон утга, хариултын үнэлгээг хүн өөрөө батална. Хуучин 15 файлын budget-ийг дахин эхлүүлэхгүй."
       ]
     },
     "weeks": {
       "W01": {
         "state": "in_progress",
-        "label": "II-ийн бодит STT/RAG ба шинэ TTS сонсгол бүртгэгдсэн; хүний шинэ асуулт/task үргэлжилнэ",
+        "label": "II · Gemini чатанд өөрөө турших сонголт, шинэ хүний reference ба task үргэлжилнэ",
         "evidence": [
+          "10.30: Хэрэглэгчийн шинэ хүсэлтээр үндсэн чатанд Gemini 3.5 Transcribe / локал Cafet сонголт орсон. Gemini нь mn-MN/verbatim; raw текст, provider ил харагдана. Gemini текстэд local LLM автоматаар засварлахгүй.",
+          "Түлхүүр зөвхөн серверийн санах ойд; файл/Git/browser storage-д хадгалахгүй. Free tier, өгөгдлийн нөхцөл ба бичлэг бүрийн Google дамжуулалтыг хүн өөрөө сонгоно. Нэг тохиргоонд 5 хүртэл оролдлого; 429 үед retry, өөр provider эсвэл paid fallback үгүй.",
+          "197 холбогдох тест PASS: 9 Gemini contract, 29 voice UI recovery, 41 human-study болон бусад voice/HTTP/lineage/audio/портатив шалгалт. Шинэ холболтын тестүүд mock/synthetic; Google руу шинэ аудио илгээгээгүй.",
+          "Хүний session-ийг journal/hash-тай сэргээж, 59 эх файл өөрчлөгдөөгүйг тулгасан. Шинэ 22.92s бичлэгийн reference-ийг хүн STT-ээс өмнө баталж, локал raw ба нэг task ажиглалт хадгалагдсан. Ижил pending нооргийг давтан хадгалахад шинэ event нэмэхгүй.",
           "10.30: STT/RAG/LLM/human/audio/самбар/портатив/серверийн274 холбогдох тест PASS; JS syntax PASS. Урт аудионы тодорхой алдаа, эх хадгалалт, богино бичлэгээр дахин оролдох regression тэнцсэн.",
           "10.30: Бодит API хариугаар gemini-3.5-transcribe model ID батлагдсан.15 өөр файлд нэг удаа оролдсон;12 хүний paired гаралт. Квот/adapter-ийн алдааг хадгалсан; Cafet хэвээр.",
           "10.30: Typed13/Cafet13/Gemini12 оролтод ижил локал RAG-ийн38 бодит POST дууссан.39 дэх логик мөр нь quota-тай missing_input; амжилттай хариулт болгож нөхөөгүй. Model digest,эх/кодын SHA тогтсон.",
@@ -76,10 +83,9 @@
           "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0."
         ],
         "next_actions": [
-          "Нэг богино шинэ асуултаа5–15s-д бичиж,бүтнээр сонсоод яг хэлсэн үгээ STT-ээс өмнө батална. Дараа нь локал raw/edited task-ийг хүний ажиглалтаар үнэлнэ.",
-          "Хадгалсан RAG хариуг эхтэй нь тулгаж үнэлж,critical нэр/тоо/оны утгын баталгааг тусад нь өгнө. Шинэ cloud upload/reference/оноог зохиохгүй;15 файлын хуучин API budget дууссан.",
-          "TTS-ийн ойлгомжгүй нэр/сар/анги ба тоон утгыг хүний бичсэн хэлбэрээр хадгалж,форматын тааралт болон утгын зөв байдлыг тусад нь дүгнэнэ.",
-          "III · сургуулийн семинар/бодит зөвлөгөөтэй дэвтэр,pre/final-ийн яг хугацаа ба сэргээх нотолгоо зэрэг үргэлжилнэ."
+          "Үндсэн чат http://127.0.0.1:8765/-д Gemini түлхүүрээ түр тохируулна. Өөрийн 5–15s шинэ бичлэгийг сонсоод Google руу илгээх чагтаа сонгон «Дууг текст болгох»-ыг дарна. Анхны текстээ нягтлаад чат руу илгээнэ.",
+          "Судалгааны шинэ paired харьцуулалт хийхдээ тусдаа audio/reference/зөвшөөрөл/хязгаарласан protocol хэрэглэнэ; өөрөө туршсан гаралтыг heldout accuracy болгохгүй.",
+          "Critical нэр/тоо/он, RAG эхтэй review болон typed/raw/edited task-ийн дутуу хүний ажиглалтыг бодитоор үргэлжлүүлнэ."
         ]
       }
     },
@@ -95,8 +101,8 @@
         "id": "stt",
         "label": "STT · Cafet суурь / Gemini candidate",
         "state": "in_progress",
-        "detail": "Cafet локал суурь хэвээр. Gemini3.5Transcribe-ийн15 зөвшөөрсөн оролдлого бодитоор дууссан;12 хүний paired гаралттай. Квот/adapter алдааг хадгалсан. Шинэ жин сургаагүй,provider дэвшүүлээгүй.",
-        "evidence_label": "Model ID нь бодит API хариутай. Raw хэмжилт хувийн runtime-д;шинэ богино аудионы reference pending."
+        "detail": "Локал Cafet суурь ба Gemini3.5Transcribe онлайн сонголт чатанд байна. Хэрэглэгч Gemini-г өөрөө туршихыг хүссэн;бичлэг бүрийн дамжуулалт ил тод. Өмнөх12pairedдүн нь modelдэвшүүлэхбаталгаа болоогүй.",
+        "evidence_label": "Gemini adapter/HTTP/UI contract тэнцсэн. Шинэхолболтынlivecloudcall0;түлхүүрээUI-доруулжөөрөөтуршина."
       },
       {
         "id": "tts",
@@ -2916,9 +2922,9 @@
     "schema_version": 1,
     "updated_date": "2026-10-30",
     "active_workstream": "II",
-    "verified_code_commit": "b17cc544550c95ea381dccfc5a572c7af1693c0d",
-    "current_focus": "II · Бодит STT/RAG туршилт ба хүний сонсгол, шинэ асуултын үнэлгээ",
-    "status_label": "Gemini бодитоор туршсан · RAG 38 хүсэлт, TTS 12 сонсгол хадгалагдсан · II үргэлжилнэ",
+    "verified_code_commit": "2103d65824d405237f7bd932f5cd102cb71430f9",
+    "current_focus": "II · Gemini 3.5 Transcribe-ийг үндсэн чатанд өөрөө турших",
+    "status_label": "Gemini чатанд нэвтэрсэн · түр түлхүүрийн тохиргоотой · шинэ бодит cloud туршилт хэрэглэгчийн үйлдлээр",
     "workstreams": [
       {
         "id": "I",
@@ -2929,8 +2935,8 @@
       {
         "id": "II",
         "state": "active",
-        "status_label": "Бодит харьцуулалт, шинэ сонсгол бүртгэгдсэн · II дуусаагүй",
-        "detail": "Зөвшөөрсөн 15 файлын Gemini оролдлого дууссан, 12 paired гаралттай. Ижил локал RAG-д 38 хүсэлт ажилласан. Шинэ 12 TTS сонсголын self-report хадгалагдсан. Шинэ богино аудионы reference, critical утга ба task үнэлгээ үлдсэн; Cafet хэвээр."
+        "status_label": "Gemini-г чатанд өөрөө турших боломжтой · II бүхэлдээ дуусаагүй",
+        "detail": "Хэрэглэгчийн10.30-ны шинэ хүсэлтээр Gemini сонголтыг чатанд нэвтрүүлсэн. Түлхүүр түр санах ойд; бичлэг тус бүр Google дамжуулалтыг хүн өөрөө сонгоно. Өмнөх харьцуулалт ба шинэ self-test тусдаа."
       },
       {
         "id": "III",
@@ -3019,7 +3025,7 @@
     "new_human_listening_self_reports": 12
   },
   "ii_evaluation_20261030": {
-    "status": "partial_human_evaluation_in_progress",
+    "status": "new_reference_saved_more_human_evaluation_pending",
     "code_commit": "b17cc544550c95ea381dccfc5a572c7af1693c0d",
     "focused_tests_passed": 274,
     "javascript_syntax_passed": true,
@@ -3030,12 +3036,33 @@
     "tts_decoded_clips": 12,
     "new_listening_self_reports": 12,
     "independent_human_observation": false,
-    "new_confirmed_speech_references": 0,
+    "new_confirmed_speech_references": 1,
     "long_audio_retained_and_rejected_before_asr": true,
     "production_provider_changed": false,
-    "human_session_preserved_without_restart": true,
-    "recording_error_ui_fix_deployed_to_live_session": false,
+    "human_session_preserved_without_restart": false,
+    "recording_error_ui_fix_deployed_to_live_session": true,
     "private_scores_published": false,
-    "resume_checkpoint": "runtime/ii-evaluation-20261030/completion-checkpoint.json"
+    "resume_checkpoint": "runtime/ii-evaluation-20261030/completion-checkpoint.json",
+    "human_session_restored_with_verified_journal": true
+  },
+  "gemini_self_test_20261030": {
+    "code_commit": "2103d65824d405237f7bd932f5cd102cb71430f9",
+    "section": "II",
+    "status": "deployed_key_required",
+    "model": "gemini-3.5-transcribe",
+    "default_browser_provider": "gemini",
+    "legacy_api_default": "cafet",
+    "user_requested_provider_choice": true,
+    "new_cloud_calls_for_integration": 0,
+    "testing_uses_mock_provider": true,
+    "key_persisted": false,
+    "max_attempts_per_configuration": 5,
+    "billing_independently_verified": false,
+    "paid_fallback": false,
+    "automatic_retry": false,
+    "tests_passed": 197,
+    "guide": "CORE/GEMINI-SELF-TEST.mn.md",
+    "native_visual_check": "automatic_review_usage_limit",
+    "human_scores_fabricated": false
   }
 }
