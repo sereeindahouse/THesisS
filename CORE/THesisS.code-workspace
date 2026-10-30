@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · II] II · Хэрэглэгчийн Live Translate Монгол input transcript ба model сонголтын засвар ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Яг Gemini Live Translate-ийн Монгол input transcript-ийг өөрөө турших холболт ${separator} ${dirty}${activeEditorShort}"
   }
 }
