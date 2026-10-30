@@ -511,6 +511,8 @@ class VoiceRuntime:
         except GeminiSTTError as error:
             raise VoiceRuntimeError('gemini_' + error.code, str(error), 429 if error.code == 'http_429' else 503) from None
         languages=result.get('detected_language_codes', [])
+        from stt_measurement import year_tokens
+        detected_years = year_tokens(result['text'])
         unexpected_language=bool(live and languages and not any(code.lower().split('-')[0]=='mn' for code in languages))
         details = dict(kind='stt', **result, segments=[],
             input_sha256=hashlib.sha256(audio_bytes).hexdigest(),
@@ -525,10 +527,13 @@ class VoiceRuntime:
                      'Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.'),
             recognition_review=dict(needs_extra_review=True,
                 unexpected_language=unexpected_language,
+                year_tokens=detected_years, year_tokens_are_literal=True,
                 message='Gemini-ийн нэр, тоо, он болон үгүйсгэлийг өөрөө нягтална уу.'),
             local_files_only=False, language_codes=result.get('detected_language_codes', []) if live else ['mn-MN'], cloud_audio_consent=True,
             reference_confirmed=False, human_review_required=True, fine_tuning_performed=False,
             accuracy_measured=False, text_generated=False, llm_calls=0)
+        if detected_years:
+            details['message'] += ' Танигдсан он: '+', '.join(detected_years)+'. Онуудаа бичлэгтэй тулгаж нягтлаарай.'
         return self._save(wav, 'audio/wav', details)
 
     def _tts_attempt(self, voice, started, *, success, error=None, service_status=None):

@@ -46,3 +46,15 @@ class STTMeasurementTests(unittest.TestCase):
         for ref,hyp in [('', 'a'),('?', 'a'),('x'*1001,'a'),('a','x'*2001)]:
             with self.subTest(ref=ref[:4]),self.assertRaises(ValueError):self.measured(ref,hyp)
 
+    def test_extra_year_is_reported_without_removing_it_or_changing_raw_score(self):
+        result=self.measured('2014 онд 2024-2025','2014 онд 2020 онд 2024-2025')
+        self.assertEqual(result['year_token_comparison']['additional_in_raw'],['2020'])
+        self.assertEqual(result['raw_score']['word_edit_errors'],2)
+        self.assertFalse(result['year_token_comparison']['semantic_correctness_judged'])
+
+    def test_year_words_are_left_for_review_instead_of_declared_wrong(self):
+        result=self.measured('2025 он','хоёр мянга хорин таван он')
+        years=result['year_token_comparison']
+        self.assertEqual(years['missing_in_raw'],['2025'])
+        self.assertFalse(years['spoken_number_words_interpreted'])
+

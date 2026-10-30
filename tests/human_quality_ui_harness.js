@@ -57,13 +57,15 @@ async function run(code){return await vm.runInContext(code,context)}
  checks.push('New-task reload cannot discard an active/saving recording and retains the consented session');
  assert(calls.every(c=>!c.url.includes('transcribe')));
  checks.push('UI recovery and reference checks never invoke a model or fabricate human ratings');
- const measurement={raw_score:{corpus_wer:.25,corpus_cer:.1,word_edit_errors:1,reference_words:4},wall_seconds:2,cache_hit:false};
+ const measurement={raw_score:{corpus_wer:.25,corpus_cer:.1,word_edit_errors:1,reference_words:4},wall_seconds:2,cache_hit:false,
+ year_token_comparison:{reference:['2014','2024','2025'],raw:['2014','2020','2024','2025']}};
  nextReply={ok:true,value:{text:'fixture Gemini raw',measurement,provider:'google_gemini_live'}};
  await run("$('recognize').onclick()");
  assert.equal(calls.at(-1).url,'/api/task/transcribe');
  assert.equal(JSON.parse(calls.at(-1).options.body).cloud_audio_consent,true);
  assert(get('measurement').textContent.includes('25.0%'));
  assert(get('measurement').textContent.includes('1/4'));
+ assert(get('measurement').textContent.includes('2014, 2020, 2024, 2025'));
  assert(get('raw').textContent.includes('fixture Gemini raw'));
  assert(!source.includes('api_key'));
  const restored={...task,reference:{text:'fixed fixture reference'},reference_draft:null,transcript:{text:'fixture Gemini raw'},measurement};

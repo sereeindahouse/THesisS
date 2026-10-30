@@ -104,6 +104,23 @@ class GeminiSessionTests(unittest.TestCase):
 
 
 class GeminiVoiceTests(unittest.TestCase):
+    def test_years_are_visible_for_review_and_raw_text_is_never_repaired(self):
+        from gemini_live_transport import LIVE_MODEL
+        from test_gemini_live import wav_bytes
+        text='2014 онд 2020 онд 2024 оноос 2025'
+        class Years(Transport):
+            def transcribe(self,*_,**__):
+                return dict(text=text,model=LIVE_MODEL,detected_language_codes=['mn'])
+        with tempfile.TemporaryDirectory() as directory:
+            runtime=VoiceRuntime(directory)
+            runtime.gemini=GeminiSTT(live_transport_factory=Years)
+            runtime.gemini.configure(CONFIG)
+            result=runtime.transcribe_gemini(wav_bytes(),'audio/wav',consent=True,live=True)
+        self.assertEqual(result['text'],text)
+        self.assertEqual(result['recognition_review']['year_tokens'],['2014','2020','2024','2025'])
+        self.assertIn('2014, 2020, 2024, 2025',result['message'])
+        self.assertFalse(result['reference_confirmed'])
+
     def test_wrong_language_is_preserved_and_warned_instead_of_claiming_mongolian_success(self):
         from gemini_live_transport import LIVE_MODEL
         from test_gemini_live import wav_bytes

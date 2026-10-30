@@ -3,7 +3,13 @@
 No inference, reference correction, number rewriting, or human judgments.
 """
 import math
+import re
 from score import normalize, score
+
+
+def year_tokens(text):
+    """Literal 1900–2099 tokens only; this does not interpret spoken number words."""
+    return list(dict.fromkeys(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', text)))
 
 
 def measure(reference, hypothesis, *, audio_seconds, wall_seconds, provider_seconds=None, cache_hit=False):
@@ -36,6 +42,7 @@ def measure(reference, hypothesis, *, audio_seconds, wall_seconds, provider_seco
             j -= 1
     operations.reverse()
     assert len(operations) == metrics['word_edit_errors']
+    reference_years, raw_years = year_tokens(reference), year_tokens(hypothesis)
     return dict(raw_score=metrics, word_operations=operations,
         substitutions=sum(o['kind']=='substitution' for o in operations),
         deletions=sum(o['kind']=='deletion' for o in operations),
@@ -43,5 +50,9 @@ def measure(reference, hypothesis, *, audio_seconds, wall_seconds, provider_seco
         audio_seconds=audio_seconds, wall_seconds=wall_seconds,
         provider_seconds=provider_seconds, wall_rtf=wall_seconds/audio_seconds,
         cache_hit=cache_hit, latency_population='one_observed_development_request',
+        year_token_comparison=dict(reference=reference_years, raw=raw_years,
+            additional_in_raw=[y for y in raw_years if y not in reference_years],
+            missing_in_raw=[y for y in reference_years if y not in raw_years],
+            literal_only=True, spoken_number_words_interpreted=False, semantic_correctness_judged=False),
         critical_semantic_judgments=None, human_task_success=None,
         general_accuracy_claimed=False, reference_or_numbers_rewritten=False)
