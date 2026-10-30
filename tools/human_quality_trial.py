@@ -65,10 +65,16 @@ class HumanTrial:
                 identifier = sha((case['id'] + ':' + audio['voice'] + ':' + audio['variant']).encode())[:24]
                 self.samples[identifier] = dict(path=path, sha256=audio['sha256'],
                     keys=list(case['critical_values']), reference=case['critical_values'],
-                    written=case['written'], condition=audio['variant'], voice=audio['voice'])
+                    written=case['written'], condition=audio['variant'], voice=audio['voice'],
+                    source_refs=copy.deepcopy(case.get('source_refs', [])),
+                    critical_reference_sha256=case.get('critical_reference_sha256'))
                 self.audio(identifier)
         if not self.samples:
             raise ValueError('Require frozen, successful listening audio.')
+        self.text_scope = bundle.get('text_scope_mn') or (
+            'Эдгээр өгүүлбэр нь зохиомол туршилтын өгөгдөл. Сургуулийн бодит мэдээлэл биш.'
+            if bundle.get('constructed', True) else
+            'Эдгээр нь багцад заасан хадгалсан эхийн өгүүлбэр. Өнөөдрийн хүчинтэй мэдээлэл гэж таамаглахгүй.')
         if upstream != 'http://127.0.0.1:8765':
             raise ValueError('Only the fixed loopback demo may process recordings.')
         self.upstream = upstream
@@ -149,6 +155,9 @@ class HumanTrial:
             record = {**copy.deepcopy(payload), 'id': uuid.uuid4().hex, 'session_id': session['id'], 'kind': kind,
                 'saved_utc': utc(), 'previous_event_sha256': session['last_sha'],
                 'audio_manifest_sha256': self.audio_manifest_sha, 'answer_bundle_sha256': self.review_sha,
+                'speaker_id': session['consent']['pseudonym'],
+                'speaker_group_id': session['consent']['pseudonym'],
+                'identity_source': 'participant_declared_pseudonym_not_independently_verified',
                 'human_observer_verified': False}
             raw = (json.dumps(record, ensure_ascii=False, indent=2) + '\n').encode('utf-8')
             with (self.directory / f'{session["id"]}-{number:04d}-{kind}.json').open('xb') as stream:
@@ -184,7 +193,8 @@ class HumanTrial:
             completed_reviews=list(session['reviews']) if session else [],
             audio_storage_consent=session['consent']['audio_storage_consent'] if session else False,
             reference_reveal_allowed=bool(session and len(session['listening']) == len(self.samples)),
-            initial_results_are_empty=True, local_audio_processing=True, answer_tts_online=True)
+            initial_results_are_empty=True, local_audio_processing=True, answer_tts_online=True,
+            listening_text_scope=self.text_scope)
 
     def review(self, body):
         required = {'session_id', 'review_id', 'correctness', 'completeness', 'citation_support', 'reason'}
@@ -238,20 +248,30 @@ class HumanTrial:
         if len(session['listening']) != len(self.samples):
             raise TrialConflict('Finish listening before revealing reference values.')
         return [dict(sample_id=identifier, written=self.samples[identifier]['written'],
-            critical_values=self.samples[identifier]['reference']) for identifier in session['listening_order']]
+            critical_values=self.samples[identifier]['reference'], source_refs=self.samples[identifier]['source_refs'],
+            critical_reference_sha256=self.samples[identifier]['critical_reference_sha256'])
+            for identifier in session['listening_order']]
 
     def begin_task(self, body):
-        if not isinstance(body, dict) or set(body) != {'session_id', 'intended_request'}:
+        base = {'session_id', 'intended_request'}
+        context_fields = {'device', 'room', 'scenario'}
+        if not isinstance(body, dict) or set(body) not in (base, base | context_fields):
             raise ValueError('Invalid task fields.')
         session = self._session(body['session_id'])
         text = body['intended_request']
         if not isinstance(text, str) or not 3 <= len(text.strip()) <= 1000:
             raise ValueError('First type the request you intend to make, before recording.')
+        context = {key: body.get(key) for key in context_fields}
+        if context_fields <= set(body) and any(
+                not isinstance(value, str) or not 1 <= len(value.strip()) <= 200 for value in context.values()):
+            raise ValueError('State the recording device, room and question scenario.')
         task_id = uuid.uuid4().hex
-        task = dict(id=task_id, intended_request=text.strip(), transcript=None, results={}, audio_ids=set(),
+        task = dict(id=task_id, intended_request=text.strip(), recording=None, reference=None,
+                    transcription_attempted=False, context=context, transcript=None, results={}, audio_ids=set(),
                     lock=threading.RLock(), observations=set(), synthesized=set())
         session['tasks'][task_id] = task
         self._event(session, 'task-start', dict(task_id=task_id, intended_request=text.strip(),
+            recording_context=context, recording_context_reported=context_fields <= set(body),
             intent_entered_before_stt=True, asr_utterance_reference=None, human_utterance_reference_confirmed=False))
         return dict(task_id=task_id)
 
@@ -278,37 +298,144 @@ class HumanTrial:
         except (URLError, TimeoutError) as error:
             raise ValueError('Local demo is unavailable or timed out; this attempt remains recorded.') from None
 
-    def transcribe(self, sid, task_id, raw, mime):
+    def capture_recording(self, sid, task_id, raw, mime):
+        """Retain audio for human listening; this operation never invokes ASR."""
+        session, task = self._task(sid, task_id)
+        with task['lock']:
+            if not session['consent']['audio_storage_consent']:
+                raise ValueError('Audio storage consent was not given; use typed/review/listening sections.')
+            if task['recording'] is not None:
+                raise TrialConflict('This task already has one recording; begin a new task to retry.')
+            if (not raw or len(raw) > MAX_AUDIO
+                    or mime not in {'audio/wav', 'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-wav'}):
+                raise ValueError('Use a supported audio file up to 8 MiB.')
+            recordings = (self.directory / 'recordings').resolve()
+            if not recordings.is_relative_to(self.directory):
+                raise ValueError('Unsafe recording directory.')
+            recordings.mkdir(exist_ok=True)
+            name = 'recordings/' + session['id'] + '-' + task_id + '-' + uuid.uuid4().hex + '-input.audio'
+            with (self.directory / name).open('xb') as stream:
+                stream.write(raw)
+            # Reuse the established content-sniffing decoder; no model or network call.
+            try:
+                try:
+                    from tools.prepare_stt_study_audio import prepare_audio
+                except ModuleNotFoundError:
+                    from prepare_stt_study_audio import prepare_audio
+                prepared = prepare_audio(self.directory / name, self.directory / (name + '.wav'))
+            except (OSError, ValueError, ImportError) as error:
+                too_long = getattr(error, 'code', None) == 'audio_too_long'
+                message = ('Бичлэг 30 секундээс урт байна. Эх файл хадгалагдсан. '
+                           'Нэг богино асуултыг дахин бичнэ үү.' if too_long else
+                           'Recording could not be decoded to study WAV; original retained.')
+                self._event(session, 'task-error', dict(task_id=task_id, operation='prepare_audio',
+                    audio_file=name, input_sha256=sha(raw), input_mime=mime,
+                    error_code='audio_too_long' if too_long else 'audio_preparation_failed', error=message))
+                raise ValueError(message) from error
+            recording = dict(audio_file=Path(prepared['output']).relative_to(self.directory).as_posix(),
+                audio_sha256=prepared['audio_sha256'], input_mime='audio/wav',
+                original_audio_file=name, original_audio_sha256=sha(raw), original_mime=mime,
+                provenance_file=Path(prepared['provenance']).relative_to(self.directory).as_posix(),
+                provenance_sha256=prepared['provenance_sha256'], duration_seconds=prepared['duration_seconds'],
+                captured_utc=utc(), recording_context=copy.deepcopy(task['context']),
+                recorded_at_not_inferred_from_upload=True, native_study_format='mono_16000hz_pcm16_wav')
+            self._event(session, 'task-recording', dict(task_id=task_id, **recording,
+                asr_performed=False, human_utterance_reference_confirmed=False))
+            task['recording'] = recording
+            return dict(audio_sha256=recording['audio_sha256'],
+                audio_url=f'/api/task-recording/{task_id}?session_id={sid}', asr_performed=False)
+
+    def recording_audio(self, sid, task_id):
+        _, task = self._task(sid, task_id)
+        recording = task['recording']
+        if recording is None:
+            raise ValueError('Record or upload speech before listening.')
+        path = (self.directory / recording['audio_file']).resolve(strict=True)
+        if not path.is_relative_to(self.directory) or path.stat().st_size > MAX_AUDIO:
+            raise ValueError('Unsafe retained recording.')
+        raw = path.read_bytes()
+        if sha(raw) != recording['audio_sha256']:
+            raise TrialConflict('Retained recording changed; begin a new task.')
+        return raw, recording['input_mime']
+
+    def confirm_reference(self, body):
+        required = {'session_id', 'task_id', 'audio_sha256', 'reference', 'uncertainties',
+                    'listened', 'playback_ended', 'confirmed'}
+        if not isinstance(body, dict) or set(body) != required:
+            raise ValueError('Invalid listened-reference fields.')
+        session, task = self._task(body['session_id'], body['task_id'])
+        with task['lock']:
+            if task['recording'] is None:
+                raise ValueError('Record or upload speech before confirming its reference.')
+            if task['reference'] is not None or task['transcription_attempted']:
+                raise TrialConflict('The pre-ASR reference is immutable; begin a new task to correct it.')
+            if (body['audio_sha256'] != task['recording']['audio_sha256']
+                    or body['listened'] is not True or body['playback_ended'] is not True
+                    or type(body['confirmed']) is not bool):
+                raise ValueError('Listen to the exact recording and explicitly confirm its full spoken text.')
+            text = body['reference']
+            if (not isinstance(text, str) or not 1 <= len(text.strip()) <= 1000
+                    or not any(character.isalnum() for character in text)):
+                raise ValueError('Type the complete spoken words yourself; an intent or model guess is not a reference.')
+            uncertainties = body['uncertainties']
+            if (not isinstance(uncertainties, list) or len(uncertainties) > 20
+                    or any(not isinstance(value, str) or not 1 <= len(value.strip()) <= 200 for value in uncertainties)):
+                raise ValueError('List unresolved words or numbers explicitly.')
+            self.recording_audio(body['session_id'], body['task_id'])
+            if uncertainties or not body['confirmed']:
+                self._event(session, 'task-reference-pending', dict(task_id=body['task_id'],
+                    reference_draft=text.strip(), uncertainties=copy.deepcopy(uncertainties),
+                    audio_sha256=body['audio_sha256'], human_utterance_reference_confirmed=False,
+                    reference_confirmed_before_asr=False, asr_performed=False))
+                return dict(saved=True, reference_confirmed_before_asr=False, asr_performed=False)
+            reference = dict(text=text.strip(), audio_sha256=body['audio_sha256'], confirmed_utc=utc(),
+                uncertainties=[], reference_origin='human_listened_before_asr', observer_verified=False)
+            self._event(session, 'task-reference', dict(task_id=body['task_id'], **reference,
+                human_utterance_reference_confirmed=True, reference_confirmed_before_asr=True,
+                listened=True, playback_ended=True))
+            task['reference'] = reference
+            return dict(saved=True, reference_confirmed_before_asr=True, asr_performed=False)
+
+    def recognize(self, body):
+        if not isinstance(body, dict) or set(body) != {'session_id', 'task_id'}:
+            raise ValueError('Use the already retained, human-reviewed task recording.')
+        return self.transcribe(body['session_id'], body['task_id'])
+
+    def transcribe(self, sid, task_id):
         _, task = self._task(sid, task_id)
         with task['lock']:
-            return self._transcribe(sid, task_id, raw, mime)
+            return self._transcribe(sid, task_id)
 
-    def _transcribe(self, sid, task_id, raw, mime):
+    def _transcribe(self, sid, task_id):
         session, task = self._task(sid, task_id)
         if not session['consent']['audio_storage_consent']:
             raise ValueError('Audio storage consent was not given; use typed/review/listening sections.')
-        if task['transcript'] is not None:
-            raise TrialConflict('This task already has one recording; begin a new task to retry.')
-        if not raw or len(raw) > MAX_AUDIO or mime not in {'audio/wav', 'audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-wav'}:
-            raise ValueError('Use a supported audio file up to 8 MiB.')
-        audio_name = session['id'] + '-' + task_id + '-' + uuid.uuid4().hex + '-input.audio'
-        with (self.directory/audio_name).open('xb') as stream:
-            stream.write(raw)
+        if task['recording'] is None or task['reference'] is None:
+            raise ValueError('Listen and confirm the full spoken reference before local ASR.')
+        if task['transcription_attempted']:
+            raise TrialConflict('This task already attempted ASR; begin a new task to retry.')
+        raw, mime = self.recording_audio(sid, task_id)
+        audio_name = task['recording']['audio_file']
+        task['transcription_attempted'] = True
+        self._event(session, 'task-stt-attempt', dict(task_id=task_id, uploaded_audio_sha256=sha(raw),
+            reference_confirmed_before_asr=True, reference_not_sent_to_asr=True))
         started = time.perf_counter()
         try:
             value = self._upstream('/api/voice/transcribe', raw, mime)
+            if (not isinstance(value, dict) or value.get('kind') != 'stt' or not isinstance(value.get('text'), str)
+                    or not isinstance(value.get('id'), str) or not re.fullmatch(r'[0-9a-f]{32}', value['id'])):
+                raise ValueError('Upstream STT response is malformed.')
         except ValueError as error:
             self._event(session, 'task-error', dict(task_id=task_id, operation='transcribe', input_sha256=sha(raw),
                 audio_file=audio_name, input_mime=mime, error=str(error)))
             raise
-        if value.get('kind') != 'stt' or not isinstance(value.get('text'), str):
-            raise ValueError('Upstream STT response is malformed.')
         task['transcript'] = copy.deepcopy(value)
         task['audio_ids'].add(value['id'])
         self._event(session, 'task-stt', dict(task_id=task_id, uploaded_audio_sha256=sha(raw),
             audio_file=audio_name, input_mime=mime,
             actual_response=value, wall_seconds=time.perf_counter()-started,
-            asr_utterance_reference=None, human_utterance_reference_confirmed=False))
+            asr_utterance_reference=task['reference']['text'], human_utterance_reference_confirmed=True,
+            reference_confirmed_before_asr=True, reference_not_sent_to_asr=True))
         return dict(text=value['text'], transcription_id=value['id'], recognition_review=value.get('recognition_review'))
 
     def route(self, body):
@@ -437,18 +564,18 @@ PAGE = r'''<!doctype html><html lang="mn"><meta charset="utf-8"><meta name="view
 <p>Микрофоны дуу энэ компьютерийн локал Whisper-д очиж локал файлд хадгалагдана; автоматаар устах хугацаа тохируулаагүй. «Хариуг сонсох» үед хариултын текст онлайн Edge/Microsoft TTS-д очно. Доорх бэлтгэсэн 12 дууг сонсоход шинээр сүлжээнд текст/бичлэг явуулахгүй.</p>
 <section id="start"><label>Оролцогчийн зохиомол ID (жишээ P001)<input id="pseudo" value="P001" maxlength="7"></label><label><input type="checkbox" id="consent"> Би энэ туршилтад сайн дураар оролцож, хариултаа локал файлд хадгалахыг зөвшөөрч байна.</label><label><input type="checkbox" id="audioConsent"> Шинээр бичсэн дуугаа локал хадгалж STT туршихыг зөвшөөрнө. Сонгохгүйгээр бусад хэсгийг хийж болно.</label><label><input type="checkbox" id="developer"> Би энэ системийг хөгжүүлэхэд оролцсон.</label><button id="begin">Эхлэх</button></section>
 <p id="status" role="status"></p><div id="workspace" class="hidden"><nav><a href="#listen">1. Дуу сонсох</a> · <a href="#answer">2. Хариулт үнэлэх</a> · <a href="#voice">3. Бодит асуулт</a></nav>
-<section id="listen"><h2>1. Он, тоо, нэрийг дуунаас ойлгох</h2><p>Эдгээр өгүүлбэр нь зохиомол туршилтын өгөгдөл. Сургуулийн бодит мэдээлэл биш. Текст, өмнөх/шинэ хувилбарын нэрийг түр нуусан. Сонссоноо бичнэ үү; ойлгомжгүй бол <b>?</b> гэж бич. Бүх дуу дууссаны дараа эх текстийг харуулна.</p><p id="listenProgress"></p><div id="listenCard"></div><div id="reveal"></div></section>
+<section id="listen"><h2>1. Он, тоо, нэрийг дуунаас ойлгох</h2><p><span id="listeningScope"></span> Текст, өмнөх/шинэ хувилбарын нэрийг түр нуусан. Сонссоноо бичнэ үү; ойлгомжгүй бол <b>?</b> гэж бич. Бүх дуу дууссаны дараа эх текстийг харуулна.</p><p id="listenProgress"></p><div id="listenCard"></div><div id="reveal"></div></section>
 <section id="answer"><h2>2. Эхтэй нь тулгаж хариултыг үнэлэх</h2><p>Зөв, дутуу, бурууг эхийн баримтаар дүгнэнэ. Хариулт үүсгэсэн арга, model-ийг нуусан. Та хөгжүүлэгч бол энэ нь хараат бус үнэлгээ гэж тооцогдохгүй.</p><p id="answerProgress"></p><div id="answerCard"></div><button id="refreshAnswers">Шинэ асуултын багцыг шалгах</button></section>
-<section id="voice"><h2>3. Бичсэн → raw STT → өөрөө зассан асуулт</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь яг тэр санаагаар ярьж туршина. Санаагаа бичсэн текст болон зассан STT нь аудиогийн батлагдсан reference болохгүй; энд WER тооцохгүй. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй.</p>
-<label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Зогсоож таних</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ нь ASR reference баталсан гэсэн үг биш.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div></div></section></div></main>
+<section id="voice"><h2>3. Шинэ асуултаа бичиж, сонсож батлаад STT турших</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь өөрийн үгээр ярьж бичнэ. Санаагаа бичсэн текст болон зассан STT нь аудиогийн reference болохгүй. Танилт ажиллуулахаас өмнө бичлэгээ бүтнээр сонсож, яг хэлсэн үгээ тусад нь бичиж батална. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй. Энэ хуудсанд WER автоматаар тооцохгүй.</p>
+<p>Нэг хүн өөр session-д орсон ч ижил оролцогчийн ID-гаа хэрэглэнэ. Шинэ асуулт нь шинэ хүн гэсэн үг биш.</p><label>Бичлэгийн төхөөрөмж<input id="device" maxlength="200" placeholder="Жишээ: laptop-ийн дотоод микрофон"></label><label>Бичлэгийн орчин<input id="room" maxlength="200" placeholder="Жишээ: гэрт, чимээгүй"></label><label>Асуултын нөхцөл / сэдэв<input id="scenario" maxlength="200" placeholder="Жишээ: элсэлтийн оныг лавлах"></label><label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Бичлэгийг зогсоох</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><audio id="recordedAudio" controls preload="none"></audio><label>Танилтаас өмнө сонсож буулгасан яг үг<textarea id="reference" placeholder="Бичлэгээ сонсоод бүх хэлсэн үгээ бичнэ үү. Энд бэлэн текст байхгүй."></textarea></label><label>Эргэлзээтэй үг, тоо (нэг мөрөнд нэгийг; байвал батлагдахгүй)<textarea id="uncertainties" placeholder="Эргэлзээтэй бол таамгаар нөхөхгүй"></textarea></label><label><input id="referenceConfirmed" type="checkbox"> Би бичлэгийг бүтнээр сонсож, яг хэлсэн бүх үгийг нягталсан. Эргэлзээтэй үг, тоо үлдээгүй.</label><button id="saveReference" disabled>Сонссон текст / эргэлзээг хадгалах</button><button id="recognize" disabled>Одоо локал STT ажиллуулах</button><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ засвар анхны reference-ийг өөрчлөхгүй.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div><button id="nextTask">Дараагийн шинэ асуулт</button></div></section></div></main>
 <script>
-const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false;
+const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false,recordingSha='',referenceHeard=false;
 const words={year:'Он',phone:'Утасны цифр',name:'Нэр',negation:'Үгүйсгэсэн үг',amount:'Мөнгөн дүн',unit:'Мөнгөний нэгж'};
 function el(tag,text,parent){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(parent)parent.append(n);return n}
 function status(text,error=false){$('status').textContent=text;$('status').className=error?'error':''}
 async function api(path,body,extra={}){const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json','X-Trial-Token':token,...extra},body:body===undefined?undefined:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw Error(v.error||'Хүсэлт амжилтгүй');return v}
 async function action(fn){if(busy)return;busy=true;try{await fn()}catch(e){status(e.message,true)}finally{busy=false}}
-async function refresh(){state=await api('/api/state?'+(sid?'session_id='+sid:''));token=state.csrf_token;renderListening();renderAnswer()}
+async function refresh(){state=await api('/api/state?'+(sid?'session_id='+sid:''));token=state.csrf_token;$('listeningScope').textContent=state.listening_text_scope;renderListening();renderAnswer()}
 $('begin').onclick=()=>action(async()=>{const v=await api('/api/start',{pseudonym:$('pseudo').value,consent:$('consent').checked,audio_storage_consent:$('audioConsent').checked,implementation_participation:$('developer').checked});sid=v.session_id;sessionStorage.setItem('humanTrialSession',sid);$('start').classList.add('hidden');$('workspace').classList.remove('hidden');status('Session эхэллээ. Үнэлгээ зөвхөн таны хадгалсан үйлдлээр бүртгэгдэнэ.');await refresh()});
 function rating(parent,label,values){const l=el('label',label,parent),s=el('select',undefined,l);el('option','Сонгоно уу',s).value='';for(const [value,text] of values)el('option',text,s).value=value;return s}
 const scale=[['1','1 — ойлгомжгүй / маш хиймэл'],['2','2'],['3','3'],['4','4'],['5','5 — бүрэн ойлгомжтой / жам ёсны']];
@@ -457,13 +584,17 @@ function renderListening(){if(!sid)return;const remaining=state.listening.filter
 function sourceBlock(parent,title,refs){el('strong',title,parent);if(!refs?.length)el('p','Энэ хариултад эшилсэн эх байхгүй.',parent);for(const ref of refs||[]){if(ref.citation_number)el('p','Эшлэл ['+ref.citation_number+']',parent);el('blockquote',ref.quote,parent);if(/^https:\/\/nmct\.edu\.mn(?:\/|$)/.test(ref.url||'')){const a=el('a',ref.title||'Албан эх',parent);a.href=ref.url;a.target='_blank';a.rel='noreferrer'}}}
 function renderAnswer(){if(!sid)return;const box=$('answerCard');box.replaceChildren();const rows=state.answers.filter(x=>!state.completed_reviews.includes(x.review_id));$('answerProgress').textContent=`Хадгалсан ${state.completed_reviews.length}/${state.answers.length} · Хэсэгчлэн хадгалаад завсарлаж болно.`;if(!state.answer_ready){el('p','Шинэ асуултын гаралтын багц бэлтгэгдэж байна. Дуу болон бодит асуултын хэсгийг хийж болно.',box);return}if(!rows.length){el('p','Багцын бүх хариултыг үнэлсэн байна. Баярлалаа.',box);return}const row=rows[0];el('h3',row.query,box);el('strong','Системийн хариулт:',box);el('p',row.answer||row.abstention_reason||'Хариулт өгөөгүй.',box);const details=el('details',undefined,box);details.open=true;el('summary','Эхийн нотолгоог харьцуулах',details);sourceBlock(details,'Системийн хариулт бодитоор эшилсэн эх',row.answer_sources);el('hr',undefined,details);el('strong','Гаралтаас өмнө бэлтгэсэн шалгах мэдээлэл (хүн батлаагүй)',details);for(const fact of row.required_facts)el('p','• '+fact,details);sourceBlock(details,'Энэ шалгах мэдээллийн эх',row.reference_sources||row.source_refs);const options=[['correct','Зөв / бүрэн дэмжигдсэн'],['partial','Дутуу / хэсэгчлэн'],['wrong','Буруу / дэмжигдээгүй'],['not_applicable','Энэ тохиолдолд хамаарахгүй']];const c=rating(box,'Утгын зөв байдал',options),m=rating(box,'Шаардсан мэдээллийн бүрэн байдал',options),s=rating(box,'Системийн эшлэлийн нотолгоо',options);const l=el('label','Ямар баримтаар ингэж дүгнэв?',box),reason=el('textarea',undefined,l),b=el('button','Үнэлгээг хадгалах',box);b.onclick=()=>action(async()=>{await api('/api/review',{session_id:sid,review_id:row.review_id,correctness:c.value,completeness:m.value,citation_support:s.value,reason:reason.value});status('Хүний өөрийн үнэлгээг хадгаллаа.');await refresh()})}
 $('refreshAnswers').onclick=()=>action(refresh);
-$('taskBegin').onclick=()=>action(async()=>{const r=await api('/api/task/begin',{session_id:sid,intended_request:$('intent').value});taskId=r.task_id;$('intent').disabled=true;$('taskBegin').disabled=true;$('taskBody').classList.remove('hidden');$('record').disabled=!state.audio_storage_consent;$('upload').disabled=!state.audio_storage_consent;status('Санааг STT-ээс өмнө хадгаллаа. Бичсэн нөхцөлийг эхэлж илгээж болно.')});
+$('taskBegin').onclick=()=>action(async()=>{const r=await api('/api/task/begin',{session_id:sid,intended_request:$('intent').value,device:$('device').value,room:$('room').value,scenario:$('scenario').value});taskId=r.task_id;$('intent').disabled=true;$('taskBegin').disabled=true;$('taskBody').classList.remove('hidden');$('record').disabled=!state.audio_storage_consent;$('upload').disabled=!state.audio_storage_consent;status('Санааг STT-ээс өмнө хадгаллаа. Бичсэн нөхцөлийг эхэлж илгээж болно.')});
 async function sendCondition(condition){const v=await api('/api/task/route',{session_id:sid,task_id:taskId,condition,edited_text:condition==='explicit-edited'?$('edited').value:null,edit_confirmed:condition==='explicit-edited'?$('editConfirmed').checked:false});renderResult(v);status(condition+' нөхцөлийн бодит гаралтыг хадгаллаа.')}
 $('typed').onclick=()=>action(async()=>{await sendCondition('typed');$('typed').disabled=true});$('rawSend').onclick=()=>action(async()=>{await sendCondition('raw');$('rawSend').disabled=true});$('editedSend').onclick=()=>action(async()=>{await sendCondition('explicit-edited');$('editedSend').disabled=true});
-async function transcribe(blob){$('recordStatus').textContent='Дууг локал Whisper таньж байна…';const mime=(blob.type||'audio/webm').split(';')[0];const r=await fetch('/api/task/transcribe',{method:'POST',headers:{'Content-Type':mime,'X-Trial-Token':token,'X-Session-Id':sid,'X-Task-Id':taskId},body:blob});const v=await r.json();if(!r.ok)throw Error(v.error||'STT алдаа');$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('record').disabled=true;$('upload').disabled=true;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Хэлсэн үгтэйгээ өөрөө тулгана уу.'}
-$('upload').onchange=()=>action(async()=>{const f=$('upload').files[0];if(f)await transcribe(f)});
-$('record').onclick=()=>action(async()=>{stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{stream.getTracks().forEach(t=>t.stop());action(()=>transcribe(new Blob(chunks,{type:recording.mimeType})));};recording.start();$('record').disabled=true;$('stop').disabled=false;$('recordStatus').textContent='Бичиж байна. Богино асуултаа хэлээд зогсооно уу.'});
+async function capture(blob){$('recordStatus').textContent='Бичлэгийг локал хадгалж байна…';try{const mime=(blob.type||'audio/webm').split(';')[0];const r=await fetch('/api/task/record',{method:'POST',headers:{'Content-Type':mime,'X-Trial-Token':token,'X-Session-Id':sid,'X-Task-Id':taskId},body:blob});const v=await r.json();if(!r.ok)throw Error(v.error||'Бичлэг хадгалсангүй');recordingSha=v.audio_sha256;referenceHeard=false;$('recordedAudio').src=v.audio_url;$('saveReference').disabled=false;$('record').disabled=true;$('upload').disabled=true;$('recordStatus').textContent='Бичлэг хадгалсан. Бүтнээр сонсоод яг хэлсэн үгээ бичнэ үү. STT хараахан ажиллаагүй.'}catch(error){$('recordStatus').textContent=error.message;$('record').disabled=false;$('upload').disabled=false;$('stop').disabled=true;throw error}}
+$('recordedAudio').onended=()=>{referenceHeard=true};
+$('saveReference').onclick=()=>action(async()=>{const result=await api('/api/task/reference',{session_id:sid,task_id:taskId,audio_sha256:recordingSha,reference:$('reference').value,uncertainties:$('uncertainties').value.split('\n').map(x=>x.trim()).filter(Boolean),listened:$('referenceConfirmed').checked,playback_ended:referenceHeard,confirmed:$('referenceConfirmed').checked});if(!result.reference_confirmed_before_asr){status('Ноорог / эргэлзээг хадгаллаа. Яг хэлсэн үгээ шийдээгүй тул STT ажиллахгүй.');return}$('reference').disabled=true;$('uncertainties').disabled=true;$('referenceConfirmed').disabled=true;$('saveReference').disabled=true;$('recognize').disabled=false;status('Хүний сонсож буулгасан текст хадгалагдлаа. Одоо локал STT ажиллуулж болно.')});
+$('recognize').onclick=()=>action(async()=>{$('recognize').disabled=true;$('recordStatus').textContent='Дууг локал Whisper таньж байна…';const v=await api('/api/task/transcribe',{session_id:sid,task_id:taskId});$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Өмнө баталсан reference тусдаа хэвээр.'});
+$('upload').onchange=()=>action(async()=>{const f=$('upload').files[0];if(f)await capture(f)});
+$('record').onclick=()=>action(async()=>{stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{stream.getTracks().forEach(t=>t.stop());action(()=>capture(new Blob(chunks,{type:recording.mimeType})));};recording.start();$('record').disabled=true;$('stop').disabled=false;$('recordStatus').textContent='Бичиж байна. Нэг асуултаа 5–15 секундэд хэлээд зогсооно уу. Дээд хязгаар 30 секунд.'});
 $('stop').onclick=()=>{if(recording?.state==='recording'){recording.stop();$('stop').disabled=true}};
+$('nextTask').onclick=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());location.reload()};
 function renderResult(value){const box=el('article',undefined,$('taskResults'));el('h3',value.condition,box);el('p',value.answer||'Систем эхтэй хариулт өгөөгүй / тодруулга шаардсан.',box);const audio=el('audio',undefined,box);audio.controls=true;let listened=false;audio.onended=()=>{listened=true};const speak=el('button','Энэ хариуг сонсох (онлайн TTS)',box);speak.onclick=()=>action(async()=>{const v=await api('/api/task/speak',{session_id:sid,task_id:taskId,condition:value.condition});audio.src=v.audio_url;await audio.play()});const success=rating(box,'Таны асуух гэсэн зүйлийг шийдэж чадсан уу?',[['yes','Тийм'],['partial','Хэсэгчлэн'],['no','Үгүй']]);const l=el('label','Та хариултаас юу ойлгов? (сонссон бол сонссон зүйлээ)',box),heard=el('textarea',undefined,l);const int=rating(box,'Сонссон бол ойлгомж 1–5',scale),nat=rating(box,'Сонссон бол жам ёсны байдал 1–5',scale),n=el('label','Тэмдэглэл',box),notes=el('textarea',undefined,n);const save=el('button','Энэ нөхцөлийн ажиглалтыг хадгалах',box);save.onclick=()=>action(async()=>{await api('/api/task/observe',{session_id:sid,task_id:taskId,condition:value.condition,task_success:success.value,heard_answer:heard.value,tts_listened:listened,intelligibility:listened?Number(int.value):null,naturalness:listened?Number(nat.value):null,notes:notes.value});save.disabled=true;status('Бодит даалгаврын ажиглалт хадгалагдлаа.')})}
 window.addEventListener('pagehide',()=>{if(stream)stream.getTracks().forEach(t=>t.stop())});(async()=>{try{await refresh();if(sid){$('start').classList.add('hidden');$('workspace').classList.remove('hidden');status('Өмнөх session-ийн хадгалсан үнэлгээг үргэлжлүүлж байна.')}}catch(e){if(sid){sid='';sessionStorage.removeItem('humanTrialSession');await refresh();status('Шинэ серверийн session эхлүүлнэ үү.')}else status(e.message,true)}})();
 </script></html>'''
@@ -523,6 +654,9 @@ def make_server(trial, port=8790):
                     return self.send(200, trial.audio(parsed.path.rsplit('/', 1)[1]), 'audio/mpeg')
                 if re.fullmatch('/api/voice-audio/[0-9a-f]{32}', parsed.path):
                     return self.send(200, trial.voice_audio(sid, parsed.path.rsplit('/', 1)[1]), 'audio/mpeg')
+                if re.fullmatch('/api/task-recording/[0-9a-f]{32}', parsed.path):
+                    raw, mime = trial.recording_audio(sid, parsed.path.rsplit('/', 1)[1])
+                    return self.send(200, raw, mime)
                 self.send(404, {'error': 'Unknown trial resource.'})
             except TrialConflict as error:
                 self.send(409, {'error': str(error)})
@@ -535,14 +669,14 @@ def make_server(trial, port=8790):
             if not self.valid(post=True): return
             try:
                 length = self.headers.get('Content-Length', '')
-                audio = self.path == '/api/task/transcribe'
+                audio = self.path == '/api/task/record'
                 if not re.fullmatch(r'[0-9]{1,8}', length) or not 1 <= int(length) <= (MAX_AUDIO if audio else 32768):
                     raise ValueError('Invalid body size.')
                 raw = self.rfile.read(int(length))
                 if len(raw) != int(length):
                     raise ValueError('Incomplete request body.')
                 if audio:
-                    result = trial.transcribe(self.headers.get('X-Session-Id'), self.headers.get('X-Task-Id'),
+                    result = trial.capture_recording(self.headers.get('X-Session-Id'), self.headers.get('X-Task-Id'),
                         raw, self.headers.get_content_type())
                 else:
                     if self.headers.get_content_type() != 'application/json':
@@ -550,6 +684,7 @@ def make_server(trial, port=8790):
                     body = json.loads(raw)
                     methods = {'/api/start': trial.start, '/api/review': trial.review, '/api/listen': trial.listen,
                         '/api/task/begin': trial.begin_task, '/api/task/route': trial.route,
+                        '/api/task/reference': trial.confirm_reference, '/api/task/transcribe': trial.recognize,
                         '/api/task/speak': trial.speak, '/api/task/observe': trial.observe}
                     if self.path not in methods:
                         return self.send(404, {'error': 'Unknown trial action.'})

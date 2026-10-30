@@ -3,12 +3,16 @@ from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
+import math
 import os
 from pathlib import Path
 import tempfile
 import threading
+import struct
 import unittest
+import wave
 from unittest.mock import patch
 
 from tools import human_quality_trial as trial
@@ -19,6 +23,11 @@ class TrialFixture(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        wav = io.BytesIO()
+        with wave.open(wav, 'wb') as stream:
+            stream.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+            stream.writeframes(b''.join(struct.pack('<h', int(1000 * math.sin(i / 10))) for i in range(1600)))
+        self.recording = wav.getvalue()  # Constructed tone, never a human utterance.
         (self.root/'runtime').mkdir()
         self.patch_root = patch.object(trial, 'ROOT', self.root)
         self.patch_root.start()
@@ -60,6 +69,19 @@ class TrialFixture(unittest.TestCase):
     def route_body(self, task_id, condition='typed', text=None, confirmed=False):
         return dict(session_id=self.sid, task_id=task_id, condition=condition,
             edited_text=text, edit_confirmed=confirmed)
+
+    def capture(self, task_id):
+        return self.study.capture_recording(self.sid, task_id, self.recording, 'audio/wav')
+
+    def reference_body(self, task_id, digest):
+        return dict(session_id=self.sid, task_id=task_id, audio_sha256=digest,
+            reference='Constructed words for gate testing, not a real human reference.',
+            uncertainties=[], listened=True, playback_ended=True, confirmed=True)
+
+    def ready_recording(self, task_id):
+        captured = self.capture(task_id)
+        self.study.confirm_reference(self.reference_body(task_id, captured['audio_sha256']))
+        return captured
 
 class HumanQualityTests(TrialFixture):
     def test_preparation_and_session_create_no_human_scores(self):
@@ -209,18 +231,173 @@ class HumanQualityTests(TrialFixture):
         self.assertIsNone(value['asr_utterance_reference'])
         self.assertFalse(value['human_utterance_reference_confirmed'])
 
+    def test_capture_preserves_original_and_decodes_native_wav_without_asr(self):
+        task_id = self.task()
+        with patch.object(self.study, '_upstream') as upstream:
+            captured = self.capture(task_id)
+        upstream.assert_not_called()
+        self.assertFalse(captured['asr_performed'])
+        raw, mime = self.study.recording_audio(self.sid, task_id)
+        self.assertEqual(mime, 'audio/wav')
+        with wave.open(io.BytesIO(raw), 'rb') as stream:
+            self.assertEqual((stream.getnchannels(), stream.getsampwidth(), stream.getframerate()), (1, 2, 16000))
+        task = self.study.sessions[self.sid]['tasks'][task_id]
+        self.assertIsNone(task['reference'])
+        self.assertIsNone(task['transcript'])
+        self.assertEqual((self.study.directory / task['recording']['original_audio_file']).read_bytes(), self.recording)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), captured['audio_sha256'])
+        with self.assertRaises(trial.TrialConflict):
+            self.capture(task_id)
+
+    def test_asr_gate_blocks_missing_reference_and_preserves_uncertainty_drafts(self):
+        task_id = self.task()
+        with patch.object(self.study, '_upstream') as upstream:
+            with self.assertRaisesRegex(ValueError, 'reference before local ASR'):
+                self.study.transcribe(self.sid, task_id)
+            captured = self.capture(task_id)
+            body = self.reference_body(task_id, captured['audio_sha256'])
+            for mutation in [dict(uncertainties=['year unclear']), dict(confirmed=False)]:
+                pending = self.study.confirm_reference(dict(body, **mutation))
+                self.assertFalse(pending['reference_confirmed_before_asr'])
+                with self.assertRaises(ValueError):
+                    self.study.transcribe(self.sid, task_id)
+        upstream.assert_not_called()
+        self.assertEqual(len(list(self.study.directory.glob('*-task-reference-pending.json'))), 2)
+        self.assertIsNone(self.study.sessions[self.sid]['tasks'][task_id]['reference'])
+
+    def test_reference_requires_exact_audio_listening_and_well_typed_fields(self):
+        task_id = self.task()
+        captured = self.capture(task_id)
+        body = self.reference_body(task_id, captured['audio_sha256'])
+        for mutation in [dict(audio_sha256='0' * 64), dict(listened=False), dict(playback_ended=False),
+                         dict(confirmed=1), dict(reference='?!'), dict(uncertainties='not a list')]:
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                self.study.confirm_reference(dict(body, **mutation))
+        self.assertEqual(list(self.study.directory.glob('*-task-reference.json')), [])
+
+    def test_frozen_reference_precedes_asr_and_is_never_sent_upstream(self):
+        task_id = self.task()
+        captured = self.ready_recording(task_id)
+        with patch.object(self.study, '_upstream', return_value=dict(kind='stt', id='a' * 32, text='raw')) as upstream:
+            self.study.transcribe(self.sid, task_id)
+        args = upstream.call_args.args
+        self.assertEqual(args, ('/api/voice/transcribe', self.study.recording_audio(self.sid, task_id)[0], 'audio/wav'))
+        self.assertNotIn(b'Constructed words', args[1])
+        with self.assertRaises(trial.TrialConflict):
+            self.study.confirm_reference(self.reference_body(task_id, captured['audio_sha256']))
+        files = sorted(self.study.directory.glob(self.sid + '-*.json'))
+        events = [json.loads(path.read_bytes()) for path in files]
+        kinds = [event['kind'] for event in events]
+        self.assertLess(kinds.index('task-recording'), kinds.index('task-reference'))
+        self.assertLess(kinds.index('task-reference'), kinds.index('task-stt-attempt'))
+        stt = next(event for event in events if event['kind'] == 'task-stt')
+        self.assertTrue(stt['reference_confirmed_before_asr'])
+        self.assertTrue(stt['reference_not_sent_to_asr'])
+        self.assertEqual(stt['asr_utterance_reference'], self.reference_body(task_id, captured['audio_sha256'])['reference'])
+
+    def test_retained_wav_tamper_blocks_reference_and_asr(self):
+        task_id = self.task()
+        captured = self.capture(task_id)
+        task = self.study.sessions[self.sid]['tasks'][task_id]
+        path = self.study.directory / task['recording']['audio_file']
+        old = path.read_bytes()
+        path.write_bytes(b'tampered')
+        with self.assertRaises(trial.TrialConflict):
+            self.study.confirm_reference(self.reference_body(task_id, captured['audio_sha256']))
+        path.write_bytes(old)
+        self.study.confirm_reference(self.reference_body(task_id, captured['audio_sha256']))
+        path.write_bytes(b'tampered again')
+        with patch.object(self.study, '_upstream') as upstream, self.assertRaises(trial.TrialConflict):
+            self.study.transcribe(self.sid, task_id)
+        upstream.assert_not_called()
+
+    def test_asr_failure_is_recorded_and_never_automatically_retried(self):
+        task_id = self.task()
+        self.ready_recording(task_id)
+        with patch.object(self.study, '_upstream', side_effect=ValueError('fixture unavailable')) as upstream:
+            with self.assertRaisesRegex(ValueError, 'fixture unavailable'):
+                self.study.transcribe(self.sid, task_id)
+            with self.assertRaises(trial.TrialConflict):
+                self.study.transcribe(self.sid, task_id)
+        self.assertEqual(upstream.call_count, 1)
+        self.assertEqual(len(list(self.study.directory.glob('*-task-error.json'))), 1)
+
+    def test_context_and_declared_canonical_person_are_retained(self):
+        task_id = self.study.begin_task(dict(session_id=self.sid, intended_request='Constructed request',
+            device='fixture microphone', room='fixture room', scenario='fixture school question'))['task_id']
+        self.capture(task_id)
+        value = json.loads(next(self.study.directory.glob('*-task-start.json')).read_bytes())
+        self.assertEqual((value['speaker_id'], value['speaker_group_id'], value['session_id']), ('P001', 'P001', self.sid))
+        self.assertTrue(value['recording_context_reported'])
+        self.assertEqual(value['recording_context']['room'], 'fixture room')
+        sid2 = self.study.start(dict(pseudonym='P001', consent=True,
+            audio_storage_consent=True, implementation_participation=False))['session_id']
+        with self.assertRaises(KeyError):
+            self.study.recording_audio(sid2, task_id)
+
+    def test_invalid_audio_is_retained_as_error_and_never_invokes_asr(self):
+        task_id = self.task()
+        with patch.object(self.study, '_upstream') as upstream, self.assertRaisesRegex(ValueError, 'decoded to study WAV'):
+            self.study.capture_recording(self.sid, task_id, b'not real audio', 'audio/wav')
+        upstream.assert_not_called()
+        self.assertIsNone(self.study.sessions[self.sid]['tasks'][task_id]['recording'])
+        self.assertEqual(len(list((self.study.directory / 'recordings').glob('*.audio'))), 1)
+        error = json.loads(next(self.study.directory.glob('*-task-error.json')).read_bytes())
+        self.assertEqual(error['operation'], 'prepare_audio')
+
+    def test_long_recording_reports_limit_preserves_original_and_allows_short_retry(self):
+        task_id = self.task()
+        buffer = io.BytesIO()
+        with wave.open(buffer, 'wb') as stream:
+            stream.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+            stream.writeframes(b'\0\0' * (16000 * 31))  # Synthetic silence, not human speech.
+        original = buffer.getvalue()
+        with patch.object(self.study, '_upstream') as upstream:
+            with self.assertRaisesRegex(ValueError, '30 секундээс урт'):
+                self.study.capture_recording(self.sid, task_id, original, 'audio/wav')
+        upstream.assert_not_called()
+        saved = next((self.study.directory / 'recordings').glob('*.audio'))
+        self.assertEqual(saved.read_bytes(), original)
+        event = json.loads(next(self.study.directory.glob('*-task-error.json')).read_bytes())
+        self.assertEqual(event['error_code'], 'audio_too_long')
+        self.assertIsNone(self.study.sessions[self.sid]['tasks'][task_id]['reference'])
+        self.assertFalse(self.study.sessions[self.sid]['tasks'][task_id]['transcription_attempted'])
+        self.assertFalse(self.capture(task_id)['asr_performed'])
+        self.assertEqual(saved.read_bytes(), original)
+
+    def test_custom_sourced_tts_metadata_is_hidden_until_reveal(self):
+        bundle = json.loads(self.audio_results.read_bytes())
+        bundle.update(constructed=False, text_scope_mn='Frozen source scope, not current school policy.')
+        bundle['cases'][0].update(source_refs=[dict(url='https://nmct.edu.mn/test', quote='Frozen source words')],
+            critical_reference_sha256='c' * 64)
+        self.audio_results.write_text(json.dumps(bundle), encoding='utf-8')
+        custom = trial.HumanTrial(self.root / 'runtime/custom-study', self.audio_results, self.review_file)
+        sid = custom.start(dict(pseudonym='P001', consent=True,
+            audio_storage_consent=False, implementation_participation=False))['session_id']
+        state = custom.state(sid)
+        self.assertEqual(state['listening_text_scope'], bundle['text_scope_mn'])
+        serialized = json.dumps(state['listening'])
+        self.assertNotIn('Frozen source words', serialized)
+        self.assertNotIn('critical_reference_sha256', serialized)
+        sample = state['listening'][0]
+        custom.listen(dict(self.listen_body(), session_id=sid, sample_id=sample['sample_id']))
+        revealed = custom.reveal(sid)[0]
+        self.assertEqual(revealed['source_refs'], bundle['cases'][0]['source_refs'])
+        self.assertEqual(revealed['critical_reference_sha256'], 'c' * 64)
+
     def test_audio_consent_false_blocks_upload_before_upstream(self):
         self.study.sessions[self.sid]['consent']['audio_storage_consent'] = False
         with patch.object(self.study, '_upstream') as upstream, self.assertRaisesRegex(ValueError, 'consent'):
-            self.study.transcribe(self.sid, self.task(), b'voice', 'audio/wav')
+            self.capture(self.task())
         upstream.assert_not_called()
 
     def test_raw_uses_server_text_and_explicit_edit_requires_human_action(self):
         task_id = self.task()
         upstream_stt = dict(kind='stt', id='a'*32, text='original raw')
         result = dict(answer='fixture answer', route='C', package_id='fixture', input_lineage={'kind':'raw_stt'})
+        self.ready_recording(task_id)
         with patch.object(self.study, '_upstream', side_effect=[upstream_stt, result, result]) as upstream:
-            self.study.transcribe(self.sid, task_id, b'fixture voice', 'audio/wav')
+            self.study.transcribe(self.sid, task_id)
             with self.assertRaisesRegex(ValueError, 'immutable'):
                 self.study.route(self.route_body(task_id, 'raw', 'secretly changed', False))
             self.study.route(self.route_body(task_id, 'raw'))
@@ -240,9 +417,10 @@ class HumanQualityTests(TrialFixture):
             with self.assertRaises(trial.TrialConflict):
                 self.study.route(self.route_body(task_id))
         with patch.object(self.study, '_upstream', return_value=dict(kind='stt', id='a'*32, text='raw')):
-            self.study.transcribe(self.sid, task_id, b'voice', 'audio/wav')
+            self.ready_recording(task_id)
+            self.study.transcribe(self.sid, task_id)
             with self.assertRaises(trial.TrialConflict):
-                self.study.transcribe(self.sid, task_id, b'another voice', 'audio/wav')
+                self.study.transcribe(self.sid, task_id)
 
     def test_synthesis_is_bound_to_real_result_and_other_session_audio_denied(self):
         task_id = self.task()
@@ -291,7 +469,7 @@ class HumanTrialHTTPTests(TrialFixture):
     def request(self, method, path, body=None, headers=None):
         conn = http.client.HTTPConnection('127.0.0.1', self.server.server_port, timeout=5)
         self.addCleanup(conn.close)
-        raw = json.dumps(body).encode() if body is not None else None
+        raw = body if isinstance(body, bytes) else json.dumps(body).encode() if body is not None else None
         supplied = {'Origin':self.origin, 'X-Trial-Token':self.study.token, 'Content-Type':'application/json'}
         supplied.update(headers or {})
         conn.request(method, path, raw, supplied)
@@ -326,6 +504,26 @@ class HumanTrialHTTPTests(TrialFixture):
                 self.assertEqual(self.request('GET', '/api/state', headers=headers)[0], 400)
         self.assertEqual(self.request('GET', '/api/state', headers={'Content-Length':'0'})[0], 200)
         self.assertEqual(self.request('POST', '/api/review', self.review_body(), {'Transfer-Encoding':''})[0], 400)
+
+    def test_http_record_reference_then_asr_uses_retained_wav_only(self):
+        task_id = self.task()
+        body = dict(session_id=self.sid, task_id=task_id)
+        with patch.object(self.study, '_upstream', return_value=dict(kind='stt', id='a' * 32, text='fixture raw')) as upstream:
+            self.assertEqual(self.request('POST', '/api/task/transcribe', body)[0], 400)
+            code, raw, _ = self.request('POST', '/api/task/record', self.recording,
+                {'Content-Type': 'audio/wav', 'X-Session-Id': self.sid, 'X-Task-Id': task_id})
+            self.assertEqual(code, 200)
+            captured = json.loads(raw)
+            code, wav, headers = self.request('GET', captured['audio_url'])
+            self.assertEqual(code, 200)
+            self.assertEqual(headers['Content-Type'], 'audio/wav')
+            self.assertTrue(wav.startswith(b'RIFF'))
+            self.assertEqual(self.request('POST', '/api/task/transcribe', body)[0], 400)
+            upstream.assert_not_called()
+            ref = self.reference_body(task_id, captured['audio_sha256'])
+            self.assertEqual(self.request('POST', '/api/task/reference', ref)[0], 200)
+            self.assertEqual(self.request('POST', '/api/task/transcribe', body)[0], 200)
+        self.assertEqual(upstream.call_count, 1)
 
 
 if __name__ == '__main__':

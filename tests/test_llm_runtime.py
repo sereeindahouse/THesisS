@@ -55,6 +55,29 @@ class LLMRuntimeTests(unittest.TestCase):
         self.assertEqual(result["llm_calls"], 0)
         self.assertEqual(fake.calls, [])
 
+    def test_status_retains_valid_model_digest_without_generation(self):
+        fake = FakeTransport()
+        fake.tags_response = {'models': [{'name': 'test-model:latest', 'digest': 'a' * 64}]}
+        runtime = self.runtime(fake)
+        self.assertEqual(runtime.status()['model_digest'], 'sha256:' + 'a' * 64)
+        self.assertEqual(runtime.status()['model_digest'], 'sha256:' + 'a' * 64)
+        self.assertEqual([call[0] for call in fake.calls], ['GET'])
+        fake.tags_response['models'][0]['digest'] = 'sha256:' + 'b' * 64
+        runtime._cached_at = 0
+        self.assertEqual(runtime.status()['model_digest'], 'sha256:' + 'b' * 64)
+
+    def test_missing_malformed_or_conflicting_digests_are_not_invented(self):
+        for records in ([{'name': 'test-model:latest'}],
+                        [{'name': 'test-model:latest', 'digest': 'not-a-sha'}],
+                        [{'name': 'test-model:latest', 'digest': 'a' * 64},
+                         {'model': 'test-model:latest', 'digest': 'b' * 64}]):
+            with self.subTest(records=records):
+                fake = FakeTransport()
+                fake.tags_response = {'models': records}
+                status = self.runtime(fake).status()
+                self.assertTrue(status['available'])
+                self.assertIsNone(status['model_digest'])
+
     def test_external_credentials_query_and_non_http_origins_rejected(self):
         urls = ["http://example.org:11434", "http://127.0.0.1.evil:11434",
                 "http://user:secret@127.0.0.1:11434", "http://127.0.0.1:11434/?x=1",

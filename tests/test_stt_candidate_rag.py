@@ -536,5 +536,289 @@ class PairedRAGContracts(unittest.TestCase):
             evaluation.prepare(self.source, self.packet, root=self.root, rubric_path=path)
 
 
+class PartialAttemptRAGContracts(unittest.TestCase):
+    """Constructed partial evidence; no private clips, human scores or sockets."""
+    rebind = PairedRAGContracts.rebind
+
+    def setUp(self):
+        PairedRAGContracts.setUp(self)
+        self.status['rag']['provider']['model_digest'] = 'sha256:' + 'a' * 64
+        self.partial_base = self.root / 'runtime/constructed-partial'
+        self.partial_base.mkdir()
+        self.partial_source = self.partial_base / 'source-index.json'
+        for row in self.raw:
+            row['candidate']['model'] = 'gemini-3.5-transcribe'
+        self.missing_id = self.raw[4]['id']
+        self.raw[4]['candidate']['text'] = None
+        self.raw[4]['error'] = 'http_429'
+        for kind in ('silence', 'noise'):
+            identity = 'constructed-' + kind
+            audio_sha = hashlib.sha256(identity.encode()).hexdigest()
+            self.manifest['control_rows'].append(dict(id=identity, audio_sha256=audio_sha, control_kind=kind))
+            self.raw.append(dict(id=identity, audio_sha256=audio_sha, group='control', kind=kind,
+                baseline=dict(text='', error=None), candidate=dict(text=None, model='gemini-3.5-transcribe'),
+                error='missing_interaction_output'))
+        self.index = dict(schema_version=1, evidence_kind='partial_stt_attempts')
+        for name, filename in dict(protocol='protocol.json', manifest='manifest.json', approval='approval.json',
+                first_run='first', continuation_run='continuation', final_run='final',
+                execution_claim='execution-claim.json', continuation_claim='continuation-claim.json',
+                final_claim='final-claim.json', executed_source='executed-stt.py',
+                continuation_source='executed-continuation.py', final_source='executed-final.py').items():
+            self.index[name] = (self.partial_base / filename).relative_to(self.root).as_posix()
+        for name in ('executed_source', 'continuation_source', 'final_source'):
+            (self.root / self.index[name]).write_text('# Constructed retained version: ' + name, encoding='utf-8')
+        self.persist_partial()
+
+    def path(self, key):
+        return self.root / self.index[key]
+
+    def persist_partial(self):
+        """Rebind constructed hashes, so semantic-corruption tests remain meaningful."""
+        write_json(self.path('manifest'), self.manifest)
+        protocol = dict(model='gemini-3.5-transcribe', manifest_sha256=digest(self.path('manifest')),
+            reference_sha256=hashlib.sha256(evaluation._bytes([dict(id=row['id'], reference=row['reference'])
+                for row in self.manifest['human_rows']])).hexdigest(),
+            code_sha256={'tools/compare_stt_candidate.py': digest(self.path('executed_source'))},
+            recordings=[{key: row[key] for key in ('id', 'audio_sha256', 'group', 'kind')} for row in self.raw])
+        write_json(self.path('protocol'), protocol)
+        protocol_sha = digest(self.path('protocol'))
+        approval = dict(protocol_sha256=protocol_sha, manifest_sha256=protocol['manifest_sha256'])
+        write_json(self.path('approval'), approval)
+        approval_sha = digest(self.path('approval'))
+        segments = (self.raw[:5], self.raw[5:14], self.raw[14:])
+        for key, rows in zip(('first_run', 'continuation_run', 'final_run'), segments):
+            self.path(key).mkdir(exist_ok=True)
+            (self.path(key) / 'results.jsonl').write_text(''.join(json.dumps(row) + '\n' for row in rows), encoding='utf-8')
+        write_json(self.path('first_run') / 'protocol.json', protocol)
+        write_json(self.path('first_run') / 'manifest-snapshot.json', self.manifest)
+        first = dict(model='gemini-3.5-transcribe', completed=False,
+            protocol_sha256=protocol_sha, manifest_sha256=protocol['manifest_sha256'],
+            approval_sha256=approval_sha, transcription_attempts=5,
+            completed_recordings=sum(not row.get('error') for row in segments[0]),
+            error=segments[0][-1].get('error'), results_sha256=digest(self.path('first_run') / 'results.jsonl'))
+        write_json(self.path('first_run') / 'run.json', first)
+        first_sha = digest(self.path('first_run') / 'run.json')
+        continuation = dict(original_run_sha256=first_sha, original_results_sha256=first['results_sha256'],
+            original_error_retained=first['error'], protocol_sha256=protocol_sha, approval_sha256=approval_sha,
+            script_sha256=digest(self.path('continuation_source')), original_attempts=5,
+            additional_attempts=9, additional_successes=sum(not row.get('error') for row in segments[1]),
+            global_attempts=14, completed=False, full_cohort_success=False,
+            error=segments[1][-1].get('error'), results_sha256=digest(self.path('continuation_run') / 'results.jsonl'))
+        write_json(self.path('continuation_run') / 'run.json', continuation)
+        write_json(self.path('execution_claim'), dict(protocol_sha256=protocol_sha, output_path=self.index['first_run']))
+        write_json(self.path('continuation_claim'), dict(original_run_sha256=first_sha,
+            original_results_sha256=first['results_sha256'], protocol_sha256=protocol_sha,
+            approval_sha256=approval_sha, script_sha256=continuation['script_sha256'], original_attempts=5,
+            remaining_ids=[row['id'] for row in self.manifest['human_rows'][5:] + self.manifest['control_rows']],
+            output_path=self.index['continuation_run']))
+        last = dict(original_run_sha256=first_sha, continuation_run_sha256=digest(self.path('continuation_run') / 'run.json'),
+            protocol_sha256=protocol_sha, approval_sha256=approval_sha, script_sha256=digest(self.path('final_source')),
+            id=self.raw[-1]['id'], original_global_attempts=14, global_limit=15)
+        write_json(self.path('final_claim'), last)
+        write_json(self.path('final_run') / 'source-binding.json', last)
+        write_json(self.path('final_run') / 'run.json', dict(source_binding_sha256=digest(self.path('final_run') / 'source-binding.json'),
+            global_attempts_before=14, global_attempts=15, additional_attempts=1, all_inputs_attempted=True,
+            full_cohort_success=False, earlier_errors_retained=True, error=self.raw[-1].get('error'),
+            results_sha256=digest(self.path('final_run') / 'results.jsonl')))
+        write_json(self.partial_source, self.index)
+
+    def prepare(self, rubric_path=None):
+        return evaluation.prepare_partial(self.partial_source, self.packet, root=self.root, rubric_path=rubric_path)
+
+    def run_evaluation(self, transport=None):
+        self.transport = transport or FakeTransport(self.status)
+        return evaluation.run(self.partial_source, self.packet, self.output, root=self.root, transport=self.transport)
+
+    def test_partial_prepare_preserves_all_originals_and_exports_missingness(self):
+        before = {path: path.read_bytes() for path in self.partial_base.rglob('*') if path.is_file()}
+        with patch('urllib.request.urlopen', side_effect=AssertionError('No network during prepare')):
+            protocol = self.prepare()
+        self.assertEqual(before, {path: path.read_bytes() for path in self.partial_base.rglob('*') if path.is_file()})
+        cohort = protocol['cohort']
+        self.assertEqual(cohort['intended_human_recordings'], 13)
+        self.assertEqual(cohort['paired_human_recordings'], 12)
+        self.assertFalse(cohort['full_cohort_success'])
+        self.assertEqual(cohort['missing_inputs'][0]['error'], 'http_429')
+        self.assertEqual([row['error'] for row in cohort['excluded_controls']], ['missing_interaction_output'] * 2)
+        review = json.loads((self.packet / 'human-review-template.json').read_text(encoding='utf-8'))
+        self.assertEqual(review['records'][4]['input_errors'], dict(candidate_raw='http_429'))
+        self.assertFalse(review['records'][4]['available_inputs']['candidate_raw'])
+        self.assertIsNone(review['records'][4]['candidate_task_success'])
+
+    def test_partial_execution_records_all39_cases_with_only38_posts(self):
+        self.prepare()
+        state = self.run_evaluation()
+        self.assertTrue(state['completed'])  # downstream accounting, never full speech success
+        self.assertFalse(state['cohort']['full_cohort_success'])
+        self.assertEqual(state['logical_cases'], 39)
+        self.assertEqual(len(self.transport.route_payloads), 38)
+        rows = [json.loads(line) for line in (self.output / 'results.jsonl').read_text(encoding='utf-8').splitlines()]
+        missing = [row for row in rows if row['status'] == 'missing_input']
+        self.assertEqual(len(missing), 1)
+        self.assertEqual((missing[0]['id'], missing[0]['arm']), (self.missing_id, 'candidate_raw'))
+        self.assertIsNone(missing[0]['query'])
+        self.assertIsNone(missing[0]['response'])
+        self.assertIsNone(missing[0]['error'])
+        self.assertEqual(missing[0]['input_error'], 'http_429')
+        summary = evaluation.summarize(self.output, root=self.root)
+        self.assertTrue(summary['completed'])
+        self.assertFalse(summary['full_cohort_success'])
+        self.assertIsNone(summary['task_accuracy'])
+        self.assertIsNone(summary['paired_subset']['task_accuracy'])
+        self.assertEqual(summary['arms']['candidate_raw']['missing_input'], 1)
+        self.assertEqual(summary['paired_subset']['human_recordings'], 12)
+        self.assertEqual(summary['paired_subset']['arms']['typed']['answered'], 12)
+
+    def test_full_prepare_does_not_accept_a_partial_index_implicitly(self):
+        with self.assertRaises((ValueError, OSError)):
+            evaluation.prepare(self.partial_source, self.packet, root=self.root)
+        self.assertFalse(self.packet.exists())
+
+    def test_wrong_original_results_hash_rejected_before_packet_or_network(self):
+        path = self.path('first_run') / 'run.json'
+        state = json.loads(path.read_text())
+        state['results_sha256'] = '0' * 64
+        write_json(path, state)
+        with self.assertRaises(ValueError):
+            self.prepare()
+        self.assertFalse(self.packet.exists())
+
+    def test_duplicate_attempt_id_rejected_even_with_rebound_file_hashes(self):
+        self.raw[6]['id'] = self.raw[5]['id']
+        self.persist_partial()
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_changed_audio_binding_rejected_even_with_rebound_file_hashes(self):
+        self.raw[6]['audio_sha256'] = '0' * 64
+        self.persist_partial()
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_missing_source_index_field_is_not_defaulted(self):
+        del self.index['executed_source']
+        write_json(self.partial_source, self.index)
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_new_adapter_source_cannot_replace_retained_executed_version(self):
+        self.path('executed_source').write_text('# A later adapter repair', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_failed_candidate_cannot_be_relabelled_empty_success(self):
+        self.raw[4]['candidate']['text'] = ''
+        self.persist_partial()
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_missing_text_requires_an_original_error(self):
+        del self.raw[4]['error']
+        self.persist_partial()
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_absent_candidate_text_field_cannot_masquerade_as_explicit_missing_input(self):
+        del self.raw[4]['candidate']['text']
+        self.persist_partial()
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_continuation_cannot_point_at_another_first_run(self):
+        path = self.path('continuation_claim')
+        claim = json.loads(path.read_text())
+        claim['original_run_sha256'] = '0' * 64
+        write_json(path, claim)
+        with self.assertRaises(ValueError):
+            self.prepare()
+
+    def test_source_mutation_during_execution_stops_before_another_post(self):
+        self.prepare()
+        def mutate(number):
+            if number == 1:
+                with (self.path('first_run') / 'results.jsonl').open('a', encoding='utf-8') as stream:
+                    stream.write('\n')
+        state = self.run_evaluation(FakeTransport(self.status, after_route=mutate))
+        self.assertFalse(state['completed'])
+        self.assertEqual(len(self.transport.route_payloads), 1)
+
+    def test_partial_missing_or_malformed_model_digest_stops_before_any_post(self):
+        for index, value in enumerate((None, '', 'a' * 64, 'sha256:' + 'A' * 64,
+                                       'sha256:' + 'g' * 64, 'sha256:' + 'a' * 63)):
+            with self.subTest(digest=value):
+                self.packet = self.root / ('runtime/partial-digest-packet-' + str(index))
+                self.output = self.root / ('runtime/partial-digest-run-' + str(index))
+                self.prepare()
+                status = deepcopy(self.status)
+                if value is None:
+                    status['rag']['provider'].pop('model_digest')
+                else:
+                    status['rag']['provider']['model_digest'] = value
+                state = self.run_evaluation(FakeTransport(status))
+                self.assertFalse(state['completed'])
+                self.assertEqual(state['route_attempts'], 0)
+                self.assertEqual(self.transport.route_payloads, [])
+
+    def test_same_model_alias_with_a_different_digest_stops_during_execution(self):
+        self.prepare()
+        def change(value):
+            value['rag']['provider']['model_digest'] = 'sha256:' + 'b' * 64
+        state = self.run_evaluation(FakeTransport(self.status, status_change_at=3, status_change=change))
+        self.assertFalse(state['completed'])
+        self.assertEqual(len(self.transport.route_payloads), 1)
+        snapshot = json.loads((self.output / 'server-snapshot.json').read_text(encoding='utf-8'))
+        self.assertEqual(snapshot['provider_identity']['model_digest'], 'sha256:' + 'a' * 64)
+
+    def test_after_run_original_mutation_cannot_keep_a_valid_summary(self):
+        self.prepare()
+        self.run_evaluation()
+        self.path('executed_source').write_text('# Changed retained evidence', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            evaluation.summarize(self.output, root=self.root)
+
+    def reviewed_partial(self):
+        rubric = dict(schema_version=1, reference_confirmed=True, reference_origin='human',
+            reviewer='Constructed fixture reviewer only', records=[dict(id=row['id'], task_applicable=True,
+                answerability='unsupported', required_fields=[], reference_sources=[])
+                for row in self.manifest['human_rows']])
+        path = self.root / 'runtime/constructed-partial-rubric.json'
+        write_json(path, rubric)
+        self.prepare(path)
+        self.run_evaluation()
+        review = json.loads((self.output / 'bound-human-review-template.json').read_text(encoding='utf-8'))
+        review.update(human_review_complete=True, judgments_origin='human', reviewer='Constructed fixture only',
+                      reviewed_at_utc='2026-10-30T01:00:00Z')
+        for row in review['records']:
+            row.update(typed_task_success=True, baseline_task_success=True, candidate_task_success=True)
+        return review
+
+    def test_missing_input_cannot_be_claimed_success_by_a_review(self):
+        review = self.reviewed_partial()
+        write_json(self.output / 'human-review.json', review)
+        summary = evaluation.summarize(self.output, root=self.root)
+        self.assertFalse(summary['human_review_complete'])
+        self.assertIsNone(summary['task_accuracy'])
+        self.assertEqual(summary['human_review_issue'], 'success_without_a_question_or_answer')
+
+    def test_review_retains_full13_and_paired12_denominators_separately(self):
+        review = self.reviewed_partial()
+        review['records'][4]['candidate_task_success'] = False
+        write_json(self.output / 'human-review.json', review)
+        summary = evaluation.summarize(self.output, root=self.root)
+        self.assertTrue(summary['human_review_complete'])
+        self.assertEqual(summary['task_accuracy']['candidate_raw'], dict(successes=12, denominator=13))
+        self.assertEqual(summary['paired_subset']['task_accuracy']['candidate_raw'], dict(successes=12, denominator=12))
+        self.assertFalse(summary['full_cohort_success'])
+
+    def test_review_cannot_remove_the_missingness_metadata(self):
+        review = self.reviewed_partial()
+        review['records'][4]['candidate_task_success'] = False
+        review['records'][4]['input_errors'] = {}
+        write_json(self.output / 'human-review.json', review)
+        summary = evaluation.summarize(self.output, root=self.root)
+        self.assertFalse(summary['human_review_complete'])
+        self.assertIsNone(summary['task_accuracy'])
+
+
 if __name__ == '__main__':
     unittest.main()

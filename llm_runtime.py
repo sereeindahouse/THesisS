@@ -242,7 +242,8 @@ class LLMRuntime:
     def status(self) -> dict:
         base = {"provider": "ollama_local", "configured": self.configured,
                 "available": False, "provider_ready": False, "model": self.model or None,
-                "llm_calls": 0, "automatic_application": False, "network_probe": False}
+                "llm_calls": 0, "automatic_application": False, "network_probe": False,
+                "model_digest": None}
         if not self.configured:
             base.update(reason=self._configuration_error or "model_not_configured",
                         message="Локал LLM тохируулаагүй. STT-ийн эх текстийг хэвээр ашиглана.")
@@ -270,6 +271,15 @@ class LLMRuntime:
                 remote = any(item.get("remote_host") or item.get("remote_model") or item.get("remote")
                              for item in matches)
                 present = bool(matches) and not remote
+                digests = []
+                for item in matches:
+                    digest = item.get('digest')
+                    if not isinstance(digest, str) or not re.fullmatch(r'(?:sha256:)?[0-9a-f]{64}', digest):
+                        digests = []
+                        break
+                    digests.append(digest.removeprefix('sha256:'))
+                if present and len(set(digests)) == 1:
+                    base['model_digest'] = 'sha256:' + digests[0]
                 reason = "remote_model_forbidden" if remote else ("ready" if present else "model_not_installed")
                 message = ("Локал LLM санал гаргахад бэлэн." if present else
                            "Cloud модель ашиглахгүй. STT-ийн эх текст хэвээр." if remote else
