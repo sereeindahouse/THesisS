@@ -1537,7 +1537,8 @@ class ChatRAG:
             live_query=re.sub(r'\b(?:энэ\s+жил|одоогоор)\b','',live_query)
         live = bool(re.search(r"өнөөдөр|өнөөдр\w*|яг одоо|одоогоор|энэ жил|одоо.*(?:бүртг|нээлт|элс)|бүртг.*(?:одоо|нээлт)", live_query))
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
-        evidence = year_evidence_sources(query, candidates)
+        year_evidence = year_evidence_sources(query, candidates)
+        evidence = year_evidence
         evidence=admission_stage_sources(query,admission_announcement_sources(query,dated_news_evidence_sources(query,article_evidence_sources(query,evidence))))
         office_scope = named_office_field_scope(query, evidence)
         if office_scope is not None and not office_scope['sources']:
@@ -1583,6 +1584,25 @@ class ChatRAG:
             result['rag']['staff_scope_filter'] = {key: staff[key] for key in
                 ('kind', 'department_titles', 'department_urls', 'person')}
             if staff.get('stop'):
+                if staff['stop'] == 'staff_count_not_supported' and years and candidates and not year_evidence:
+                    # Year filtering removed the evidence before staff counting.
+                    # Explain that boundary rather than claiming the count is absent.
+                    # This is retrieval coverage, not proof that a spoken year was wrong.
+                    available_years = set().union(*(set(re.findall(
+                        r'(?<!\d)(?:19|20)\d{2}(?!\d)', source['text'] + ' ' +
+                        source.get('title', '') + ' ' + source.get('page_header', '')))
+                        for source in candidates))
+                    missing_years = sorted(years - available_years)
+                    result.update(route='E', answer=None, citations=[], related_sources=[],
+                        reason_code='requested_year_not_supported',
+                        message=('Асуусан ' + ', '.join(missing_years or sorted(years)) +
+                            (' оныг батлах тохирох эх энэ хайлтаар олдсонгүй. ' if missing_years else
+                             ' оны хүрээг хамтад нь батлах тохирох эх энэ хайлтаар олдсонгүй. ') +
+                            'Асуултын оноо нягтална уу. Өөр оны мэдээллээр орлуулахгүй.'))
+                    result['rag'].update(reason='requested_year_not_supported',
+                        year_scope_filter=dict(requested_years=sorted(years),
+                            unsupported_years=missing_years, stage='retrieved_candidates'))
+                    return self._remember(result, allow_draft)
                 result.update(route='D' if staff['stop']=='clarify_staff_scope' else 'E',
                     answer=None, citations=[], reason_code=staff['stop'], message=staff['message'],
                     suggestions=['Химийн тэнхимийн багш хэд вэ?',

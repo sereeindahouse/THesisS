@@ -53,6 +53,53 @@ class ComplementaryYearEvidenceTests(unittest.TestCase):
         self.assertEqual(result['route'], 'C')
         self.assertEqual(generator.sources, [self.first, self.second])
 
+    def test_missing_staff_year_explains_year_coverage_without_changing_query(self):
+        row = source('2018 онд 3 үндсэн багштай байсан. 2022–2023 онд 9 багштай ажиллав.',
+                     title='Фотоник инженерийн тэнхим')
+        query = 'Фотоник инженерийн тэнхим 2018, 2027, 2022–2023 онд хэдэн багштай байсан бэ?'
+        result, generator = chat_result(query, [row])
+        self.assertEqual(result['query'], query)
+        self.assertEqual(result['route'], 'E')
+        self.assertEqual(result['reason_code'], 'requested_year_not_supported')
+        self.assertEqual(result['rag']['year_scope_filter']['unsupported_years'], ['2027'])
+        self.assertIn('2027', result['message'])
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['citations'], [])
+        self.assertEqual(generator.calls, 0)
+
+    def test_staff_academic_interval_still_requires_shared_source(self):
+        first = source('2018 онд 3 үндсэн багштай.', title='Фотоник инженерийн тэнхим')
+        second = source('2022 онд 9 үндсэн багштай.', name='second',
+                        title=first['title'], url=first['url'])
+        result, generator = chat_result('Фотоник инженерийн тэнхим 2018–2022 онд хэдэн багштай вэ?',
+                                         [first, second])
+        self.assertEqual(result['reason_code'], 'requested_year_not_supported')
+        self.assertEqual(result['rag']['year_scope_filter']['unsupported_years'], [])
+        self.assertIn('хамтад нь', result['message'])
+        self.assertEqual(generator.calls, 0)
+
+    def test_supported_year_does_not_disguise_a_missing_staff_count(self):
+        row = source('2022 онд сургалтын шинэ арга нэвтрүүлэв.', title='Фотоник инженерийн тэнхим')
+        for query in ['Фотоник инженерийн тэнхим 2022 онд хэдэн багштай вэ?',
+                      'Фотоник инженерийн тэнхим хэдэн багштай вэ?']:
+            with self.subTest(query=query):
+                result, generator = chat_result(query, [row])
+                self.assertEqual(result['reason_code'], 'staff_count_not_supported')
+                self.assertNotIn('year_scope_filter', result['rag'])
+                self.assertEqual(generator.calls, 0)
+
+    def test_missing_year_does_not_guess_an_unnamed_department(self):
+        row = source('2018 онд 3 үндсэн багштай.', title='Фотоник инженерийн тэнхим')
+        result, generator = chat_result('2027 онд тэнхим хэдэн багштай вэ?', [row])
+        self.assertEqual(result['route'], 'E')
+        self.assertEqual(result['reason_code'], 'requested_year_not_supported')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['rag']['staff_scope_filter']['department_titles'], [])
+        self.assertEqual(generator.calls, 0)
+        result, generator = chat_result('2018 онд тэнхим хэдэн багштай вэ?', [row])
+        self.assertEqual(result['reason_code'], 'clarify_staff_scope')
+        self.assertEqual(generator.calls, 0)
+
 
 class DepartmentAndReferentTests(unittest.TestCase):
     def setUp(self):
