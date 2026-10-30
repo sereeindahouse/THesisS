@@ -40,6 +40,7 @@ MAX_ATTEMPTS = 15
 MAX_COST_USD = Decimal('0.10')
 MAX_OUTPUT_TOKENS = 480
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+SERVICE_TIER_CHECKED_DATE = '2026-10-30'
 INPUT_USD_PER_MILLION = Decimal('2.00')
 OUTPUT_USD_PER_MILLION = Decimal('12.00')
 CODE_FILES = ('tools/compare_stt_candidate.py', 'tools/evaluate_stt_context.py',
@@ -49,6 +50,7 @@ SOURCE_URLS = {
     'interactions': 'https://ai.google.dev/api/interactions-api',
     'files': 'https://ai.google.dev/gemini-api/docs/files',
     'pricing': 'https://ai.google.dev/gemini-api/docs/pricing',
+    'data_terms': 'https://ai.google.dev/gemini-api/terms',
 }
 _FILE_NAME = re.compile(r'files/[a-zA-Z0-9_-]{1,160}\Z')
 _SAFE_CODE = re.compile(r'[a-z][a-z0-9_]{0,80}\Z')
@@ -146,9 +148,18 @@ def estimated_cost(audio_seconds, attempts):
             / Decimal(1000000))
 
 
-def prepare(manifest_path, output_dir, *, root=ROOT):
+def _execution_caps(service_tier):
+    return dict(max_transcription_attempts=MAX_ATTEMPTS, timeout_seconds=TIMEOUT_SECONDS,
+                automatic_retries=0,
+                max_estimated_cost_usd=0.0 if service_tier == 'free' else float(MAX_COST_USD),
+                max_output_tokens=MAX_OUTPUT_TOKENS)
+
+
+def prepare(manifest_path, output_dir, *, root=ROOT, service_tier='paid'):
     """Write a new private review packet; perform zero inference/network calls."""
     root = Path(root).resolve()
+    if service_tier not in {'paid', 'free'}:
+        raise ValueError('Choose the paid or free service tier explicitly.')
     output = _private_path(root, output_dir)
     if output.exists():
         raise FileExistsError('Output exists; preserve the earlier packet.')
@@ -164,6 +175,8 @@ def prepare(manifest_path, output_dir, *, root=ROOT):
     protocol = dict(
         schema_version=1, created_utc=_now(), study='observed development cohort',
         state='prepared_awaiting_user_authorization', model=MODEL,
+        service_tier=service_tier, service_tier_checked_date=SERVICE_TIER_CHECKED_DATE,
+        paid_fallback_allowed=False,
         transcription_mode='verbatim', language_codes=['mn-MN'],
         manifest_sha256=captured['manifest_sha256'],
         reference_sha256=captured['reference_sha256'], code_sha256=_code_hashes(),
@@ -176,14 +189,14 @@ def prepare(manifest_path, output_dir, *, root=ROOT):
         recordings=[dict(id=row['id'], group=row['group'], kind=row['kind'],
                          audio_sha256=row['audio_sha256'],
                          seconds=row['audio_audit']['seconds']) for row in rows],
-        caps=dict(max_transcription_attempts=MAX_ATTEMPTS, timeout_seconds=TIMEOUT_SECONDS,
-                  automatic_retries=0, max_estimated_cost_usd=float(MAX_COST_USD),
-                  max_output_tokens=MAX_OUTPUT_TOKENS),
+        caps=_execution_caps(service_tier),
         pricing=dict(checked_date='2026-10-29', source=SOURCE_URLS['pricing'],
                      input_usd_per_million_tokens=float(INPUT_USD_PER_MILLION),
                      output_usd_per_million_tokens=float(OUTPUT_USD_PER_MILLION),
                      estimated_audio_tokens_per_second=25,
                      conservative_estimated_cost_usd=float(estimate),
+                     paid_equivalent_estimated_cost_usd=float(estimate),
+                     estimate_basis='paid_rate_equivalent_not_actual_bill',
                      billing_cap_guaranteed=False),
         acceptance=dict(required_human_recordings=13, required_reference_words=186,
                         required_reference_characters=1089,
@@ -201,6 +214,8 @@ def prepare(manifest_path, output_dir, *, root=ROOT):
             'Files API deletion is attempted after each upload; deletion is not a claim about vendor logs.',
             'Account tier, current price and data handling require user review before authorization.',
             'Token estimate and request limits are not an enforceable provider billing cap.',
+            'A free-tier protocol cannot make a paid-backed credential free or verify its billing tier.',
+            'Unpaid data terms can allow product improvement and human review; store=False and file deletion do not override them.',
         ])
     output.mkdir(parents=True, exist_ok=False)
     _write_new(output / 'protocol.json', protocol)
@@ -216,9 +231,13 @@ def prepare(manifest_path, output_dir, *, root=ROOT):
                     authorization_note=None, user_cloud_audio_upload_authorized=False,
                     user_paid_service_authorized=False, paid_service_account_confirmed=False,
                     billing_project_id=None, billing_verified_at_utc=None, model=MODEL,
+                    service_tier=service_tier, paid_fallback_allowed=False,
+                    user_unpaid_data_terms_acknowledged=False,
+                    free_service_account_confirmed=False,
+                    free_service_verification_source=None, free_service_verified_at_utc=None,
                     manifest_sha256=captured['manifest_sha256'], protocol_sha256=protocol_sha256,
                     max_transcription_attempts=MAX_ATTEMPTS,
-                    max_estimated_cost_usd=float(MAX_COST_USD))
+                    max_estimated_cost_usd=protocol['caps']['max_estimated_cost_usd'])
     _write_new(output / 'approval-template.json', approval)
     review = dict(schema_version=1, manifest_sha256=captured['manifest_sha256'],
                   protocol_sha256=protocol_sha256, reviewer=None, reviewed_at_utc=None,
@@ -238,9 +257,15 @@ def validate_approval(approval, protocol, protocol_sha256):
     """Require explicit user-recorded consent bound to these exact private inputs."""
     if not isinstance(approval, dict) or approval.get('schema_version') != 1:
         raise ValueError('An explicit authorization record is required.')
-    for name in ('user_cloud_audio_upload_authorized', 'user_paid_service_authorized'):
-        if approval.get(name) is not True:
-            raise ValueError('User cloud-audio and paid-service authorization are both required.')
+    # Missing tier belongs only to legacy paid packets, never an implicit free run.
+    service_tier = protocol.get('service_tier', 'paid')
+    if (service_tier not in {'paid', 'free'}
+            or approval.get('service_tier', 'paid') != service_tier
+            or protocol.get('paid_fallback_allowed', False) is not False
+            or approval.get('paid_fallback_allowed', False) is not False):
+        raise ValueError('Authorization must match the fixed service tier without paid fallback.')
+    if approval.get('user_cloud_audio_upload_authorized') is not True:
+        raise ValueError('Explicit user cloud-audio upload authorization is required.')
     if (approval.get('authorized_by') != 'user'
             or approval.get('model') != MODEL
             or approval.get('manifest_sha256') != protocol['manifest_sha256']
@@ -255,16 +280,32 @@ def validate_approval(approval, protocol, protocol_sha256):
         raise ValueError('Authorization timestamp must be ISO 8601 UTC.') from None
     if parsed.utcoffset() is None or parsed.utcoffset().total_seconds() != 0:
         raise ValueError('Authorization timestamp must be UTC.')
-    project = approval.get('billing_project_id')
-    if (approval.get('paid_service_account_confirmed') is not True
-            or not isinstance(project, str) or not re.fullmatch(r'[a-zA-Z0-9-]{1,120}', project)):
-        raise ValueError('Confirm the active paid project before private audio is uploaded.')
+    if service_tier == 'free':
+        if (approval.get('user_unpaid_data_terms_acknowledged') is not True
+                or approval.get('free_service_account_confirmed') is not True
+                or approval.get('user_paid_service_authorized') is not False
+                or approval.get('paid_service_account_confirmed') is not False
+                or approval.get('billing_project_id') is not None
+                or approval.get('billing_verified_at_utc') is not None
+                or approval.get('paid_fallback_allowed') is not False):
+            raise ValueError('Free service requires unpaid-data consent, verified free account and no paid authorization.')
+        source = approval.get('free_service_verification_source')
+        if not isinstance(source, str) or not 1 <= len(source.strip()) <= 2000:
+            raise ValueError('Record the actual source verifying this credential account uses the free tier.')
+        verified_value = approval.get('free_service_verified_at_utc')
+    else:
+        project = approval.get('billing_project_id')
+        if (approval.get('user_paid_service_authorized') is not True
+                or approval.get('paid_service_account_confirmed') is not True
+                or not isinstance(project, str) or not re.fullmatch(r'[a-zA-Z0-9-]{1,120}', project)):
+            raise ValueError('Confirm user paid-service permission and the active paid project before upload.')
+        verified_value = approval.get('billing_verified_at_utc')
     try:
-        verified = datetime.fromisoformat(approval.get('billing_verified_at_utc', '').replace('Z', '+00:00'))
+        verified = datetime.fromisoformat(verified_value.replace('Z', '+00:00'))
     except (ValueError, AttributeError):
-        raise ValueError('Record the real paid-project verification time in UTC.') from None
+        raise ValueError('Record the real service-account verification time in UTC.') from None
     if verified.utcoffset() is None or verified.utcoffset().total_seconds() != 0:
-        raise ValueError('Paid-project verification time must be UTC.')
+        raise ValueError('Service-account verification time must be UTC.')
     attempts = approval.get('max_transcription_attempts')
     if type(attempts) is not int or not len(protocol['recordings']) <= attempts <= MAX_ATTEMPTS:
         raise ValueError('Authorization must cover this packet within 15 transcription attempts.')
@@ -272,8 +313,11 @@ def validate_approval(approval, protocol, protocol_sha256):
         budget = Decimal(str(approval.get('max_estimated_cost_usd')))
     except Exception:
         raise ValueError('Invalid authorization budget.') from None
-    if (not budget.is_finite() or not Decimal('0') < budget <= MAX_COST_USD
-            or budget < Decimal(str(protocol['pricing']['conservative_estimated_cost_usd']))):
+    if service_tier == 'free':
+        if not budget.is_finite() or budget != 0:
+            raise ValueError('Free service authorizes exactly zero spending and no paid fallback.')
+    elif (not budget.is_finite() or not Decimal('0') < budget <= MAX_COST_USD
+          or budget < Decimal(str(protocol['pricing']['conservative_estimated_cost_usd']))):
         raise ValueError('Authorization budget must cover the estimate and remain at most USD 0.10.')
     return approval
 
@@ -520,6 +564,7 @@ def execute(manifest_path, packet_dir, output_dir, approval_path, *, root=ROOT,
     approval_path = _private_path(root, approval_path)
     approval, approval_sha256 = _read(approval_path)
     validate_approval(approval, protocol, protocol_sha256)
+    service_tier = protocol.get('service_tier', 'paid')
     captured = capture_manifest(manifest_path, root=root)
     if (captured['manifest_sha256'] != protocol['manifest_sha256']
             or captured['reference_sha256'] != protocol['reference_sha256']
@@ -527,9 +572,10 @@ def execute(manifest_path, packet_dir, output_dir, approval_path, *, root=ROOT,
             or sha(packet / 'manifest-snapshot.json') != protocol['manifest_sha256']):
         raise ValueError('Prepared manifest, references or evaluator code changed; prepare a new packet.')
     if (protocol.get('model') != MODEL or protocol.get('transcription_mode') != 'verbatim'
-            or protocol.get('caps') != dict(max_transcription_attempts=MAX_ATTEMPTS,
-                timeout_seconds=TIMEOUT_SECONDS, automatic_retries=0,
-                max_estimated_cost_usd=float(MAX_COST_USD), max_output_tokens=MAX_OUTPUT_TOKENS)):
+            or protocol.get('caps') != _execution_caps(service_tier)
+            or ('service_tier' in protocol
+                and protocol.get('service_tier_checked_date') != SERVICE_TIER_CHECKED_DATE)
+            or (service_tier == 'free' and protocol.get('paid_fallback_allowed') is not False)):
         raise ValueError('Protocol must retain the fixed model and execution bounds.')
     env = os.environ if environ is None else environ
     key = env.get('GEMINI_API_KEY')
@@ -548,6 +594,8 @@ def execute(manifest_path, packet_dir, output_dir, approval_path, *, root=ROOT,
             handle.write((packet / name).read_bytes())
     state = dict(schema_version=1, started_utc=_now(), completed=False,
                  model=MODEL, protocol_sha256=protocol_sha256,
+                 service_tier=service_tier, paid_fallback_allowed=False,
+                 max_authorized_spend_usd=approval['max_estimated_cost_usd'],
                  manifest_sha256=protocol['manifest_sha256'], approval_sha256=approval_sha256,
                  transcription_attempts=0, completed_recordings=0, error=None,
                  inference_performed=True, training_performed=False, production_accepted=False,
@@ -587,7 +635,8 @@ def execute(manifest_path, packet_dir, output_dir, approval_path, *, root=ROOT,
                     usage_recordings += 1
                     observed_cost += (Decimal(usage['total_input_tokens']) * INPUT_USD_PER_MILLION
                                       + Decimal(usage['total_output_tokens']) * OUTPUT_USD_PER_MILLION) / Decimal(1000000)
-                    if observed_cost > Decimal(str(approval['max_estimated_cost_usd'])):
+                    if (service_tier == 'paid'
+                            and observed_cost > Decimal(str(approval['max_estimated_cost_usd']))):
                         raise CandidateError('observed_token_cost_limit')
                 if sha(row['path']) != row['audio_sha256']:
                     raise CandidateError('audio_changed_during_inference')
@@ -609,8 +658,14 @@ def execute(manifest_path, packet_dir, output_dir, approval_path, *, root=ROOT,
     state['completed'] = state['error'] is None and state['completed_recordings'] == len(captured['rows'])
     state['finished_utc'] = _now()
     state['usage_complete'] = state['completed'] and usage_recordings == len(captured['rows'])
-    state['observed_token_cost_estimate_usd'] = float(observed_cost) if state['usage_complete'] else None
-    state['known_token_cost_estimate_usd'] = float(observed_cost) if usage_recordings else None
+    state['paid_equivalent_token_cost_estimate_usd'] = float(observed_cost) if state['usage_complete'] else None
+    state['known_paid_equivalent_token_cost_estimate_usd'] = float(observed_cost) if usage_recordings else None
+    # Preserve legacy paid fields; free usage is not evidence of a paid charge or a zero bill.
+    state['observed_token_cost_estimate_usd'] = (
+        state['paid_equivalent_token_cost_estimate_usd'] if service_tier == 'paid' else None)
+    state['known_token_cost_estimate_usd'] = (
+        state['known_paid_equivalent_token_cost_estimate_usd'] if service_tier == 'paid' else None)
+    state['token_cost_estimate_basis'] = 'paid_rate_equivalent_not_actual_bill'
     state['usage_recordings'] = usage_recordings
     state['actual_billed_cost_usd'] = None
     state['results_sha256'] = sha(results_path)
@@ -681,6 +736,14 @@ def summarize(run_dir, *, root=ROOT):
                     and isinstance(r[arm].get('text'), str) and not r[arm].get('error')
                     for arm in ('baseline', 'candidate')) for r in results))
     summary = dict(completed=complete, human_metrics=None, nonspeech_results=[],
+                   service_tier=protocol.get('service_tier', 'paid'),
+                   paid_fallback_allowed=False,
+                   max_authorized_spend_usd=state.get('max_authorized_spend_usd'),
+                   paid_equivalent_token_cost_estimate_usd=state.get(
+                       'paid_equivalent_token_cost_estimate_usd', state.get('observed_token_cost_estimate_usd')),
+                   known_paid_equivalent_token_cost_estimate_usd=state.get(
+                       'known_paid_equivalent_token_cost_estimate_usd', state.get('known_token_cost_estimate_usd')),
+                   actual_billed_cost_usd=state.get('actual_billed_cost_usd'),
                    quality_status='incomplete_no_aggregate' if not complete else 'pending_human_review',
                    human_review_complete=False, critical_new_errors=None,
                    task_success_no_regression=None, automatic_checks=None,
@@ -776,6 +839,7 @@ def main(argv=None):
     prep = commands.add_parser('prepare', help='offline review packet; no key/network/inference')
     prep.add_argument('--manifest', required=True)
     prep.add_argument('--output', required=True)
+    prep.add_argument('--service-tier', choices=('paid', 'free'), default='paid')
     run = commands.add_parser('run', help='explicitly authorized private comparison only')
     for name in ('manifest', 'packet', 'output', 'approval'):
         run.add_argument('--' + name, required=True)
@@ -784,8 +848,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.command == 'prepare':
-            protocol = prepare(args.manifest, args.output)
+            protocol = prepare(args.manifest, args.output, service_tier=args.service_tier)
             value = dict(state=protocol['state'], human_recordings=protocol['human_recordings'],
+                         service_tier=protocol['service_tier'], paid_fallback_allowed=False,
                          control_recordings=protocol['control_recordings'], audio_seconds=protocol['audio_seconds'],
                          conservative_estimated_cost_usd=protocol['pricing']['conservative_estimated_cost_usd'],
                          network_calls=0, inference_calls=0)

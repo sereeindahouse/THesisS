@@ -173,3 +173,15 @@
 Хуучин13 ярианы зарим нь асуулт бус өгүүлбэр тул13 task гэж хүчээр denominator тогтоохгүй. Хүн output харахаас өмнө rubric-ийг хянаж,ямар тохиолдол үнэлэгдэхийг царцаана;хойно нь rubric засаж амжилтын хувийг өсгөхгүй. Одоогийн хувийн13 мөрийн draft rubric-ийн бүх үнэлгээ pending.
 
 Энэ шатны33 шинэ contract тестийг багтаасан тусдаа60 шалгалт PASS;өмнөх129-ийн суиттэй нэг шинэ accuracy болгон нийлүүлээгүй. Бодит серверийн status-ийг зөвхөн уншсан;бодит query POST,шинэ ASR/Gemini/TTS inference болон хүний шинэ оноо0. Бодит `paired-first` STT run байхгүй үед prepare зогсож,хуурамч RAG packet үүсгээгүй. Хуучин STT `review-v3`-ийн code/manifest binding хэвээр хүчинтэй.
+
+## 2026.10.30 — Free tier-ийн тусдаа protocol ба бодит хязгаар
+
+Дээрх paid-only packet ба inference0 гэсэн төлөв нь **10.29-ний түүхэн бэлтгэл**. Одоо `prepare --service-tier free` нь тусдаа hash-тай шинэ packet бэлтгэнэ; default `paid` болон хуучин paid packet-ийн validation хадгалагдсан. Code өөрчлөгдсөн тул хуучин `review-v3`-аар одоо run эхлүүлэхгүй; түүхийг дарж өөрчлөөгүй.
+
+Free protocol нь яг багцын бодит user cloud-upload зөвшөөрөл, unpaid өгөгдлийн нөхцөлийн acknowledgement, дансны free tier-ийн баталгааны эх/UTC цаг, зөвшөөрсөн төлбөр0, paid fallbackfalse-ийг шаарддаг. Түлхүүр өгсөн эсвэл model-list200 гарсан нь дансны billing tier-ийг өөрөө батлахгүй. Энэ удаа Free tier-ийг хэрэглэгч AI Studio дээрээс харж баталсан; үүнийг provider-ийн billing API-аас бие даан шалгасан мэт бичээгүй. [Google-ийн API key заавар](https://ai.google.dev/gemini-api/docs/api-key) болон [rate limits](https://ai.google.dev/gemini-api/docs/rate-limits)-ийг хамт хэрэглэнэ.
+
+Төлбөртэй дүйцүүлсэн token estimate ба бодит нэхэмжлэл өөр. Free горимын zero-spend зөвшөөрлийг paid equivalent estimate-тэй харьцуулан шинэ зөвшөөрөл зохиохгүй; бодит bill баталгаагүй үед `null`. Энэ protocol нь paid-backed credential-ийг программын аргаар үнэгүй болгодоггүй. Нэг pass-ийн15 оролдлого,480 output-token, single-use claim, frozen input/code hash, retry/fallback0 хэвээр.
+
+Free/paid урсгал, tier/эрхийн зөрүү, зөвшөөрөл/баталгаа дутуу үед factory үүсэхээс өмнө хориглох,429 үед нэг удаа зогсох зэрэг шинэ шалгалттай STT+RAG-ийн **79 contract тест PASS**. Эдгээр нь өмнөх тесттэй давхцсан, зохиомол transport-ийн техникийн шалгалт; шинэ хүний accuracy биш.
+
+Хэрэглэгчийн яг багц/unpaid нөхцөлийн зөвшөөрлийн дараа бодит Free танилт эхэлсэн боловч HTTP429-өөр тасарсан. Түүхий гаралт, partial хэмжилт, API diagnostic нь хувийн runtime-д хадгалагдана; энд хувийн transcript/үнэлгээг нийтлэхгүй. Нэг429-өөс яг RPM/RPD хэмжээг таамаглахгүй. Бүрэн бус run-оос бүтэн13-ын score, дууссан RAG input эсвэл чанарын PASS үүсгээгүй. Production Cafet хэвээр. Үргэлжлүүлэхийн өмнө бодит идэвхтэй квот, хугацаа/оролдлогын хязгаарыг protocol-д тогтооно; ашигласан claim-ийг дахин нээж budget-ийг шинэчлэхгүй.

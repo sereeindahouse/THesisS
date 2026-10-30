@@ -7,7 +7,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 from tools import compare_stt_candidate as candidate
@@ -23,17 +23,18 @@ def wav_bytes(value=1, frames=1600):
 
 
 class FakeRecognizer:
-    def __init__(self, texts, *, fail_at=None):
+    def __init__(self, texts, *, fail_at=None, usage=None):
         self.texts = texts
         self.fail_at = fail_at
         self.calls = []
+        self.usage = usage
 
     def transcribe(self, audio_bytes, *, display_name):
         self.calls.append((audio_bytes, display_name))
         if self.fail_at == len(self.calls):
             raise TimeoutError('PRIVATE fixture token must not leak')
         identity = display_name.removeprefix('clip-')
-        return dict(text=self.texts[identity], model='constructed-offline-fake', usage=None)
+        return dict(text=self.texts[identity], model='constructed-offline-fake', usage=self.usage)
 
 
 class FakeResponse(io.BytesIO):
@@ -122,9 +123,10 @@ class CandidateContracts(unittest.TestCase):
         self.save()
         return candidate.capture_manifest(self.manifest_path, root=self.root)
 
-    def prepare(self):
+    def prepare(self, *, service_tier='paid'):
         self.save()
-        return candidate.prepare(self.manifest_path, self.packet, root=self.root)
+        return candidate.prepare(self.manifest_path, self.packet, root=self.root,
+                                 service_tier=service_tier)
 
     def approval(self):
         approval = json.loads((self.packet / 'approval-template.json').read_text(encoding='utf-8'))
@@ -137,6 +139,19 @@ class CandidateContracts(unittest.TestCase):
                         authorization_note='Constructed test authorization, not real permission.',
                         max_transcription_attempts=15, max_estimated_cost_usd=0.10)
         path = self.source / 'constructed-approval.json'
+        path.write_text(json.dumps(approval), encoding='utf-8')
+        return path
+
+    def free_approval(self):
+        approval = json.loads((self.packet / 'approval-template.json').read_text(encoding='utf-8'))
+        approval.update(user_cloud_audio_upload_authorized=True,
+                        user_unpaid_data_terms_acknowledged=True,
+                        free_service_account_confirmed=True,
+                        free_service_verification_source='Constructed account-tier evidence, not a real verification.',
+                        free_service_verified_at_utc='2026-10-30T10:00:00Z',
+                        authorized_by='user', recorded_at_utc='2026-10-30T10:00:00Z',
+                        authorization_note='Constructed free-tier consent only, not real permission.')
+        path = self.source / 'constructed-free-approval.json'
         path.write_text(json.dumps(approval), encoding='utf-8')
         return path
 
@@ -176,6 +191,117 @@ class CandidateContracts(unittest.TestCase):
         with self.assertRaises((FileExistsError, ValueError)):
             self.prepare()
         self.assertEqual(before, {path.name: path.read_bytes() for path in self.packet.iterdir() if path.is_file()})
+
+    def test_free_prepare_binds_tier_and_leaves_account_and_consent_unconfirmed(self):
+        protocol = self.prepare(service_tier='free')
+        approval = json.loads((self.packet / 'approval-template.json').read_text(encoding='utf-8'))
+        self.assertEqual(protocol['service_tier'], 'free')
+        self.assertEqual(protocol['service_tier_checked_date'], candidate.SERVICE_TIER_CHECKED_DATE)
+        self.assertEqual(protocol['caps']['max_estimated_cost_usd'], 0)
+        self.assertEqual(approval['max_estimated_cost_usd'], 0)
+        self.assertFalse(approval['paid_fallback_allowed'])
+        self.assertFalse(approval['user_unpaid_data_terms_acknowledged'])
+        self.assertFalse(approval['free_service_account_confirmed'])
+        self.assertIsNone(approval['free_service_verification_source'])
+        self.assertGreater(protocol['pricing']['paid_equivalent_estimated_cost_usd'], 0)
+        self.assertEqual(protocol['network_calls'], 0)
+
+    def test_free_usage_has_paid_equivalent_estimate_but_no_claim_about_actual_bill(self):
+        self.prepare(service_tier='free')
+        recognizer = FakeRecognizer(self.references,
+            usage=dict(total_input_tokens=12, total_output_tokens=4, total_tokens=16))
+        state = self.execute(self.free_approval(), transport=recognizer)
+        self.assertTrue(state['completed'])
+        self.assertEqual(state['service_tier'], 'free')
+        self.assertEqual(state['max_authorized_spend_usd'], 0)
+        self.assertEqual(state['transcription_attempts'], 15)
+        self.assertFalse(state['paid_fallback_allowed'])
+        self.assertTrue(state['usage_complete'])
+        self.assertAlmostEqual(state['paid_equivalent_token_cost_estimate_usd'], 0.00108)
+        self.assertIsNone(state['observed_token_cost_estimate_usd'])
+        self.assertIsNone(state['known_token_cost_estimate_usd'])
+        self.assertIsNone(state['actual_billed_cost_usd'])
+        summary = candidate.summarize(self.run_dir, root=self.root)
+        self.assertEqual(summary['service_tier'], 'free')
+        self.assertAlmostEqual(summary['paid_equivalent_token_cost_estimate_usd'], 0.00108)
+        self.assertIsNone(summary['actual_billed_cost_usd'])
+        self.assertFalse(summary['production_accepted'])
+
+    def test_free_missing_usage_remains_unknown_cost(self):
+        self.prepare(service_tier='free')
+        state = self.execute(self.free_approval())
+        self.assertTrue(state['completed'])
+        self.assertFalse(state['usage_complete'])
+        self.assertIsNone(state['paid_equivalent_token_cost_estimate_usd'])
+        self.assertIsNone(state['known_paid_equivalent_token_cost_estimate_usd'])
+        self.assertIsNone(state['actual_billed_cost_usd'])
+
+    def test_free_missing_consent_tier_or_account_evidence_rejects_before_factories(self):
+        self.prepare(service_tier='free')
+        path = self.free_approval()
+        valid = json.loads(path.read_text(encoding='utf-8'))
+        fields = ('service_tier', 'user_cloud_audio_upload_authorized',
+                  'user_unpaid_data_terms_acknowledged', 'free_service_account_confirmed',
+                  'free_service_verification_source', 'free_service_verified_at_utc',
+                  'paid_fallback_allowed', 'authorized_by', 'authorization_note', 'recorded_at_utc')
+        for field in fields:
+            with self.subTest(field=field):
+                approval = dict(valid)
+                approval.pop(field)
+                path.write_text(json.dumps(approval), encoding='utf-8')
+                baseline_factory, transport_factory = Mock(), Mock()
+                with self.assertRaises(ValueError):
+                    candidate.execute(self.manifest_path, self.packet, self.run_dir, path,
+                        root=self.root, baseline_factory=baseline_factory,
+                        transport_factory=transport_factory,
+                        environ={'GEMINI_API_KEY': 'CONSTRUCTED-SECRET-KEY'})
+                baseline_factory.assert_not_called()
+                transport_factory.assert_not_called()
+        self.assertFalse((self.packet / 'execution-claim.json').exists())
+
+    def test_free_rejects_tier_drift_paid_fallback_spending_or_invalid_account_evidence(self):
+        self.prepare(service_tier='free')
+        path = self.free_approval()
+        valid = json.loads(path.read_text(encoding='utf-8'))
+        mutations = [('service_tier', 'paid'), ('service_tier', 'unknown'),
+                     ('user_paid_service_authorized', True), ('paid_service_account_confirmed', True),
+                     ('billing_project_id', 'constructed-paid-project'),
+                     ('billing_verified_at_utc', '2026-10-30T10:00:00Z'),
+                     ('paid_fallback_allowed', True), ('max_estimated_cost_usd', 0.01),
+                     ('max_estimated_cost_usd', -0.01), ('max_estimated_cost_usd', 'NaN'),
+                     ('free_service_verification_source', ' '),
+                     ('free_service_verified_at_utc', '2026-10-30'),
+                     ('free_service_verified_at_utc', '2026-10-30T10:00:00+08:00'),
+                     ('manifest_sha256', '0' * 64), ('protocol_sha256', '0' * 64)]
+        for field, value in mutations:
+            with self.subTest(field=field, value=value):
+                path.write_text(json.dumps(dict(valid, **{field: value})), encoding='utf-8')
+                baseline_factory, transport_factory = Mock(), Mock()
+                with self.assertRaises(ValueError):
+                    candidate.execute(self.manifest_path, self.packet, self.run_dir, path,
+                        root=self.root, baseline_factory=baseline_factory,
+                        transport_factory=transport_factory,
+                        environ={'GEMINI_API_KEY': 'CONSTRUCTED-SECRET-KEY'})
+                baseline_factory.assert_not_called()
+                transport_factory.assert_not_called()
+
+    def test_legacy_missing_tier_still_requires_and_uses_paid_authorization(self):
+        self.prepare()
+        path = self.approval()
+        protocol_path = self.packet / 'protocol.json'
+        protocol = json.loads(protocol_path.read_text(encoding='utf-8'))
+        for field in ('service_tier', 'service_tier_checked_date', 'paid_fallback_allowed'):
+            protocol.pop(field)
+        protocol_path.write_text(json.dumps(protocol), encoding='utf-8')
+        approval = json.loads(path.read_text(encoding='utf-8'))
+        approval.pop('service_tier')
+        approval.pop('paid_fallback_allowed')
+        approval['protocol_sha256'] = candidate.sha(protocol_path)
+        path.write_text(json.dumps(approval), encoding='utf-8')
+        state = self.execute(path)
+        self.assertTrue(state['completed'])
+        self.assertEqual(state['service_tier'], 'paid')
+        self.assertEqual(candidate.summarize(self.run_dir, root=self.root)['service_tier'], 'paid')
 
     def test_audio_hash_drift_rejected_before_run(self):
         self.manifest['human_rows'][0]['audio_sha256'] = '0' * 64
@@ -410,6 +536,31 @@ class CandidateContracts(unittest.TestCase):
         self.assertNotIn('reference', json.dumps(payload))
         self.assertEqual(requests[-1].get_method(), 'DELETE')
         self.assertTrue(all(timeout is not None and timeout <= 60 for _, timeout in opener.calls))
+
+    def test_free_quota_failure_stops_once_without_paid_fallback_or_aggregate(self):
+        self.prepare(service_tier='free')
+        opener = self.transport_script()
+        opener.responses[2] = HTTPError(
+            'https://generativelanguage.googleapis.com/v1beta/interactions',
+            429, 'PRIVATE fixture quota body', {}, io.BytesIO(b'PRIVATE fixture quota body'))
+        adapter = candidate.GeminiTransport('CONSTRUCTED-SECRET-KEY', opener=opener)
+        state = self.execute(self.free_approval(), transport=adapter)
+        self.assertFalse(state['completed'])
+        self.assertEqual(state['error'], 'http_429')
+        self.assertEqual(state['transcription_attempts'], 1)
+        self.assertEqual(len(self.fake_baseline.calls), 1)
+        self.assertEqual(len(opener.calls), 4)  # start, upload, one inference, delete
+        self.assertEqual(sum(request.full_url.endswith('/interactions')
+                             for request, _ in opener.calls), 1)
+        self.assertEqual(opener.calls[-1][0].get_method(), 'DELETE')
+        self.assertFalse(state['paid_fallback_allowed'])
+        self.assertIsNone(state['actual_billed_cost_usd'])
+        summary = candidate.summarize(self.run_dir, root=self.root)
+        self.assertEqual(summary['service_tier'], 'free')
+        self.assertEqual(summary['quality_status'], 'incomplete_no_aggregate')
+        self.assertIsNone(summary['human_metrics'])
+        self.assertFalse(summary['production_accepted'])
+        self.assertNotIn('PRIVATE', (self.run_dir / 'results.jsonl').read_text(encoding='utf-8'))
 
     def test_untrusted_upload_url_rejected_before_audio_or_key_forwarding(self):
         opener = self.transport_script(upload_url='https://evil.invalid/upload')
