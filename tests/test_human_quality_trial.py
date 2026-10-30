@@ -62,7 +62,8 @@ class TrialFixture(unittest.TestCase):
             answer='17 seats.', required_facts=['17 seats.'],
             source_refs=[dict(quote='17 seats.', url='https://nmct.edu.mn/test')])])
         self.save_bundle()
-        self.study = trial.HumanTrial(self.root/'runtime/study', self.audio_results, self.review_file)
+        # Historical local-ASR contracts remain explicit; production defaults to Gemini.
+        self.study = trial.HumanTrial(self.root/'runtime/study', self.audio_results, self.review_file, stt_provider='cafet')
         self.sid = self.study.start(dict(pseudonym='P001', consent=True,
             audio_storage_consent=True, implementation_participation=False))['session_id']
 
@@ -101,7 +102,7 @@ class TrialFixture(unittest.TestCase):
 
 class HumanQualityTests(TrialFixture):
     def resume(self):
-        return trial.HumanTrial(self.study.directory, self.audio_results, self.review_file, resume=True)
+        return trial.HumanTrial(self.study.directory, self.audio_results, self.review_file, resume=True, stt_provider='cafet')
 
     def snapshot(self):
         return {p.relative_to(self.study.directory).as_posix(): p.read_bytes()
@@ -398,7 +399,7 @@ class HumanQualityTests(TrialFixture):
     def test_asr_gate_blocks_missing_reference_and_preserves_uncertainty_drafts(self):
         task_id = self.task()
         with patch.object(self.study, '_upstream') as upstream:
-            with self.assertRaisesRegex(ValueError, 'reference before local ASR'):
+            with self.assertRaisesRegex(ValueError, 'reference before ASR'):
                 self.study.transcribe(self.sid, task_id)
             captured = self.capture(task_id)
             body = self.reference_body(task_id, captured['audio_sha256'])

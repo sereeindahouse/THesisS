@@ -1,7 +1,8 @@
 """Local human answer, critical-slot listening, and typed/raw/edited task pilot.
 
 This tool collects explicit human self-reports, never AI-filled human scores.
-Only the fixed local demo receives recordings; prepared TTS files are reused.
+The fixed local demo forwards explicitly submitted audio to Gemini Live;
+prepared TTS files are reused. Retained legacy local-ASR trials stay historical.
 Run with --run-dir runtime/<new-private-dir>. No public listener is opened.
 """
 from datetime import datetime, timezone
@@ -14,6 +15,7 @@ from pathlib import Path
 import random
 import re
 import secrets
+import sys
 import threading
 import time
 from urllib.error import HTTPError, URLError
@@ -23,6 +25,11 @@ import uuid
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from stt_measurement import measure
+
+LIVE_MODEL = 'gemini-3.5-live-translate-preview'
 MAX_AUDIO = 8 * 1024 * 1024
 
 
@@ -45,7 +52,10 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 class HumanTrial:
-    def __init__(self, run_dir, audio_results, review_file, upstream='http://127.0.0.1:8765', *, resume=False):
+    def __init__(self, run_dir, audio_results, review_file, upstream='http://127.0.0.1:8765', *, resume=False, stt_provider='gemini_live'):
+        if stt_provider not in {'gemini_live', 'cafet'}:
+            raise ValueError('Unknown fixed study recognizer.')
+        self.stt_provider = stt_provider
         self.directory = Path(run_dir).resolve()
         if ROOT.joinpath('runtime').resolve() not in self.directory.parents:
             raise ValueError('Human records must remain in a private runtime subdirectory.')
@@ -98,6 +108,7 @@ class HumanTrial:
                 listening_samples=len(self.samples), expected_answer_file=str(self.review_file.relative_to(ROOT)),
                 scores_fabricated=False, human_review_source='explicit_browser_self_report',
                 human_scores_observer_verified=False, public_server=False,
+                recognition_provider=self.stt_provider,
                 audio_reference_not_inferred_from_stt=True,
                 human_answer_or_listening_results_at_preparation=0))
 
@@ -116,7 +127,7 @@ class HumanTrial:
         return dict(id=task_id, intended_request=text, recording=None, reference=None,
                     reference_draft=None, transcription_attempted=False, context=context,
                     transcript=None, results={}, audio_ids=set(), lock=threading.RLock(),
-                    observations=set(), synthesized=set(), last_error=None)
+                    observations=set(), synthesized=set(), last_error=None, measurement=None)
 
     def _restore(self):
         """Validate the journal before appending. Replay never calls models or creates human events."""
@@ -209,6 +220,7 @@ class HumanTrial:
                             and event['uploaded_audio_sha256'] == task['recording']['audio_sha256']
                             and event['asr_utterance_reference'] == task['reference']['text'])
                     task['transcript'] = copy.deepcopy(event['actual_response'])
+                    task['measurement'] = copy.deepcopy(event.get('measurement'))
                     task['audio_ids'].add(task['transcript']['id'])
                 elif kind == 'task-route':
                     condition = event['condition']
@@ -343,7 +355,9 @@ class HumanTrial:
             reference_reveal_allowed=bool(session and len(session['listening']) == len(self.samples)),
             active_task=self._public_task(session) if session else None,
             initial_results_are_empty=not bool(session and (session['listening'] or session['reviews'] or session['tasks'])),
-            local_audio_processing=True, answer_tts_online=True,
+            local_audio_processing=self.stt_provider == 'cafet', audio_storage_local=True,
+            recognition_provider=self.stt_provider, recognition_model=LIVE_MODEL if self.stt_provider == 'gemini_live' else None,
+            cloud_submission_requires_explicit_action=self.stt_provider == 'gemini_live', answer_tts_online=True,
             listening_text_scope=self.text_scope)
 
     def _public_task(self, session):
@@ -357,6 +371,7 @@ class HumanTrial:
                     audio_url=f'/api/task-recording/{task["id"]}?session_id={session["id"]}') if recording else None,
                 reference=copy.deepcopy(task['reference']), reference_draft=copy.deepcopy(task['reference_draft']),
                 transcription_attempted=task['transcription_attempted'], transcript=copy.deepcopy(task['transcript']),
+                measurement=copy.deepcopy(task['measurement']),
                 results=[dict(condition=k, answer=v['result'].get('answer'), route=v['result'].get('route'),
                     citations=v['result'].get('citations'), input_lineage=v['result'].get('input_lineage'),
                     observation_saved=k in task['observations']) for k,v in task['results'].items()],
@@ -445,8 +460,8 @@ class HumanTrial:
             raise KeyError('Unknown task in this session.')
         return session, session['tasks'][task_id]
 
-    def _upstream(self, path, body=None, mime='application/json'):
-        headers = {'Origin': self.upstream}
+    def _upstream(self, path, body=None, mime='application/json', *, extra_headers=None):
+        headers = {'Origin': self.upstream, **(extra_headers or {})}
         if body is not None:
             headers['Content-Type'] = mime
         request = Request(self.upstream + path, data=body, headers=headers)
@@ -568,46 +583,69 @@ class HumanTrial:
             return dict(saved=True, reference_confirmed_before_asr=True, asr_performed=False)
 
     def recognize(self, body):
-        if not isinstance(body, dict) or set(body) != {'session_id', 'task_id'}:
+        required = {'session_id', 'task_id'} | ({'cloud_audio_consent'} if self.stt_provider == 'gemini_live' else set())
+        if not isinstance(body, dict) or set(body) != required:
             raise ValueError('Use the already retained, human-reviewed task recording.')
-        return self.transcribe(body['session_id'], body['task_id'])
+        return self.transcribe(body['session_id'], body['task_id'], cloud_audio_consent=body.get('cloud_audio_consent', False))
 
-    def transcribe(self, sid, task_id):
+    def transcribe(self, sid, task_id, *, cloud_audio_consent=False):
         _, task = self._task(sid, task_id)
         with task['lock']:
-            return self._transcribe(sid, task_id)
+            return self._transcribe(sid, task_id, cloud_audio_consent=cloud_audio_consent)
 
-    def _transcribe(self, sid, task_id):
+    def _transcribe(self, sid, task_id, *, cloud_audio_consent=False):
         session, task = self._task(sid, task_id)
         if not session['consent']['audio_storage_consent']:
             raise ValueError('Audio storage consent was not given; use typed/review/listening sections.')
         if task['recording'] is None or task['reference'] is None:
-            raise ValueError('Listen and confirm the full spoken reference before local ASR.')
+            raise ValueError('Listen and confirm the full spoken reference before ASR.')
         if task['transcription_attempted']:
             raise TrialConflict('This task already attempted ASR; begin a new task to retry.')
         raw, mime = self.recording_audio(sid, task_id)
+        cloud = self.stt_provider == 'gemini_live'
+        if cloud and cloud_audio_consent is not True:
+            raise ValueError('Энэ бичлэгийг Google Gemini рүү илгээх үйлдлээ батална уу.')
+        started = time.perf_counter()
+        headers = None
+        if cloud:
+            state = self._upstream('/api/voice/gemini/session')
+            if (not isinstance(state, dict) or state.get('model') != LIVE_MODEL or state.get('ready') is not True
+                    or not isinstance(state.get('csrf_token'), str) or not state['csrf_token'].isascii()):
+                raise ValueError('Үндсэн чатын Gemini холболт бэлэн биш. Хадгалсан түлхүүрийг дахин тохируулахгүй.')
+            headers = {'X-Gemini-Token': state['csrf_token'], 'X-STT-Provider': 'gemini_live',
+                       'X-Gemini-Audio-Consent': 'send-this-audio'}
         audio_name = task['recording']['audio_file']
         task['transcription_attempted'] = True
         self._event(session, 'task-stt-attempt', dict(task_id=task_id, uploaded_audio_sha256=sha(raw),
-            reference_confirmed_before_asr=True, reference_not_sent_to_asr=True))
-        started = time.perf_counter()
+            reference_confirmed_before_asr=True, reference_not_sent_to_asr=True,
+            recognition_provider=self.stt_provider, cloud_audio_consent=cloud_audio_consent if cloud else False))
         try:
-            value = self._upstream('/api/voice/transcribe', raw, mime)
+            value = (self._upstream('/api/voice/transcribe', raw, mime, extra_headers=headers) if cloud
+                     else self._upstream('/api/voice/transcribe', raw, mime))
             if (not isinstance(value, dict) or value.get('kind') != 'stt' or not isinstance(value.get('text'), str)
                     or not isinstance(value.get('id'), str) or not re.fullmatch(r'[0-9a-f]{32}', value['id'])):
                 raise ValueError('Upstream STT response is malformed.')
+            if cloud and (value.get('model') != LIVE_MODEL or value.get('provider') != 'google_gemini_live'
+                          or value.get('input_sha256') != sha(raw) or value.get('translated_output_used') is not False):
+                raise ValueError('Gemini model, raw-input source, or retained audio hash differs.')
+            wall_seconds = time.perf_counter()-started
+            measurement = measure(task['reference']['text'], value['text'],
+                audio_seconds=task['recording']['duration_seconds'], wall_seconds=wall_seconds,
+                provider_seconds=value.get('transcription_seconds'), cache_hit=value.get('cache_hit', False)) if cloud else None
         except ValueError as error:
             self._event(session, 'task-error', dict(task_id=task_id, operation='transcribe', input_sha256=sha(raw),
                 audio_file=audio_name, input_mime=mime, error=str(error)))
             raise
         task['transcript'] = copy.deepcopy(value)
+        task['measurement'] = measurement
         task['audio_ids'].add(value['id'])
         self._event(session, 'task-stt', dict(task_id=task_id, uploaded_audio_sha256=sha(raw),
             audio_file=audio_name, input_mime=mime,
-            actual_response=value, wall_seconds=time.perf_counter()-started,
+            actual_response=value, wall_seconds=wall_seconds, measurement=measurement,
             asr_utterance_reference=task['reference']['text'], human_utterance_reference_confirmed=True,
             reference_confirmed_before_asr=True, reference_not_sent_to_asr=True))
-        return dict(text=value['text'], transcription_id=value['id'], recognition_review=value.get('recognition_review'))
+        return dict(text=value['text'], transcription_id=value['id'], recognition_review=value.get('recognition_review'),
+                    measurement=measurement, provider=value.get('provider'), model=value.get('model'))
 
     def route(self, body):
         if not isinstance(body, dict) or set(body) != {'session_id', 'task_id', 'condition', 'edited_text', 'edit_confirmed'}:
@@ -732,13 +770,13 @@ PAGE = r'''<!doctype html><html lang="mn"><meta charset="utf-8"><meta name="view
 <title>Чанарын бодит шалгалт</title><style>*{box-sizing:border-box}body{margin:0;background:#f2f5f1;color:#18342c;font:16px/1.6 system-ui}main{max-width:900px;margin:auto;padding:24px 18px}article,section{background:white;border:1px solid #d4ded6;padding:20px;border-radius:14px;margin:18px 0}h1{line-height:1.2}h2{font-size:22px}label{display:block;margin:12px 0}input:not([type=checkbox]),textarea,select{width:100%;font:inherit;padding:8px;border:1px solid #a8bdae;border-radius:6px}textarea{min-height:85px}button,a.button{font:inherit;background:#245942;color:white;padding:9px 15px;border:0;border-radius:7px;cursor:pointer;margin:5px 8px 5px 0}button:disabled{opacity:.5;cursor:default}audio{width:100%}pre{white-space:pre-wrap;overflow-wrap:anywhere}small,.muted{color:#547064}.error{color:#9c2430}.hidden{display:none}.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:180px}a{color:#245942}</style>
 <main><a href="http://127.0.0.1:8765/">← Чат</a><h1>Чанарыг хүнээр шалгах жижиг туршилт</h1>
 <p>Энд таны бодит үнэлгээг хадгална. Хувийн нэр, утас хэрэггүй. Аль нэг хэсгийг сонгоод завсарлаж болно. Энэ нь сургуулиар баталсан судалгааны дизайн биш.</p>
-<p>Микрофоны дуу энэ компьютерийн локал Whisper-д очиж локал файлд хадгалагдана; автоматаар устах хугацаа тохируулаагүй. «Хариуг сонсох» үед хариултын текст онлайн Edge/Microsoft TTS-д очно. Доорх бэлтгэсэн 12 дууг сонсоход шинээр сүлжээнд текст/бичлэг явуулахгүй.</p>
+<p>Бичлэг эхлээд энэ компьютерт хадгалагдана. Сонсож reference-ээ баталсны дараа «Google руу илгээж Gemini-ээр таних» товч дарвал зөвхөн тэр аудио Google Gemini 3.5 Live руу очно; reference текстийг Google руу илгээхгүй. Free tier-ийн өгөгдлийг Google сайжруулалтад ашиглаж, хүн хянаж болох нөхцөлтэй. Автоматаар устах хугацаа тохируулаагүй. «Хариуг сонсох» үед хариултын текст онлайн Edge/Microsoft TTS-д очно. Доорх бэлтгэсэн 12 дууг сонсоход шинээр сүлжээнд текст/бичлэг явуулахгүй.</p>
 <section id="start"><label>Оролцогчийн зохиомол ID (жишээ P001)<input id="pseudo" value="P001" maxlength="7"></label><label><input type="checkbox" id="consent"> Би энэ туршилтад сайн дураар оролцож, хариултаа локал файлд хадгалахыг зөвшөөрч байна.</label><label><input type="checkbox" id="audioConsent"> Шинээр бичсэн дуугаа локал хадгалж STT туршихыг зөвшөөрнө. Сонгохгүйгээр бусад хэсгийг хийж болно.</label><label><input type="checkbox" id="developer"> Би энэ системийг хөгжүүлэхэд оролцсон.</label><button id="begin">Эхлэх</button></section>
 <p id="status" role="status"></p><div id="workspace" class="hidden"><nav><a href="#listen">1. Дуу сонсох</a> · <a href="#answer">2. Хариулт үнэлэх</a> · <a href="#voice">3. Бодит асуулт</a></nav>
 <section id="listen"><h2>1. Он, тоо, нэрийг дуунаас ойлгох</h2><p><span id="listeningScope"></span> Текст, өмнөх/шинэ хувилбарын нэрийг түр нуусан. Сонссоноо бичнэ үү; ойлгомжгүй бол <b>?</b> гэж бич. Бүх дуу дууссаны дараа эх текстийг харуулна.</p><p id="listenProgress"></p><div id="listenCard"></div><div id="reveal"></div></section>
 <section id="answer"><h2>2. Эхтэй нь тулгаж хариултыг үнэлэх</h2><p>Зөв, дутуу, бурууг эхийн баримтаар дүгнэнэ. Хариулт үүсгэсэн арга, model-ийг нуусан. Та хөгжүүлэгч бол энэ нь хараат бус үнэлгээ гэж тооцогдохгүй.</p><p id="answerProgress"></p><div id="answerCard"></div><button id="refreshAnswers">Шинэ асуултын багцыг шалгах</button></section>
-<section id="voice"><h2>3. Шинэ асуултаа бичиж, сонсож батлаад STT турших</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь өөрийн үгээр ярьж бичнэ. Санаагаа бичсэн текст болон зассан STT нь аудиогийн reference болохгүй. Танилт ажиллуулахаас өмнө бичлэгээ бүтнээр сонсож, яг хэлсэн үгээ тусад нь бичиж батална. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй. Энэ хуудсанд WER автоматаар тооцохгүй.</p>
-<p>Нэг хүн өөр session-д орсон ч ижил оролцогчийн ID-гаа хэрэглэнэ. Шинэ асуулт нь шинэ хүн гэсэн үг биш.</p><label>Бичлэгийн төхөөрөмж<input id="device" maxlength="200" placeholder="Жишээ: laptop-ийн дотоод микрофон"></label><label>Бичлэгийн орчин<input id="room" maxlength="200" placeholder="Жишээ: гэрт, чимээгүй"></label><label>Асуултын нөхцөл / сэдэв<input id="scenario" maxlength="200" placeholder="Жишээ: элсэлтийн оныг лавлах"></label><label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Бичлэгийг зогсоох</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><audio id="recordedAudio" controls preload="metadata"></audio><label>Танилтаас өмнө сонсож буулгасан яг үг<textarea id="reference" placeholder="Бичлэгээ сонсоод бүх хэлсэн үгээ бичнэ үү. Энд бэлэн текст байхгүй."></textarea></label><label>Эргэлзээтэй үг, тоо (нэг мөрөнд нэгийг; байвал батлагдахгүй)<textarea id="uncertainties" aria-describedby="referenceHelp" placeholder="Эргэлзээтэй үг байвал л бичнэ. Байхгүй бол хоосон үлдээнэ."></textarea></label><label><input id="referenceConfirmed" type="checkbox"> Би бичлэгийг бүтнээр сонсож, яг хэлсэн бүх үгийг нягталсан. Эргэлзээтэй үг, тоо үлдээгүй.</label><p id="referenceHelp" role="status" aria-live="polite">Дуугаа бүтнээр сонсоод яг хэлсэн үгээ бичнэ. Эргэлзээтэй үггүй бол дээрх эргэлзээний талбарыг хоосон үлдээж, батлах чагтыг сонгоно.</p><button id="saveReference" disabled>Сонссон текстийг хадгалах</button><button id="recognize" disabled>Одоо локал STT ажиллуулах</button><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ засвар анхны reference-ийг өөрчлөхгүй.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div><button id="nextTask">Дараагийн шинэ асуулт</button></div></section></div></main>
+<section id="voice"><h2>3. Шинэ асуултаа бичиж, сонсож батлаад STT турших</h2><p>Эхлээд асуух санаагаа бичиж хадгална. Дараа нь өөрийн үгээр ярьж бичнэ. Санаагаа бичсэн текст болон зассан STT нь аудиогийн reference болохгүй. Танилт ажиллуулахаас өмнө бичлэгээ бүтнээр сонсож, яг хэлсэн үгээ тусад нь бичиж батална. Ижил асуултын 3 нөхцөл нь жижиг paired даалгавар; хариуг давтаж харах нөлөөг салгаж чадахгүй. Баталсан reference ба Gemini raw-ийг WER/CER, үг солигдсон/хасагдсан/нэмэгдсэн тоо, хугацаагаар автоматаар харьцуулна. Тоо–үгийг нууцаар дүйцүүлэхгүй; нэр/тоо/оны утгын зөв байдлыг хүн тусад нь нягтална.</p>
+<p>Нэг хүн өөр session-д орсон ч ижил оролцогчийн ID-гаа хэрэглэнэ. Шинэ асуулт нь шинэ хүн гэсэн үг биш.</p><label>Бичлэгийн төхөөрөмж<input id="device" maxlength="200" placeholder="Жишээ: laptop-ийн дотоод микрофон"></label><label>Бичлэгийн орчин<input id="room" maxlength="200" placeholder="Жишээ: гэрт, чимээгүй"></label><label>Асуултын нөхцөл / сэдэв<input id="scenario" maxlength="200" placeholder="Жишээ: элсэлтийн оныг лавлах"></label><label>Та яг юу асуухыг хүсэж байна вэ?<textarea id="intent" placeholder="Өөрийн шинэ асуултаа бичнэ үү"></textarea></label><button id="taskBegin">Энэ санааг хадгалж даалгавар эхлэх</button><div id="taskBody" class="hidden"><button id="typed">Бичсэн асуултыг илгээх</button><p id="recordStatus"></p><button id="record">Микрофон эхлүүлэх</button><button id="stop" disabled>Бичлэгийг зогсоох</button><label>Эсвэл өөрийн дуу оруулах<input id="upload" type="file" accept="audio/*"></label><audio id="recordedAudio" controls preload="metadata"></audio><label>Танилтаас өмнө сонсож буулгасан яг үг<textarea id="reference" placeholder="Бичлэгээ сонсоод бүх хэлсэн үгээ бичнэ үү. Энд бэлэн текст байхгүй."></textarea></label><label>Эргэлзээтэй үг, тоо (нэг мөрөнд нэгийг; байвал батлагдахгүй)<textarea id="uncertainties" aria-describedby="referenceHelp" placeholder="Эргэлзээтэй үг байвал л бичнэ. Байхгүй бол хоосон үлдээнэ."></textarea></label><label><input id="referenceConfirmed" type="checkbox"> Би бичлэгийг бүтнээр сонсож, яг хэлсэн бүх үгийг нягталсан. Эргэлзээтэй үг, тоо үлдээгүй.</label><p id="referenceHelp" role="status" aria-live="polite">Дуугаа бүтнээр сонсоод яг хэлсэн үгээ бичнэ. Эргэлзээтэй үггүй бол дээрх эргэлзээний талбарыг хоосон үлдээж, батлах чагтыг сонгоно.</p><button id="saveReference" disabled>Сонссон текстийг хадгалах</button><button id="recognize" disabled>Google руу илгээж Gemini-ээр таних</button><p id="measurement" role="status"></p><pre id="raw"></pre><button id="rawSend" disabled>Raw текстийг өөрчлөхгүй илгээх</button><label>Та өөрөө сонсож/нягталсан зассан текст<textarea id="edited"></textarea></label><label><input id="editConfirmed" type="checkbox"> Би энэ текстийг өөрөө нягталж илгээхийг баталж байна. Энэ засвар анхны reference-ийг өөрчлөхгүй.</label><button id="editedSend" disabled>Зассан текстийг илгээх</button><div id="taskResults"></div><button id="nextTask">Дараагийн шинэ асуулт</button></div></section></div></main>
 <script>
 const $=id=>document.getElementById(id);let token='',sid=sessionStorage.getItem('humanTrialSession')||'',state={},taskId='',recording=null,stream=null,busy=false,recordingSha='',referenceHeard=false,recordingClock=null,recordingSaving=false;
 const words={year:'Он',phone:'Утасны цифр',name:'Нэр',negation:'Үгүйсгэсэн үг',amount:'Мөнгөн дүн',unit:'Мөнгөний нэгж'};
@@ -755,6 +793,7 @@ function renderListening(){if(!sid)return;const remaining=state.listening.filter
 function sourceBlock(parent,title,refs){el('strong',title,parent);if(!refs?.length)el('p','Энэ хариултад эшилсэн эх байхгүй.',parent);for(const ref of refs||[]){if(ref.citation_number)el('p','Эшлэл ['+ref.citation_number+']',parent);el('blockquote',ref.quote,parent);if(/^https:\/\/nmct\.edu\.mn(?:\/|$)/.test(ref.url||'')){const a=el('a',ref.title||'Албан эх',parent);a.href=ref.url;a.target='_blank';a.rel='noreferrer'}}}
 function renderAnswer(){if(!sid)return;const box=$('answerCard');box.replaceChildren();const rows=state.answers.filter(x=>!state.completed_reviews.includes(x.review_id));$('answerProgress').textContent=`Хадгалсан ${state.completed_reviews.length}/${state.answers.length} · Хэсэгчлэн хадгалаад завсарлаж болно.`;if(!state.answer_ready){el('p','Шинэ асуултын гаралтын багц бэлтгэгдэж байна. Дуу болон бодит асуултын хэсгийг хийж болно.',box);return}if(!rows.length){el('p','Багцын бүх хариултыг үнэлсэн байна. Баярлалаа.',box);return}const row=rows[0];el('h3',row.query,box);el('strong','Системийн хариулт:',box);el('p',row.answer||row.abstention_reason||'Хариулт өгөөгүй.',box);const details=el('details',undefined,box);details.open=true;el('summary','Эхийн нотолгоог харьцуулах',details);sourceBlock(details,'Системийн хариулт бодитоор эшилсэн эх',row.answer_sources);el('hr',undefined,details);el('strong','Гаралтаас өмнө бэлтгэсэн шалгах мэдээлэл (хүн батлаагүй)',details);for(const fact of row.required_facts)el('p','• '+fact,details);sourceBlock(details,'Энэ шалгах мэдээллийн эх',row.reference_sources||row.source_refs);const options=[['correct','Зөв / бүрэн дэмжигдсэн'],['partial','Дутуу / хэсэгчлэн'],['wrong','Буруу / дэмжигдээгүй'],['not_applicable','Энэ тохиолдолд хамаарахгүй']];const c=rating(box,'Утгын зөв байдал',options),m=rating(box,'Шаардсан мэдээллийн бүрэн байдал',options),s=rating(box,'Системийн эшлэлийн нотолгоо',options);const l=el('label','Ямар баримтаар ингэж дүгнэв?',box),reason=el('textarea',undefined,l),b=el('button','Үнэлгээг хадгалах',box);b.onclick=()=>action(async()=>{await api('/api/review',{session_id:sid,review_id:row.review_id,correctness:c.value,completeness:m.value,citation_support:s.value,reason:reason.value});status('Хүний өөрийн үнэлгээг хадгаллаа.');await refresh()})}
 $('refreshAnswers').onclick=()=>action(refresh);
+function renderMeasurement(m){$('measurement').textContent=m?`WER ${(m.raw_score.corpus_wer*100).toFixed(1)}% · CER ${(m.raw_score.corpus_cer*100).toFixed(1)}% · ${m.raw_score.word_edit_errors}/${m.raw_score.reference_words} үгийн алдаа · ${m.wall_seconds.toFixed(2)} s${m.cache_hit?' · cache (шинэ Google танилт биш)':''}. Зөвхөн энэ reference-ийн development хэмжилт; хүний утгын үнэлгээ тусдаа.`:''}
 function restoreTask(task){
  if(!task)return;taskId=task.task_id;$('intent').value=task.intended_request;$('intent').disabled=true;$('taskBegin').disabled=true;
  for(const key of ['device','room','scenario']){$(key).value=task.context[key]||'';$(key).disabled=true}
@@ -765,6 +804,7 @@ function restoreTask(task){
  if(clip){recordingSha=clip.audio_sha256;$('recordedAudio').src=clip.audio_url;$('recordStatus').textContent=`Бичлэг хадгалагдсан (${clip.duration_seconds.toFixed(2)} секунд). Бүтнээр сонсоод яг хэлсэн үгээ батална.`}
  if(task.reference_draft){$('reference').value=task.reference_draft.text;$('uncertainties').value=task.reference_draft.uncertainties.join('\n');referenceFeedback('Хадгалсан ноорог сэргэсэн. Эргэлзээний талбар хоосон, батлах чагт сонгосон үед л STT нээгдэнэ.',true)}
  if(ref){$('reference').value=ref.text;$('referenceConfirmed').checked=true;$('recordStatus').textContent='Сонсож баталсан reference сэргэсэн. Анхны баталгаа өөрчлөгдөөгүй.'}
+ renderMeasurement(task.measurement);
  if(raw){$('raw').textContent='Анхны STT: '+raw.text;$('edited').value=raw.text}
  $('rawSend').disabled=!raw||!raw.text||task.results.some(r=>r.condition==='raw');$('editedSend').disabled=!raw||task.results.some(r=>r.condition==='explicit-edited');
  $('typed').disabled=task.results.some(r=>r.condition==='typed');for(const value of task.results)renderResult(value);
@@ -779,8 +819,8 @@ async function saveStoppedRecording(blob){recordingSaving=true;try{await capture
 $('recordedAudio').onended=()=>{referenceHeard=true};
 function referenceFeedback(message,error=false){$('referenceHelp').textContent=message;$('referenceHelp').className=error?'error':''}
 function pendingReferenceHelp(count){const message=count?`Эргэлзээний талбарт ${count} мөр байна. Ноорог хадгалагдсан, STT нээгдэхгүй. Бичлэгээ дахин сонсож эргэлзээгээ шийднэ үү. Эргэлзээгүй болсон үедээ л энэ талбарыг хоосолж, чагтаа сонгоод дахин хадгална.`:'Ноорог хадгалагдсан. Яг хэлсэн бүх үгээ сонсож нягталсан бол батлах чагтыг сонгоод дахин хадгална.';referenceFeedback(message,true);status(message,true);$('recognize').disabled=true;$('uncertainties').setAttribute('aria-invalid',count?'true':'false');$('referenceHelp').scrollIntoView({block:'center',behavior:'smooth'});if(count)$('uncertainties').focus();else $('referenceConfirmed').focus()}
-$('saveReference').onclick=()=>action(async()=>{try{if(!referenceHeard)throw Error('Эхлээд хадгалсан бичлэгээ бүтнээр тоглуулж сонсоно уу.');const result=await api('/api/task/reference',{session_id:sid,task_id:taskId,audio_sha256:recordingSha,reference:$('reference').value,uncertainties:$('uncertainties').value.split('\n').map(x=>x.trim()).filter(Boolean),listened:referenceHeard,playback_ended:referenceHeard,confirmed:$('referenceConfirmed').checked});if(!result.reference_confirmed_before_asr){pendingReferenceHelp(result.unresolved_count);return}$('reference').disabled=true;$('uncertainties').disabled=true;$('referenceConfirmed').disabled=true;$('saveReference').disabled=true;$('recognize').disabled=false;referenceFeedback('Reference батлагдаж хадгалагдсан. «Одоо локал STT ажиллуулах» товч нээгдлээ.');status('Сонсож баталсан текст хадгалагдлаа. Одоо локал STT ажиллуулж болно.');$('recognize').scrollIntoView({block:'center',behavior:'smooth'});}catch(error){referenceFeedback(error.message,true);throw error}});
-$('recognize').onclick=()=>action(async()=>{$('recognize').disabled=true;$('recordStatus').textContent='Дууг локал Whisper таньж байна…';const v=await api('/api/task/transcribe',{session_id:sid,task_id:taskId});$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Өмнө баталсан reference тусдаа хэвээр.'});
+$('saveReference').onclick=()=>action(async()=>{try{if(!referenceHeard)throw Error('Эхлээд хадгалсан бичлэгээ бүтнээр тоглуулж сонсоно уу.');const result=await api('/api/task/reference',{session_id:sid,task_id:taskId,audio_sha256:recordingSha,reference:$('reference').value,uncertainties:$('uncertainties').value.split('\n').map(x=>x.trim()).filter(Boolean),listened:referenceHeard,playback_ended:referenceHeard,confirmed:$('referenceConfirmed').checked});if(!result.reference_confirmed_before_asr){pendingReferenceHelp(result.unresolved_count);return}$('reference').disabled=true;$('uncertainties').disabled=true;$('referenceConfirmed').disabled=true;$('saveReference').disabled=true;$('recognize').disabled=false;referenceFeedback('Reference батлагдаж хадгалагдсан. «Google руу илгээж Gemini-ээр таних» товч нээгдлээ.');status('Сонсож баталсан текст хадгалагдлаа. Одоо ганц Gemini горимоор туршиж болно.');$('recognize').scrollIntoView({block:'center',behavior:'smooth'});}catch(error){referenceFeedback(error.message,true);throw error}});
+$('recognize').onclick=()=>action(async()=>{$('recognize').disabled=true;$('recordStatus').textContent='Gemini 3.5 Live дууг таньж байна…';const v=await api('/api/task/transcribe',{session_id:sid,task_id:taskId,cloud_audio_consent:true});renderMeasurement(v.measurement);$('raw').textContent='Анхны STT: '+v.text;$('edited').value=v.text;$('rawSend').disabled=!v.text;$('editedSend').disabled=false;$('recordStatus').textContent='Анхны танилт хадгалагдсан. Өмнө баталсан reference тусдаа хэвээр.'});
 $('upload').onchange=()=>action(async()=>{const f=$('upload').files[0];if(f)await capture(f)});
 $('record').onclick=()=>action(async()=>{if(recordingSaving)return;stream=await navigator.mediaDevices.getUserMedia({audio:true});const chunks=[];recording=new MediaRecorder(stream);recording.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recording.onstop=()=>{clearInterval(recordingClock);stream.getTracks().forEach(t=>t.stop());saveStoppedRecording(new Blob(chunks,{type:recording.mimeType}));};recording.start();const started=Date.now();const tick=()=>{const seconds=Math.floor((Date.now()-started)/1000);$('recordStatus').textContent=`Бичиж байна: ${seconds} секунд. Нэг асуултыг 5–15 секундэд хэлээд зогсооно уу. Дээд хязгаар 30 секунд.`;$('recordStatus').className=seconds>=25?'error':''};tick();recordingClock=setInterval(tick,1000);$('record').disabled=true;$('stop').disabled=false;});
 $('stop').onclick=()=>{if(recording?.state==='recording'){recording.stop();$('stop').disabled=true}};

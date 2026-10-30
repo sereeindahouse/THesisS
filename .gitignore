@@ -10,6 +10,7 @@
 !/stt_mn.py
 !/tts.py
 !/score.py
+!/stt_measurement.py
 !/check_environment.py
 !/validate_content.py
 !/preview_content.py
@@ -40,6 +41,8 @@
 /tests/*
 !/tests/test_content_store.py
 !/tests/test_public_portability.py
+!/tests/test_stt_measurement.py
+!/tests/test_human_gemini_trial.py
 !/config/
 /config/*
 !/config/stt-development.json
