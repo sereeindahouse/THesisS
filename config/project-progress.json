@@ -4,7 +4,7 @@
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
   "current_week": "W01 · II-ийн эхний бодит15 оролдлого дууссан; алдаатай хязгаарласан trial,II үргэлжилнэ.",
-  "status_basis": "10.30: Хэрэглэгчийн screenshot дахь model нь gemini-3.5-live-translate-preview; өмнөх бодит API model нь gemini-3.5-transcribe. Google-ийн албан зааварт inputAudioTranscription → inputTranscription.text ба Монгол mn дэмжлэгийг шалгасан. 15 аудио/hash/result холбоо, pinned Cafet model checksum, 12 matched raw score-ийг offline дахин тулгасан. Буруу хэл/task/sample-rate тохиргооны илэрхий зөрүү олдоогүй; бүх runtime алдааг үгүйсгээгүй. Raw WER ба тооны бичлэгийн хэлбэрийн хязгаарыг тусад нь тайлбарласан. Шинэ API/inference/сургалт/хүний оноо 0. Өмнөх Transcribe дүнг Live Translate-ийн чанар болгон хэрэглэхгүй.",
+  "status_basis": "10.30: Ганц gemini-3.5-live-translate-preview; DPAPI түлхүүр restart-ийн дараа өөрөө сэргэсэн. Натив UI-ээр зохиомол WAV хоёр удаа оруулахад Google call 1/cache hit 1, түлхүүр нэхээгүй. Нээлттэй хуудсын хуучин token-ийг local GET-ээр сэргээх, mic stop-оос автоматаар таних хоёр алдааг зассан; 77 холбогдох шалгалт PASS (34 UI/43 HTTP), өмнөх 364 тусдаа. Raw→яг PDF эхтэй хариу→TTS 19.488s decode/native playback тэнцсэн; 12 сонсгол хэвээр. Нийт 5 синтетик Live call+1 setup probe; хэл/нэр/үгийн алдаа хадгалсан. Хүний accuracy биш, II дуусаагүй.",
   "weekly_plan": {
     "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
     "start_date": "2026-10-26",
@@ -18,9 +18,16 @@
     "policy_notice": "Одоо II · screenshot-оор баталсан Live Translate-ийн Монгол оролтын танилтыг холбох чиглэл. Өмнөх Transcribe туршилт тусдаа. I/III-ийн шаардлагатай эх,үнэлгээ,бичвэр зэрэг явна; хийгдээгүй inference/хүний үр дүнг нөхөхгүй.",
     "current": {
       "week_id": "W01",
-      "title": "II · Яг Gemini Live Translate-ийн Монгол input transcript-ийг өөрөө турших холболт",
-      "status_label": "Код/чатны холболт нэвтэрсэн · 150 тест PASS · бодит Live танилт хараахан 0",
+      "title": "II · Ганц Gemini Live ба түлхүүрийн засварын багц шалгагдсан",
+      "status_label": "Ганц Gemini · түлхүүр дахин нэхэхгүй · натив upload/эхтэй хариу/дуу/cache тэнцсэн · II цааш үргэлжилнэ",
       "done": [
+        "10.30: Ганц Gemini 3.5 Live ба Windows DPAPI түлхүүрийн засвар нэвтэрсэн. Шинэ кодтой нээлттэй хуудсыг reload хийхгүйгээр сервер restart-ийн дараа upload амжилттай; түлхүүр нэхээгүй. Mic stop handler хуучин чагт шаардахгүй автоматаар танина.",
+        "10.30: Натив UI-ийн хоёр WAV upload = нэг бодит Google Live call + нэг cache hit. Raw текст→PDF-ийн 20,000 төгрөгийн бүтэн заалт/нэг эшлэл→TTS 19.488s decode, браузерийн playback тэнцсэн. Нийт 5 синтетик Live call, 1 аудиогүй setup probe. Хүний танилт/сонсголын accuracy гэж тооцоогүй.",
+        "10.30: Сүүлийн UI засварын 77 шалгалт PASS: actual JS handler-ийн 34 (4 шинэ regression), HTTP/lineage/портатив 43. Өмнөх 364 нь өмнөх засварын баталгаа. GitHub-ийн 9 repository-ийн сонгосон primary README/кодын шийдвэрээр түлхүүр хадгалалт, bounded cache, шууд fee extract хэрэгжсэн.",
+        "10.30: Ганц Gemini Live UI/default API, Windows хэрэглэгчийн DPAPI түлхүүр, restart-ийн дараах сэргэлт нэвтэрсэн. Provider сонголт, бичлэг бүрийн нэмэлт чагт, таван оролдлогын дахин тохиргоог хассан. 429 үед 60s cooldown; ижил audio/config bounded cache нь шинэ Google дуудлага хийхгүй.",
+        "10.30: 364 холбогдох тест PASS, native Windows DPAPI орсон. Дөрвөн синтетик Live STT оролдлого, нэг аудиогүй setup probe; богино auto/hint хоёрын хэлний алдаа, урт control-ийн нэр/үгийн алдааг хадгалсан. Хүний танилтын accuracy хэмжээгүй.",
+        "10.30: Бодит raw STT→RAG→TTS урсгалд эхний exact PDF шалгуур унасан. Засварын дараа хадгалсан raw текстийг typed development replay болгон main серверт шалгахад route A/LLM 0, яг PDF эх/хариу, 19.488s TTS decode тэнцсэн. Шинэ ASR дуудлагагүй; хуучин raw lineage-г хуурамчаар сэргээгээгүй.",
+        "10.30: GitHub-ийн 9 repository-ийн сонгосон README/код, албан Google CLI/SDK болон Windows DPAPI эхийг тулгасан. Cache/түлхүүр/шууд fee extract хэрэгжсэн. LiveKit/Pipecat шинэ framework, Silero шинэ жин, true browser streaming нэмээгүй.",
         "10.30: Яг gemini-3.5-live-translate-preview-ийн тусдаа WebSocket transport, Монгол input transcript сонголт, raw lineage, нэг бичлэгийн зөвшөөрөл нэвтэрсэн. 150 холбогдох автомат тест PASS, Google Live inference0. Локал HTTP-ээр Live model/HTML-ийг тулгасан; хүний 12 сонсголын сервер хадгалагдсан. Энэ нь ASR accuracy биш.",
         "10.30: Хэрэглэгчийн бүтэн screenshot model ID-г тодруулсан: gemini-3.5-live-translate-preview. Хэрэгтэй гаралт нь Монгол Input transcript; англи орчуулгын чанараар тайлбарлахгүй.",
         "Google-ийн албан Live Translation заавраар inputAudioTranscription болон serverContent.inputTranscription.text, Монгол mn, 16 kHz mono PCM16/100 ms stream-ийг шалгасан. Өмнөх файлын Transcribe API нь өөр model/path.",
@@ -52,25 +59,29 @@
         "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0."
       ],
       "in_progress": [
-        "Live холболт код болон локал чатанд орсон; model нь gemini-3.5-live-translate-preview. Өмнөх Transcribe-ийн raw дүнг үүнд шилжүүлэхгүй.",
-        "Бодит Live танилт/шинэ paired хэмжилт хийгдээгүй. Stream-end ба намжих хугацаа нь бүх клип бүрэн танигдсаны баталгаа биш; эцэслэх дохиогүй үед UI дутуу байж болохыг хэлнэ.",
-        "Cafet small checkpoint-ийн муу танилтын шалтгааныг domain/audio/quantization-аар тусгаарлаагүй. Тохиргоонд mn/transcribe/16kHz байна; CPU эсвэл INT8-ийг дан шалтгаан гэж зарлахгүй.",
-        "Шинэ бодит paired audio/reference, нэр/тоо/оны утгын хяналт, RAG/task-ийн хүний үнэлгээ хэвээр үлдсэн. Хүний шинэ сонссон reference эсвэл score-ийг AI нөхөхгүй."
+        "Gemini-ийн богино синтетикт хэл андуурал, Монгол гаралтад нэр/үгийн алдаа үлдсэн. Хүний шинэ paired reference, critical утга/task үнэлгээний ажил тусдаа; агент хүний оноо нөхөхгүй.",
+        "Бодит хүний шинэ микрофоны бичлэгийг агент үүсгээгүй. Mic start/stop-ийн жинхэнэ JS handler-ийг fake recorder-оор шалгасан; native upload/raw→RAG→playback-ийг бодитоор шалгасан.",
+        "Эцсийн STT сонголт 2026.11.02-нд хэрэглэгчийн шийдвэр pending. Энэ засварын багц тэнцсэн нь I/II/III бүхэлдээ дууссан эсвэл сургуулийн хамгаалалтын тов батлагдсан гэсэн үг биш."
       ],
       "next": [
-        "Үндсэн чатанд Live Translate-ийг сонгон түлхүүрээ нууц талбарт оруулаад өөрийн нэг шинэ богино бичлэгийг тодорхой зөвшөөрлөөр туршиж, Монгол танилтын нэр/тоо/он ба төгсгөлийг өөрөө нягтална.",
-        "Ижил шинэ аудио/reference дээр model ID, stream setup, PCM/hash-тай харьцуулж raw WER/CER-ээс гадна нэр/тоо/оны утга,засах хугацаа,RAG task-ийг тусад нь үнэлнэ.",
-        "Өмнөх 15 файлын дамжуулалтын эрхийг дахин эхлүүлэхгүй. Шинэ model-ийн хувийн аудио дамжуулалтыг хэрэглэгчийн тодорхой сонголттой холбоно."
+        "Шинэ бодит асуултаа ганц Gemini горимоор өөрөө туршиж, нэр/тоо/оны засвар ба хариултын утгыг тэмдэглэнэ. 2026.11.02-ны эцсийн STT шийдвэрийг хэрэглэгч өгнө; шинэ жин сургахгүй, түлхүүр дахин нэхэхгүй."
       ],
       "human_tasks": [
-        "API түлхүүрээ зөвхөн локал нууц талбарт оруулна. Шинэ дууны хэлсэн үг, сонссон утга, хариултын үнэлгээг хүн өөрөө батална. Хуучин 15 файлын budget-ийг дахин эхлүүлэхгүй."
+        "Түлхүүр дахин оруулах шаардлагагүй. Хэрэглэгч өөрийн шинэ асуулт, сонссон утгыг үнэлж, даваа гарагт эцсийн STT сонголтоо өгнө."
       ]
     },
     "weeks": {
       "W01": {
         "state": "in_progress",
-        "label": "II · Gemini чатанд өөрөө турших сонголт, шинэ хүний reference ба task үргэлжилнэ",
+        "label": "II · Ганц Gemini-ийн засварын багц шалгагдсан; шинэ хүний үнэлгээ тусдаа",
         "evidence": [
+          "10.30: Ганц Gemini 3.5 Live ба Windows DPAPI түлхүүрийн засвар нэвтэрсэн. Шинэ кодтой нээлттэй хуудсыг reload хийхгүйгээр сервер restart-ийн дараа upload амжилттай; түлхүүр нэхээгүй. Mic stop handler хуучин чагт шаардахгүй автоматаар танина.",
+          "10.30: Натив UI-ийн хоёр WAV upload = нэг бодит Google Live call + нэг cache hit. Raw текст→PDF-ийн 20,000 төгрөгийн бүтэн заалт/нэг эшлэл→TTS 19.488s decode, браузерийн playback тэнцсэн. Нийт 5 синтетик Live call, 1 аудиогүй setup probe. Хүний танилт/сонсголын accuracy гэж тооцоогүй.",
+          "10.30: Сүүлийн UI засварын 77 шалгалт PASS: actual JS handler-ийн 34 (4 шинэ regression), HTTP/lineage/портатив 43. Өмнөх 364 нь өмнөх засварын баталгаа. GitHub-ийн 9 repository-ийн сонгосон primary README/кодын шийдвэрээр түлхүүр хадгалалт, bounded cache, шууд fee extract хэрэгжсэн.",
+          "10.30: Ганц Gemini Live UI/default API, Windows хэрэглэгчийн DPAPI түлхүүр, restart-ийн дараах сэргэлт нэвтэрсэн. Provider сонголт, бичлэг бүрийн нэмэлт чагт, таван оролдлогын дахин тохиргоог хассан. 429 үед 60s cooldown; ижил audio/config bounded cache нь шинэ Google дуудлага хийхгүй.",
+          "10.30: 364 холбогдох тест PASS, native Windows DPAPI орсон. Дөрвөн синтетик Live STT оролдлого, нэг аудиогүй setup probe; богино auto/hint хоёрын хэлний алдаа, урт control-ийн нэр/үгийн алдааг хадгалсан. Хүний танилтын accuracy хэмжээгүй.",
+          "10.30: Бодит raw STT→RAG→TTS урсгалд эхний exact PDF шалгуур унасан. Засварын дараа хадгалсан raw текстийг typed development replay болгон main серверт шалгахад route A/LLM 0, яг PDF эх/хариу, 19.488s TTS decode тэнцсэн. Шинэ ASR дуудлагагүй; хуучин raw lineage-г хуурамчаар сэргээгээгүй.",
+          "10.30: GitHub-ийн 9 repository-ийн сонгосон README/код, албан Google CLI/SDK болон Windows DPAPI эхийг тулгасан. Cache/түлхүүр/шууд fee extract хэрэгжсэн. LiveKit/Pipecat шинэ framework, Silero шинэ жин, true browser streaming нэмээгүй.",
           "10.30: Хэрэглэгчийн бүтэн screenshot model ID-г тодруулсан: gemini-3.5-live-translate-preview. Хэрэгтэй гаралт нь Монгол Input transcript; англи орчуулгын чанараар тайлбарлахгүй.",
           "Google-ийн албан Live Translation заавраар inputAudioTranscription болон serverContent.inputTranscription.text, Монгол mn, 16 kHz mono PCM16/100 ms stream-ийг шалгасан. Өмнөх файлын Transcribe API нь өөр model/path.",
           "15 аудионы hash/result холбоо, pinned Cafet жингийн checksum,12 matched raw score-ийг offline тулгасан. Шинэ танилт/модель таталт/сургалт/хүний үнэлгээ хийгээгүй.",
@@ -91,9 +102,7 @@
           "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0."
         ],
         "next_actions": [
-          "Яг gemini-3.5-live-translate-preview-ийн inputTranscription.text-ийг Монгол STT гаралт болгон тусдаа provider замаар холбоно. Орчуулсан output-ийг RAG асуулт болгохгүй; одоогоор холбогдсон мэт тайлагнахгүй.",
-          "Ижил шинэ аудио/reference дээр model ID, stream setup, PCM/hash-тай харьцуулж raw WER/CER-ээс гадна нэр/тоо/оны утга,засах хугацаа,RAG task-ийг тусад нь үнэлнэ.",
-          "Өмнөх 15 файлын дамжуулалтын эрхийг дахин эхлүүлэхгүй. Шинэ model-ийн хувийн аудио дамжуулалтыг хэрэглэгчийн тодорхой сонголттой холбоно."
+          "Шинэ бодит асуултаа ганц Gemini горимоор өөрөө туршиж, нэр/тоо/оны засвар ба хариултын утгыг тэмдэглэнэ. 2026.11.02-ны эцсийн STT шийдвэрийг хэрэглэгч өгнө; шинэ жин сургахгүй, түлхүүр дахин нэхэхгүй."
         ]
       }
     },
@@ -107,10 +116,10 @@
       },
       {
         "id": "stt",
-        "label": "STT · Cafet суурь / Gemini candidate",
+        "label": "STT · Gemini 3.5 Live",
         "state": "in_progress",
-        "detail": "Одоогийн сонголт Cafet ба gemini-3.5-transcribe. Screenshot-ийн сайн Монгол танилт нь gemini-3.5-live-translate-preview; яг тэр input transcript замыг хараахан холбоогүй. Өмнөх model-ийн WER шинэ model-ийг шийдэхгүй.",
-        "evidence_label": "Model-identity зөрүү батлагдсан;15 audio/hash ба pinned model checksum offline тэнцсэн. Шинэ Live API inference0."
+        "detail": "Түр хугацаанд ганц Gemini 3.5 Live. DPAPI түлхүүр сэргэлт, stale-page session refresh, mic stop автомат танилт, native upload/cache тэнцсэн. Зөвхөн Монгол inputTranscription; хэл/нэр/үгийн алдааг ил тод хадгалсан.",
+        "evidence_label": "Сүүлийн засвар 77 PASS; натив хоёр upload/нэг Google call. Нийт 5 синтетик Live call; хүний accuracy биш."
       },
       {
         "id": "tts",
@@ -2930,9 +2939,9 @@
     "schema_version": 1,
     "updated_date": "2026-10-30",
     "active_workstream": "II",
-    "verified_code_commit": "b8cdf06fe61cb4cb32c568aafae088e903b209fc",
-    "current_focus": "II · Яг Gemini Live Translate-ийн Монгол input transcript-ийг өөрөө турших холболт",
-    "status_label": "Код/чатны холболт нэвтэрсэн · 150 тест PASS · бодит Live танилт хараахан 0",
+    "verified_code_commit": "24ccb77d020d1c33c5abc695d64cadec8b07e226",
+    "current_focus": "II · Ганц Gemini Live ба түлхүүрийн засварын багц шалгагдсан",
+    "status_label": "Ганц Gemini · түлхүүр дахин нэхэхгүй · натив upload/эхтэй хариу/дуу/cache тэнцсэн · II цааш үргэлжилнэ",
     "workstreams": [
       {
         "id": "I",
@@ -2943,8 +2952,8 @@
       {
         "id": "II",
         "state": "active",
-        "status_label": "Live input transcript сонголт орсон · шинэ бодит хэмжилт үлдсэн · II үргэлжилнэ",
-        "detail": "gemini-3.5-live-translate-preview-ийн зөвхөн inputTranscription-ийг цуглуулна. Transcribe тусдаа; орчуулгыг RAG асуулт болгохгүй. Google Live танилт хараахан ажиллуулаагүй."
+        "status_label": "Ганц Gemini-ийн засварын багц шалгагдсан · II үргэлжилнэ",
+        "detail": "Түлхүүр DPAPI-аар restart-ийн дараа сэргэсэн. Натив upload/raw→эхтэй хариулт→TTS playback/cache шалгалт тэнцсэн. Шинэ хүний paired үнэлгээ ба даваа гарагийн эцсийн provider шийдвэр үлдсэн."
       },
       {
         "id": "III",
@@ -3103,5 +3112,41 @@
     "whole_clip_finality_guaranteed": false,
     "human_review_required": true,
     "native_browser_visual_qa": false
+  },
+  "single_gemini_20261030": {
+    "provisional_provider": "gemini-3.5-live-translate-preview",
+    "decision_review": "2026-11-02",
+    "school_meeting_confirmed": false,
+    "key_storage": "Windows current-user DPAPI, ignored runtime encrypted blob",
+    "related_tests_passed": 77,
+    "live_setup_probes": 1,
+    "actual_synthetic_stt_attempts": 5,
+    "synthetic_short_language_errors": 2,
+    "synthetic_long_mongolian_transcripts": 3,
+    "human_accuracy_measured": false,
+    "native_ui_verified": true,
+    "deployment_pid": 34436,
+    "publication": "local_commit_not_pushed",
+    "next_control": "User self-test and 2026-11-02 final provider decision",
+    "deployed_code_commit": "24ccb77d020d1c33c5abc695d64cadec8b07e226",
+    "native_ready_status_visible": true,
+    "api_rag_tts_verified": true,
+    "strict_first_fee_gate_passed": false,
+    "corrected_typed_replay_verified": true,
+    "corrected_replay_llm_calls": 0,
+    "corrected_replay_wall_seconds": 23.324,
+    "tts_replay_audio_seconds": 19.488,
+    "prior_related_tests_passed": 364,
+    "latest_test_scope": "34 actual JS handlers + 43 HTTP/lineage/portability",
+    "new_regression_tests": 4,
+    "native_ui_scope": "file upload, raw submit, cited reply, TTS playback, same-file cache",
+    "native_mic_recording_verified": false,
+    "mic_stop_handler_tested": true,
+    "native_uploads": 2,
+    "native_new_cloud_calls": 1,
+    "native_cache_hits": 1,
+    "key_reentry_required": false,
+    "stale_page_restart_recovery_verified": true,
+    "repair_pack_verified": true
   }
 }
