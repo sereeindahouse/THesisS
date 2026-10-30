@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-30",
+  "updated_date": "2026-10-31",
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
   "current_week": "W01 · II-ийн эхний бодит15 оролдлого дууссан; алдаатай хязгаарласан trial,II үргэлжилнэ.",
-  "status_basis": "10.30: Ганц gemini-3.5-live-translate-preview; DPAPI түлхүүр restart-ийн дараа өөрөө сэргэсэн. Натив UI-ээр зохиомол WAV хоёр удаа оруулахад Google call 1/cache hit 1, түлхүүр нэхээгүй. Нээлттэй хуудсын хуучин token-ийг local GET-ээр сэргээх, mic stop-оос автоматаар таних хоёр алдааг зассан; 77 холбогдох шалгалт PASS (34 UI/43 HTTP), өмнөх 364 тусдаа. Raw→яг PDF эхтэй хариу→TTS 19.488s decode/native playback тэнцсэн; 12 сонсгол хэвээр. Нийт 5 синтетик Live call+1 setup probe; хэл/нэр/үгийн алдаа хадгалсан. Хүний accuracy биш, II дуусаагүй.",
+  "status_basis": "10.30–31: Хэрэглэгч нэг өмнө баталсан бодит dev бичлэгийг Live Translate Free tier-д нэг удаа илгээхийг тусад нь зөвшөөрсөн; нэг бодит Google audio call, хоёр typed/raw RAG хүсэлт дууссан. WER/CER/S/D/I/хугацаа болон raw татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг Google руу илгээгээгүй. Дараах тусдаа reference replay нь raw lineage-г хадгалж эхтэй хариу/TTS decode тэнцсэн; хүний шинэ засвар/оноо биш. Шалгалтын хуудас ганц Gemini болсон; main raw оны жагсаалт, reference/raw оны literal зөрүү харагдана. 185 холбогдох тест PASS; 12 сонсгол/эх файлын SHA хэвээр. Хүний/general accuracy, raw ASR gain зарлаагүй. Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
   "weekly_plan": {
     "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
     "start_date": "2026-10-26",
@@ -18,9 +18,13 @@
     "policy_notice": "Одоо II · screenshot-оор баталсан Live Translate-ийн Монгол оролтын танилтыг холбох чиглэл. Өмнөх Transcribe туршилт тусдаа. I/III-ийн шаардлагатай эх,үнэлгээ,бичвэр зэрэг явна; хийгдээгүй inference/хүний үр дүнг нөхөхгүй.",
     "current": {
       "week_id": "W01",
-      "title": "II · Ганц Gemini Live ба түлхүүрийн засварын багц шалгагдсан",
-      "status_label": "Ганц Gemini · түлхүүр дахин нэхэхгүй · натив upload/эхтэй хариу/дуу/cache тэнцсэн · II цааш үргэлжилнэ",
+      "title": "II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал",
+      "status_label": "1 зөвшөөрсөн бодит клип хэмжсэн · 185 тест PASS · ганц Gemini · II-ийн хүний утгын үнэлгээ үргэлжилнэ",
       "done": [
+        "10.31: Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
+        "10.30–31: Нэг бодит dev клипийн SHA/reference/model/setup/code протокол ба тусдаа cloud зөвшөөрөл; Google audio нэг удаа, typed/raw RAG хоёр хүсэлт. Анхны raw, WER/CER, S/D/I, wall/RTF ба татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг provider-д илгээгээгүй; хуучин 15 файлыг дахин ашиглаагүй.",
+        "10.31: Үндсэн чат болон хүний шалгалтын хуудас ганц Gemini 3.5 Live замтай. Сонсож баталсан reference, илэрхий Google submit, model/hash/token хамгаалалт, хэмжилтийн хадгалалт/сэргэлт; түүхэн өөр STT raw тусдаа. Main raw онуудаа харуулж, шалгалтын хуудас reference/raw оны literal зөрүүг харуулна. Raw-ийг нууцаар засахгүй.",
+        "10.31: 185 холбогдох тест PASS; сүүлийн history-label UI-д 41 шалгалт дахин PASS. Хүний серверийн бүх эх файл SHA өөрчлөгдөөгүй, 12 сонсгол сэргэсэн. Тусдаа post-output reference replay эх/хариу/TTS decode тэнцсэн; шинэ Google call 0, шинэ хүний edit/listening score 0.",
         "10.30: Ганц Gemini 3.5 Live ба Windows DPAPI түлхүүрийн засвар нэвтэрсэн. Шинэ кодтой нээлттэй хуудсыг reload хийхгүйгээр сервер restart-ийн дараа upload амжилттай; түлхүүр нэхээгүй. Mic stop handler хуучин чагт шаардахгүй автоматаар танина.",
         "10.30: Натив UI-ийн хоёр WAV upload = нэг бодит Google Live call + нэг cache hit. Raw текст→PDF-ийн 20,000 төгрөгийн бүтэн заалт/нэг эшлэл→TTS 19.488s decode, браузерийн playback тэнцсэн. Нийт 5 синтетик Live call, 1 аудиогүй setup probe. Хүний танилт/сонсголын accuracy гэж тооцоогүй.",
         "10.30: Сүүлийн UI засварын 77 шалгалт PASS: actual JS handler-ийн 34 (4 шинэ regression), HTTP/lineage/портатив 43. Өмнөх 364 нь өмнөх засварын баталгаа. GitHub-ийн 9 repository-ийн сонгосон primary README/кодын шийдвэрээр түлхүүр хадгалалт, bounded cache, шууд fee extract хэрэгжсэн.",
@@ -59,22 +63,27 @@
         "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0."
       ],
       "in_progress": [
-        "Gemini-ийн богино синтетикт хэл андуурал, Монгол гаралтад нэр/үгийн алдаа үлдсэн. Хүний шинэ paired reference, critical утга/task үнэлгээний ажил тусдаа; агент хүний оноо нөхөхгүй.",
-        "Бодит хүний шинэ микрофоны бичлэгийг агент үүсгээгүй. Mic start/stop-ийн жинхэнэ JS handler-ийг fake recorder-оор шалгасан; native upload/raw→RAG→playback-ийг бодитоор шалгасан.",
-        "Эцсийн STT сонголт 2026.11.02-нд хэрэглэгчийн шийдвэр pending. Энэ засварын багц тэнцсэн нь I/II/III бүхэлдээ дууссан эсвэл сургуулийн хамгаалалтын тов батлагдсан гэсэн үг биш."
+        "Нэг бодит жишээнд reference/raw утгын зөрүү ба raw асуултын татгалзал үлдсэн. Оныг эхийн утгаар чимээгүй солихгүй. Хүний reference өөрөө бие даан батлагдсан үнэн биш; зөрүүг дахин сонсож нягтална.",
+        "Хүний critical/task/сонсголын шинэ үнэлгээ, бодит засах хугацаа null. Өөр хэлэгчийн general accuracy, paired gain, p50/p95 зарлаагүй. Энэ хэмжилт нь observed development; II бүхэлдээ дуусаагүй.",
+        "Дуу таних зам одоогоор бичлэг дууссаны дараах paced upload; браузераас ярьж байх үеийн true streaming биш. Ганц хүсэлтийн хугацааг provider-ийн нийт latency эсвэл өсөлт гэж дүгнэхгүй."
       ],
       "next": [
-        "Шинэ бодит асуултаа ганц Gemini горимоор өөрөө туршиж, нэр/тоо/оны засвар ба хариултын утгыг тэмдэглэнэ. 2026.11.02-ны эцсийн STT шийдвэрийг хэрэглэгч өгнө; шинэ жин сургахгүй, түлхүүр дахин нэхэхгүй."
+        "Шалгалтын хуудсанд шинэ асуултаа сонсож reference батлаад ганц Gemini-ээр туршина; оны зөрүү, засах хөдөлмөр, хариултаас сонссон утгаа хүн өөрөө үнэлнэ. 2026.11.02-ны эцсийн STT шийдвэр pending; шинэ Whisper сургалт эхлүүлэхгүй."
       ],
       "human_tasks": [
-        "Түлхүүр дахин оруулах шаардлагагүй. Хэрэглэгч өөрийн шинэ асуулт, сонссон утгыг үнэлж, даваа гарагт эцсийн STT сонголтоо өгнө."
+        "Шинэ асуулт, reference-ийн эргэлзээтэй он/үг, сонссон утга, засах хөдөлмөрийг хүн өөрөө үнэлнэ. API түлхүүр дахин нэхэхгүй; хүний шинэ оноог агент нөхөхгүй.",
+        "2026.11.02-нд хэрэглэгч эцсийн STT сонголтоо өгнө; сургуулийн албан уулзалтын тов гэж үзэхгүй."
       ]
     },
     "weeks": {
       "W01": {
         "state": "in_progress",
-        "label": "II · Ганц Gemini-ийн засварын багц шалгагдсан; шинэ хүний үнэлгээ тусдаа",
+        "label": "II · Нэг бодит Gemini dev хэмжилт; шинэ хүний утгын үнэлгээ тусдаа",
         "evidence": [
+          "10.31: Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
+          "10.30–31: Нэг бодит dev клипийн SHA/reference/model/setup/code протокол ба тусдаа cloud зөвшөөрөл; Google audio нэг удаа, typed/raw RAG хоёр хүсэлт. Анхны raw, WER/CER, S/D/I, wall/RTF ба татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг provider-д илгээгээгүй; хуучин 15 файлыг дахин ашиглаагүй.",
+          "10.31: Үндсэн чат болон хүний шалгалтын хуудас ганц Gemini 3.5 Live замтай. Сонсож баталсан reference, илэрхий Google submit, model/hash/token хамгаалалт, хэмжилтийн хадгалалт/сэргэлт; түүхэн өөр STT raw тусдаа. Main raw онуудаа харуулж, шалгалтын хуудас reference/raw оны literal зөрүүг харуулна. Raw-ийг нууцаар засахгүй.",
+          "10.31: 185 холбогдох тест PASS; сүүлийн history-label UI-д 41 шалгалт дахин PASS. Хүний серверийн бүх эх файл SHA өөрчлөгдөөгүй, 12 сонсгол сэргэсэн. Тусдаа post-output reference replay эх/хариу/TTS decode тэнцсэн; шинэ Google call 0, шинэ хүний edit/listening score 0.",
           "10.30: Ганц Gemini 3.5 Live ба Windows DPAPI түлхүүрийн засвар нэвтэрсэн. Шинэ кодтой нээлттэй хуудсыг reload хийхгүйгээр сервер restart-ийн дараа upload амжилттай; түлхүүр нэхээгүй. Mic stop handler хуучин чагт шаардахгүй автоматаар танина.",
           "10.30: Натив UI-ийн хоёр WAV upload = нэг бодит Google Live call + нэг cache hit. Raw текст→PDF-ийн 20,000 төгрөгийн бүтэн заалт/нэг эшлэл→TTS 19.488s decode, браузерийн playback тэнцсэн. Нийт 5 синтетик Live call, 1 аудиогүй setup probe. Хүний танилт/сонсголын accuracy гэж тооцоогүй.",
           "10.30: Сүүлийн UI засварын 77 шалгалт PASS: actual JS handler-ийн 34 (4 шинэ regression), HTTP/lineage/портатив 43. Өмнөх 364 нь өмнөх засварын баталгаа. GitHub-ийн 9 repository-ийн сонгосон primary README/кодын шийдвэрээр түлхүүр хадгалалт, bounded cache, шууд fee extract хэрэгжсэн.",
@@ -102,7 +111,7 @@
           "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0."
         ],
         "next_actions": [
-          "Шинэ бодит асуултаа ганц Gemini горимоор өөрөө туршиж, нэр/тоо/оны засвар ба хариултын утгыг тэмдэглэнэ. 2026.11.02-ны эцсийн STT шийдвэрийг хэрэглэгч өгнө; шинэ жин сургахгүй, түлхүүр дахин нэхэхгүй."
+          "Шалгалтын хуудсанд шинэ асуултаа сонсож reference батлаад ганц Gemini-ээр туршина; оны зөрүү, засах хөдөлмөр, хариултаас сонссон утгаа хүн өөрөө үнэлнэ. 2026.11.02-ны эцсийн STT шийдвэр pending; шинэ Whisper сургалт эхлүүлэхгүй."
         ]
       }
     },
@@ -116,10 +125,10 @@
       },
       {
         "id": "stt",
-        "label": "STT · Gemini 3.5 Live",
+        "label": "STT · ганц Gemini 3.5 Live",
         "state": "in_progress",
-        "detail": "Түр хугацаанд ганц Gemini 3.5 Live. DPAPI түлхүүр сэргэлт, stale-page session refresh, mic stop автомат танилт, native upload/cache тэнцсэн. Зөвхөн Монгол inputTranscription; хэл/нэр/үгийн алдааг ил тод хадгалсан.",
-        "evidence_label": "Сүүлийн засвар 77 PASS; натив хоёр upload/нэг Google call. Нийт 5 синтетик Live call; хүний accuracy биш."
+        "detail": "Нэг зөвшөөрсөн бодит клипийг түгжсэн reference/model/setup/hash-тай хэмжсэн. Reference/raw өөрчлөгдөөгүй; оны literal зөрүү, хэлбэр ба утгын алдааг тусад нь нягтална. Хүний шинэ semantic score null.",
+        "evidence_label": "Нэг бодит Google audio call; эхний paired task ба тусдаа post-output replay. 185 тест PASS; хүний accuracy биш."
       },
       {
         "id": "tts",
@@ -2937,11 +2946,11 @@
   },
   "project_note": {
     "schema_version": 1,
-    "updated_date": "2026-10-30",
+    "updated_date": "2026-10-31",
     "active_workstream": "II",
-    "verified_code_commit": "24ccb77d020d1c33c5abc695d64cadec8b07e226",
-    "current_focus": "II · Ганц Gemini Live ба түлхүүрийн засварын багц шалгагдсан",
-    "status_label": "Ганц Gemini · түлхүүр дахин нэхэхгүй · натив upload/эхтэй хариу/дуу/cache тэнцсэн · II цааш үргэлжилнэ",
+    "verified_code_commit": "933a4a225d4f666c20e0c2de33c2c43d962182b8",
+    "current_focus": "II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал",
+    "status_label": "1 зөвшөөрсөн бодит клип хэмжсэн · 185 тест PASS · ганц Gemini · II-ийн хүний утгын үнэлгээ үргэлжилнэ",
     "workstreams": [
       {
         "id": "I",
@@ -2952,8 +2961,8 @@
       {
         "id": "II",
         "state": "active",
-        "status_label": "Ганц Gemini-ийн засварын багц шалгагдсан · II үргэлжилнэ",
-        "detail": "Түлхүүр DPAPI-аар restart-ийн дараа сэргэсэн. Натив upload/raw→эхтэй хариулт→TTS playback/cache шалгалт тэнцсэн. Шинэ хүний paired үнэлгээ ба даваа гарагийн эцсийн provider шийдвэр үлдсэн."
+        "status_label": "Нэг бодит dev хэмжилт ба засварын багц шалгагдсан · II үргэлжилнэ",
+        "detail": "Ганц Gemini, reference/raw хэмжилт, оны ил тод review, эхтэй хариу ба response-bound TTS. Хүний critical/task/сонсголын үнэлгээ болон даваа гарагийн эцсийн сонголт үлдсэн."
       },
       {
         "id": "III",
@@ -3148,5 +3157,44 @@
     "key_reentry_required": false,
     "stale_page_restart_recovery_verified": true,
     "repair_pack_verified": true
+  },
+  "gemini_real_use_20261031": {
+    "model": "gemini-3.5-live-translate-preview",
+    "approved_existing_real_clips_evaluated": 1,
+    "new_human_recordings_collected": 0,
+    "new_human_reference_labels_created": 0,
+    "google_audio_posts": 1,
+    "reference_sent_to_google": false,
+    "old_15_budget_reused": false,
+    "initial_rag_posts": 2,
+    "post_output_development_replay": true,
+    "followup_google_audio_posts": 0,
+    "followup_tts_decoded": true,
+    "human_task_success": null,
+    "human_listening_accuracy": null,
+    "per_clip_scores_public": false,
+    "normalized_reference_or_raw_rewritten": false,
+    "model_accuracy_gain_claimed": false,
+    "account_tier_independently_verified": false,
+    "authorized_cost_usd": 0,
+    "automatic_retry": false,
+    "paid_fallback": false,
+    "new_training": 0,
+    "new_model_downloads": 0,
+    "related_tests_passed": 185,
+    "final_ui_tests_rerun": 41,
+    "main_pid": 38760,
+    "human_pid": 32940,
+    "saved_listening_preserved": 12,
+    "initial_measurement_code_commit": "eb57816",
+    "verified_code_commit": "933a4a225d4f666c20e0c2de33c2c43d962182b8",
+    "publication": "local_commits_not_pushed",
+    "report": "papers/13-gemini-real-use-evaluation-20261031.mn.md",
+    "year_scope_regressions_passed": 202,
+    "year_scope_http_tests_passed": 24,
+    "year_scope_offline_replay": true,
+    "year_scope_actual_loopback_typed_replays": 1,
+    "year_scope_replay_google_calls": 0,
+    "misleading_staff_refusal_fixed": true
   }
 }

@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · II] II · Ганц Gemini Live ба түлхүүрийн засварын багц шалгагдсан ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал ${separator} ${dirty}${activeEditorShort}"
   }
 }

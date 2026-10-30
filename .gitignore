@@ -401,3 +401,4 @@ __pycache__/
 !/gemini_credentials.py
 !/tests/test_gemini_credentials.py
 !/papers/12-gemini-single-provider-repair-20261030.mn.md
+!/papers/13-gemini-real-use-evaluation-20261031.mn.md
