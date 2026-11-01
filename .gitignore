@@ -437,3 +437,9 @@ __pycache__/
 !/config/answer-selection.json
 !/tests/test_no_llm_mode.py
 !/papers/14-rule-source-selection-20261101.mn.md
+
+# Blank reception data form for the school (public). Filled copies from the school stay private.
+!/data/reception/
+/data/reception/*
+!/data/reception/Ресепшний_мэдээлэл_цуглуулах_загвар.xlsx
+!/tools/build_reception_xlsx.py
