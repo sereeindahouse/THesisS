@@ -20,7 +20,9 @@ class DeliveryReadinessTests(unittest.TestCase):
             self.assertFalse(result['modifications_performed'])
             failed = {row['name'] for row in result['checks'] if not row['passed']}
             self.assertTrue({'entrypoints', 'pinned_dependencies', 'cafet_and_e5_files',
-                             'gemma_and_ollama_files', 'active_source_data'}.issubset(failed))
+                             'active_source_data'}.issubset(failed))
+            # The local LLM is off unless a valid project configuration enables it.
+            self.assertNotIn('gemma_and_ollama_files', failed)
             self.assertEqual(list(root.iterdir()), before)
             self.assertNotIn('activation_token', json.dumps(result))
 

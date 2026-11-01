@@ -21,6 +21,7 @@ from listening_review import ListeningReview
 from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG
+from rule_selector import answer_selection
 from data_explorer import SourceExplorer
 from clarification_context import ClarificationContext, ClarificationConflict
 from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
@@ -49,6 +50,8 @@ def _transcription_corrector(root, rag, supplied=None):
     """Explicit local-project opt-in; never replace environment/operator intent."""
     if supplied is not None:
         return supplied
+    if not answer_selection(root)['local_llm_enabled']:
+        return LLMRuntime(root, model='')
     runtime = LLMRuntime(root)
     if (runtime.configured or 'THESIS_LLM_MODEL' in os.environ
             or 'THESIS_OLLAMA_URL' in os.environ):

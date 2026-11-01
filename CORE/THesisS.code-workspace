@@ -21,14 +21,14 @@
       "**/CORE/website/snapshots": true
     },
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#203F70",
+      "titleBar.activeBackground": "#164E43",
       "titleBar.activeForeground": "#FFFFFF",
-      "titleBar.inactiveBackground": "#24354F",
+      "titleBar.inactiveBackground": "#203B36",
       "titleBar.inactiveForeground": "#E0DFE8",
-      "statusBar.background": "#203F70",
+      "statusBar.background": "#164E43",
       "statusBar.foreground": "#FFFFFF",
-      "activityBar.activeBorder": "#90B9F1"
+      "activityBar.activeBorder": "#88D4BB"
     },
-    "window.title": "[THesisS · II] II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · I] I · Хариултыг дүрмээр сонгох, Gemma унтраалттай ${separator} ${dirty}${activeEditorShort}"
   }
 }

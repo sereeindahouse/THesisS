@@ -120,8 +120,10 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         if checked.returncode == 0:
             python = str(candidate)
-    from tools.start_local_llm import start_local_llm
-    start_local_llm(root)
+    from rule_selector import answer_selection
+    if answer_selection(root)["local_llm_enabled"]:
+        from tools.start_local_llm import start_local_llm
+        start_local_llm(root)
     runtime = root / "runtime"
     runtime.mkdir(parents=True, exist_ok=True)
     with (runtime / "demo-server.stdout.log").open("ab") as output, \

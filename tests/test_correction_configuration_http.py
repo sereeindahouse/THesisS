@@ -17,6 +17,9 @@ class CorrectionConfigurationTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.path=self.root/'runtime/rag-model.json';self.path.parent.mkdir()
+        # These cases cover the correction path after an operator re-enables the local LLM.
+        (self.root/'config').mkdir()
+        (self.root/'config/answer-selection.json').write_text(json.dumps(dict(selector='gemma_production_selector',local_llm_enabled=True)),encoding='utf-8')
         self.environment=patch.dict(os.environ,{});self.environment.start()
         for key in ('THESIS_LLM_MODEL','THESIS_OLLAMA_URL'):os.environ.pop(key,None)
         self.requests=[]

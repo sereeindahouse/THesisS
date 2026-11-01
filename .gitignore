@@ -402,3 +402,38 @@ __pycache__/
 !/tests/test_gemini_credentials.py
 !/papers/12-gemini-single-provider-repair-20261030.mn.md
 !/papers/13-gemini-real-use-evaluation-20261031.mn.md
+
+# Claude handoff: reviewed instructions only; settings, credentials and runtime stay private.
+!/CLAUDE.md
+!/.claude/
+/.claude/*
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/references/
+/.claude/references/*
+!/.claude/references/aitmpl-review.mn.md
+!/CORE/CLAUDE-HANDOFF.mn.md
+!/CORE/CLAUDE.cmd
+!/tools/claude_context.py
+!/.claude/skills/thesis-resume/
+/.claude/skills/thesis-resume/*
+!/.claude/skills/thesis-resume/SKILL.md
+!/.claude/skills/thesis-debug/
+/.claude/skills/thesis-debug/*
+!/.claude/skills/thesis-debug/SKILL.md
+!/.claude/skills/thesis-research/
+/.claude/skills/thesis-research/*
+!/.claude/skills/thesis-research/SKILL.md
+!/.claude/skills/thesis-weekly/
+/.claude/skills/thesis-weekly/*
+!/.claude/skills/thesis-weekly/SKILL.md
+
+# Monthly archive of the public project note (moved, not deleted); keeps the current note short.
+!/CORE/archive/
+!/CORE/archive/*.mn.md
+
+# Configured no-LLM source selection and its test.
+!/rule_selector.py
+!/config/answer-selection.json
+!/tests/test_no_llm_mode.py
+!/papers/14-rule-source-selection-20261101.mn.md

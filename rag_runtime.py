@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from llm_runtime import LLMRuntime, _json_object
+from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
 from historical_fields import event_search_query, event_requirements, event_supported
@@ -39,7 +40,7 @@ from answer_contract import (MAX_SPEECH_CHARACTERS, spoken_text, render_claims,
 # against disk and reject stale modules before sending answer/audio requests.
 RUNTIME_ARTIFACT_SHA256 = {
     name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
-    for name in ('rag_runtime.py', 'source_fields.py', 'answer_contract.py',
+    for name in ('rag_runtime.py', 'rule_selector.py', 'tools/evaluate_llm_selection.py', 'source_fields.py', 'answer_contract.py',
                  'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py',
                  'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py')
 }
@@ -336,6 +337,20 @@ def both_exam_durations_supported(text):
     # next to one label cannot satisfy a duration request for that exam.
     return all(re.search(label+r'(?:(?!'+other+r').){0,180}?\d+\s*минут',text,re.I|re.S)
                for label,other in (('бичгийн','ярилцлаг'),('ярилцлаг','бичгийн')))
+
+
+COMMON_QUESTION_ALIASES = (
+    (re.compile(r'(?:сургууль(?:тай|ийн)?\s+)?(?:яаж|хэрхэн)\s+(?:холбоо\s+барих|холбогдох)(?:\s+вэ)?|'
+                r'(?:сургуулийн\s+)?холбоо\s+барих(?:\s+мэдээлэл)?'), 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.'),
+    (re.compile(r'сургууль(?:ийн)?\s+(?:хаана\s+(?:байрладаг|байдаг|вэ)|байршил\s+хаана)(?:\s+вэ)?|'
+                r'(?:сургуулийн\s+)?хаяг\s+(?:хаана|юу)(?:\s+вэ)?'), 'Сургуулийн хаяг хаана вэ?'),
+)
+
+
+def common_question_alias(query):
+    """Closed wordings of a stored question; every routing guard still applies."""
+    text = ' '.join(query.casefold().split()).strip(' .!?')
+    return next((canonical for pattern, canonical in COMMON_QUESTION_ALIASES if pattern.fullmatch(text)), None)
 
 
 def school_contact_extract(query, sources):
@@ -1276,7 +1291,7 @@ class ChatRAG:
         if retriever is None:
             retriever = WebsiteRetriever(root=self.root)
         self.retriever = retriever
-        self.generator = generator or GroundedGenerator(self.root)
+        self.generator = generator or default_generator(self.root)
         self._responses = OrderedDict()
         self._lock = threading.Lock()
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
@@ -1313,7 +1328,8 @@ class ChatRAG:
         with self._lock:
             totals = dict(self._totals)
         return {"enabled": self.policy.enabled, "provider": provider,
-                "llm_role": "evidence_selection", "model_authored_answer_text": False,
+                "llm_role": getattr(self.generator, "llm_role", "evidence_selection"),
+                "model_authored_answer_text": False,
                 "stt_by_llm": False, "tts_by_llm": False,
                 "loaded_artifact_sha256": dict(RUNTIME_ARTIFACT_SHA256),
                 "retrieval": self.retriever.status(), "training_performed": False,
@@ -1370,7 +1386,12 @@ class ChatRAG:
     def _route(self, database, query, *, allow_draft=False, timings=None):
         timings = {} if timings is None else timings
         phase_start = time.perf_counter()
-        result = self.policy.route(database, query, allow_draft=allow_draft)
+        alias = common_question_alias(query)
+        result = self.policy.route(database, alias or query, allow_draft=allow_draft)
+        if alias and result.get('answer'):
+            result.update(query=query, common_question_alias=alias)
+        elif alias:
+            result = self.policy.route(database, query, allow_draft=allow_draft)
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
         if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
@@ -1823,7 +1844,8 @@ class ChatRAG:
                     'unknown_citation', 'unverified_quote', 'question_instead_of_answer',
                     'unknown_evidence_unit', 'invalid_evidence_unit', 'invalid_evidence_selection',
                     'duplicate_evidence_selection', 'evidence_context_exceeds_claim_budget',
-                    'evidence_selection_exceeds_budget', 'requested_evidence_markers_missing', 'requested_field_not_in_selection', 'no_complete_evidence_units'}:
+                    'evidence_selection_exceeds_budget', 'requested_evidence_markers_missing', 'requested_field_not_in_selection', 'no_complete_evidence_units',
+                    'selector_abstained'}:
                 result.update(reason_code='generation_not_verified',
                     message='Бэлтгэсэн хариултыг эхтэй нь нийцүүлж баталгаажуулж чадсангүй. '
                             'Доорх эхийг унших эсвэл асуултаа нэг зүйлээр тодруулж болно.')
@@ -1837,6 +1859,10 @@ class ChatRAG:
                         +('Баталгаажуулаагүй зүйл: '+labels+'. ' if labels else '')
                         +'Өөр үйл явдал, он эсвэл ойролцоо мэдээллээр орлуулахгүй. '
                         +'Товчилсон нэр хэрэглэсэн бол бүтэн нэрийг нь бичиж, асуусан оноо хамт тодруулна уу.'))
+            if generated['reason'] == 'selection_not_relevant':
+                result.update(reason_code='selection_not_relevant',suggestions=[],
+                    message='Энэ асуултад хариулах мэдээлэл хадгалсан эхээс олдсонгүй. '
+                            'Ойролцоо үгтэй хамааралгүй хэсгийг хариулт болгож харуулахгүй.')
             if generated["generated"]:
                 sources = {s["source_id"]: s for s in evidence}
                 answer, cited = render_claims(generated['claims'])

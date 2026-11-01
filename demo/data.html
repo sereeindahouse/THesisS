@@ -25,8 +25,8 @@
     </nav>
     <a href="/" class="chat-link"><span aria-hidden="true">↗</span> Мэдээллийн туслах руу</a>
     <a id="localAdminLink" href="/admin" class="chat-link" hidden><span aria-hidden="true">↥</span> Мэдээлэл шинэчлэх</a>
-    <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span>Локал өгөгдөл<small>Энэ харагдац хадгалсан эхийг уншина. Моделиор шинэ хариулт үүсгэхгүй.</small></div>
-    <div class="sidebar-footer">Эх → хайлт → хариулт<small>Бүтээж буй системийн нотолгоо</small></div>
+    <div class="sidebar-note"><span class="status-dot" aria-hidden="true"></span>Локал өгөгдөл<small>Хадгалсан албан эхийг харуулна.</small></div>
+    <div class="sidebar-footer">Эх → хайлт → хариулт</div>
   </aside>
   <main id="main" class="main" tabindex="-1">
     <header class="topbar"><span>Сургуулийн мэдээллийн систем</span><span class="local-badge"><span aria-hidden="true">●</span> Зөвхөн унших</span></header>
@@ -34,11 +34,11 @@
     <div id="errorState" class="error-state" hidden><span class="error-symbol" aria-hidden="true">!</span><h1>Мэдээллийн санг нээж чадсангүй</h1><p id="errorMessage">Локал серверийн холболтыг шалгаад дахин оролдоно уу.</p><button id="retryLoad" class="solid-button" type="button">Дахин ачаалах</button><a href="/">Чат руу буцах</a></div>
     <section id="knowledgeView" class="view" role="tabpanel" aria-labelledby="knowledgeTab" hidden>
       <div class="hero">
-        <div class="hero-copy"><div class="eyebrow"><span></span>ХАДГАЛСАН ЭХИЙН ЗУРАГЛАЛ</div><h1>Сургуулийн<br><em>мэдлэгийн атлас.</em></h1><p>Чат ямар мэдээлэлд тулгуурлаж байна вэ?<br>Эхийг хайж, бүтэн текст болон хамрах хүрээг нь өөрөө шалгаарай.</p></div>
+        <div class="hero-copy"><div class="eyebrow"><span></span>ХАДГАЛСАН ЭХИЙН ЗУРАГЛАЛ</div><h1>Сургуулийн<br><em>мэдлэгийн атлас.</em></h1><p>Чат эдгээр эхээс хариулдаг. Хайж, нээж үзээрэй.</p></div>
         <div class="hero-illustration" aria-hidden="true"><svg viewBox="0 0 280 200" fill="none"><ellipse cx="145" cy="106" rx="110" ry="65" stroke="#abc4b5" stroke-dasharray="4 7"/><ellipse cx="145" cy="106" rx="74" ry="94" stroke="#c8d7c8" transform="rotate(32 145 106)"/><path d="m51 65 92 44 70-66M143 109l71 40M143 109l-78 56" stroke="#abc4b5"/><rect x="111" y="72" width="67" height="72" rx="13" fill="#164e48"/><path d="M128 94h33M128 104h25M128 114h33M128 124h18" stroke="#c7dec8" stroke-width="3" stroke-linecap="round"/><rect x="22" y="45" width="55" height="40" rx="9" fill="#f5eedc" stroke="#c4b888"/><text x="49" y="70" text-anchor="middle" fill="#786e3f" font-size="12" font-family="system-ui">HTML</text><rect x="192" y="22" width="49" height="40" rx="9" fill="#edf1e7" stroke="#bbc8b2"/><text x="216" y="47" text-anchor="middle" fill="#596e50" font-size="12" font-family="system-ui">PDF</text><rect x="193" y="133" width="49" height="40" rx="9" fill="#e2ece7" stroke="#99b2a7"/><text x="217" y="158" text-anchor="middle" fill="#315c50" font-size="12" font-family="system-ui">PNG</text><circle cx="65" cy="164" r="8" fill="#c4a763"/><circle cx="126" cy="24" r="4" fill="#afc2b5"/><path d="m252 90 3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6Z" fill="#b9cdbb"/></svg></div>
       </div>
       <div class="stat-grid" id="stats" aria-label="Мэдээллийн сангийн тоон мэдээлэл"></div>
-      <p class="scope-note" id="scopeNote"><span aria-hidden="true">↳</span> Энэ нь бүх сайтын бүрэн хуулбар биш. Хадгалсан эх, сонгосон баримтын хэсгийг харуулна.</p>
+      <p class="scope-note" id="scopeNote"><span aria-hidden="true">↳</span> Сайтын хадгалсан хэсэг; бүрэн хуулбар биш.</p>
       <section class="catalogue" aria-labelledby="catalogueTitle">
         <div class="section-title"><div><span class="eyebrow muted">ЭХИЙГ НЭЭЖ ҮЗЭХ</span><h2 id="catalogueTitle">Мэдээллийн цуглуулга</h2></div><span class="snapshot-label" id="snapshotLabel"></span></div>
         <div class="search-row"><label class="search-box" for="sourceSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="sourceSearch" type="search" placeholder="Элсэлт, төлбөр, Sakura…" autocomplete="off"><span class="search-hint" aria-hidden="true">ХАЙХ</span></label><label class="kind-label">Эхийн төрөл<select id="kindFilter"><option value="all">Бүх төрөл</option><option value="HTML">HTML хуудас</option><option value="PNG">PNG зураг</option><option value="PDF">PDF баримт</option><option value="document">Баримттай эх</option></select></label></div>
@@ -51,8 +51,8 @@
       </section>
     </section>
     <section id="treeView" class="view" role="tabpanel" aria-labelledby="treeTab" hidden>
-      <div class="progress-hero tree-hero"><div class="eyebrow"><span></span>СУРГУУЛИЙН МЭДЭЭЛЭЛ → СЭДЭВ → ЭХ</div><h1>Мэдлэг хаанаас ирж,<br><em>хариулт яаж бүтдэг вэ?</em></h1><p>Сургуулийн мэдээллийг салбарласан модоор нээгээд, тухайн сэдэвт ямар эх, баримт, FAQ байгааг хараарай.</p></div>
-      <aside class="tree-scope"><strong>Модыг яаж унших вэ?</strong><p>Энэ бол хадгалсан мэдээллийн сэдвийн ангилал. Салааны тоо нь дэд сэдвүүдээ хамарна. Эх байгааг тухайн сэдвийн бүх мэдээлэл бүрэн, эсвэл хариулт зөв гэсэн баталгаа гэж үзэхгүй. Ангилал нь одоогоор хөгжүүлэгчийн санал; чатны хайлтын дарааллыг өөрчлөхгүй.</p></aside>
+      <div class="progress-hero tree-hero"><div class="eyebrow"><span></span>СЭДЭВ → ЭХ</div><h1>Мэдлэгийн мод</h1><p>Сэдвээ дарж, ямар эх байгааг хараарай.</p></div>
+      <aside class="tree-scope"><strong>Товчоор:</strong><p>Мод нь эх олоход тусална. Чатын хариултыг өөрчилдөггүй.</p></aside>
       <div id="treeLoadState" class="tree-load" role="status" aria-live="polite">Мэдлэгийн модыг уншиж байна…</div>
       <div id="treeError" class="tree-error" hidden><p id="treeErrorMessage">Мэдлэгийн модыг нээж чадсангүй.</p><button id="retryTree" class="text-button" type="button">Дахин оролдох ↻</button></div>
       <div id="treeContent" hidden>
@@ -64,7 +64,7 @@
           <div class="graph-toolbar" role="group" aria-label="Мэдлэгийн модны харагдац"><div class="graph-zoom"><button id="treeZoomOut" type="button" aria-label="Модыг жижигрүүлэх">−</button><output id="treeZoomLabel" aria-live="polite">100%</output><button id="treeZoomIn" type="button" aria-label="Модыг томруулах">+</button></div><button id="treeFocus" type="button">Сонгосон салаа</button><button id="treeFit" type="button">Бүтнээр харах</button><button id="treeReset" type="button">Эхлэл ↺</button></div>
           <div id="treeGraphViewport" class="graph-viewport"><svg id="knowledgeGraph" class="knowledge-graph" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Сургуулийн сэдвүүдийг холбосон мэдлэгийн мод. Зангилааг сонгож эхийг үзнэ." tabindex="0"></svg></div>
           <div class="graph-footer"><p id="treeSearchStatus" class="tree-search-status" role="status" aria-live="polite"></p><span class="graph-legend"><i class="legend-node" aria-hidden="true"></i> Сэдэв <i class="legend-edge" aria-hidden="true"></i> Дэд сэдэв</span></div>
-          <p class="graph-help">Зангилааг дарвал эх нь доор гарна. Чирж зөөх, хулганы дугуй эсвэл хоёр хуруугаар томруулах боломжтой. Гар: Tab-аар зангилаанд очоод Enter дарна; + / − томруулна, 0 бүтнээр харуулна.</p>
+          <p class="graph-help">Дарвал эх нь доор гарна. Чирч зөөж, дугуйгаар томруулна.</p>
         </section>
         <div class="tree-layout tree-secondary-layout">
           <details class="tree-navigation tree-accessible-list"><summary>Сэдвүүдийг жагсаалтаар унших</summary><p class="tree-guide">Сумыг дарж салааг нээнэ. Нэрийг сонгож эхийг нь үзнэ.</p><div id="topicTree"></div></details>
@@ -72,23 +72,23 @@
         </div>
         <p id="treeRelease" class="tree-release"></p>
       </div>
-      <section class="system-map" aria-labelledby="systemMapTitle"><div class="section-title"><div><span class="eyebrow muted">СИСТЕМИЙН БОЛОВСРУУЛАЛТЫН ХОЛБООС</span><h2 id="systemMapTitle">LLM яг хаана ажилладаг вэ?</h2></div></div><p class="system-intro">Эх сурвалж, өгөгдлийн сан, хайлт, LLM, дууны үйлчилгээ хэрхэн холбогдсоныг зураглалаа. Зангилааг сонгож үүргийг нь уншаарай.</p>
-        <div class="brain-map-panel"><div class="graph-toolbar" role="group" aria-label="Системийн урсгалын харагдац"><div class="graph-zoom"><button id="brainZoomOut" type="button" aria-label="Урсгалын зургийг жижигрүүлэх">−</button><output id="brainZoomLabel" aria-live="polite">100%</output><button id="brainZoomIn" type="button" aria-label="Урсгалын зургийг томруулах">+</button></div><button id="brainFit" type="button">Бүтнээр харах</button><span class="brain-map-key"><i aria-hidden="true"></i> LLM ажиллах хэсэг</span></div><div id="brainGraphViewport" class="graph-viewport brain-viewport"><svg id="systemGraph" class="knowledge-graph" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Эхээс хариулт хүртэлх системийн бодит үйлчилгээний урсгал" tabindex="0"></svg></div><div id="brainDetail" class="brain-detail" aria-live="polite"></div></div>
-        <p class="system-map-note">Энэ нь системийн өгөгдөл боловсруулах урсгалын зураг. Нейрон сүлжээний сурсан жин, LLM-ийн дотоод бодлыг үзүүлсэн гэсэн утгагүй.</p>
+      <section class="system-map" aria-labelledby="systemMapTitle"><div class="section-title"><div><span class="eyebrow muted">СИСТЕМИЙН БҮТЭЦ</span><h2 id="systemMapTitle">Асуултаас хариулт хүртэл</h2></div></div><p class="system-intro">Хэсэг бүрийг дарж үүргийг нь уншаарай.</p>
+        <div class="brain-map-panel"><div class="graph-toolbar" role="group" aria-label="Системийн урсгалын харагдац"><div class="graph-zoom"><button id="brainZoomOut" type="button" aria-label="Урсгалын зургийг жижигрүүлэх">−</button><output id="brainZoomLabel" aria-live="polite">100%</output><button id="brainZoomIn" type="button" aria-label="Урсгалын зургийг томруулах">+</button></div><button id="brainFit" type="button">Бүтнээр харах</button><span class="brain-map-key"><i aria-hidden="true"></i> Хариултын хэсэг сонгох</span></div><div id="brainGraphViewport" class="graph-viewport brain-viewport"><svg id="systemGraph" class="knowledge-graph" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Эхээс хариулт хүртэлх системийн бодит үйлчилгээний урсгал" tabindex="0"></svg></div><div id="brainDetail" class="brain-detail" aria-live="polite"></div></div>
+        
         <details class="system-text-fallback"><summary>Урсгалын тайлбарыг үгээр унших</summary><ol class="system-steps">
           <li><span class="system-step-number">1</span><div><h3>Эхийг хадгална</h3><p>Албан сайтын HTML, сонгосон PDF ба зураг, нэмэлт табын текстийг URL, хувилбар, хадгалсан огноотой нь бүртгэнэ.</p><small>Албан эх → SQLite · эхийн хуулбар</small></div></li>
           <li><span class="system-step-number">2</span><div><h3>Асуултыг чиглүүлнэ</h3><p>Бүртгэлтэй FAQ, баримтаар шууд хариулж болохыг шалгана. Хүрээ тодорхойгүй бол лавлаж, эхгүй бол мэдээлэл хүрэлцэхгүйг хэлнэ.</p><small>Шууд хариулт · тодруулга · эхтэй хайлт</small></div></li>
           <li><span class="system-step-number">3</span><div><h3>RAG эхийн хэсгүүдийг олно</h3><p>BM25 үгийн тохирлыг, E5 утгын ойролцоог хайна. RRF хоёр эрэмбийг нэгтгэж, асуултад хамаарах нэр дэвшигч хэсгүүдийг бэлдэнэ.</p><small>BM25 + E5 → RRF → эхийн хэсгүүд</small></div></li>
-          <li class="system-llm"><span class="system-step-number">4</span><div><h3>Gemma хариултад хэрэгтэй хэсгийг сонгоно</h3><p>Локал LLM нь асуулт болон олдсон эхийн хэсгүүдийг уншиж, ашиглах хэсгийн ID-г сонгоно. Шууд FAQ хариултад Gemma шаардлагагүй.</p><small>Энд LLM ажиллана · хэсэг сонгох үүрэг</small></div></li>
+          <li class="system-llm"><span class="system-step-number">4</span><div><h3>Дүрэм хариултад хэрэгтэй хэсгийг сонгоно</h3><p>BM25-ын оноогоор эхлэн 1, 2, 3 хэсгийн хослолыг шалгаж, эхийн шалгалтад тэнцсэн эхнийхийг сонгоно. Gemma үндсэн тохиргоогоор унтраалттай.</p><small>LLM дуудлага 0 · Эхийн үгийг өөрчлөхгүй</small></div></li>
           <li><span class="system-step-number">5</span><div><h3>Сервер эхийн үгийг хариултад оруулна</h3><p>Сонгосон ID, эхийн холбоос, нөхцөл ба шаардлагатай талбаруудыг шалгаж, хадгалсан эхийн текстийг үгчлэн үзүүлнэ. Буруу хэсэг сонгосон алдаа үлдэх боломжтой.</p><small>Сонгосон ID → шалгалт → эхтэй хариулт</small></div></li>
-          <li><span class="system-step-number">6</span><div><h3>Хариултыг сонсоно</h3><p>Edge TTS үзүүлсэн хариултын текстийг дуу болгоно. Дуугаар асуух үед урьдчилан сурсан Cafet Whisper эхлээд яриаг текст болгоно.</p><small>Микрофон → STT → асуулт · хариулт → TTS → дуу</small></div></li>
-        </ol></details><p class="system-map-note">Нэмэлт STT текст засварын LLM санал нь тусдаа сонголттой; анхны таньсан текстийг хадгална. Энэ сэдвийн мод шинэ баримт үүсгэхгүй. Хайлт, LLM-ийн сонголт, яриа танилтыг тус тусад нь чанараар шалгах шаардлагатай.</p>
+          <li><span class="system-step-number">6</span><div><h3>Хариултыг сонсоно</h3><p>Edge TTS хариултын текстийг дуу болгоно. Дуугаар асуух үед Gemini эхлээд яриаг текст болгоно (түр сонголт).</p><small>Микрофон → STT → асуулт · хариулт → TTS → дуу</small></div></li>
+        </ol></details><p class="system-map-note">Таньсан текстийг хэрэглэгч гараар засаж болно.</p>
       </section>
     </section>
     <section id="curatedView" class="view" role="tabpanel" aria-labelledby="curatedTab" hidden>
-      <div class="progress-hero"><div class="eyebrow"><span></span>ЭХ → БАРИМТ → БҮРТГЭЛТЭЙ ХАРИУЛТ</div><h1>Хариултын<br><em>тулгуурыг нь харъя.</em></h1><p>SQLite-д бүртгэсэн тогтмол FAQ, бүтэцтэй баримт, эхийн холбоосыг нэг дор нягтлаарай.</p></div>
+      <div class="progress-hero"><div class="eyebrow"><span></span>БАРИМТ → ХАРИУЛТ</div><h1>Хариултын сан</h1><p>Бэлэн асуулт хариулт, баримт, эхийн холбоос.</p></div>
       <div id="curatedCounts" class="curated-counts" aria-label="Хариултын сангийн тоон мэдээлэл"></div>
-      <aside class="curated-policy"><strong>Төлөвийн тайлбар</strong><p>«draft» нь анхны өгөгдлийн сангийн metadata. Төслийн эзэн албан эхийг ашиглахыг зөвшөөрсөн; сургуулийн ажилтан бүртгэл тус бүрийг баталсан гэсэн үг биш. Энэ харагдац хариултын зөв байдлыг өөрөө батлахгүй.</p></aside>
+      <aside class="curated-policy"><strong>«draft» гэж:</strong><p>Сургуулийн ажилтан бүртгэлийг нэг бүрчлэн батлаагүй гэсэн үг.</p></aside>
       <label class="search-box curated-search" for="curatedSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="curatedSearch" type="search" placeholder="FAQ, баримт, эхийн бүртгэлээс хайх…" autocomplete="off"></label>
       <p id="curatedResultCount" class="curated-result-count" role="status" aria-live="polite"></p>
       <div id="curatedUnavailable" class="empty-state" hidden><h2>Хариултын сан нээгдсэнгүй</h2><p>Мэдээллийн сангийн бусад эхийг эхний табаас шалгаж болно.</p></div>
@@ -97,22 +97,18 @@
       <section class="curated-section" aria-labelledby="curatedSourcesTitle"><div class="section-title"><div><span class="eyebrow muted">ТУЛГУУР ЭХИЙН БҮРТГЭЛ</span><h2 id="curatedSourcesTitle">Холбосон эхүүд</h2></div></div><div id="curatedSourcesList" class="curated-sources-list"></div></section>
     </section>
     <section id="progressView" class="view" role="tabpanel" aria-labelledby="progressTab" hidden>
-      <div class="progress-hero"><div class="eyebrow"><span></span>ТӨЛӨВЛӨГӨӨ · БОДИТ ЯВЦ · НОТОЛГОО</div><h1>Төлөвлөгөө ба бодит явц.<br><em>Одоогийн ажил, дараагийн алхам.</em></h1><p>Долоо хоногийн зорилго, хийсэн ажил, чанарын дүнг нэг дор.</p></div>
-      <section id="projectNoteBoard" class="project-note-board" aria-labelledby="projectNoteTitle" hidden>
-        <div class="project-note-heading"><div><span class="eyebrow">НЭГ ТӨСӨЛ · ТАВАН ӨНЦӨГ</span><h2 id="projectNoteTitle">Одоо хаана явна вэ?</h2><p id="projectNoteFocus" class="project-note-focus"></p></div><div class="project-note-meta"><span id="projectNoteUpdated"></span><a id="projectNoteLink" class="project-note-link" target="_blank" rel="noopener noreferrer" hidden>Агентын тэмдэглэл ↗</a></div></div>
-        <div id="projectNoteColourKey" class="project-note-key colour-guide" role="note" aria-labelledby="projectNoteColourTitle">
-          <strong id="projectNoteColourTitle">Өнгийг ингэж уншина</strong>
-          <span class="colour-key-item key-goal"><b>◆ Хөх — Зорилго</b><span>Юунд хүрэх вэ?</span></span>
-          <span class="colour-key-item key-current"><b>● Одоо хийж буй</b><span>Цэнхэр · Яг одоогийн ажил</span></span>
-          <span class="colour-key-item key-evidence"><b>✓ Нотолгоотой</b><span>Ногоон · Бодитоор шалгасан зүйл</span></span>
-          <span class="colour-key-item key-issues"><b>! Шийдэх зүйл</b><span>Шар · Дутуу мэдээлэл, асуудал</span></span>
-          <span class="colour-key-item key-next"><b>→ Дараагийн ажил</b><span>Нил ягаан · Үргэлжлүүлэх алхам</span></span>
-          <small>Өнгө нь ажлын төлөв; дипломын гүйцэтгэлийн хувь биш. Өнгө ялгахгүй үед тэмдэг, гарчгийг нь уншина.</small>
+      <div class="progress-hero"><div class="eyebrow"><span></span>ТӨСЛИЙН ЯВЦ</div><h1>Одоо хаана явна вэ?</h1></div>
+      <section id="simpleStatus" class="simple-status" aria-label="Төслийн товч явц" hidden>
+        <p id="simpleNow" class="simple-now"></p>
+        <div id="simpleParts" class="simple-parts"></div>
+        <div class="simple-lists">
+          <div class="simple-list simple-done"><h2>✓ Хийсэн</h2><ul id="simpleDone"></ul></div>
+          <div class="simple-list simple-problems"><h2>! Асуудал</h2><ul id="simpleProblems"></ul></div>
+          <div class="simple-list simple-next"><h2>→ Дараа нь</h2><ul id="simpleNext"></ul></div>
         </div>
-        <p id="projectNoteStatus" class="project-note-status" role="status"></p>
-        <ol id="projectNoteRoute" class="project-note-route" aria-label="Гурван үндсэн үр дүнгийн ажлын дараалал"></ol>
-        <div id="projectNoteLenses" class="project-note-lenses"></div>
+        <div id="simpleDates" class="simple-dates" aria-label="Чухал огноо"></div>
       </section>
+      <details class="progress-more" id="planDetails"><summary>32 долоо хоногийн төлөвлөгөө</summary>
       <section id="projectPlanSection" class="project-plan" aria-labelledby="projectPlanTitle">
         <div class="section-title"><div><span class="eyebrow muted">ДИПЛОМЫН АЖЛЫН ДАРААЛАЛ</span><h2 id="projectPlanTitle">Долоо хоногийн төлөвлөгөө</h2></div><span id="planRange" class="small-label"></span></div>
         <p id="planUnavailable" class="plan-unavailable" role="status" hidden></p>
@@ -133,14 +129,32 @@
           <section class="plan-full-section" aria-labelledby="planSectionsTitle"><h3 id="planSectionsTitle">Төлөвлөгөөний үндэслэл ба ажиллах дүрэм</h3><p>Арга, хэмжилт, хязгаар болон хариуцлагын дэлгэрэнгүй хэсгүүдийг нээж уншина.</p><div id="planSections" class="plan-sections"></div></section>
         </div>
       </section>
+      </details>
+      <details class="progress-more" id="evidenceDetails"><summary>Нотолгоо ба техникийн дэлгэрэнгүй</summary>
+      <section id="projectNoteBoard" class="project-note-board" aria-labelledby="projectNoteTitle" hidden>
+        <div class="project-note-heading"><div><span class="eyebrow">НЭГ ТӨСӨЛ · ТАВАН ӨНЦӨГ</span><h2 id="projectNoteTitle">Одоо хаана явна вэ?</h2><p id="projectNoteFocus" class="project-note-focus"></p></div><div class="project-note-meta"><span id="projectNoteUpdated"></span><a id="projectNoteLink" class="project-note-link" target="_blank" rel="noopener noreferrer" hidden>Агентын тэмдэглэл ↗</a></div></div>
+        <div id="projectNoteColourKey" class="project-note-key colour-guide" role="note" aria-labelledby="projectNoteColourTitle">
+          <strong id="projectNoteColourTitle">Өнгийг ингэж уншина</strong>
+          <span class="colour-key-item key-goal"><b>◆ Хөх — Зорилго</b><span>Юунд хүрэх вэ?</span></span>
+          <span class="colour-key-item key-current"><b>● Одоо хийж буй</b><span>Цэнхэр · Яг одоогийн ажил</span></span>
+          <span class="colour-key-item key-evidence"><b>✓ Нотолгоотой</b><span>Ногоон · Бодитоор шалгасан зүйл</span></span>
+          <span class="colour-key-item key-issues"><b>! Шийдэх зүйл</b><span>Шар · Дутуу мэдээлэл, асуудал</span></span>
+          <span class="colour-key-item key-next"><b>→ Дараагийн ажил</b><span>Нил ягаан · Үргэлжлүүлэх алхам</span></span>
+          <small>Өнгө нь ажлын төлөв; дипломын гүйцэтгэлийн хувь биш. Өнгө ялгахгүй үед тэмдэг, гарчгийг нь уншина.</small>
+        </div>
+        <p id="projectNoteStatus" class="project-note-status" role="status"></p>
+        <ol id="projectNoteRoute" class="project-note-route" aria-label="Гурван үндсэн үр дүнгийн ажлын дараалал"></ol>
+        <div id="projectNoteLenses" class="project-note-lenses"></div>
+      </section>
       <div class="section-title engineering-title"><div><span class="eyebrow muted">ИНЖЕНЕРИЙН ШАЛГУУР · ТУСДАА БҮРТГЭЛ</span><h2>Системийн хэрэгжилт</h2></div></div>
       <div id="progressSummary" class="progress-summary"></div>
-      <div class="workflow" aria-label="Системийн урсгал"><span>Яриа <small>STT</small></span><i aria-hidden="true">→</i><span>Хайлт <small>BM25 · E5</small></span><i aria-hidden="true">→</i><span>Эхтэй хариулт <small>Router · Gemma</small></span><i aria-hidden="true">→</i><span>Сонсох <small>TTS</small></span></div>
+      <div class="workflow" aria-label="Системийн урсгал"><span>Яриа <small>STT</small></span><i aria-hidden="true">→</i><span>Хайлт <small>BM25 · E5</small></span><i aria-hidden="true">→</i><span>Эхтэй хариулт <small>Router · дүрмийн сонголт</small></span><i aria-hidden="true">→</i><span>Сонсох <small>TTS</small></span></div>
       <div id="week03Summary" class="week-summary" hidden></div>
       <div class="section-title"><div><span class="eyebrow muted">БОДИТ ШАЛГУУР</span><h2>Ажлын үе шат</h2></div><span class="small-label">Хийсэн · үргэлжилж буй · үлдсэн</span></div>
       <div id="milestones" class="milestones"></div>
       <section id="researchSection" class="research-section" hidden aria-labelledby="researchTitle"><div class="section-title"><div><span class="eyebrow muted">ДИПЛОМЫН НОТОЛГОО</span><h2 id="researchTitle">Судалгааны ажил тусдаа үргэлжилнэ</h2></div></div><div id="researchMilestones" class="research-milestones"></div></section>
       <aside class="limits-panel"><h2>Энэ үзүүлэлтийг яаж ойлгох вэ?</h2><p>Эндхийн тоо нь инженерийн шалгуурын төлөв. Дипломын гүйцэтгэлийн хувь, чатны зөв хариултын хувь, эсвэл багшийн үнэлгээ гэж тооцохгүй.</p><ul id="progressLimits"></ul></aside>
+      </details>
     </section>
     <footer class="main-footer"><span>THesisS · Эхээ харах боломжтой систем</span><span>Албан сайт: <a href="https://nmct.edu.mn" target="_blank" rel="noopener noreferrer">nmct.edu.mn ↗</a></span></footer>
   </main>

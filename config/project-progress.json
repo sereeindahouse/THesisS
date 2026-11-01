@@ -1,26 +1,52 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-10-31",
+  "updated_date": "2026-11-01",
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
-  "current_week": "W01 · II-ийн эхний бодит15 оролдлого дууссан; алдаатай хязгаарласан trial,II үргэлжилнэ.",
-  "status_basis": "10.30–31: Хэрэглэгч нэг өмнө баталсан бодит dev бичлэгийг Live Translate Free tier-д нэг удаа илгээхийг тусад нь зөвшөөрсөн; нэг бодит Google audio call, хоёр typed/raw RAG хүсэлт дууссан. WER/CER/S/D/I/хугацаа болон raw татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг Google руу илгээгээгүй. Дараах тусдаа reference replay нь raw lineage-г хадгалж эхтэй хариу/TTS decode тэнцсэн; хүний шинэ засвар/оноо биш. Шалгалтын хуудас ганц Gemini болсон; main raw оны жагсаалт, reference/raw оны literal зөрүү харагдана. 185 холбогдох тест PASS; 12 сонсгол/эх файлын SHA хэвээр. Хүний/general accuracy, raw ASR gain зарлаагүй. Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
+  "current_week": "W01 · I · Хариултыг дүрмээр сонгох шилжилт; эхгүй асуултын хамгаалалт хэсэгчилсэн.",
+  "status_basis": "11.01: Хэрэглэгчийн шийдвэрээр Gemma, STT засварын LLM, Ollama автомат асаалтыг config/answer-selection.json-оор унтраасан, код хадгалсан. LLM дуудлага 0. Түгжсэн шинэ хяналт: эхгүй 20-ын 6-д буруу эх гарсан (хамгаалалтгүй 17), хариутай 10-ын 7-д шаардсан утга гарсан (хамгаалалтгүй 8). Хадгалсан 63 асуултад хариулт алдагдаагүй, 20 context 20/20 хэвээр. AI бичсэн хөгжүүлэлтийн шалгалт; хүний эсвэл ерөнхий accuracy биш. Дуу таних хэсэгт өмнөх нэг бодит Gemini dev хэмжилт хэвээр; хүний утга, сонсголын үнэлгээ үлдсэн.",
   "weekly_plan": {
     "path": "CORE/WEEKLY-PLAN-2026-2027.mn.md",
     "start_date": "2026-10-26",
     "planning_end_date": "2027-05-31",
     "current_id": "W01",
     "november_10_target_cancelled": true,
-    "whole_thesis_completion_percentage": null
+    "whole_thesis_completion_percentage": null,
+    "revision_date": "2026-10-29",
+    "weekly_effort_hours": [
+      8,
+      12
+    ],
+    "school_dates_confirmed": false,
+    "school_review_1_date": "2026-12-01",
+    "review_1_packet_ready_date": "2026-11-29",
+    "evaluation_version_target_week": "W17",
+    "main_measurement_target_weeks": [
+      "W18",
+      "W19"
+    ],
+    "full_draft_internal_target_date": "2027-03-21",
+    "full_draft_target_week": "W21",
+    "internal_dates_yield_to_school_calendar": true,
+    "preliminary_min_days_before_final": 28,
+    "final_defense_date": null,
+    "preliminary_defense_date": null,
+    "second_semester_start_date": null,
+    "research_focus": [
+      "Дуу танилтын сонголт ба алдаа эцсийн хариултад хэрхэн нөлөөлөх вэ?",
+      "Сургуулийн баримтаас шууд хариулдаг систем асуултад хэр зөв, бүрэн хариулах вэ? Аль хайлт хамгийн сайн эх олох вэ?"
+    ]
   },
   "plan_status": {
-    "updated_date": "2026-10-30",
-    "policy_notice": "Одоо II · screenshot-оор баталсан Live Translate-ийн Монгол оролтын танилтыг холбох чиглэл. Өмнөх Transcribe туршилт тусдаа. I/III-ийн шаардлагатай эх,үнэлгээ,бичвэр зэрэг явна; хийгдээгүй inference/хүний үр дүнг нөхөхгүй.",
+    "updated_date": "2026-11-01",
+    "policy_notice": "Одоо I · дүрмээр эх сонгох, Gemma тохиргоогоор унтраалттай. II-ийн түр STT gemini-3.5-live-translate-preview ба хүний үнэлгээ үргэлжилнэ; хийгдээгүй inference/хүний үр дүнг нөхөхгүй.",
     "current": {
       "week_id": "W01",
-      "title": "II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал",
-      "status_label": "1 зөвшөөрсөн бодит клип хэмжсэн · 185 тест PASS · ганц Gemini · II-ийн хүний утгын үнэлгээ үргэлжилнэ",
+      "title": "I · Хариултыг дүрмээр сонгох, Gemma унтраалттай",
+      "status_label": "LLM дуудлага 0 · эхгүй шинэ 20-ын 6-д буруу эх · хариутай 10-ын 7 · STT загварын шийдвэр хүлээж байна",
       "done": [
+        "11.01: Нийтэд зөвшөөрсөн q01–q03 гурван демо бичлэгийг хэрэглэгчийн зөвшөөрлөөр 11.01-нд тус бүр нэг удаа илгээв: `gemini-3.5-transcribe` 9/29 үгийн алдаа (31.03%, CER 20.25%), `gemini-3.5-live-translate-preview` 15/29 (51.72%, CER 46.63%). Live Translate q01-ийг өөр хэлээр буруу таньсан; хоёр загвар q03-ын оныг буруу таньсан. Нэг хэлэгчийн 3 бичлэг; бүх ярианы үнэлгээ биш. AI Studio-г шууд туршаагүй. Чатын загварыг солиогүй, хэрэглэгчийн шийдвэр хүлээж байна.",
+        "11.01: Хэрэглэгчийн шийдвэрээр Gemma, STT засварын LLM, Ollama автомат асаалтыг config/answer-selection.json-оор унтраасан, код хадгалсан. LLM дуудлага 0. Түгжсэн шинэ хяналт: эхгүй 20-ын 6-д буруу эх гарсан (хамгаалалтгүй 17), хариутай 10-ын 7-д шаардсан утга гарсан (хамгаалалтгүй 8). Хадгалсан 63 асуултад хариулт алдагдаагүй, 20 context 20/20 хэвээр. AI бичсэн хөгжүүлэлтийн шалгалт; хүний эсвэл ерөнхий accuracy биш.",
         "10.31: Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
         "10.30–31: Нэг бодит dev клипийн SHA/reference/model/setup/code протокол ба тусдаа cloud зөвшөөрөл; Google audio нэг удаа, typed/raw RAG хоёр хүсэлт. Анхны raw, WER/CER, S/D/I, wall/RTF ба татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг provider-д илгээгээгүй; хуучин 15 файлыг дахин ашиглаагүй.",
         "10.31: Үндсэн чат болон хүний шалгалтын хуудас ганц Gemini 3.5 Live замтай. Сонсож баталсан reference, илэрхий Google submit, model/hash/token хамгаалалт, хэмжилтийн хадгалалт/сэргэлт; түүхэн өөр STT raw тусдаа. Main raw онуудаа харуулж, шалгалтын хуудас reference/raw оны literal зөрүүг харуулна. Raw-ийг нууцаар засахгүй.",
@@ -60,15 +86,17 @@
         "Тусдаа21:8 зөв/6 дутуу/7 алдаа→20/0/1→21/0/0.14 мэдээлэлтэй хариулт+7 зөв хязгаар;2 бага илүүдэл. AI development review.",
         "1534=1533 PASS/1 Windows-symlink SKIP,181.541s;203 source hash drift0. Өмнөх/завсрын raw дүнг хадгалсан.",
         "README, дипломын ноорог, correction тайлбар, вэбийн дүнг нийцүүлсэн; батлаагүй106 дэд шалгалтын тоог хассан.",
-        "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0."
+        "Багшид асуух8асуулт, Gemini/Whisper-ийн ижил аудиотой харьцуулалтын протокол бэлтгэсэн; шинэ provider/API/аудио дамжуулалт0.",
+        "11/3-ны аудит, дэвтрийн яриа, 45 бүтээлийн шийдвэрийн бүртгэл, 32 долоо хоногийн хуваарийг нэгтгэсэн. Локал 18 слайдын PPT v5 ба 6 хуудасны PDF-ийн харагдацыг шалгасан; PPT-ийн илүүдэл текстийн анхааруулга 0. Canva-ийн 18 слайдын бичвэрийг хэрэглэгчийн зөвшөөрлөөр хадгалж, зорилго ба 32 долоо хоногийг буцаан уншиж тулгасан. Canva-ийн хуучин ярих тэмдэглэл үлдсэн. Шинэ дууны танилт, хүний үнэлгээ 0."
       ],
       "in_progress": [
+        "Хамаарлын хамгаалалт: эхгүй шинэ 20-ын 6-д буруу эх гарсан, хариутай асуултад хэт татгалзал бий. Gemma-г эдгээр хяналтаар ажиллуулаагүй. Дипломын ноорог, CONCEPTS дахь Gemma-гийн тайлбар хуучин.",
         "Нэг бодит жишээнд reference/raw утгын зөрүү ба raw асуултын татгалзал үлдсэн. Оныг эхийн утгаар чимээгүй солихгүй. Хүний reference өөрөө бие даан батлагдсан үнэн биш; зөрүүг дахин сонсож нягтална.",
         "Хүний critical/task/сонсголын шинэ үнэлгээ, бодит засах хугацаа null. Өөр хэлэгчийн general accuracy, paired gain, p50/p95 зарлаагүй. Энэ хэмжилт нь observed development; II бүхэлдээ дуусаагүй.",
         "Дуу таних зам одоогоор бичлэг дууссаны дараах paced upload; браузераас ярьж байх үеийн true streaming биш. Ганц хүсэлтийн хугацааг provider-ийн нийт latency эсвэл өсөлт гэж дүгнэхгүй."
       ],
       "next": [
-        "Шалгалтын хуудсанд шинэ асуултаа сонсож reference батлаад ганц Gemini-ээр туршина; оны зөрүү, засах хөдөлмөр, хариултаас сонссон утгаа хүн өөрөө үнэлнэ. 2026.11.02-ны эцсийн STT шийдвэр pending; шинэ Whisper сургалт эхлүүлэхгүй."
+        "11/03-ны яриаг шинэ дүнд нийцүүлж чангаар уншиж хэмжинэ; семинарт багшаас STT, онлайн үйлчилгээ, албан хугацааг тодруулна. Эхгүй асуултын үлдсэн алдааг W08-д шинэ хяналтаар засна. 2026.11.02-ны STT шийдвэр pending."
       ],
       "human_tasks": [
         "Шинэ асуулт, reference-ийн эргэлзээтэй он/үг, сонссон утга, засах хөдөлмөрийг хүн өөрөө үнэлнэ. API түлхүүр дахин нэхэхгүй; хүний шинэ оноог агент нөхөхгүй.",
@@ -78,8 +106,9 @@
     "weeks": {
       "W01": {
         "state": "in_progress",
-        "label": "II · Нэг бодит Gemini dev хэмжилт; шинэ хүний утгын үнэлгээ тусдаа",
+        "label": "I · Дүрмээр эх сонгох шилжилт; II-ийн хүний үнэлгээ тусдаа",
         "evidence": [
+          "11.01: Хэрэглэгчийн шийдвэрээр Gemma, STT засварын LLM, Ollama автомат асаалтыг config/answer-selection.json-оор унтраасан, код хадгалсан. LLM дуудлага 0. Түгжсэн шинэ хяналт: эхгүй 20-ын 6-д буруу эх гарсан (хамгаалалтгүй 17), хариутай 10-ын 7-д шаардсан утга гарсан (хамгаалалтгүй 8). Хадгалсан 63 асуултад хариулт алдагдаагүй, 20 context 20/20 хэвээр. AI бичсэн хөгжүүлэлтийн шалгалт; хүний эсвэл ерөнхий accuracy биш.",
           "10.31: Оны шүүлтээс хоосорсныг багшийн тоо байхгүй мэт тайлбарлаж байсан алдааг зассан. Хадгалсан context-ийн offline replay болон нэг бодит loopback typed replay нь дэмжигдээгүй оныг ил тод зааж, raw/анхны дүнг өөрчлөлгүй хариултыг хориглосон. Шинэ Google call 0. Оны/багшийн хүрээний 202 regression ба 24 HTTP тест тус тус PASS; өмнөх 185-тай нэмж accuracy болгоогүй.",
           "10.30–31: Нэг бодит dev клипийн SHA/reference/model/setup/code протокол ба тусдаа cloud зөвшөөрөл; Google audio нэг удаа, typed/raw RAG хоёр хүсэлт. Анхны raw, WER/CER, S/D/I, wall/RTF ба татгалзлыг хувийн runtime-д хадгалсан. Reference-ийг provider-д илгээгээгүй; хуучин 15 файлыг дахин ашиглаагүй.",
           "10.31: Үндсэн чат болон хүний шалгалтын хуудас ганц Gemini 3.5 Live замтай. Сонсож баталсан reference, илэрхий Google submit, model/hash/token хамгаалалт, хэмжилтийн хадгалалт/сэргэлт; түүхэн өөр STT raw тусдаа. Main raw онуудаа харуулж, шалгалтын хуудас reference/raw оны literal зөрүүг харуулна. Raw-ийг нууцаар засахгүй.",
@@ -108,10 +137,11 @@
           "II-ийн бэлтгэл:129 чиглэсэн тест PASS,208 код/хөрөнгийн hash тестийн үед drift0;32 хамгаалсан файл drift0. 20 өгүүллийн үндсэн уншлага ба2 хэсэгчилсэн тайлан тусдаа.13 аудио152s +2 control6s;dry-run сүлжээ/модель0. Бодит Gemini inference/сургалт/хүний шинэ оноо0;raw WER36.02% хэвээр.",
           "1534 тест:1533 PASS/1 Windows-symlink SKIP;203 source hash drift0. Тусдаа21 хөгжүүлэлтийн шалгалт:8/6/7→20/0/1→21/0/0;14 хариулт+7 зөв хязгаар/татгалзалт. Хүний/heldout accuracy биш.",
           "Өмнөх42 ба20context-ийн үр дүн тусдаа; Gemma-ийн давуу тал нотлогдоогүй.",
-          "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0."
+          "Raw STT36.02% хэвээр;шинэ speech inference/сургалт0.",
+          "Семинарын бичвэрийн багц: 45 давхардалгүй бүтээлийн түүхэн үндсэн уншлагын бүртгэл, дэвтрийн яриа, шинэ32долоо хоногийн хуваарь. Хуваарийн33тест PASS; шинэASR/RAGtask/TTSхүнийүрдүн биш."
         ],
         "next_actions": [
-          "Шалгалтын хуудсанд шинэ асуултаа сонсож reference батлаад ганц Gemini-ээр туршина; оны зөрүү, засах хөдөлмөр, хариултаас сонссон утгаа хүн өөрөө үнэлнэ. 2026.11.02-ны эцсийн STT шийдвэр pending; шинэ Whisper сургалт эхлүүлэхгүй."
+          "11/03-ны яриаг шинэ дүнд нийцүүлж чангаар уншиж хэмжинэ; семинарт багшаас STT, онлайн үйлчилгээ, албан хугацааг тодруулна. Эхгүй асуултын үлдсэн алдааг W08-д шинэ хяналтаар засна. 2026.11.02-ны STT шийдвэр pending."
         ]
       }
     },
@@ -139,10 +169,10 @@
       },
       {
         "id": "llm",
-        "label": "LLM · Gemma",
+        "label": "Эх сонголт · дүрэм (Gemma унтраалттай)",
         "state": "in_progress",
-        "detail": "Gemma C замд эхийн ID сонгоно; сервер эхийг сэргээнэ. Ижил20 context дээр хүчтэй LLM-гүй аргын адил шаардсан талбараа бүрэн олсон. Ерөнхий давуу тал нотлогдоогүй.",
-        "evidence_label": "Gemma20/20,25provider call;талбар шалгадагBM25 20/20,0call. Нэгжийн сонголтын хөгжүүлэлтийн харьцуулалт."
+        "detail": "C замд дүрэм эхийн ID сонгож, гол үгийн хамаарлыг шалгана; сервер эхийг сэргээнэ. Gemma код хадгалагдсан, W17-д нэг удаа эргэж харна. Эхгүй асуултын хамгаалалт бүрэн биш.",
+        "evidence_label": "Түгжсэн хяналт: эхгүй 20-ын 6 буруу, хариутай 10-ын 7; 20 context 20/20; LLM 0. Хүний үнэлгээ биш."
       }
     ]
   },
@@ -2946,21 +2976,21 @@
   },
   "project_note": {
     "schema_version": 1,
-    "updated_date": "2026-10-31",
-    "active_workstream": "II",
+    "updated_date": "2026-11-01",
+    "active_workstream": "I",
     "verified_code_commit": "933a4a225d4f666c20e0c2de33c2c43d962182b8",
-    "current_focus": "II · Gemini-ийн нэг бодит dev хэмжилт ба оны ил тод нягтлал",
-    "status_label": "1 зөвшөөрсөн бодит клип хэмжсэн · 185 тест PASS · ганц Gemini · II-ийн хүний утгын үнэлгээ үргэлжилнэ",
+    "current_focus": "I · Хариултыг дүрмээр сонгох, Gemma унтраалттай",
+    "status_label": "LLM дуудлага 0 · эхгүй шинэ 20-ын 6-д буруу эх · хариутай 10-ын 7 · STT загварын шийдвэр хүлээж байна",
     "workstreams": [
       {
         "id": "I",
-        "state": "verified_pack",
-        "status_label": "Сүүлийн засвар шалгагдсан · I бүхэлдээ дуусаагүй",
-        "detail": "Эхтэй хариултын хязгаарласан багц баталгаатай. Эхийн үлдсэн цоорхой, шинэ асуулт, хүний үнэлгээг тусад нь үргэлжлүүлнэ."
+        "state": "active",
+        "status_label": "Дүрмээр эх сонгох шилжилт шалгагдсан · хамгаалалт хэсэгчилсэн · I дуусаагүй",
+        "detail": "Gemma унтраалттай, дүрэм эх сонгоно. Эхгүй асуултын үлдсэн алдаа, шинэ асуулт, хүний үнэлгээ үргэлжилнэ."
       },
       {
         "id": "II",
-        "state": "active",
+        "state": "next",
         "status_label": "Нэг бодит dev хэмжилт ба засварын багц шалгагдсан · II үргэлжилнэ",
         "detail": "Ганц Gemini, reference/raw хэмжилт, оны ил тод review, эхтэй хариу ба response-bound TTS. Хүний critical/task/сонсголын үнэлгээ болон даваа гарагийн эцсийн сонголт үлдсэн."
       },
@@ -2970,7 +3000,203 @@
         "status_label": "Энэ тэмдэглэл/самбарын багц шалгагдсан · III цааш үргэлжилнэ",
         "detail": "Нэг тэмдэглэл ба өнгөт явц. Семинар, бодит зөвлөгөө/гарын үсэгтэй дэвтэр зэрэг явна. Байршуулалт, цэвэр сэргээх, эцсийн диплом үлдсэн."
       }
-    ]
+    ],
+    "documentation_package": {
+      "date": "2026-10-29",
+      "audit_path": "CORE/AUDIT-AND-SEMINAR-2026-10-29.mn.md",
+      "seminar_path": "CORE/SEMINAR-2026-11-03.mn.md",
+      "literature_path": "papers/10-thesis-decisions-review-45-20261029.mn.md",
+      "distinct_papers": 45,
+      "historical_main_text_records_reused": 45,
+      "fresh_selected_primary_section_rereads": 5,
+      "fresh_full_paper_reads": 0,
+      "plan_checks_passed": 33,
+      "full_draft_internal_target": "2027-03-21",
+      "official_defense_dates_confirmed": false,
+      "canva_final_save_verified": true,
+      "local_deliverables_final_visual_review_verified": true,
+      "new_speech_inference": 0,
+      "new_human_or_teacher_records": 0,
+      "publication": "local_uncommitted",
+      "local_package_complete": true,
+      "local_visual_review_scope": "18 slide renders, 6 PDF pages; not native PowerPoint execution",
+      "local_files": [
+        {
+          "name": "THesisS_18_слайдын_ярих_тэмдэглэл.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_18_слайдын_ярих_тэмдэглэл.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_18_%D1%81%D0%BB%D0%B0%D0%B9%D0%B4%D1%8B%D0%BD_%D1%8F%D1%80%D0%B8%D1%85_%D1%82%D1%8D%D0%BC%D0%B4%D1%8D%D0%B3%D0%BB%D1%8D%D0%BB.mn.md",
+          "sha256": "aba0042abb52222f182b67437ecfb6e6d422aea37fe8ea7e4de4a6fc0e98f389",
+          "bytes": 18427
+        },
+        {
+          "name": "THesisS_32_долоо_хоногийн_төлөвлөгөө.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_32_долоо_хоногийн_төлөвлөгөө.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_32_%D0%B4%D0%BE%D0%BB%D0%BE%D0%BE_%D1%85%D0%BE%D0%BD%D0%BE%D0%B3%D0%B8%D0%B9%D0%BD_%D1%82%D3%A9%D0%BB%D3%A9%D0%B2%D0%BB%D3%A9%D0%B3%D3%A9%D3%A9.mn.md",
+          "sha256": "d5f16c6cb6d17ef8843a6e3c7f0b1d69180621e35bf26ecd04b364fcab81cc61",
+          "bytes": 7850
+        },
+        {
+          "name": "THesisS_45_өгүүлэл_ба_шийдвэр.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_45_өгүүлэл_ба_шийдвэр.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_45_%D3%A9%D0%B3%D2%AF%D2%AF%D0%BB%D1%8D%D0%BB_%D0%B1%D0%B0_%D1%88%D0%B8%D0%B9%D0%B4%D0%B2%D1%8D%D1%80.mn.md",
+          "sha256": "37438e7a508f6a6bb11b90648b80b8cce34150c435096cd0f7e38cca48fa5536",
+          "bytes": 117042
+        },
+        {
+          "name": "THesisS_аудитын_тайлан_2026-10-29.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_аудитын_тайлан_2026-10-29.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_%D0%B0%D1%83%D0%B4%D0%B8%D1%82%D1%8B%D0%BD_%D1%82%D0%B0%D0%B9%D0%BB%D0%B0%D0%BD_2026-10-29.mn.md",
+          "sha256": "abc1c08798f44d027b8f64c1a7640f63a23c74c1357629b257c794c9062f3d73",
+          "bytes": 13324
+        },
+        {
+          "name": "THesisS_долоо_хоногийн_тайлан_2026-11-03-v5.pptx",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_долоо_хоногийн_тайлан_2026-11-03-v5.pptx",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_%D0%B4%D0%BE%D0%BB%D0%BE%D0%BE_%D1%85%D0%BE%D0%BD%D0%BE%D0%B3%D0%B8%D0%B9%D0%BD_%D1%82%D0%B0%D0%B9%D0%BB%D0%B0%D0%BD_2026-11-03-v5.pptx",
+          "sha256": "5f2a964a5fe25b18c16e0942f4cbb0c5922e63a1fd6a0fab6490c7b5425825c7",
+          "bytes": 2660679
+        },
+        {
+          "name": "THesisS_дэвтэр_ба_ярианы_бэлтгэл_2026-11-03.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_дэвтэр_ба_ярианы_бэлтгэл_2026-11-03.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_%D0%B4%D1%8D%D0%B2%D1%82%D1%8D%D1%80_%D0%B1%D0%B0_%D1%8F%D1%80%D0%B8%D0%B0%D0%BD%D1%8B_%D0%B1%D1%8D%D0%BB%D1%82%D0%B3%D1%8D%D0%BB_2026-11-03.mn.md",
+          "sha256": "b13b4f8c1d6300da5223ff7294cb43127a1d275011b8ac319396914630b93237",
+          "bytes": 30386
+        },
+        {
+          "name": "THesisS_системийн_бүтэц_ба_сонголт_2026-10-29.pdf",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_системийн_бүтэц_ба_сонголт_2026-10-29.pdf",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%B8%D0%B9%D0%BD_%D0%B1%D2%AF%D1%82%D1%8D%D1%86_%D0%B1%D0%B0_%D1%81%D0%BE%D0%BD%D0%B3%D0%BE%D0%BB%D1%82_2026-10-29.pdf",
+          "sha256": "c3574c7b4855068b350645f81710a4060758e4a8206f755288b21192372492e8",
+          "bytes": 108863
+        },
+        {
+          "name": "THesisS_үндсэн_яриа_2026-11-03.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\THesisS_үндсэн_яриа_2026-11-03.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/THesisS_%D2%AF%D0%BD%D0%B4%D1%81%D1%8D%D0%BD_%D1%8F%D1%80%D0%B8%D0%B0_2026-11-03.mn.md",
+          "sha256": "3bf338fee58429fbcc770b6e7ed20d6da332411ac2ac09efb1190f75eaec84ba",
+          "bytes": 5994
+        },
+        {
+          "name": "ЭНДЭЭС_ЭХЭЛ.mn.md",
+          "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\deliverables\\ЭНДЭЭС_ЭХЭЛ.mn.md",
+          "file_uri": "file:///C:/Users/sekba/.codex/.chatgpt-projects/g-p-6ac5e021bdd0819185789cba7a3e951c/outputs/thesis-package-20261029/deliverables/%D0%AD%D0%9D%D0%94%D0%AD%D0%AD%D0%A1_%D0%AD%D0%A5%D0%AD%D0%9B.mn.md",
+          "sha256": "3aff7741b4685500c2009bc76594c8cfd97bed1eda5f775d96c07396b0914508",
+          "bytes": 5488
+        }
+      ],
+      "main_speech_words": 401,
+      "main_speech_allocated_seconds": 270,
+      "main_speech_rehearsal_measured": false,
+      "canva_design_id": "DAHZV99iB8Y",
+      "canva_pages_structurally_saved": 18,
+      "canva_draft_text_updated": true,
+      "canva_draft_visual_previews_checked": 18,
+      "canva_draft_preview_dimensions": [
+        600,
+        337
+      ],
+      "canva_presenter_notes_update_verified": false,
+      "canva_browser_access": "disabled_in_Work_settings",
+      "package_completion": "human_rewrite_local_ready",
+      "new_design_file_import_auto_review_rejected": true,
+      "new_design_file_import_auto_review_reason": "Explicit user authorization to upload the exact local PPTX file into a new Canva design was not established.",
+      "new_design_file_import_retried": false,
+      "canva_text_update_verified": true,
+      "canva_user_approved_after_preview": true,
+      "canva_committed_page_count": 18,
+      "canva_goal_and_all_32_weeks_readback_verified": true,
+      "canva_presenter_notes_old_confirmed": true,
+      "local_ppt_layout_overflow_warnings": 0,
+      "local_ppt_structural_findings": 0,
+      "local_ppt_final_version": "v5",
+      "local_ppt_native_powerpoint_execution_verified": false,
+      "delivery_mode": "local_ppt_user_imports_to_canva",
+      "user_self_canva_import_selected": true,
+      "local_presenter_notes_verified": 18,
+      "local_delivery_recheck_passed": true,
+      "local_delivery_archive": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-package-20261029\\THesisS_багштай_уулзах_багц_2026-11-03.zip",
+      "reading_guide": "CORE/THESIS-START.mn.md",
+      "clear_delivery": {
+        "date": "2026-10-30",
+        "github_main_checked": "f0a7b131374f0936c192b1c97b2236c6ddd4aa08",
+        "main_route": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "notebook_pages": 4,
+        "architecture_pages": 6,
+        "speech_words": 354,
+        "speech_target_seconds": 270,
+        "actual_speech_rehearsal_measured": false,
+        "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-clear-20261030\\Бэлэн_багц",
+        "proof_path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-clear-20261030\\private-build\\handoff-proof.json",
+        "new_model_or_human_results": false,
+        "published": false
+      },
+      "latest_reading_package": {
+        "date": "2026-10-30",
+        "path": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-human-20261030\\Бэлэн_багц",
+        "github_main_checked": "15293e2aa86c7a55f7f09806c9fa67eadca14afa",
+        "slides": 21,
+        "main_route": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "weeks": 32,
+        "figures": 3,
+        "notebook_pages": 4,
+        "system_pages": 6,
+        "speech_words": 355,
+        "speech_target_seconds": 270,
+        "actual_speech_rehearsal_measured": false,
+        "new_model_calls_by_document_task": 0,
+        "new_human_results_by_document_task": 0,
+        "private_trial_numbers_in_public_note": false,
+        "published": false,
+        "proof": "C:\\Users\\sekba\\.codex\\.chatgpt-projects\\g-p-6ac5e021bdd0819185789cba7a3e951c\\outputs\\thesis-human-20261030\\private-build\\handoff-proof.json"
+      },
+      "claude_code_handoff_20261101": {
+        "prepared_date": "2026-11-01",
+        "root_instructions": "CLAUDE.md",
+        "handoff": "CORE/CLAUDE-HANDOFF.mn.md",
+        "skills": [
+          "thesis-resume",
+          "thesis-debug",
+          "thesis-research",
+          "thesis-weekly"
+        ],
+        "snapshot_tool": "tools/claude_context.py",
+        "reviewed_main": "773d1c0331387fb92f3eabb89cc0afbac969b6c9",
+        "catalog_components_read": 8,
+        "new_model_calls": 0,
+        "new_training": 0,
+        "new_human_results": 0,
+        "production_changed": false,
+        "publication": "local_only_this_setup_not_committed_or_pushed",
+        "account_login": "logged_out_user_sign_in_required",
+        "cli_version": "2.1.309",
+        "cli_channel": "stable",
+        "cli_version_verified": true,
+        "launcher_version_check_passed": true,
+        "project_skill_validation_passed": 4,
+        "related_note_tests_passed": 15,
+        "snapshot_behavior_verified": true,
+        "note_sync_checked": true
+      }
+    }
   },
   "note_visibility_20261029": {
     "status": "implemented_and_focused_verified",
@@ -3120,7 +3346,9 @@
     "automatic_retry": false,
     "whole_clip_finality_guaranteed": false,
     "human_review_required": true,
-    "native_browser_visual_qa": false
+    "native_browser_visual_qa": false,
+    "publication": "published_remote_sha_verified",
+    "published_remote_commit": "4ba7f7a19dfbceceed6d47f29c74305e89269bd4"
   },
   "single_gemini_20261030": {
     "provisional_provider": "gemini-3.5-live-translate-preview",
@@ -3196,5 +3424,61 @@
     "year_scope_actual_loopback_typed_replays": 1,
     "year_scope_replay_google_calls": 0,
     "misleading_staff_refusal_fixed": true
+  },
+  "simple_status": {
+    "now": "Хариултыг сургуулийн эхээс дүрмээр сонгодог болгосон. Одоо дуу таних аргаа сонгох, хариултын алдаагаа багасгах ажил үлдсэн.",
+    "parts": [
+      {
+        "state": "Хийж байна",
+        "title": "I · Мэдээлэл ба хариулт",
+        "text": "Чат эхээс хариулж, эшлэл харуулдаг. Зарим асуултад буруу эсвэл дутуу хариулт гарсаар байна."
+      },
+      {
+        "state": "Шийдвэр хүлээж байна",
+        "title": "II · Дуу таних, унших",
+        "text": "Gemini түр ашиглаж байна. Аль загвар сонгохыг шийднэ. Хүн сонсож шалгах ажил үлдсэн."
+      },
+      {
+        "state": "Хийж байна",
+        "title": "III · Систем ба диплом",
+        "text": "Вэб ажилладаг. Шинэ компьютерт суулгах заавар, дипломын бичвэр үлдсэн."
+      }
+    ],
+    "done": [
+      "Эхийн сан бэлэн: 75 хуудас, 40 баримт, 30 бэлэн хариулт.",
+      "Хариултыг дүрмээр сонгодог болгож, локал LLM-ийг унтраасан.",
+      "Gemini-ийг бодит бичлэгээр туршсан.",
+      "32 долоо хоногийн төлөвлөгөөг сургуулийн заавартай нийцүүлсэн."
+    ],
+    "problems": [
+      "Зарим асуултын хариулт буруу эсвэл дутуу (жишээ: элсэлтийн шалгалтын огноо).",
+      "Эхэд байхгүй асуултын заримд хамааралгүй хариулт гарна (шинэ 20-ын 6).",
+      "Одоогийн дуу таних загвар богино бичлэгийг заримдаа буруу таньдаг (жишээ бичлэгт алдаа 52%, Transcribe 31%).",
+      "Хүний үнэлгээ хараахан хийгдээгүй.",
+      "Албан хамгаалалтын огноо тодорхойгүй."
+    ],
+    "next": [
+      "Дуу таних загвараа сонгох: Transcribe эсвэл Live Translate.",
+      "Багштай судалгааны хүрээгээ тохирох.",
+      "20–30 шалгах асуулт бэлтгэх."
+    ],
+    "dates": [
+      {
+        "date": "11/03",
+        "label": "Семинар, 15:00"
+      },
+      {
+        "date": "11/29",
+        "label": "Үзлэгийн материал бэлэн"
+      },
+      {
+        "date": "12/01",
+        "label": "Үзлэг №1"
+      },
+      {
+        "date": "3/21",
+        "label": "Бүтэн ноорог (дотоод зорилт)"
+      }
+    ]
   }
 }

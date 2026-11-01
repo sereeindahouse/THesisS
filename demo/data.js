@@ -235,8 +235,19 @@
     const sections=$('planSections');sections.replaceChildren();(Array.isArray(plan.sections)?plan.sections:[]).filter(section=>section&&typeof section==='object').slice(0,60).forEach(section=>{const details=element('details','plan-section');details.append(element('summary','',planText(section.title||'Дэлгэрэнгүй')));const content=element('div','plan-section-body');renderPlanBlocks(content,section.blocks);details.append(content);sections.append(details);});
     if(!sections.children.length)sections.append(element('p','plan-empty','Нэмэлт арга, дүрмийн хэсэг хараахан бүртгэгдээгүй.'));
   }
+  function renderSimpleStatus(progress) {
+    const simple=progress.simple_status,section=$('simpleStatus');section.hidden=true;
+    if(!simple||typeof simple!=='object'||typeof simple.now!=='string')return;
+    const items=value=>Array.isArray(value)?value.filter(item=>typeof item==='string'&&item.trim()):[];
+    $('simpleNow').textContent=simple.now;
+    [['simpleDone',simple.done],['simpleProblems',simple.problems],['simpleNext',simple.next]].forEach(([id,value])=>{const list=$(id);list.replaceChildren();items(value).forEach(item=>list.append(element('li','',item)));});
+    const parts=$('simpleParts');parts.replaceChildren();(Array.isArray(simple.parts)?simple.parts:[]).forEach(part=>{if(!part||typeof part!=='object')return;const card=element('article','simple-part');card.append(element('span','simple-part-state',str(part.state)),element('h3','',str(part.title)),element('p','',str(part.text)));parts.append(card);});
+    const dates=$('simpleDates');dates.replaceChildren();(Array.isArray(simple.dates)?simple.dates:[]).forEach(row=>{if(!row||typeof row!=='object')return;const chip=element('span','simple-date');chip.append(element('strong','',str(row.date)),element('span','',str(row.label)));dates.append(chip);});
+    section.hidden=false;
+  }
   function renderProgress() {
     const progress=state.data.progress||{},milestones=Array.isArray(progress.milestones)?progress.milestones:[],done=milestones.filter(m=>milestoneState(m.state)==='done').length;
+    renderSimpleStatus(progress);
     renderProjectNote(progress);
     renderProjectPlan(progress);
     const summary=$('progressSummary');summary.replaceChildren();
@@ -369,14 +380,14 @@
       ['index',750,90,'Хайлтын хэсгүүд','Эхийн байрлал хадгална','HTML, баримт, нэмэлт табын текстийн хэсгүүдэд эхийн URL болон байрлал нь холбоотой байна.'],
       ['scope',1080,90,'Тодруулга / эхгүй','Хүрээг лавлана','Асуулт тодорхойгүй бол лавлана. Эх батлахгүй мэдээллийг өөр сэдвээр орлуулахгүй.'],
       ['microphone',90,370,'Микрофоны дуу','Хэрэглэгчийн асуулт','Хэрэглэгч дуугаар асуувал бичлэг STT рүү очно. Бичгээр асуух үед шууд асуултын текст рүү орно.'],
-      ['stt',420,370,'Whisper STT','Cafet · урьдчилан сурсан','Урьдчилан сурсан Cafet Whisper Монгол яриаг текст болгоно. Анхны танилт хадгалагдана. Тусад нь тохируулсан локал Gemma текстийн засварын санал бэлтгэж болно; энэ нь Whisper-ийн жинг сургах эсвэл raw танилт сайжирсны баталгаа биш.'],
-      ['query',750,370,'Асуултын текст','Бичсэн эсвэл таньсан','Анхны танилт шууд засах, илгээхэд бэлэн. Тохируулсан LLM-ийн саналыг хэрэглэгч сонгож хэрэглэвэл зассан асуулт илгээгдэнэ; анхны текст, бичлэгийн холбоо хадгалагдана. Бичсэн болон таньсан асуулт ижил чиглүүлэгч рүү орно.'],
+      ['stt',420,370,'Дуу таних','Gemini · түр сонголт','Яриаг Google-ийн Gemini-ээр текст болгоно. Сүлжээ хэрэгтэй. Анхны текст хадгалагдана.'],
+      ['query',750,370,'Асуултын текст','Бичсэн эсвэл таньсан','Таньсан текстээ хэрэглэгч гараар засаад илгээнэ.'],
       ['router',1080,370,'Асуулт чиглүүлэгч','Шууд · хайлт · тодруулга','Бүртгэлтэй хариултыг шууд өгөх, эх хайх, тодруулах эсвэл эхгүйг тайлбарлах замыг сонгоно.'],
-      ['faq',1410,370,'Баримт / FAQ','Шууд хариултын зам','Тогтмол fact/FAQ хариулт нь өөрийн эх, хугацаа, нөхцөлийн шалгалттай. Энэ зам Gemma-г алгасаж болно.'],
+      ['faq',1410,370,'Баримт / FAQ','Шууд хариултын зам','Тогтмол fact/FAQ хариулт нь өөрийн эх, хугацаа, нөхцөлийн шалгалттай. Хайлт хэрэггүй үед шууд хариулна.'],
       ['bm25',750,650,'BM25','Үгийн тохирол','Асуулттай үгээр тохирох эхийн хэсгүүдийг эрэмбэлнэ.'],
       ['e5',1080,650,'E5 embedding','Утгын ойролцоо хайлт','Урьдчилан сурсан multilingual E5 вектороор утгын ойролцоо хэсгүүдийг хайна.'],
       ['rrf',1410,650,'RRF нэгтгэл','Хоёр эрэмбийг нэгтгэнэ','BM25 болон E5-ийн эрэмбийг RRF нэгтгэж, эхийн нэр дэвшигч хэсгүүдийг бэлдэнэ.'],
-      ['gemma',1410,930,'Gemma · локал LLM','Эхийн хэсгийн ID сонгоно','Энэ RAG замд Gemma асуулт, олдсон эхийг уншиж ашиглах хэсгийн ID-г сонгоно; сервер эхийн үгийг харуулна. STT бичвэрийн засварын санал нь тусдаа хүсэлт, тусдаа зориулалттай. Шууд fact/FAQ хариулт LLM-ийг алгасаж болно. Буруу сонголт хийх боломж үлдэнэ.'],
+      ['gemma',1410,930,'Хэсэг сонгох дүрэм','Эхийн хэсгийг сонгоно','Асуултын гол үгтэй тохирсон, шалгалтад тэнцсэн хэсгийг дүрмээр сонгоно. Тохирох хэсэг байхгүй бол олдсонгүй гэж хэлнэ.'],
       ['guards',1080,930,'Эхийн шалгалтууд','ID · он · нөхцөл · талбар','Сервер сонгосон ID, эхийн холбоос, он, нөхцөл болон асуултад шаардсан талбарыг шалгана. Энэ нь бүх утгыг батлах төгс semantic шалгалт биш.'],
       ['answer',750,930,'Эхтэй хариулт','Эхийн текстийг үгчлэн','Сервер эхийн хадгалсан текст болон холбоосыг харуулна. Шууд FAQ зам өөрийн эхтэй хадгалсан хариултыг өгнө.'],
       ['tts',420,930,'Edge TTS','Хариулт → дуу','Дэлгэцэнд үзүүлсэн, тухайн хариултад холбосон текстийг Edge TTS дуу болгоно.']
@@ -439,7 +450,7 @@
   }
   function renderTree() {
     const data=treeState.data,totals=$('treeTotals');totals.replaceChildren();[['pages','HTML хуудас'],['passages','Хайлтын хэсэг'],['facts','Бүтэцтэй баримт'],['faqs','FAQ']].forEach(([key,label])=>{const card=element('div');card.append(element('strong','',number(data.counts?.[key]||0)),element('span','',label));totals.append(card);});
-    $('treeTopicCount').textContent=`${number(data.topics.length)} сэдэв`;
+    $('treeTopicCount').textContent=`${number(data.topics.length)} зангилаа`;
     const jump=$('treeTopicJump');jump.replaceChildren(element('option','','Сэдэв сонгох…'));jump.children[0].value='';data.topics.forEach(topic=>{const option=element('option','',(topic.parent_id?'↳ ':'')+topic.label_mn);option.value=topic.topic_id;jump.append(option);});
     const release=data.release||{};$('treeRelease').textContent=release.release_id?`Идэвхтэй эхийн хувилбар: ${str(release.release_id)}`:'Идэвхтэй өгөгдлийн сангийн сэдвийн зураглал.';
     renderInformationScope();renderTopicTree();renderTreeDetail();renderSystemGraph();

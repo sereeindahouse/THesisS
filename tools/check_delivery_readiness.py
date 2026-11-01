@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT))
 from content_release import ContentReleaseManager
 from llm_runtime import _validated_base_url
 from project_policy import ContentUsePolicy
+from rule_selector import answer_selection
 from stt_mn import load_choice
 from tools import manage_snapshot as snapshots
 from tools.install_release_models import validate_record
@@ -30,6 +31,7 @@ from voice_runtime import EXPECTED_DECODING, PINNED_SOURCE, PINNED_REVISION, PIN
 
 ENTRYPOINTS = (
     'DEMO.cmd', 'open_demo.py', 'demo_server.py', 'voice_runtime.py', 'rag_runtime.py',
+    'rule_selector.py', 'config/answer-selection.json',
     'content_release.py', 'release_runtime.py', 'demo/index.html', 'demo/data.html',
     'demo/admin.html', 'demo/admin.js', 'demo/admin.css', 'tools/start_local_llm.py',
     'tools/manage_snapshot.py', 'tools/manage_content_release.py',
@@ -133,6 +135,8 @@ def release_models(root):
 
 
 def llm_files(root):
+    if not answer_selection(root)['local_llm_enabled']:
+        return dict(required=False, reason='local_llm_disabled_by_configuration', provider_contacted=False)
     config = read(root, 'runtime/rag-model.json')
     pin = read(root, 'config/model-catalog/gemma3-4b-text.json')
     if config['model'] != pin['local_model']:

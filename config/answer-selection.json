@@ -1,0 +1,4 @@
+{
+  "selector": "bm25_bounded_complete_subset",
+  "local_llm_enabled": false
+}
