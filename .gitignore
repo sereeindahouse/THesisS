@@ -437,6 +437,7 @@ __pycache__/
 !/config/answer-selection.json
 !/tests/test_no_llm_mode.py
 !/papers/14-rule-source-selection-20261101.mn.md
+!/papers/15-rag-diagnosis-20261101.mn.md
 
 # Blank reception data form for the school (public). Filled copies from the school stay private.
 !/data/reception/

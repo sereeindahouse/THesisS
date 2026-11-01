@@ -279,7 +279,7 @@ def information_scope(config, nodes, totals):
         requires_matching_saved_evidence=True,automatic_answerability_claim=False,
         affects_retrieval=False,
         coverage_note_mn='Эх байгаа нь бүтэн, өнөөдөр хүчинтэй хариултын баталгаа биш. Бүтэцтэй баримтгүй салааны HTML текст хайлтад орсон байж болно. Нэг эх олон сэдэвтэй холбоотой тул салааны тоонуудыг нэмээд нийт гэж үзэхгүй.',
-        tree_role_mn='Сэдэв → дэд сэдэв → эх/баримт/FAQ-ийн навигац. Энэ нь Gemma-ийн сурсан жин, нейрон сүлжээ эсвэл бүх асуултыг шийдэх reasoning мод биш.')
+        tree_role_mn='Сэдэв → дэд сэдэв → эх/баримт/FAQ-ийн навигац. Энэ нь сурсан жин, нейрон сүлжээ эсвэл бүх асуултыг шийдэх reasoning мод биш.')
 
 
 def load_inputs(root, *, website_database=None, content_database=None):

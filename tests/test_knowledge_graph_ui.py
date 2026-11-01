@@ -15,7 +15,7 @@ class KnowledgeGraphUITests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         report = json.loads(result.stdout)
         self.assertGreaterEqual(report['passed'], 12)
-        self.assertEqual(report['counts'], dict(topics=33,topic_edges=32,processing_nodes=16,processing_edges=19))
+        self.assertEqual(report['counts'], dict(topics=44,topic_edges=43,processing_nodes=16,processing_edges=19))
 
 
 if __name__ == '__main__':

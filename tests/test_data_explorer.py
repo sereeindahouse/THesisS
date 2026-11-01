@@ -140,7 +140,7 @@ class ExplorerTests(unittest.TestCase):
         with patch('website_retrieval._LocalE5.load',side_effect=AssertionError('No inference')):
             result=SourceExplorer(self.root,self.db,selected).knowledge_tree()
         self.assertEqual(result['counts'],dict(pages=1,passages=1,sources=1,facts=1,faqs=1))
-        self.assertEqual(result['information_scope']['domain_count'],8)
+        self.assertEqual(result['information_scope']['domain_count'],11)
         self.assertEqual(result['information_scope']['counts'],result['counts'])
         self.assertFalse(result['information_scope']['automatic_answerability_claim'])
         root=next(n for n in result['topics'] if n['parent_id'] is None)

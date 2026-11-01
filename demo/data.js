@@ -409,7 +409,7 @@
     };
     const layout={nodes,edges:pairs.map(([from,to])=>({from,to,points:routes[from+':'+to]})),width:1680,height:1080};
     function select(identifier,focus=false){const node=nodes.find(item=>item.id===identifier);if(!node)return;brainGraph.nodes.forEach((group,id)=>{group.setAttribute('class',`graph-node${id==='gemma'?' graph-llm':''}${id===identifier?' selected':''}`);group.setAttribute('aria-pressed',String(id===identifier));});$('brainDetail').replaceChildren(element('h3','',node.label),element('p','',node.detail));if(focus)brainGraph.controller.ensureVisible(node);}
-    drawSvgGraph($('systemGraph'),brainGraph,$('brainZoomLabel'),layout,select,{directed:true,title:'Системийн өгөгдөл боловсруулах холбоос',description:'Албан эхээс SQLite, BM25/E5, RRF, Gemma, эхийн шалгалт, хариулт болон TTS хүртэлх холбоос. Микрофоны дуу Whisper STT-ээр асуулт болно. Шууд FAQ зам Gemma-г алгасана.'});select('gemma');
+    drawSvgGraph($('systemGraph'),brainGraph,$('brainZoomLabel'),layout,select,{directed:true,title:'Системийн өгөгдөл боловсруулах холбоос',description:'Албан эхээс SQLite, BM25/E5, RRF, хэсэг сонгох дүрэм, эхийн шалгалт, хариулт болон TTS хүртэлх холбоос. Микрофоны дууг Gemini 3.5 Transcribe текст болгоно. Шууд FAQ зам хайлтыг алгасана.'});select('gemma');
   }
   function renderTreeDetail() {
     const topic=treeState.data.topics.find(item=>item.topic_id===treeState.selected),target=$('treeDetail');target.replaceChildren();if(!topic)return;

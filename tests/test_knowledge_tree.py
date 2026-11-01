@@ -154,7 +154,7 @@ class KnowledgeTreeTests(unittest.TestCase):
 
     def test_information_scope_uses_existing_roots_and_observed_counts(self):
         config=taxonomy();result=build_tree(config,invented_inputs());scope=result['information_scope']
-        self.assertEqual(scope['domain_count'],8)
+        self.assertEqual(scope['domain_count'],11)
         self.assertEqual(scope['topic_count'],len(config['topics']))
         self.assertEqual(scope['counts'],result['counts'])
         self.assertFalse(scope['automatic_answerability_claim'])
