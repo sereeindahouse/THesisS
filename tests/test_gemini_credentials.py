@@ -10,7 +10,7 @@ from unittest.mock import patch
 from gemini_credentials import WindowsCredentialStore, CredentialStoreError, _crypt
 from gemini_stt_runtime import GeminiSTT, GeminiSTTError
 from gemini_live_transport import LIVE_MODEL
-from tools.compare_stt_candidate import CandidateError
+from tools.compare_stt_candidate import CandidateError, MODEL
 
 KEY='constructed-credential-not-a-real-key-000'
 CONFIG=dict(api_key=KEY,free_tier_confirmed=True,data_terms_confirmed=True,
@@ -48,7 +48,7 @@ class CredentialSessionTests(unittest.TestCase):
         self.assertTrue(status['ready'])
         self.assertTrue(status['key_persisted'])
         self.assertTrue(status['continuous_use'])
-        self.assertEqual(status['available_models'],[LIVE_MODEL])
+        self.assertEqual(status['available_models'],[MODEL])
         self.assertNotIn(KEY,json.dumps(status))
         self.assertEqual(Transport.calls,0)
 

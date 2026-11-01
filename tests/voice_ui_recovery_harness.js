@@ -107,7 +107,7 @@ async function main() {
   if (scenario === 'gemini' || scenario === 'gemini-live' || scenario === 'gemini-session-refresh') {
     assert(!source.includes('<select id="sttProvider"'));
     assert(!source.includes('id="geminiConsent"'));
-    assert.equal(run('selectedSTTProvider()'),'gemini_live');
+    assert.equal(run('selectedSTTProvider()'),'gemini');
     run('voiceState.gemini={ready:true,configured:true,key_persisted:true,continuous_use:true};llmState={configured:true,available:true}');
     const pending=run('transcribeSelected()');
     assert.equal(requests.length,1,'Only local session refresh can precede audio');
@@ -115,12 +115,12 @@ async function main() {
     requests[0].resolve({ok:true,async json(){return {csrf_token:'new-server-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});
     await flush();
     assert.equal(requests[1].path,'/api/voice/transcribe');
-    assert.equal(requests[1].options.headers['X-STT-Provider'],'gemini_live');
+    assert.equal(requests[1].options.headers['X-STT-Provider'],'gemini');
     assert.equal(requests[1].options.headers['X-Gemini-Audio-Consent'],'send-this-audio');
     assert.equal(requests[1].options.headers['X-Gemini-Token'],'new-server-token','Stale page token cannot reach the audio endpoint');
-    requests[1].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini_live',model:'gemini-3.5-live-translate-preview',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
+    requests[1].resolve({ok:true,async json(){return {id:'a'.repeat(32),text:'fixture cloud raw',provider:'google_gemini',model:'gemini-3.5-transcribe',speech_text_available:true,model_load_seconds:0,transcription_seconds:1,audio_seconds:2}}});
     await pending;await flush();
-    assert(element('sttTiming').textContent.includes('Live Translate'));
+    assert(element('sttTiming').textContent.includes('Transcribe'));
     assert.equal(requests.filter(r=>r.path==='/api/voice/correct').length,0,'Cloud raw receives no automatic local rewrite');
     assert.equal(requests[2].path,'/api/voice/gemini/session');
     requests[2].resolve({ok:true,async json(){return {csrf_token:'new-server-token',configured:true,key_persisted:true,ready:true,continuous_use:true}}});

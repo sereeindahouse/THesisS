@@ -247,13 +247,12 @@ class GeminiHTTPTests(unittest.TestCase):
         self.assertFalse(result['reference_confirmed'])
         self.assertEqual(self.voice.transcription_lineage(result['id'],result['text'])['kind'],'raw_stt')
 
-    def test_main_has_only_live_and_default_request_never_routes_to_whisper(self):
-        from gemini_live_transport import LIVE_MODEL
+    def test_main_has_only_transcribe_and_default_request_never_routes_to_whisper(self):
         from test_gemini_live import wav_bytes
-        class Live(Transport):
+        class Transcribe(Transport):
             def transcribe(self,*args,**kwargs):
-                return dict(text='Зохиомол Монгол асуулт',model=LIVE_MODEL)
-        self.voice.gemini._live_factory=Live
+                return dict(text='Зохиомол Монгол асуулт',model=MODEL)
+        self.voice.gemini._factory=Transcribe
         root=Path(self.temp.name)
         self.server=make_server(root/'content.db',port=0,project_root=root,voice_service=self.voice)
         self.addCleanup(self.server.server_close)
@@ -264,11 +263,11 @@ class GeminiHTTPTests(unittest.TestCase):
         token={'X-Gemini-Token':session['csrf_token']}
         self.request('POST','/api/voice/gemini/configure',CONFIG,token)
         headers={**token,'Content-Type':'audio/wav','X-Gemini-Audio-Consent':'send-this-audio'}
-        with patch.object(self.voice,'transcribe') as whisper, patch.object(self.voice.gemini,'_factory') as transcribe:
-            for rejected in ['cafet','gemini']:
+        with patch.object(self.voice,'transcribe') as whisper, patch.object(self.voice.gemini,'_live_factory') as live:
+            for rejected in ['cafet','gemini_live']:
                 self.assertEqual(self.request('POST','/api/voice/transcribe',wav_bytes(),
                     {**headers,'X-STT-Provider':rejected})[0],400)
             status,result=self.request('POST','/api/voice/transcribe',wav_bytes(),headers)
         self.assertEqual(status,200)
-        self.assertEqual(result['model'],LIVE_MODEL)
-        whisper.assert_not_called();transcribe.assert_not_called()
+        self.assertEqual(result['model'],MODEL)
+        whisper.assert_not_called();live.assert_not_called()

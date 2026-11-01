@@ -47,7 +47,7 @@ class GeminiSTT:
 
     def status(self):
         cooldown = max(0, int(self._cooldown_until - self._clock() + .999))
-        return dict(model=LIVE_MODEL, available_models=[LIVE_MODEL], configured=self._key is not None,
+        return dict(model=MODEL, available_models=[MODEL], configured=self._key is not None,
             ready=self._key is not None and (self._continuous or self._remaining > 0)
                 and cooldown == 0 and self._last_error not in {'http_401', 'http_403'},
             remaining_attempts=None if self._continuous else self._remaining, attempted=self._attempts,
@@ -55,7 +55,7 @@ class GeminiSTT:
             continuous_use=self._continuous, retry_after_seconds=cooldown,
             credential_error=self._credential_error, cache_hits=self._cache_hits,
             paid_fallback=False, account_tier_independently_verified=False,
-            session_scope='user_confirmed_free_tier', language='mn-MN', mode='input_transcription')
+            session_scope='user_confirmed_free_tier', language='mn-MN', mode='verbatim')
 
     def configure(self, body):
         required = {'api_key', 'free_tier_confirmed', 'data_terms_confirmed', 'max_attempts'}

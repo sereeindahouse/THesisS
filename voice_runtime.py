@@ -521,7 +521,7 @@ class VoiceRuntime:
             speech_text_available=bool(result['text'].strip()),
             message=(('Монгол хэлээр танигдсангүй ('+', '.join(languages)+'). Бүтэн Монгол асуултаа дахин хэлэх эсвэл текстээ засна уу.'
                      if unexpected_language else 'Текстээ шалгаад илгээнэ үү.') if live else
-                     'Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.'),
+                     'Текстээ шалгаад илгээнэ үү.'),
             recognition_review=dict(needs_extra_review=True,
                 unexpected_language=unexpected_language,
                 year_tokens=detected_years, year_tokens_are_literal=True,

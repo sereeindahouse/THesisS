@@ -23,7 +23,8 @@ SAFE_DEFAULT = dict(selector=RULE_SELECTOR, local_llm_enabled=False)
 REQUEST_WORDS = frozenset('''хэлнэ хэлээрэй хэлж хэлээд нэрлэж нэрлээд нэрлээрэй нэрлэнэ
     тайлбарлана тайлбарлаач тайлбарлаарай ялгаж ялгаад харьцуулна харьцуулж өгнө аль хамт
     ажилладаг сургууль коллеж хэн хэдэн хэддүгээр үнэхээр хүртэл байдаг болдог тавьдаг
-    өгдөг авдаг хийдэг ордог'''.split())
+    өгдөг авдаг хийдэг ордог байх ёстой гараг гарагт гарагийн'''.split())
+FINAL_PREDICATE = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх)$')
 NUMERIC_QUESTION = re.compile(r'(?<!\w)(?:хэзээ|хэдэн|хэд|хэдэд|хэдний|хэддүгээр)(?!\w)')
 SHORT_QUESTION_TERMS = 6
 SHORT_QUESTION_COVERAGE = 0.85
@@ -32,7 +33,9 @@ LONG_QUESTION_COVERAGE = 0.3
 
 def key_terms(query):
     from website_retrieval import search_terms
-    return [term for term in dict.fromkeys(search_terms(query)) if term not in REQUEST_WORDS]
+    terms = [term for term in dict.fromkeys(search_terms(query)) if term not in REQUEST_WORDS]
+    # Mongolian ends a sentence with its verb; that word names no topic.
+    return terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
 
 
 def key_term_coverage(query, text):

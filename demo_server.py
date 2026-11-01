@@ -399,9 +399,9 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 voice_state = voice.status()
                 if not legacy_stt:
                     cloud = voice_state.get('gemini', {})
-                    voice_state.update(active_stt_provider='gemini_live', model='gemini-3.5-live-translate-preview',
+                    voice_state.update(active_stt_provider='gemini', model='gemini-3.5-transcribe',
                         stt_ready=cloud.get('ready', False), local_files_only=False,
-                        device='Google Live API', compute_type=None, revision=None, model_sha256=None)
+                        device='Google Transcribe API', compute_type=None, revision=None, model_sha256=None)
                 rag_state = rag.status()
                 return self.send_json(200, {
                     "website": website, "content_policy": content_policy.status(), "llm": llm.status(),
@@ -490,9 +490,9 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             try:
                 if path == "/api/voice/transcribe":
                     audio = self.read_body(MAX_AUDIO_BYTES)
-                    provider = self.headers.get('X-STT-Provider', 'cafet' if legacy_stt else 'gemini_live')
-                    if not legacy_stt and provider != 'gemini_live':
-                        raise ValueError('Одоогийн дуу таних үйлчилгээ нь зөвхөн Gemini 3.5 Live байна.')
+                    provider = self.headers.get('X-STT-Provider', 'cafet' if legacy_stt else 'gemini')
+                    if not legacy_stt and provider != 'gemini':
+                        raise ValueError('Одоогийн дуу таних үйлчилгээ нь зөвхөн Gemini 3.5 Transcribe байна.')
                     if provider in {'gemini', 'gemini_live'}:
                         supplied = self.headers.get('X-Gemini-Token', '')
                         if not supplied.isascii() or not secrets.compare_digest(supplied, gemini_token):
