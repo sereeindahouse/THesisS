@@ -22,9 +22,11 @@ SAFE_DEFAULT = dict(selector=RULE_SELECTOR, local_llm_enabled=False)
 # Words that shape a request or name the school itself, not what is being asked.
 REQUEST_WORDS = frozenset('''хэлнэ хэлээрэй хэлж хэлээд нэрлэж нэрлээд нэрлээрэй нэрлэнэ
     тайлбарлана тайлбарлаач тайлбарлаарай ялгаж ялгаад харьцуулна харьцуулж өгнө аль хамт
-    ажилладаг сургууль коллеж'''.split())
+    ажилладаг сургууль коллеж хэн хэдэн хэддүгээр үнэхээр хүртэл байдаг болдог тавьдаг
+    өгдөг авдаг хийдэг ордог'''.split())
+NUMERIC_QUESTION = re.compile(r'(?<!\w)(?:хэзээ|хэдэн|хэд|хэдэд|хэдний|хэддүгээр)(?!\w)')
 SHORT_QUESTION_TERMS = 6
-SHORT_QUESTION_COVERAGE = 0.75
+SHORT_QUESTION_COVERAGE = 0.85
 LONG_QUESTION_COVERAGE = 0.3
 
 
@@ -45,6 +47,9 @@ def key_term_coverage(query, text):
 
 
 def relevant_to_question(query, text):
+    # A "when" or "how many" question needs a number in what it shows.
+    if NUMERIC_QUESTION.search(query.casefold()) and not re.search(r'\d', text):
+        return False
     required = (SHORT_QUESTION_COVERAGE if len(key_terms(query)) <= SHORT_QUESTION_TERMS
                 else LONG_QUESTION_COVERAGE)
     return key_term_coverage(query, text) >= required
@@ -76,15 +81,18 @@ def bounded_lexical_selection(query, units, sources=None, requirements=()):
     from tools.evaluate_llm_selection import common_render, lexical_selection
     scored = lexical_selection(query, units, 3)['scores']
     ranked = [row for row in scored if row['score'] > 0][:8]
+    texts_by_id = {unit['unit_id']: unit['text'] for unit in units}
     if requirements:
-        texts = {unit['unit_id']: unit['text'] for unit in units}
         chosen = {row['unit_id'] for row in ranked}
         ranked = ranked + [row for row in scored if row['unit_id'] not in chosen and len(
-            missing_field_evidence(requirements, [texts[row['unit_id']]])) < len(requirements)][:4]
+            missing_field_evidence(requirements, [texts_by_id[row['unit_id']]])) < len(requirements)][:4]
     checked = []
     for count in range(1, min(3, len(ranked)) + 1):
         choices = list(combinations(range(len(ranked)), count))
-        choices.sort(key=lambda indices: (-sum(ranked[i]['score'] for i in indices), indices))
+        # Within a size, cover the question's key terms first, then BM25.
+        coverage = {indices: key_term_coverage(query, ' '.join(texts_by_id[ranked[i]['unit_id']] for i in indices))
+                    for indices in choices}
+        choices.sort(key=lambda indices: (-coverage[indices], -sum(ranked[i]['score'] for i in indices), indices))
         for indices in choices:
             ids = [ranked[i]['unit_id'] for i in indices]
             candidate = common_render(query, ids, units, sources=sources)

@@ -243,6 +243,8 @@
     [['simpleDone',simple.done],['simpleProblems',simple.problems],['simpleNext',simple.next]].forEach(([id,value])=>{const list=$(id);list.replaceChildren();items(value).forEach(item=>list.append(element('li','',item)));});
     const parts=$('simpleParts');parts.replaceChildren();(Array.isArray(simple.parts)?simple.parts:[]).forEach(part=>{if(!part||typeof part!=='object')return;const card=element('article','simple-part');card.append(element('span','simple-part-state',str(part.state)),element('h3','',str(part.title)),element('p','',str(part.text)));parts.append(card);});
     const dates=$('simpleDates');dates.replaceChildren();(Array.isArray(simple.dates)?simple.dates:[]).forEach(row=>{if(!row||typeof row!=='object')return;const chip=element('span','simple-date');chip.append(element('strong','',str(row.date)),element('span','',str(row.label)));dates.append(chip);});
+    const months=$('simpleMonths');months.replaceChildren();const today=new Date().toISOString().slice(0,7);(Array.isArray(simple.months)?simple.months:[]).forEach(row=>{if(!row||typeof row!=='object')return;const item=element('li',`simple-month${str(row.month)===today?' simple-month-now':''}`);item.append(element('strong','',str(row.label)),element('span','',str(row.goal)));months.append(item);});
+    const plan=progress.plan||{},weeks=$('simpleWeeks');weeks.replaceChildren();planWeeks(plan).forEach(week=>{const now=week.id===plan.current_week_id,item=element('li',`simple-week${now?' simple-week-now':''}`);item.append(element('strong','',str(week.id)),element('span','simple-week-date',`${str(week.start_date).slice(5).replace('-','/')}–${str(week.end_date).slice(5).replace('-','/')}`),element('span','',str(week.title)));weeks.append(item);});
     section.hidden=false;
   }
   function renderProgress() {
@@ -446,7 +448,7 @@
       const body=element('div','scope-domain-body');body.append(element('p','',item.source_status==='source_present'?'Холбосон эхийн бүртгэлтэй. Талбар бүрийн хариуг өөрийн эхээр нь шалгана.':'Эхийн бүртгэл дутуу. Хариулт таамаглахгүй.'));const list=element('ul');planStrings(item.request_fields_mn).forEach(value=>list.append(element('li','',value)));body.append(list);
       const jump=element('button','text-button','Энэ салааны эх, дэд сэдвийг харах →');jump.type='button';jump.setAttribute('aria-controls','treeDetail');jump.addEventListener('click',()=>{selectGraphTopic(item.topic_id,true);$('topicTree').scrollIntoView({block:'start',behavior:'auto'});document.querySelector(`[data-tree-topic="${treeState.data.topics.findIndex(topic=>topic.topic_id===item.topic_id)}"]`)?.focus({preventScroll:true});});body.append(jump);card.append(body);domains.append(card);
     });
-    $('scopeCoverageNote').textContent=[scope.coverage_note_mn,scope.tree_role_mn].filter(value=>typeof value==='string').join(' ');
+    $('scopeCoverageNote').textContent='Эх байгаа нь хариулт зөв гэсэн баталгаа биш.';
   }
   function renderTree() {
     const data=treeState.data,totals=$('treeTotals');totals.replaceChildren();[['pages','HTML хуудас'],['passages','Хайлтын хэсэг'],['facts','Бүтэцтэй баримт'],['faqs','FAQ']].forEach(([key,label])=>{const card=element('div');card.append(element('strong','',number(data.counts?.[key]||0)),element('span','',label));totals.append(card);});

@@ -9,7 +9,8 @@ import demo_server
 from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG, GroundedGenerator
 from rule_selector import (GEMMA_SELECTOR, RULE_SELECTOR, RuleSelectionGenerator, SAFE_DEFAULT,
-                           answer_selection, bounded_lexical_selection, default_generator, key_term_coverage)
+                           answer_selection, bounded_lexical_selection, default_generator, key_term_coverage,
+                           relevant_to_question)
 
 ROOT = Path(__file__).resolve().parents[1]
 PHONE_SOURCE = dict(source_id='fixture.contact', version='v1', title='Холбоо барих', url='https://nmct.edu.mn/fixture',
@@ -70,7 +71,7 @@ class ConfigurationTests(unittest.TestCase):
 class CommonQuestionAliasTests(unittest.TestCase):
     def test_closed_wordings_reach_the_stored_question_and_others_do_not(self):
         from rag_runtime import common_question_alias as alias
-        for query in ('Сургуультай яаж холбоо барих вэ?', 'Холбоо барих', 'Яаж холбогдох вэ?'):
+        for query in ('Сургуультай яаж холбоо барих вэ?', 'Холбоо барих', 'Яаж холбогдох вэ?', 'Сургуулийн утасны дугаар хэд вэ?'):
             self.assertEqual(alias(query), 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.', query)
         for query in ('Сургууль хаана байрладаг вэ?', 'Сургуулийн хаяг юу вэ?'):
             self.assertEqual(alias(query), 'Сургуулийн хаяг хаана вэ?', query)
@@ -117,6 +118,10 @@ class NoProviderRequestTests(unittest.TestCase):
         self.assertEqual((result['generated'], result['llm_calls'], result['reason']),
                          (False, 0, 'selection_not_relevant'))
         self.assertEqual(result['claims'], [])
+
+    def test_when_or_how_many_question_needs_a_number_in_the_answer(self):
+        self.assertFalse(relevant_to_question('Шалгалт хэзээ болох вэ?', 'Шалгалт бичгээр болно'))
+        self.assertTrue(relevant_to_question('Шалгалт хэзээ болох вэ?', 'Шалгалт 8/15 болно'))
 
     def test_key_term_coverage_ignores_request_words_and_handles_suffixes(self):
         self.assertEqual(key_term_coverage('Голч дүн хэлнэ үү?', 'Голч дүн дундаас дээш'), 1.0)

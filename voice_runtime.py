@@ -520,10 +520,7 @@ class VoiceRuntime:
             audio_seconds=len(pcm)/(SAMPLE_RATE*2), model_load_seconds=0,
             speech_text_available=bool(result['text'].strip()),
             message=(('Монгол хэлээр танигдсангүй ('+', '.join(languages)+'). Бүтэн Монгол асуултаа дахин хэлэх эсвэл текстээ засна уу.'
-                     if unexpected_language else 'Gemini 3.5 Live Translate · Монгол оролтын бичвэрийг цуглууллаа. '
-                     + ('Төгсгөлийн үг орсон эсэхийг сонсож нягтална уу.'
-                        if result.get('input_transcription_finished') else
-                        'Текстээ бүтнээр нь, ялангуяа төгсгөлийн үгийг бичлэгтэйгээ тулгаж нягтална уу.')) if live else
+                     if unexpected_language else 'Текстээ шалгаад илгээнэ үү.') if live else
                      'Gemini 3.5 Transcribe · анхны танилт. Хэлсэн үгтэйгээ нягтална уу.'),
             recognition_review=dict(needs_extra_review=True,
                 unexpected_language=unexpected_language,
