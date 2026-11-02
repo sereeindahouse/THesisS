@@ -30,15 +30,8 @@
 \usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,calc,backgrounds}
 
 % ---------------------------------------------------------------------
-%  Засах тэмдэглэгээ. \zasvarfalse болговол бүх тэмдэглэгээ нуугдана.
-%   \shalgah{...}  — эх хувьтай тулгах, шийдэх зүйл (улаан)
-%   \bichne{...}   — дараа бичих хэсэг (цэнхэр)
-%   \unshih        — иш татсан боловч оюутан өөрөө хараахан уншаагүй өгүүлэл
+%  Тэмдэглэл үлдээх бол мөрийн эхэнд % тавина. Тэр мөр PDF-д харагдахгүй.
 % ---------------------------------------------------------------------
-\newif\ifzasvar \zasvartrue
-\newcommand{\shalgah}[1]{\ifzasvar\textcolor{red}{[Шалгах: #1]}\fi}
-\newcommand{\bichne}[1]{\ifzasvar\textcolor{blue}{[Бичнэ: #1]}\fi}
-\newcommand{\unshih}{\ifzasvar\textsuperscript{\textcolor{orange!80!black}{[унших]}}\fi}
 
 \lstset{
     basicstyle=\ttfamily\small,
@@ -59,9 +52,9 @@
 \input{Chapters/CoverPage}
 \input{Chapters/TitlePage}
 
-%---------  Хураангуй
-\newpage
-\input{Chapters/Abstract}
+%---------  Хураангуй (хамгийн сүүлд бичнэ)
+% \newpage
+% \input{Chapters/Abstract}
 
 %---------  Гарчиг
 \newpage
@@ -90,8 +83,8 @@
 
 %---------  Ном зүй, талархал, хавсралт
 \input{Chapters/Bibliography}
-\input{Chapters/Talarhal}
-\input{Chapters/appendix}
+% \input{Chapters/Talarhal}   % ажлын төгсгөлд
+% \input{Chapters/appendix}   % хавсралт хэрэгтэй үед
 
 %---------  Товчлол (A4, 2–4 хуудас; Монгол, англи) — урьдчилсан хамгаалалтын
 %           дараа бичнэ (гарын авлага х.9). Загварын файлуудыг тэр үед нэмнэ.
