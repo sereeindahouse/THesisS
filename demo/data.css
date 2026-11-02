@@ -73,6 +73,11 @@
 .system-llm h3{color:#345e2b}
 .system-llm small{color:#57794a;font-weight:550}
 .system-map-note{font-size:10px;color:#829176;line-height:1.9;margin-top:17px;max-width:850px}
+.uml-panel{margin-top:26px;border:1px solid #d1dfd1;border-radius:17px;background:#fff;padding:20px 22px}
+.uml-panel h3{font-size:15px;font-weight:600}
+.uml-panel p{font-size:11px;color:#778a6a;line-height:1.9;margin-top:4px}
+.uml-scroll{overflow-x:auto;margin-top:14px}
+.uml-diagram{display:block;width:100%;min-width:760px;height:auto}
 @media(max-width:1150px){.tree-layout{grid-template-columns:minmax(245px,.9fr) minmax(0,1.2fr);gap:14px}.tree-detail-heading,.tree-detail-body{padding:18px}.tree-navigation{padding:17px 13px}.system-steps>li{padding:17px}}
 @media(max-width:920px){.sidebar{flex-wrap:wrap}.atlas-nav{order:3;flex-basis:100%;margin:0;justify-content:center}.sidebar>.chat-link:first-of-type{margin-left:auto}.tree-layout{grid-template-columns:minmax(250px,.9fr) minmax(0,1.2fr)}}
 @media(max-width:850px){.tree-layout{grid-template-columns:1fr}.tree-detail{position:static}#topicTree{max-height:370px}.tree-source-list{max-height:310px}.tree-nav-heading h2{font-size:16px}.tree-topic-label{font-size:12px}.tree-topic small{font-size:9px}.tree-navigation{padding:19px}.system-steps{grid-template-columns:1fr}.system-steps>li{padding:20px}.system-steps h3{font-size:13px}}
@@ -114,6 +119,9 @@
 .graph-llm .graph-card{stroke-width:2.8}
 .graph-llm.selected .graph-card{fill:#836323;stroke:#735719}
 .graph-llm.selected .graph-node-subtitle{fill:#f1e3bd}
+.graph-planned .graph-card{stroke-dasharray:8 6;filter:none}
+.graph-edge-label{font-family:"Segoe UI",Arial,sans-serif;font-size:15px;fill:#7e8c73;pointer-events:none}
+.graph-lane-label{font-family:"Segoe UI",Arial,sans-serif;font-size:17px;font-weight:650;fill:#4f6f5d;pointer-events:none}
 .graph-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:13px 25px 0;border-top:1px solid #e1e9da}
 .graph-footer .tree-search-status{margin:0;font-size:10px;line-height:1.8}
 .graph-legend{display:flex;align-items:center;gap:7px;font-size:9px;color:#8a9c7d;white-space:nowrap}
@@ -128,8 +136,12 @@
 .brain-map-panel{margin-top:21px}
 .brain-map-panel .graph-toolbar{border-top:0}
 .brain-viewport{height:clamp(550px,70vh,800px);background-color:#f8fbf9}
-.brain-map-key{font-size:10px;color:#8f783b;display:flex;gap:7px;align-items:center;margin-left:auto}
+.brain-map-key{font-size:10px;color:#6e8677;display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.brain-map-key span{display:flex;gap:6px;align-items:center}
 .brain-map-key i{display:block;width:10px;height:10px;border:1.5px solid #b28f3e;border-radius:3px;background:#f8e8b8}
+.brain-map-key i.key-net{border-color:#557fa4;background:#edf4fc}
+.brain-map-key i.key-planned{border:1.5px dashed #7b8581;background:#fff}
+.brain-map-key i.key-data{width:16px;height:0;border:0;border-top:2px solid #b08d4c;border-radius:0;background:none}
 .brain-detail{border-top:1px solid #dce6d5;background:#f5f8ef;padding:18px 24px;min-height:105px}
 .brain-detail h3{font-size:13px;font-weight:600}
 .brain-detail p{font-size:11px;color:#778a6a;line-height:1.9;margin-top:6px;max-width:850px}

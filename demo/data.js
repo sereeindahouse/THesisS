@@ -361,10 +361,10 @@
     graph.controller?.dispose();
     svg.replaceChildren();const defs=svgElement('defs');if(directed){const marker=svgElement('marker',{id:'systemFlowArrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'});marker.append(svgElement('path',{d:'M 0 0 L 10 5 L 0 10 z',fill:'#8ba69a'}));defs.append(marker);}svg.append(defs,svgElement('title',{},title),svgElement('desc',{},description));
     const scene=svgElement('g',{'class':'graph-scene'}),lines=svgElement('g',{'class':'graph-edges'}),cards=svgElement('g',{'class':'graph-nodes'}),nodeMap=new Map(layout.nodes.map(node=>[node.id,node]));graph.nodes.clear();graph.edges=[];
-    layout.edges.forEach(edge=>{const path=svgElement('path',{'class':'graph-edge','data-from':edge.from,'data-to':edge.to,d:graphEdgePath(edge,nodeMap),stroke:edge.colour||'#9db5a7',fill:'none','vector-effect':'non-scaling-stroke','stroke-linejoin':'round','stroke-linecap':'round'});if(edge.points)path.setAttribute('data-route-points',JSON.stringify(edge.points));if(directed)path.setAttribute('marker-end','url(#systemFlowArrow)');lines.append(path);graph.edges.push(path);});
-    layout.nodes.forEach((node,index)=>{const group=svgElement('g',{'class':`graph-node${node.root?' graph-root':''}${node.llm?' graph-llm':''}`,'data-node-id':node.id,'data-parent-id':node.parent||'','data-x':node.x,'data-y':node.y,'data-width':node.width,'data-height':node.height,'data-colour':node.colour,'data-fill':node.fill,transform:`translate(${node.x-node.width/2} ${node.y-node.height/2})`,role:'button',tabindex:0,'aria-label':node.label,'aria-pressed':'false'});group.append(svgElement('title',{},node.label),svgElement('rect',{x:0,y:0,width:node.width,height:node.height,rx:node.root?24:17,fill:node.fill,stroke:node.colour,'stroke-width':1.5,'class':'graph-card'}));
+    layout.edges.forEach(edge=>{const path=svgElement('path',{'class':'graph-edge','data-from':edge.from,'data-to':edge.to,d:graphEdgePath(edge,nodeMap),stroke:edge.colour||'#9db5a7',fill:'none','vector-effect':'non-scaling-stroke','stroke-linejoin':'round','stroke-linecap':'round'});if(edge.points)path.setAttribute('data-route-points',JSON.stringify(edge.points));if(directed)path.setAttribute('marker-end','url(#systemFlowArrow)');if(edge.dashed)path.setAttribute('stroke-dasharray','8 7');lines.append(path);graph.edges.push(path);if(edge.label)lines.append(svgElement('text',{'class':'graph-edge-label',x:edge.label[1],y:edge.label[2]},edge.label[0]));});
+    layout.nodes.forEach((node,index)=>{const group=svgElement('g',{'class':`graph-node${node.root?' graph-root':''}${node.llm?' graph-llm':''}${node.planned?' graph-planned':''}`,'data-node-id':node.id,'data-parent-id':node.parent||'','data-x':node.x,'data-y':node.y,'data-width':node.width,'data-height':node.height,'data-colour':node.colour,'data-fill':node.fill,transform:`translate(${node.x-node.width/2} ${node.y-node.height/2})`,role:'button',tabindex:0,'aria-label':node.label,'aria-pressed':'false'});group.append(svgElement('title',{},node.label),svgElement('rect',{x:0,y:0,width:node.width,height:node.height,rx:node.root?24:17,fill:node.fill,stroke:node.colour,'stroke-width':1.5,'class':'graph-card'}));
       const dot=svgElement('circle',{cx:18,cy:19,r:4.5,fill:node.colour,'class':'graph-node-dot'});group.append(dot);const text=svgElement('text',{'class':'graph-node-label',x:32,y:node.lines.length===1?30:25,fill:'#24483d'});node.lines.forEach((line,lineIndex)=>text.append(svgElement('tspan',{x:32,dy:lineIndex===0?0:24},line)));group.append(text);const subtitle=svgElement('text',{'class':'graph-node-subtitle',x:18,y:node.height-12,fill:'#6e8677'},node.subtitle||'');group.append(subtitle);
-      group.addEventListener('click',()=>{if(!graph.controller?.suppressClick())onSelect(node.id,true);});group.addEventListener('focus',()=>graph.controller?.ensureVisible(node));group.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();onSelect(node.id,true);}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();event.stopPropagation();const target=event.key==='ArrowLeft'?nodeMap.get(node.parent):event.key==='ArrowRight'?layout.nodes.find(other=>other.parent===node.id):layout.nodes[(index+(event.key==='ArrowUp'?-1:1)+layout.nodes.length)%layout.nodes.length];if(target)graph.nodes.get(target.id)?.focus();}});cards.append(group);graph.nodes.set(node.id,group);});scene.append(lines,cards);svg.append(scene);graph.layout=layout;graph.controller=createGraphController(svg,scene,zoomLabel,layout);graph.controller.fit();
+      group.addEventListener('click',()=>{if(!graph.controller?.suppressClick())onSelect(node.id,true);});group.addEventListener('focus',()=>graph.controller?.ensureVisible(node));group.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();onSelect(node.id,true);}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();event.stopPropagation();const target=event.key==='ArrowLeft'?nodeMap.get(node.parent):event.key==='ArrowRight'?layout.nodes.find(other=>other.parent===node.id):layout.nodes[(index+(event.key==='ArrowUp'?-1:1)+layout.nodes.length)%layout.nodes.length];if(target)graph.nodes.get(target.id)?.focus();}});cards.append(group);graph.nodes.set(node.id,group);});scene.append(lines,cards);(layout.headings||[]).forEach(([text,x,y])=>scene.append(svgElement('text',{'class':'graph-lane-label',x,y},text)));svg.append(scene);graph.layout=layout;graph.controller=createGraphController(svg,scene,zoomLabel,layout);graph.controller.fit();
   }
   function selectGraphTopic(identifier,focus=false) {
     const topic=treeState.data?.topics.find(item=>item.topic_id===identifier);if(!topic)return;treeState.selected=identifier;treeState.expanded.add(identifier);$('treeTopicJump').value=identifier;renderTopicTree();renderTreeDetail();if(focus)topicGraph.controller.fit(treeDescendants(identifier).map(item=>item.topic_id));
@@ -377,39 +377,54 @@
   function renderSystemGraph() {
     if(brainGraph.layout)return;
     const definitions=[
-      ['sources',90,90,'Албан эх','HTML · PDF · зураг','Албан nmct.edu.mn сайтаас хадгалсан HTML, сонгосон PDF/зураг, нэмэлт табын эх.'],
-      ['database',420,90,'SQLite эхийн сан','URL · хувилбар · огноо','Хадгалсан хуудас болон бүтэцтэй fact/FAQ-г эх, хувилбар, хадгалсан огноотой нь хадгална.'],
-      ['index',750,90,'Хайлтын хэсгүүд','Эхийн байрлал хадгална','HTML, баримт, нэмэлт табын текстийн хэсгүүдэд эхийн URL болон байрлал нь холбоотой байна.'],
-      ['scope',1080,90,'Тодруулга / эхгүй','Хүрээг лавлана','Асуулт тодорхойгүй бол лавлана. Эх батлахгүй мэдээллийг өөр сэдвээр орлуулахгүй.'],
-      ['microphone',90,370,'Микрофоны дуу','Хэрэглэгчийн асуулт','Хэрэглэгч дуугаар асуувал бичлэг STT рүү очно. Бичгээр асуух үед шууд асуултын текст рүү орно.'],
-      ['stt',420,370,'Дуу таних','Gemini 3.5 Transcribe','Яриаг Google-ийн Gemini 3.5 Transcribe-ээр текст болгоно. Сүлжээ хэрэгтэй. Анхны текст хадгалагдана.'],
-      ['query',750,370,'Асуултын текст','Бичсэн эсвэл таньсан','Таньсан текстээ хэрэглэгч гараар засаад илгээнэ.'],
-      ['router',1080,370,'Асуулт чиглүүлэгч','Шууд · хайлт · тодруулга','Бүртгэлтэй хариултыг шууд өгөх, эх хайх, тодруулах эсвэл эхгүйг тайлбарлах замыг сонгоно.'],
-      ['faq',1410,370,'Баримт / FAQ','Шууд хариултын зам','Тогтмол fact/FAQ хариулт нь өөрийн эх, хугацаа, нөхцөлийн шалгалттай. Хайлт хэрэггүй үед шууд хариулна.'],
-      ['bm25',750,650,'BM25','Үгийн тохирол','Асуулттай үгээр тохирох эхийн хэсгүүдийг эрэмбэлнэ.'],
-      ['e5',1080,650,'E5 embedding','Утгын ойролцоо хайлт','Урьдчилан сурсан multilingual E5 вектороор утгын ойролцоо хэсгүүдийг хайна.'],
-      ['rrf',1410,650,'RRF нэгтгэл','Хоёр эрэмбийг нэгтгэнэ','BM25 болон E5-ийн эрэмбийг RRF нэгтгэж, эхийн нэр дэвшигч хэсгүүдийг бэлдэнэ.'],
-      ['gemma',1410,930,'Хэсэг сонгох дүрэм','Эхийн хэсгийг сонгоно','Асуултын гол үгтэй тохирсон, шалгалтад тэнцсэн хэсгийг дүрмээр сонгоно. Тохирох хэсэг байхгүй бол олдсонгүй гэж хэлнэ.'],
-      ['guards',1080,930,'Эхийн шалгалтууд','ID · он · нөхцөл · талбар','Сервер сонгосон ID, эхийн холбоос, он, нөхцөл болон асуултад шаардсан талбарыг шалгана. Энэ нь бүх утгыг батлах төгс semantic шалгалт биш.'],
-      ['answer',750,930,'Эхтэй хариулт','Эхийн текстийг үгчлэн','Сервер эхийн хадгалсан текст болон холбоосыг харуулна. Шууд FAQ зам өөрийн эхтэй хадгалсан хариултыг өгнө.'],
-      ['tts',420,930,'Edge TTS','Хариулт → дуу','Дэлгэцэнд үзүүлсэн, тухайн хариултад холбосон текстийг Edge TTS дуу болгоно.']
+      ['microphone',150,90,'Дуугаар асуух','Микрофоноор бичнэ','Хүн микрофоноор асууна. Бичлэг нь дуу таних руу очно.'],
+      ['stt',150,220,'Дуу таних','Gemini 3.5 Transcribe','Яриаг текст болгоно. Интернэт хэрэгтэй.'],
+      ['query',150,350,'Асуултын текст','Хүн засаж болно','Бичсэн эсвэл таньсан асуулт. Таньсан текстийг илгээхийн өмнө хүн засаж болно.'],
+      ['typed',150,480,'Бичгээр асуух','Шууд текст','Бичгээр асуувал дуу танихгүй, шууд асуултын текст болно.'],
+      ['test',470,480,'Шалгах 40 асуулт','Ноорог · түгжээгүй','Системийг шалгах асуултууд. Хүн хянаж түгжсэний дараа ажиллуулна. Энэ асуултаар систем хараахан шалгагдаагүй.'],
+      ['router',470,350,'Асуулт чиглүүлэгч','Замаа сонгоно','Асуулт бүрт нэг зам сонгоно: шууд хариулах, хайх, буцааж асуух, эсвэл олдсонгүй гэж хэлэх.'],
+      ['scope',470,220,'Тодруулах','Буцааж асууна','Асуулт тодорхойгүй бол юу хэрэгтэйг асууна. Хариулбал дахин чиглүүлнэ.'],
+      ['bm25',790,220,'BM25','Үгээр хайна','Асуултын үгтэй ижил үгтэй хэсгүүдийг олно.'],
+      ['e5',790,350,'E5','Утгаар хайна','Үг нь өөр ч утга нь ойролцоо хэсгүүдийг олно. Энэ компьютер дээр ажиллана.'],
+      ['faq',790,480,'Шууд хариулт','Баримт · FAQ · багш','Хадгалсан баримт, FAQ, багшийн танилцуулгаас шууд хариулна. Хайлт хэрэггүй.'],
+      ['rrf',1110,285,'RRF','Хоёр дүнг нэгтгэнэ','Хоёр хайлтын эрэмбийг нэгтгэнэ. Хоёуланд нь дээгүүр гарсан хэсэг тэргүүлнэ. Тохирох эх алга бол олдсонгүй гэж хэлнэ.'],
+      ['direct',1430,220,'Эхийн мөр гаргах','Давхар, утас гэх мэт','Нэг тодорхой зүйл асуувал тухайн мөрийг эхээс шууд гаргана.'],
+      ['gemma',1430,350,'Хэсэг сонгох дүрэм','Тохирох хэсгээ сонгоно','Шууд гаргах мөр байхгүй бол ажиллана. Оноогоор нь 1, 2, 3 хэсгийг шалгаж, тэнцсэн эхнийхийг сонгоно.'],
+      ['guards',1750,285,'Эхийн шалгалт','Он · нөхцөл · талбар','Эх, он, нөхцөл, асуусан талбар таарч байгааг шалгана. Буруу хэсэг сонгох алдаа үлдэж болно.'],
+      ['none',1750,110,'Мэдээлэл олдсонгүй','Өөрөөр орлуулахгүй','Хариулах эх алга бол олдсонгүй гэж хэлнэ. Ойролцоо мэдээллээр орлуулахгүй.'],
+      ['answer',1750,480,'Эхтэй хариулт','Эхийн үгээр, холбоостой','Эхийн үгийг өөрчлөхгүй, холбоостой нь харуулна.'],
+      ['tts',1750,610,'Дуугаар унших','Edge TTS','Хариултыг дуу болгоно. Интернэт хэрэгтэй.'],
+      ['sources',150,640,'Албан эх','Вэб · PDF · зураг','Сургуулийн албан сайтаас авсан хуудас, сонгосон PDF, зураг.'],
+      ['database',470,640,'Эхийн сан','SQLite · огноотой','Эхийг холбоос, хувилбар, огноотой нь хадгална.'],
+      ['index',790,640,'Хайлтын хэсгүүд','Эхийн байрлалтай','Эхийг жижиг хэсэг болгож, хаанаас авснаа хадгална.'],
+      ['reception',150,770,'Ресепшний мэдээлэл','Багш · анги · хуваарь','Одоо алга, тул систем хариулахгүй. Сургуулиас мэдээлэл авч W09-д нэмнэ.'],
+      ['tree',470,770,'Мэдлэгийн мод','Сэдвээр үзэх зураг','Хүн мэдээллийг сэдвээр нь үзнэ. Хариулт олоход оролцохгүй.']
     ];
-    const nodes=definitions.map(([id,x,y,label,subtitle,detail])=>({id,x:x+70,y:y+35,width:270,height:96,label,subtitle,detail,lines:graphLabelLines(label),colour:id==='gemma'?'#98752e':['stt','e5','tts'].includes(id)?'#557fa4':'#4d7a65',fill:id==='gemma'?'#fcf1ce':['stt','e5','tts'].includes(id)?'#edf4fc':'#f1f7ef',llm:id==='gemma'}));
-    const pairs=[['sources','database'],['database','index'],['database','faq'],['index','bm25'],['index','e5'],['microphone','stt'],['stt','query'],['query','router'],['router','scope'],['router','faq'],['router','bm25'],['router','e5'],['bm25','rrf'],['e5','rrf'],['rrf','gemma'],['gemma','guards'],['faq','guards'],['guards','answer'],['answer','tts']];
+    const planned=new Set(['test','reception']),internet=new Set(['stt','tts']);
+    const nodes=definitions.map(([id,x,y,label,subtitle,detail])=>({id,x,y,width:270,height:96,label,subtitle,detail,lines:graphLabelLines(label),colour:id==='gemma'?'#98752e':internet.has(id)?'#557fa4':planned.has(id)?'#7b8581':'#4d7a65',fill:id==='gemma'?'#fcf1ce':internet.has(id)?'#edf4fc':planned.has(id)?'#fbfcfa':'#f1f7ef',llm:id==='gemma',planned:planned.has(id)}));
+    const pairs=[['microphone','stt'],['stt','query'],['typed','query'],['test','query'],['query','router'],['router','scope'],['router','bm25'],['router','e5'],['router','faq'],['bm25','rrf'],['e5','rrf'],['rrf','direct'],['rrf','gemma'],['rrf','none'],['direct','guards'],['gemma','guards'],['faq','guards'],['guards','none'],['guards','answer'],['answer','tts'],['sources','database'],['reception','database'],['database','index'],['database','faq'],['database','tree'],['index','bm25'],['index','e5']];
     // Explicit clear lanes keep long connections outside unrelated service
     // cards. Crossing a card would visually imply a connection that is absent.
     const routes={
-      'database:faq':[[490,77],[490,28],[1480,28],[1480,357]],
-      'index:bm25':[[955,125],[980,125],[980,594],[780,594],[780,637]],
-      'index:e5':[[955,140],[998,140],[998,565],[1100,565],[1100,637]],
-      'router:bm25':[[1100,453],[1100,520],[860,520],[860,637]],
-      'router:e5':[[1210,453],[1210,637]],
-      'bm25:rrf':[[820,733],[820,800],[1480,800],[1480,733]],
-      'faq:guards':[[1615,405],[1645,405],[1645,860],[1150,860],[1150,917]]
+      'test:query':[[335,480],[310,480],[310,372],[285,372]],
+      'router:bm25':[[605,350],[630,350],[630,220],[655,220]],
+      'router:faq':[[605,350],[630,350],[630,480],[655,480]],
+      'bm25:rrf':[[925,210],[960,210],[960,270],[975,270]],
+      'e5:rrf':[[925,350],[960,350],[960,300],[975,300]],
+      'rrf:none':[[1110,237],[1110,110],[1615,110]],
+      'faq:guards':[[925,480],[1580,480],[1580,420],[1690,420],[1690,333]],
+      'reception:database':[[285,770],[310,770],[310,662],[335,662]],
+      'database:faq':[[605,620],[630,620],[630,505],[655,505]],
+      'index:bm25':[[925,640],[940,640],[940,262],[925,262]],
+      'index:e5':[[925,640],[940,640],[940,415],[830,415],[830,398]]
     };
-    const layout={nodes,edges:pairs.map(([from,to])=>({from,to,points:routes[from+':'+to]})),width:1680,height:1080};
-    function select(identifier,focus=false){const node=nodes.find(item=>item.id===identifier);if(!node)return;brainGraph.nodes.forEach((group,id)=>{group.setAttribute('class',`graph-node${id==='gemma'?' graph-llm':''}${id===identifier?' selected':''}`);group.setAttribute('aria-pressed',String(id===identifier));});$('brainDetail').replaceChildren(element('h3','',node.label),element('p','',node.detail));if(focus)brainGraph.controller.ensureVisible(node);}
-    drawSvgGraph($('systemGraph'),brainGraph,$('brainZoomLabel'),layout,select,{directed:true,title:'Системийн өгөгдөл боловсруулах холбоос',description:'Албан эхээс SQLite, BM25/E5, RRF, хэсэг сонгох дүрэм, эхийн шалгалт, хариулт болон TTS хүртэлх холбоос. Микрофоны дууг Gemini 3.5 Transcribe текст болгоно. Шууд FAQ зам хайлтыг алгасана.'});select('gemma');
+    const dataEdges=new Set(['sources:database','reception:database','database:index','database:faq','database:tree','index:bm25','index:e5']);
+    const dashedEdges=new Set(['test:query','reception:database']);
+    const edgeLabels={'router:scope':['Тодорхойгүй',482,290],'rrf:none':['Тохирох эх алга',1125,98],'guards:none':['Тэнцээгүй',1762,203],'guards:answer':['Тэнцсэн',1762,388]};
+    const headings=[['1 · Асуух',15,24],['2 · Чиглүүлэх',335,24],['3 · Хайх',655,24],['4 · Сонгох',1295,24],['5 · Шалгаж хариулах',1615,24],['Мэдээлэл бэлтгэх',15,578]];
+    const layout={nodes,edges:pairs.map(([from,to])=>({from,to,points:routes[from+':'+to],colour:dataEdges.has(from+':'+to)?'#b08d4c':undefined,dashed:dashedEdges.has(from+':'+to),label:edgeLabels[from+':'+to]})),headings,width:1900,height:830};
+    function select(identifier,focus=false){const node=nodes.find(item=>item.id===identifier);if(!node)return;brainGraph.nodes.forEach((group,id)=>{group.setAttribute('class',`graph-node${id==='gemma'?' graph-llm':''}${planned.has(id)?' graph-planned':''}${id===identifier?' selected':''}`);group.setAttribute('aria-pressed',String(id===identifier));});$('brainDetail').replaceChildren(element('h3','',node.label),element('p','',node.detail));if(focus)brainGraph.controller.ensureVisible(node);}
+    drawSvgGraph($('systemGraph'),brainGraph,$('brainZoomLabel'),layout,select,{directed:true,title:'Системийн бүтэн бүтэц',description:'Асуултыг авч чиглүүлээд, шууд хариулах эсвэл BM25 ба E5-аар хайж, RRF-ээр нэгтгэнэ. Дараа нь эхийн мөр эсвэл дүрмээр хэсэг сонгож, эхийн шалгалтад тэнцвэл эхтэй хариулт өгч дуугаар уншина. Тэнцэхгүй бол мэдээлэл олдсонгүй гэж хэлнэ. Доод хэсэгт мэдээлэл бэлтгэх зам байна.'});select('microphone');
   }
   function renderTreeDetail() {
     const topic=treeState.data.topics.find(item=>item.topic_id===treeState.selected),target=$('treeDetail');target.replaceChildren();if(!topic)return;
