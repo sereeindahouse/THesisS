@@ -440,6 +440,15 @@ __pycache__/
 !/papers/15-rag-diagnosis-20261101.mn.md
 !/papers/16-reading-notes-45-20261101.mn.md
 
+# Current seminar deck, speech and notebook sheet; slide builder referenced by CLAUDE.md. Older deck versions stay local.
+!/CORE/seminar-2026-11-03/
+/CORE/seminar-2026-11-03/*
+!/CORE/seminar-2026-11-03/06_*
+!/CORE/seminar-2026-11-03/07_*
+!/CORE/seminar-2026-11-03/08_*
+!/tools/nmct_slides/
+!/tools/nmct_slides/**
+
 # Blank reception data form for the school (public). Filled copies from the school stay private.
 !/data/reception/
 /data/reception/*

@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#88D4BB"
     },
-    "window.title": "[THesisS · I] I · Хариултыг дүрмээр сонгох, Gemma унтраалттай ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · I] W02 · 11/03-ны семинар, багшаас 5 зүйл тодруулах ${separator} ${dirty}${activeEditorShort}"
   }
 }
