@@ -461,3 +461,6 @@ __pycache__/
 /data/reception/*
 !/data/reception/Ресепшний_мэдээлэл_цуглуулах_загвар.xlsx
 !/tools/build_reception_xlsx.py
+
+# Дипломын LaTeX эх (build гаралт дотоод .gitignore-оор хасагдана)
+!/thesis/

@@ -1,0 +1,15 @@
+# LaTeX build гаралт
+*.aux
+*.log
+*.toc
+*.out
+*.lof
+*.lot
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.xdv
+main.pdf
+_build/

@@ -1,0 +1,99 @@
+% !TEX program = xelatex
+% =====================================================================
+%  Дипломын ажлын үндсэн файл (XeLaTeX-ээр хөрвүүлнэ)
+%  Загвар: Asura-lab/diplom (М.Мөнхдорж, 2026) — удирдагч багшийн зөвлөснөөр
+%  ашиглав. Thesis.cls, нүүр хуудсууд загвараас өөрчлөлтгүй.
+%  Хөрвүүлэх: VS Code + LaTeX Workshop (XeLaTeX) эсвэл `latexmk` (latexmkrc бий).
+% =====================================================================
+\documentclass[11pt]{Thesis}
+\usepackage{fontspec}
+% Windows дээр Times New Roman байна. Linux/Overleaf дээр хэмжээгээр нь
+% ижил Liberation фонт руу шилжинэ (зөвхөн шалгах үед).
+\IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{\setmainfont{Liberation Serif}}
+\IfFontExistsTF{Arial}{\setsansfont{Arial}}{\setsansfont{Liberation Sans}}
+\IfFontExistsTF{Consolas}{\setmonofont[Scale=0.9]{Consolas}}{\setmonofont[Scale=0.9]{DejaVu Sans Mono}}
+\usepackage{polyglossia}
+\setdefaultlanguage{mongolian}
+\setotherlanguage{english}
+\usepackage{wrapfig}
+\usepackage{multirow}
+\usepackage{ragged2e}
+\usepackage{amssymb}
+\usepackage{indentfirst}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{adjustbox}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,calc,backgrounds}
+
+% ---------------------------------------------------------------------
+%  Засах тэмдэглэгээ. \zasvarfalse болговол бүх тэмдэглэгээ нуугдана.
+%   \shalgah{...}  — эх хувьтай тулгах, шийдэх зүйл (улаан)
+%   \bichne{...}   — дараа бичих хэсэг (цэнхэр)
+%   \unshih        — иш татсан боловч оюутан өөрөө хараахан уншаагүй өгүүлэл
+% ---------------------------------------------------------------------
+\newif\ifzasvar \zasvartrue
+\newcommand{\shalgah}[1]{\ifzasvar\textcolor{red}{[Шалгах: #1]}\fi}
+\newcommand{\bichne}[1]{\ifzasvar\textcolor{blue}{[Бичнэ: #1]}\fi}
+\newcommand{\unshih}{\ifzasvar\textsuperscript{\textcolor{orange!80!black}{[унших]}}\fi}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    showstringspaces=false
+}
+
+\begin{document}
+\frenchspacing
+\captionsetup{labelfont=bf, textfont=it}
+\pagenumbering{roman}
+\pagestyle{fancy}
+
+\input{Information}
+
+%---------  Нүүр хуудас / Дотор нүүр
+\input{Chapters/CoverPage}
+\input{Chapters/TitlePage}
+
+%---------  Хураангуй
+\newpage
+\input{Chapters/Abstract}
+
+%---------  Гарчиг
+\newpage
+\tableofcontents
+
+%---------  Товчилсон үгсийн жагсаалт
+\input{Chapters/acrolist}
+
+%---------  Хүснэгт, зургийн жагсаалт
+\newpage
+\listoftab
+\newpage
+\listoffig
+
+%---------  Үндсэн хэсэг
+\newpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{Chapters/plan}                    % Ажлын төлөвлөгөө
+\input{Chapters/Chapter1_Introduction}   % 1. Удиртгал
+\input{Chapters/Chapter2_Literature}     % 2. Онол, өнөөгийн түвшин
+\input{Chapters/Chapter3_Methodology}    % 3. Арга зүй
+\input{Chapters/Chapter4_Results}        % 4. Үр дүн
+\input{Chapters/Chapter5_Conclusion}     %    Дүгнэлт (4-р бүлгийн төгсгөл)
+
+%---------  Ном зүй, талархал, хавсралт
+\input{Chapters/Bibliography}
+\input{Chapters/Talarhal}
+\input{Chapters/appendix}
+
+%---------  Товчлол (A4, 2–4 хуудас; Монгол, англи) — урьдчилсан хамгаалалтын
+%           дараа бичнэ (гарын авлага х.9). Загварын файлуудыг тэр үед нэмнэ.
+
+\end{document}
