@@ -458,6 +458,7 @@ __pycache__/
 
 # W04 question set: public website questions, its runner and its review page.
 !/data/rag-locked-questions-20261102.json
+!/data/rag-locked-questions-20261104b.json
 !/tools/evaluate_locked_questions.py
 !/tests/test_locked_questions.py
 !/CORE/W04-шалгах-асуулт-ноорог.mn.md

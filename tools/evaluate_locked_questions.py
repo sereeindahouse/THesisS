@@ -47,9 +47,11 @@ def validate_shape(data):
     """Return problems in the set itself, without touching the database or the system."""
     questions=data.get('questions',[])
     problems=[]
-    counts={kind:sum(q.get('kind')==kind for q in questions) for kind in EXPECTED_COUNTS}
-    if counts!=EXPECTED_COUNTS:
-        problems.append(f'counts {counts} differ from {EXPECTED_COUNTS}')
+    # A later confirmation set may declare its own counts; the W04 set keeps 20/10/10.
+    expected=data.get('expected_counts',EXPECTED_COUNTS)
+    counts={kind:sum(q.get('kind')==kind for q in questions) for kind in expected}
+    if counts!=expected or len(questions)!=sum(expected.values()):
+        problems.append(f'counts {counts} differ from {expected}')
     seen=set()
     for q in questions:
         key=normalize(q.get('query',''))

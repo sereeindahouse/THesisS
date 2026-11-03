@@ -1,0 +1,356 @@
+{
+ "schema_version": 1,
+ "status": "locked",
+ "locked_at": "2026-11-03T16:17:54.279424+00:00",
+ "locked_by": "Claude (AI, claude-opus-5-5), хэрэглэгчийн 2026-11-04 зааврар; хүн хянаагүй",
+ "questions_sha256": "5f66b304d7fd6d6bfdc91944f5d62bfb995b67df5661ff3554f215b4d615052a",
+ "label_scope": "Confirmation set W04-b. Assistant-drafted 2026-11-04 from the stored website, after the W04 set was used and before the F1-F3 fixes were written; locked by the assistant at the user's instruction. Not human-reviewed. Not general accuracy.",
+ "expected_counts": {
+  "answerable": 16,
+  "unanswerable": 8,
+  "reception": 0
+ },
+ "drafting_mn": "Тоо агуулсан өгүүлбэрүүдийг хуудас бүрээр дарааллаар нь гаргаж, W04-т ашиглаагүй баримтаас хүрээ бүрт 1-4 асуулт сонгосон. Хариугүй асуулт нь хажуугийн тоо, он эсвэл тэнхим солигдсон (RAG08). Агент W04-ийн алдааг харсны дараа бичсэн тул тэр мэдлэгээс бүрэн ангид биш.",
+ "questions": [
+  {
+   "id": "B01",
+   "kind": "answerable",
+   "frame": "school",
+   "query": "Сургууль анх хэдэн оюутантай хичээллэж эхэлсэн бэ?",
+   "answer_mn": "93 оюутан, 3 бүлэг.",
+   "required_values": [
+    "93 оюутан"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/about/history",
+     "phrase": "анхны 93 оюутан 3 бүлэгтэйгээр"
+    }
+   ]
+  },
+  {
+   "id": "B02",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Hub Center хэдэн квадрат метр талбайтай вэ?",
+   "answer_mn": "593.11 м².",
+   "required_values": [
+    "593"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/about/environment",
+     "phrase": "593.11 м² талбай"
+    }
+   ]
+  },
+  {
+   "id": "B03",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Номын санд хэдэн ном, сурах бичиг байдаг вэ?",
+   "answer_mn": "3270 гаруй.",
+   "required_values": [
+    "3270"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/about/environment",
+     "phrase": "3270+ ном, сурах бичиг"
+    }
+   ]
+  },
+  {
+   "id": "B04",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Номын сан Koha программыг хэдэн оноос ашиглаж байна вэ?",
+   "answer_mn": "2016 оноос.",
+   "required_values": [
+    "2016"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/about/environment",
+     "phrase": "Koha олон улсын программыг 2016 оноос"
+    }
+   ]
+  },
+  {
+   "id": "B05",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Хоёр спорт заал хэдэн м² талбайтай вэ?",
+   "answer_mn": "644.7 м².",
+   "required_values": [
+    "644.7"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/about/environment",
+     "phrase": "2 спорт заал (644.7 м²)"
+    }
+   ]
+  },
+  {
+   "id": "B06",
+   "kind": "answerable",
+   "frame": "academics",
+   "query": "Химийн инженерийн тэнхимд хэдэн үндсэн багш ажилладаг вэ?",
+   "answer_mn": "5 үндсэн багш, 1 цагийн багш.",
+   "required_values": [
+    "5 үндсэн багш"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/departments/chemical",
+     "phrase": "5 үндсэн багш, 1цагийн багштай"
+    }
+   ]
+  },
+  {
+   "id": "B07",
+   "kind": "answerable",
+   "frame": "academics",
+   "query": "Барилгын инженерчлэлийн хөтөлбөрийг өнөөдрийг хүртэл нийт хэдэн оюутан төгссөн бэ?",
+   "answer_mn": "7 удаагийн төгсөлтөөр 86 оюутан.",
+   "required_values": [
+    "86 оюутан"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/departments/civil",
+     "phrase": "нийт 7 удаагийн төгсөлтөөр 86 оюутан"
+    }
+   ]
+  },
+  {
+   "id": "B08",
+   "kind": "answerable",
+   "frame": "academics",
+   "query": "Механик инженерийн тэнхимд 2025–2026 оны хичээлийн жилд нийт хэдэн оюутан суралцаж байна вэ?",
+   "answer_mn": "128 оюутан.",
+   "required_values": [
+    "128"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/departments/mechanical",
+     "phrase": "2025–2026 оны хичээлийн жилд нийт 128 оюутан"
+    }
+   ]
+  },
+  {
+   "id": "B09",
+   "kind": "answerable",
+   "frame": "academics",
+   "query": "Механикийн лабораторид нэг удаад хэдэн оюутан ажиллах боломжтой вэ?",
+   "answer_mn": "15–20 оюутан.",
+   "required_values": [
+    "15–20"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/departments/mechanical",
+     "phrase": "Нэг удаад 15–20 оюутан ажиллах боломжтой"
+    }
+   ]
+  },
+  {
+   "id": "B10",
+   "kind": "answerable",
+   "frame": "career",
+   "query": "Сакура Сайэнс хөтөлбөрт сүүлийн 4 жилд хэдэн оюутан хамрагдсан бэ?",
+   "answer_mn": "26 оюутан.",
+   "required_values": [
+    "26 оюутан"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/career-center",
+     "phrase": "Сүүлийн 4 жилд 26 оюутан хамрагдсан"
+    }
+   ]
+  },
+  {
+   "id": "B11",
+   "kind": "answerable",
+   "frame": "career",
+   "query": "Ибараки мужийн шинэ хөтөлбөрт нийт хэдэн оюутан хамрагдах вэ?",
+   "answer_mn": "Мэргэжил тус бүрээс 3, нийт 15 оюутан.",
+   "required_values": [
+    "15 оюутан"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/career-center",
+     "phrase": "нийт 15 оюутан хамрагдана"
+    }
+   ]
+  },
+  {
+   "id": "B12",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Оюутны зөвлөлд анги бүрээс хэдэн гишүүн ордог вэ?",
+   "answer_mn": "1-2 гишүүн.",
+   "required_values": [
+    "1-2 гишүүн"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/student",
+     "phrase": "анги бүрийн төлөөлөл болох 1-2 гишүүнтэй"
+    }
+   ]
+  },
+  {
+   "id": "B13",
+   "kind": "answerable",
+   "frame": "student",
+   "query": "Оюутны зөвлөлийн гишүүн хэдэн удаа шалтгаангүй тасалбал эрхийг нь түтгэлзүүлэх асуудлыг хэлэлцдэг вэ?",
+   "answer_mn": "3 удаа.",
+   "required_values": [
+    "3 удаа"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/student",
+     "phrase": "3 удаа шалтгаангүй тасалвал эрх түтгэлзүүлэх асуудлыг хэлэлцэнэ"
+    }
+   ]
+  },
+  {
+   "id": "B14",
+   "kind": "answerable",
+   "frame": "news",
+   "query": "NAPROCK тэмцээнд манай сургуулиас хэдэн баг явсан бэ?",
+   "answer_mn": "5 баг (2 багштай, нийт 17 хүн).",
+   "required_values": [
+    "5 баг"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/news/naprock-temtseend-oroltsokhoor-yapon-ulsyg-zoriloo",
+     "phrase": "5 баг, 2 багшийн хамт нийт 17 хүний"
+    }
+   ]
+  },
+  {
+   "id": "B15",
+   "kind": "answerable",
+   "frame": "news",
+   "query": "2026 оны зун ШМТК Япон улсын аль компанитай хамтран карьер төлөвлөлтийн сургалт зохион байгуулсан бэ?",
+   "answer_mn": "Сэтоүчи Санни компани.",
+   "required_values": [
+    "сэтоүчи санни"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/news/khamtyn-ajillagaany-medeelel",
+     "phrase": "Япон улсын Сэтоүчи Санни компанитай хамтран"
+    }
+   ]
+  },
+  {
+   "id": "B16",
+   "kind": "answerable",
+   "frame": "events",
+   "query": "Байгалийн ухааны олимпиадын бүртгэл хэдний өдрөөс онлайнаар эхэлсэн бэ?",
+   "answer_mn": "04 сарын 02-ноос.",
+   "required_values": [
+    "04 сарын 02"
+   ],
+   "support": [
+    {
+     "url": "https://nmct.edu.mn/events/science-olimpiad-events",
+     "phrase": "04 сарын 02-ноос эхлэн онлайнаар"
+    }
+   ]
+  },
+  {
+   "id": "BU01",
+   "kind": "unanswerable",
+   "frame": "career",
+   "query": "JENESYS хөтөлбөрт сүүлийн 4 жилд хэдэн оюутан хамрагдсан бэ?",
+   "why_mn": "Хажууд нь Сакура Сайэнсийн 26 гэсэн тоо бий; JENESYS-ийн тоо алга.",
+   "absence_terms": [
+    "jenesys[^.]{0,120}хамрагдсан"
+   ]
+  },
+  {
+   "id": "BU02",
+   "kind": "unanswerable",
+   "frame": "career",
+   "query": "Ибараки мужийн хөтөлбөрт 2024–2025 оны хичээлийн жилд хэдэн оюутан хамрагдсан бэ?",
+   "why_mn": "Зөвхөн 2025–2026 оны 15 оюутан гэсэн тоо бий.",
+   "absence_terms": [
+    "2024–2025[^.]{0,120}ибараки",
+    "ибараки[^.]{0,250}2024–2025"
+   ]
+  },
+  {
+   "id": "BU03",
+   "kind": "unanswerable",
+   "frame": "academics",
+   "query": "Химийн инженерийн тэнхим өнөөдрийг хүртэл нийт хэдэн оюутан төгсгөсөн бэ?",
+   "why_mn": "Барилгын тэнхимд 86 гэсэн тоо бий; химийн тэнхимд алга.",
+   "absence_terms": [
+    "хими[^.]{0,150}төгссөн",
+    "хими[^.]{0,200}\\d+\\s*оюутан мэргэжил эзэмш"
+   ]
+  },
+  {
+   "id": "BU04",
+   "kind": "unanswerable",
+   "frame": "student",
+   "query": "Номын сан бямба гарагт хэдэн цагт хаадаг вэ?",
+   "why_mn": "Сургуулийн ерөнхий ажлын цаг бий; номын сангийн цаг алга.",
+   "absence_terms": [
+    "номын сан[^.]{0,120}\\d{1,2}:\\d{2}"
+   ]
+  },
+  {
+   "id": "BU05",
+   "kind": "unanswerable",
+   "frame": "news",
+   "query": "NAPROCK тэмцээн хэдэн өдөр үргэлжилсэн бэ?",
+   "why_mn": "Явсан тухай мэдээ бий; тэмцээний хугацаа алга.",
+   "absence_terms": [
+    "naprock[^.]{0,120}(өдөр үргэлж|хоног)"
+   ]
+  },
+  {
+   "id": "BU06",
+   "kind": "unanswerable",
+   "frame": "academics",
+   "query": "Механик инженерийн тэнхимийн лабораторид хэдэн CNC машин байдаг вэ?",
+   "why_mn": "CNC ашигладаг гэсэн бий; тоо алга.",
+   "absence_terms": [
+    "\\d+\\s*(ширхэг\\s*)?cnc",
+    "cnc[^.]{0,40}\\d+\\s*ширхэг"
+   ]
+  },
+  {
+   "id": "BU07",
+   "kind": "unanswerable",
+   "frame": "student",
+   "query": "Оюутны зөвлөлийн одоогийн дарга хэн бэ?",
+   "why_mn": "Даргад мэдэгдэх дүрэм бий; даргын нэр алга.",
+   "absence_terms": [
+    "оюутны зөвлөлийн дарга\\s+[а-яөүё]+"
+   ]
+  },
+  {
+   "id": "BU08",
+   "kind": "unanswerable",
+   "frame": "academics",
+   "query": "Компьютерын ухааны тэнхимд одоо нийт хэдэн оюутан суралцаж байна вэ?",
+   "why_mn": "Механикийн тэнхимд 128 бий; компьютерын тэнхимд алга.",
+   "absence_terms": [
+    "компьютер[^.]{0,200}нийт\\s*\\d+\\s*оюутан"
+   ]
+  }
+ ],
+ "lock_kind": "assistant_at_user_instruction"
+}
