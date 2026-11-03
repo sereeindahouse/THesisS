@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#88D4BB"
     },
-    "window.title": "[THesisS · I] W03 · Excel-ийг сургуульд өгөх; W04 асуултыг түгжих; RAG-ийн 2-р шат унтраалттай бэлэн ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · I] W03 · Excel-ийг сургуульд өгөх; W04-ийг агент түгжиж RAG-ийн тохиргоог хэмжсэн (тэнцээг… ${separator} ${dirty}${activeEditorShort}"
   }
 }

@@ -14,6 +14,7 @@ import argparse
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 import sys
 import time
 
@@ -26,15 +27,43 @@ from tools.compare_stt_candidate import (  # noqa: E402
 MANIFEST = 'runtime/stt-candidate-20261029/manifest.json'
 OUTPUT = ROOT / 'runtime/stt-vocabulary-ab-20261103'
 ARMS = ('baseline', 'vocabulary')
+YEAR_TENS = dict(арав=10, арван=10, хорь=20, хорин=20, гуч=30, гучин=30, дөч=40, дөчин=40, тавь=50, тавин=50,
+                 жар=60, жаран=60, дал=70, далан=70, ная=80, наян=80, ер=90, ерэн=90)
+YEAR_ONES = dict(нэг=1, нэгэн=1, хоёр=2, гурав=3, гурван=3, дөрөв=4, дөрвөн=4, тав=5, таван=5, зургаа=6,
+                 зургаан=6, долоо=7, долоон=7, найм=8, найман=8, ес=9, есөн=9)
 
 
-def slot_hits(rows, texts):
-    """Predeclared name/number/year spans that appear verbatim after normalization."""
+def spoken_year(text):
+    """'хоёр мянга хорин зургаан' -> 2026; None unless it is a plain 2000-2099 year phrase.
+
+    References spell years in words while Gemini writes digits; WER keeps them
+    different on purpose, but a year slot asks whether the value survived.
+    """
+    words = normalize(text).split()
+    if words[:2] not in (['хоёр', 'мянга'], ['хоёр', 'мянган']):
+        return None
+    value, rest = 2000, words[2:]
+    if rest and rest[0] in YEAR_TENS:
+        value, rest = value + YEAR_TENS[rest[0]], rest[1:]
+    if rest and rest[0] in YEAR_ONES:
+        value, rest = value + YEAR_ONES[rest[0]], rest[1:]
+    return value if not rest else None
+
+
+def slot_found(expected, hypothesis, *, by_value=True):
+    if normalize(expected) in normalize(hypothesis):
+        return True
+    year = spoken_year(expected) if by_value else None
+    return year is not None and str(year) in re.findall(r'\d+', hypothesis)
+
+
+def slot_hits(rows, texts, *, by_value=True):
+    """Predeclared name/number/year spans found in the output; years also by value."""
     found = total = 0
     for row in rows:
         for slot in row.get('critical_slots', []):
             total += 1
-            found += normalize(slot['expected']) in normalize(texts.get(row['id'], ''))
+            found += slot_found(slot['expected'], texts.get(row['id'], ''), by_value=by_value)
     return dict(found=found, total=total)
 
 
@@ -48,7 +77,8 @@ def summarize(rows, results):
             metrics = score([dict(id=r['id'], reference=r['reference'], hypothesis=texts[arm][r['id']])
                              for r in paired])
             metrics.pop('rows')
-            summary[arm] = dict(metrics, critical_slots=slot_hits(paired, texts[arm]))
+            summary[arm] = dict(metrics, critical_slots=slot_hits(paired, texts[arm]),
+                                critical_slots_literal=slot_hits(paired, texts[arm], by_value=False))
     return summary
 
 
@@ -61,6 +91,8 @@ def main():
     parser.add_argument('--resume', action='store_true',
                         help='Continue a stopped run; keeps earlier records and the 26-call total.')
     parser.add_argument('--pause', type=float, default=0.0, help='Seconds to wait between calls (free-tier rate).')
+    parser.add_argument('--rescore', action='store_true',
+                        help='Offline: score the saved results again into summary-rescored.json; sends nothing.')
     args = parser.parse_args()
     captured = capture_manifest(args.manifest, root=ROOT)
     rows = [row for row in captured['rows'] if row['group'] == 'human']
@@ -72,6 +104,18 @@ def main():
         print(json.dumps(dict(plan, dry_run=True), ensure_ascii=False))
         return
     results_path = args.output / 'results.jsonl'
+    if args.rescore:
+        saved = [json.loads(line) for line in results_path.read_text(encoding='utf-8').splitlines()]
+        summary = dict(plan, rescored_utc=datetime.now(timezone.utc).isoformat(), network_calls=0,
+                       slot_rule='literal span, or the same 2000-2099 year written in words vs digits',
+                       **summarize(rows, saved))
+        (args.output / 'summary-rescored.json').write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')
+        for arm in ARMS:
+            m = summary[arm]
+            print(arm, f"WER {m['corpus_wer']:.2%}", 'slots by value', m['critical_slots'],
+                  'literal', m['critical_slots_literal'])
+        return
     if args.output.exists() and not args.resume:
         sys.exit(f'{args.output} байна; өмнөх raw-ийг дарахгүй (--resume).')
     from gemini_credentials import WindowsCredentialStore

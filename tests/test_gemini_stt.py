@@ -151,6 +151,17 @@ class GeminiVocabularyTests(unittest.TestCase):
             path.write_text('{damaged', encoding='utf-8')
             self.assertIsNone(load_vocabulary(root))
 
+    def test_year_slots_compare_the_value_not_the_spelling(self):
+        # References spell years in words; Gemini writes digits. WER keeps them apart on purpose.
+        from tools.compare_stt_vocabulary import slot_found, spoken_year
+        self.assertEqual(spoken_year('Хоёр мянга хорин зургаан'), 2026)
+        self.assertEqual(spoken_year('хоёр мянга хорин таван'), 2025)
+        self.assertIsNone(spoken_year('хоёр мянга хорин ер'))   # uncertain reference stays unparsed
+        self.assertTrue(slot_found('Хоёр мянга хорин зургаан', '2026 оны элсэлт'))
+        self.assertFalse(slot_found('Хоёр мянга хорин зургаан', '2020 оны элсэлт'))
+        self.assertFalse(slot_found('Хоёр мянга хорин зургаан', '20260 дугаар'))
+        self.assertFalse(slot_found('Хоёр мянга хорин зургаан', '2026 оны', by_value=False))
+
     def test_shipped_vocabulary_is_valid_and_on_only_with_a_recorded_measurement(self):
         from gemini_stt_runtime import load_vocabulary
         from tools.compare_stt_candidate import validate_vocabulary
