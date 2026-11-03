@@ -6,6 +6,11 @@ that literally hold a requested field join the candidates, and a subset must
 also cover the question's key terms. It reads no references. All other guards
 and rendering stay in common_render. Passing is not proof of correctness: the
 key-term check is a transparent literal screen tuned on observed questions.
+
+2026-11-03: ``single_unit_coverage`` (config, off by default) asks that one
+selected unit alone covers the key terms, instead of 1-3 units summed
+(papers/15-rag-diagnosis-20261101.mn.md, stage 2). Same thresholds; it is
+measured on the locked W04 set before anyone turns it on.
 """
 from __future__ import annotations
 
@@ -18,7 +23,7 @@ import time
 RULE_SELECTOR = 'bm25_bounded_complete_subset'
 GEMMA_SELECTOR = 'gemma_production_selector'
 CONFIG_PATH = 'config/answer-selection.json'
-SAFE_DEFAULT = dict(selector=RULE_SELECTOR, local_llm_enabled=False)
+SAFE_DEFAULT = dict(selector=RULE_SELECTOR, local_llm_enabled=False, single_unit_coverage=False)
 # Words that shape a request or name the school itself, not what is being asked.
 REQUEST_WORDS = frozenset('''хэлнэ хэлээрэй хэлж хэлээд нэрлэж нэрлээд нэрлээрэй нэрлэнэ
     тайлбарлана тайлбарлаач тайлбарлаарай ялгаж ялгаад харьцуулна харьцуулж өгнө аль хамт
@@ -63,15 +68,16 @@ def answer_selection(root):
     try:
         value = json.loads((Path(root) / CONFIG_PATH).read_text(encoding='utf-8'))
         selector, enabled = value['selector'], value['local_llm_enabled']
-    except (OSError, ValueError, TypeError, KeyError):
+        single_unit = value.get('single_unit_coverage', False)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
         return dict(SAFE_DEFAULT)
     if (selector not in {RULE_SELECTOR, GEMMA_SELECTOR} or type(enabled) is not bool
-            or selector == GEMMA_SELECTOR and not enabled):
+            or selector == GEMMA_SELECTOR and not enabled or type(single_unit) is not bool):
         return dict(SAFE_DEFAULT)
-    return dict(selector=selector, local_llm_enabled=enabled)
+    return dict(selector=selector, local_llm_enabled=enabled, single_unit_coverage=single_unit)
 
 
-def bounded_lexical_selection(query, units, sources=None, requirements=()):
+def bounded_lexical_selection(query, units, sources=None, requirements=(), single_unit=False):
     """First complete and relevant BM25 subset, with no references or answer values.
 
     Rank units by BM25 (stable original-order ties); retain at most 8 positive
@@ -79,6 +85,7 @@ def bounded_lexical_selection(query, units, sources=None, requirements=()):
     score. Try 1, then 2, then 3 roots. Within each size prefer greatest summed
     BM25, then ranked-order tuple. The first subset accepted by the shared
     renderer wins; without a requested field it must also cover the key terms.
+    With ``single_unit`` one selected unit alone must cover them.
     """
     from source_fields import missing_field_evidence
     from tools.evaluate_llm_selection import common_render, lexical_selection
@@ -102,6 +109,9 @@ def bounded_lexical_selection(query, units, sources=None, requirements=()):
             if (candidate['accepted'] and not requirements and not relevant_to_question(
                     query, '\n'.join(claim['text'] for claim in candidate['claims']))):
                 candidate = dict(accepted=False, reason='selection_not_relevant')
+            elif (candidate['accepted'] and not requirements and single_unit
+                    and not any(relevant_to_question(query, texts_by_id[unit_id]) for unit_id in ids)):
+                candidate = dict(accepted=False, reason='no_single_unit_covers_question')
             checked.append(dict(root_ids=ids, accepted=candidate['accepted'], reason=candidate['reason']))
             if candidate['accepted']:
                 return dict(selected_unit_ids=ids, llm_calls=0, abstained=False, ranked_top8=ranked,
@@ -116,9 +126,13 @@ class RuleSelectionGenerator:
     configured = False
     llm_role = None
 
+    def __init__(self, single_unit_coverage=False):
+        self.single_unit_coverage = single_unit_coverage is True
+
     def status(self):
         return dict(provider='none', configured=False, available=False, provider_ready=False,
                     model=None, llm_calls=0, network_probe=False, selection_method=RULE_SELECTOR,
+                    single_unit_coverage=self.single_unit_coverage,
                     reason='local_llm_disabled_by_configuration')
 
     def generate(self, query, sources):
@@ -148,7 +162,8 @@ class RuleSelectionGenerator:
         requirements = source_bound_field_requirements(query, scoped)
         if requirements:
             result['requested_fields'] = [field['name'] for field in requirements]
-        selection = bounded_lexical_selection(query, units, sources=scoped, requirements=requirements)
+        selection = bounded_lexical_selection(query, units, sources=scoped, requirements=requirements,
+                                              single_unit=self.single_unit_coverage)
         result['selection_rule'] = dict(ranked_top8=selection['ranked_top8'],
                                         checked_subsets=selection['checked_subsets'])
         if selection['abstained']:
@@ -160,8 +175,10 @@ class RuleSelectionGenerator:
                 return finish('requested_fields_not_in_evidence')
             if requirements:
                 return finish('requested_fields_not_in_selection')
-            return finish('selection_not_relevant' if any(row['reason'] == 'selection_not_relevant'
-                          for row in selection['checked_subsets']) else 'selector_abstained')
+            # Stage 3: no single unit or subset covers the question, so say nothing was found.
+            return finish('selection_not_relevant' if any(row['reason'] in {
+                'selection_not_relevant', 'no_single_unit_covers_question'}
+                for row in selection['checked_subsets']) else 'selector_abstained')
         output = selection['output']
         result.update(claims=output['claims'], generated=True, proposed_unit_ids=selection['selected_unit_ids'],
             selected_unit_ids=output['selected_unit_ids'], semantic_correctness_proven=False,
@@ -175,7 +192,8 @@ class RuleSelectionGenerator:
 
 
 def default_generator(root):
-    if answer_selection(root)['selector'] == GEMMA_SELECTOR:
+    selection = answer_selection(root)
+    if selection['selector'] == GEMMA_SELECTOR:
         from rag_runtime import GroundedGenerator
         return GroundedGenerator(root)
-    return RuleSelectionGenerator()
+    return RuleSelectionGenerator(single_unit_coverage=selection['single_unit_coverage'])

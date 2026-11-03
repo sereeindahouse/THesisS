@@ -42,8 +42,19 @@ class ConfigurationTests(unittest.TestCase):
         (self.root / 'config/answer-selection.json').write_text(text, encoding='utf-8')
 
     def test_project_configuration_disables_every_local_llm(self):
-        self.assertEqual(answer_selection(ROOT), dict(selector=RULE_SELECTOR, local_llm_enabled=False))
+        self.assertEqual(answer_selection(ROOT), dict(selector=RULE_SELECTOR, local_llm_enabled=False,
+                                                      single_unit_coverage=False))
         self.assertIsInstance(default_generator(ROOT), RuleSelectionGenerator)
+        self.assertFalse(default_generator(ROOT).single_unit_coverage)
+
+    def test_single_unit_stage_is_off_unless_configured_as_a_boolean(self):
+        self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False)))
+        self.assertFalse(answer_selection(self.root)['single_unit_coverage'])
+        self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False, single_unit_coverage='yes')))
+        self.assertEqual(answer_selection(self.root), SAFE_DEFAULT)
+        self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False, single_unit_coverage=True)))
+        self.assertTrue(default_generator(self.root).single_unit_coverage)
+        self.assertTrue(default_generator(self.root).status()['single_unit_coverage'])
 
     def test_missing_or_damaged_configuration_fails_closed_to_no_llm(self):
         self.assertEqual(answer_selection(self.root), SAFE_DEFAULT)
@@ -118,6 +129,38 @@ class NoProviderRequestTests(unittest.TestCase):
         self.assertEqual((result['generated'], result['llm_calls'], result['reason']),
                          (False, 0, 'selection_not_relevant'))
         self.assertEqual(result['claims'], [])
+
+    def single_unit_fixture(self, single_unit):
+        units = [dict(unit_id='u1', source_id='s', text='Номын сан гуравдугаар давхарт.'),
+                 dict(unit_id='u2', source_id='s', text='Спорт заал нэгдүгээр давхарт.')]
+        texts = {unit['unit_id']: unit['text'] for unit in units}
+        render = lambda query, ids, units, sources=None: dict(
+            accepted=True, reason='fixture', claims=[dict(text=texts[i]) for i in ids], selected_unit_ids=ids)
+        with patch('tools.evaluate_llm_selection.common_render', side_effect=render):
+            return bounded_lexical_selection('Номын сан спорт заал', units, single_unit=single_unit)
+
+    def test_terms_split_over_two_units_pass_only_when_the_stage_is_off(self):
+        # Diagnosis 15, cause 2: one key term per unit made a summed subset look relevant.
+        self.assertEqual(self.single_unit_fixture(False)['selected_unit_ids'], ['u1', 'u2'])
+        selection = self.single_unit_fixture(True)
+        self.assertTrue(selection['abstained'])
+        self.assertIn('no_single_unit_covers_question', [row['reason'] for row in selection['checked_subsets']])
+
+    def test_one_unit_holding_every_key_term_still_answers_with_the_stage_on(self):
+        units = [dict(unit_id='u1', source_id='s', text='Номын сан гуравдугаар давхарт.')]
+        render = lambda query, ids, units, sources=None: dict(
+            accepted=True, reason='fixture', claims=[dict(text=units[0]['text'])], selected_unit_ids=ids)
+        with patch('tools.evaluate_llm_selection.common_render', side_effect=render):
+            selection = bounded_lexical_selection('Номын сан хаана вэ', units, single_unit=True)
+        self.assertEqual(selection['selected_unit_ids'], ['u1'])
+
+    def test_stage_two_refusal_reaches_the_user_as_nothing_found(self):
+        source = dict(PHONE_SOURCE, text='Номын сан гуравдугаар давхарт.\nСпорт заал нэгдүгээр давхарт.')
+        old = RuleSelectionGenerator().generate('Номын сан спорт заал', [source])
+        new = RuleSelectionGenerator(single_unit_coverage=True).generate('Номын сан спорт заал', [source])
+        self.assertEqual((old['generated'], old['reason']), (True, 'source_preserving_selection'))
+        self.assertEqual((new['generated'], new['reason'], new['claims']), (False, 'selection_not_relevant', []))
+        self.assertEqual(new['llm_calls'], 0)
 
     def test_when_or_how_many_question_needs_a_number_in_the_answer(self):
         self.assertFalse(relevant_to_question('Шалгалт хэзээ болох вэ?', 'Шалгалт бичгээр болно'))

@@ -40,6 +40,9 @@ MAX_ATTEMPTS = 15
 MAX_COST_USD = Decimal('0.10')
 MAX_OUTPUT_TOKENS = 480
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+# Provider limit for transcription_config.custom_vocabulary (docs/transcribe, 2026-11-03).
+MAX_VOCABULARY_TERMS = 1000
+MAX_VOCABULARY_TERM_CHARS = 100
 SERVICE_TIER_CHECKED_DATE = '2026-10-30'
 INPUT_USD_PER_MILLION = Decimal('2.00')
 OUTPUT_USD_PER_MILLION = Decimal('12.00')
@@ -342,14 +345,30 @@ def validate_url(url):
     return url
 
 
-def build_request(file_uri):
+def validate_vocabulary(terms):
+    """Optional school word list for Gemini ``custom_vocabulary``; None keeps the 10/30 request."""
+    if terms is None:
+        return None
+    if (not isinstance(terms, (list, tuple)) or not 0 < len(terms) <= MAX_VOCABULARY_TERMS
+            or any(not isinstance(term, str) or not term.strip() or term != term.strip()
+                   or len(term) > MAX_VOCABULARY_TERM_CHARS for term in terms)
+            or len(set(terms)) != len(terms)):
+        raise ValueError('Vocabulary needs 1-1000 distinct trimmed phrases of at most 100 characters.')
+    return list(terms)
+
+
+def build_request(file_uri, vocabulary=None):
     validate_url(file_uri)
     if not urllib.parse.urlsplit(file_uri).path.startswith('/v1beta/files/'):
         raise ValueError('Audio URI must identify the just-uploaded file.')
+    transcription = dict(language_codes=['mn-MN'], mode=dict(type='verbatim'))
+    vocabulary = validate_vocabulary(vocabulary)
+    if vocabulary:
+        transcription['custom_vocabulary'] = vocabulary
     return dict(model=MODEL, store=False, input=[dict(type='audio', uri=file_uri,
                                                     mime_type='audio/wav')],
                 generation_config=dict(max_output_tokens=MAX_OUTPUT_TOKENS,
-                    transcription_config=dict(language_codes=['mn-MN'], mode=dict(type='verbatim'))))
+                    transcription_config=transcription))
 
 
 class CandidateError(RuntimeError):
@@ -432,10 +451,11 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 class GeminiTransport:
     """Bounded stdlib Files/Interactions REST transport with one delete attempt."""
-    def __init__(self, api_key, *, opener=None):
+    def __init__(self, api_key, *, opener=None, vocabulary=None):
         if not isinstance(api_key, str) or not api_key or len(api_key) > 300 or any(c.isspace() for c in api_key):
             raise ValueError('A valid GEMINI_API_KEY environment value is required.')
         self._key = api_key
+        self._vocabulary = validate_vocabulary(vocabulary)
         self._opener = opener or urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
         self.network_calls = 0
 
@@ -494,7 +514,7 @@ class GeminiTransport:
             if file.get('state', 'ACTIVE') != 'ACTIVE':
                 raise CandidateError('uploaded_file_not_active')
             response, _ = self._request('POST', BASE_URL + '/v1beta/interactions',
-                _json_bytes(build_request(uri)), {'Content-Type': 'application/json'})
+                _json_bytes(build_request(uri, self._vocabulary)), {'Content-Type': 'application/json'})
             result = parse_interaction(response)
         except BaseException as exc:
             failure = sanitized_error(exc)

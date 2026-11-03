@@ -103,6 +103,64 @@ class GeminiSessionTests(unittest.TestCase):
         self.assertEqual(Transport.calls, [])
 
 
+class VocabularyTransport(Transport):
+    made = []
+    def __init__(self, key, **kwargs):
+        super().__init__(key)
+        self.made.append(kwargs)
+
+
+class GeminiVocabularyTests(unittest.TestCase):
+    def setUp(self):
+        Transport.calls, VocabularyTransport.made = [], []
+
+    def test_without_vocabulary_the_transport_gets_only_the_key(self):
+        cloud = GeminiSTT(VocabularyTransport)
+        cloud.configure(CONFIG)
+        result = cloud.transcribe(b'fixture', consent=True)
+        self.assertEqual(VocabularyTransport.made, [{}])
+        self.assertEqual(result['custom_vocabulary_terms'], 0)
+        self.assertIsNone(result['custom_vocabulary_sha256'])
+
+    def test_vocabulary_is_passed_recorded_and_cached_apart(self):
+        cloud = GeminiSTT(VocabularyTransport, vocabulary=['ШМТК', 'Коосэн'])
+        cloud.configure(dict(CONFIG, max_attempts=2))
+        result = cloud.transcribe(b'fixture', consent=True)
+        self.assertEqual(VocabularyTransport.made, [dict(vocabulary=['ШМТК', 'Коосэн'])])
+        self.assertEqual(result['custom_vocabulary_terms'], 2)
+        self.assertEqual(len(result['custom_vocabulary_sha256']), 64)
+        self.assertEqual(cloud.status()['custom_vocabulary_terms'], 2)
+        plain = GeminiSTT(VocabularyTransport)
+        self.assertNotEqual(cloud._vocabulary_sha256, plain._vocabulary_sha256)
+
+    def test_config_file_sends_words_only_when_valid_and_enabled(self):
+        from gemini_stt_runtime import load_vocabulary
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.assertIsNone(load_vocabulary(root))
+            (root / 'config').mkdir()
+            path = root / 'config' / 'stt-vocabulary.json'
+            for value, expected in ((dict(enabled=False, terms=['ШМТК']), None),
+                                    (dict(enabled='true', terms=['ШМТК']), None),
+                                    (dict(enabled=True, terms=['ШМТК', 'ШМТК']), None),
+                                    (dict(enabled=True, terms=[]), None),
+                                    (dict(enabled=True, terms=['ШМТК', 'Коосэн']), ('ШМТК', 'Коосэн'))):
+                with self.subTest(value=value):
+                    path.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
+                    self.assertEqual(load_vocabulary(root), expected)
+            path.write_text('{damaged', encoding='utf-8')
+            self.assertIsNone(load_vocabulary(root))
+
+    def test_shipped_vocabulary_file_is_valid_and_off_by_default(self):
+        from gemini_stt_runtime import load_vocabulary
+        from tools.compare_stt_candidate import validate_vocabulary
+        root = Path(__file__).resolve().parents[1]
+        value = json.loads((root / 'config' / 'stt-vocabulary.json').read_text(encoding='utf-8'))
+        self.assertIs(value['enabled'], False)
+        self.assertLessEqual(len(validate_vocabulary(value['terms'])), 100)
+        self.assertIsNone(load_vocabulary(root))
+
+
 class GeminiVoiceTests(unittest.TestCase):
     def test_years_are_visible_for_review_and_raw_text_is_never_repaired(self):
         from gemini_live_transport import LIVE_MODEL

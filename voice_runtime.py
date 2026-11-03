@@ -273,11 +273,11 @@ async def _edge_audio(text, voice):
 
 class VoiceRuntime:
     def __init__(self, root):
-        from gemini_stt_runtime import GeminiSTT
+        from gemini_stt_runtime import GeminiSTT, load_vocabulary
         self.root = Path(root).resolve()
         from gemini_credentials import WindowsCredentialStore
         self.gemini = GeminiSTT(credential_store=WindowsCredentialStore(
-            self.root / 'runtime' / 'gemini-credentials.dpapi'))
+            self.root / 'runtime' / 'gemini-credentials.dpapi'), vocabulary=load_vocabulary(self.root))
         self._session = self.root / "runtime" / "voice-demo" / uuid.uuid4().hex
         self._model = None
         self._choice = None

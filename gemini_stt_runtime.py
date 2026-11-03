@@ -1,12 +1,16 @@
 """Gemini STT session with optional Windows-protected credentials and no fallback."""
 from collections import OrderedDict
 import hashlib
+import json
+from pathlib import Path
 import threading
 import time
 import uuid
 
-from tools.compare_stt_candidate import CandidateError, GeminiTransport, MODEL
+from tools.compare_stt_candidate import CandidateError, GeminiTransport, MODEL, validate_vocabulary
 from gemini_live_transport import GeminiLiveTransport, LIVE_MODEL, LIVE_CONFIG_SHA256
+
+VOCABULARY_PATH = 'config/stt-vocabulary.json'
 
 
 class GeminiSTTError(ValueError):
@@ -15,11 +19,25 @@ class GeminiSTTError(ValueError):
         super().__init__(message)
 
 
+def load_vocabulary(root):
+    """A missing, damaged or disabled file sends no word list (the 10/30 request)."""
+    try:
+        value = json.loads((Path(root) / VOCABULARY_PATH).read_text(encoding='utf-8'))
+        if value.get('enabled') is not True:
+            return None
+        return tuple(validate_vocabulary(value['terms']))
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return None
+
+
 class GeminiSTT:
     def __init__(self, transport_factory=GeminiTransport, live_transport_factory=GeminiLiveTransport,
-                 *, credential_store=None, clock=time.time):
+                 *, credential_store=None, clock=time.time, vocabulary=None):
         self._factory = transport_factory
         self._live_factory = live_transport_factory
+        self._vocabulary = tuple(validate_vocabulary(vocabulary)) if vocabulary else None
+        self._vocabulary_sha256 = (hashlib.sha256(json.dumps(self._vocabulary, ensure_ascii=False).encode()).hexdigest()
+                                   if self._vocabulary else None)
         self._lock = threading.Lock()
         self._key = None
         self._remaining = 0
@@ -55,7 +73,8 @@ class GeminiSTT:
             continuous_use=self._continuous, retry_after_seconds=cooldown,
             credential_error=self._credential_error, cache_hits=self._cache_hits,
             paid_fallback=False, account_tier_independently_verified=False,
-            session_scope='user_confirmed_free_tier', language='mn-MN', mode='verbatim')
+            session_scope='user_confirmed_free_tier', language='mn-MN', mode='verbatim',
+            custom_vocabulary_terms=len(self._vocabulary or ()))
 
     def configure(self, body):
         required = {'api_key', 'free_tier_confirmed', 'data_terms_confirmed', 'max_attempts'}
@@ -117,7 +136,10 @@ class GeminiSTT:
             raise GeminiSTTError('gemini_busy', 'Өмнөх Gemini хүсэлт дуусаагүй; давхар илгээхгүй.')
         try:
             expected_model = LIVE_MODEL if live else MODEL
-            cache_key = (expected_model, LIVE_CONFIG_SHA256 if live else 'verbatim-mn-MN', hashlib.sha256(wav).digest())
+            vocabulary = None if live else self._vocabulary
+            request_config = (LIVE_CONFIG_SHA256 if live else
+                              'verbatim-mn-MN' + ('-vocabulary-' + self._vocabulary_sha256 if vocabulary else ''))
+            cache_key = (expected_model, request_config, hashlib.sha256(wav).digest())
             cached = self._cache.get(cache_key)
             if self._continuous and self._key and cached and self._clock() - cached[0] < 1800:
                 self._cache.move_to_end(cache_key)
@@ -132,7 +154,8 @@ class GeminiSTT:
             started = time.perf_counter()
             try:
                 factory = self._live_factory if live else self._factory
-                result = factory(self._key).transcribe(wav, display_name='clip-' + uuid.uuid4().hex)
+                transport = factory(self._key, vocabulary=list(vocabulary)) if vocabulary else factory(self._key)
+                result = transport.transcribe(wav, display_name='clip-' + uuid.uuid4().hex)
             except CandidateError as error:
                 self._last_error = error.code
                 if error.code == 'http_429':
@@ -160,7 +183,9 @@ class GeminiSTT:
                 provider='google_gemini_live' if live else 'google_gemini',
                 mode='input_transcription' if live else 'verbatim', automatic_retry=False,
                 account_tier_independently_verified=False, actual_billed_cost_usd=None,
-                cache_hit=False, provider_call_performed=True, **details)
+                cache_hit=False, provider_call_performed=True,
+                custom_vocabulary_terms=len(vocabulary or ()),
+                custom_vocabulary_sha256=self._vocabulary_sha256 if vocabulary else None, **details)
             if self._continuous:
                 self._cache[cache_key] = (self._clock(), answer)
             while len(self._cache) > 16:

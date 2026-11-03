@@ -492,6 +492,32 @@ class CandidateContracts(unittest.TestCase):
         self.assertNotIn('CONSTRUCTED-SECRET-KEY', serialized)
         self.assertIn('fixture', serialized)
 
+    def test_request_without_vocabulary_stays_the_measured_1030_request(self):
+        uri = 'https://generativelanguage.googleapis.com/v1beta/files/fixture'
+        expected = dict(model=candidate.MODEL, store=False,
+                        input=[dict(type='audio', uri=uri, mime_type='audio/wav')],
+                        generation_config=dict(max_output_tokens=candidate.MAX_OUTPUT_TOKENS,
+                            transcription_config=dict(language_codes=['mn-MN'], mode=dict(type='verbatim'))))
+        self.assertEqual(json.dumps(candidate.build_request(uri)), json.dumps(expected))
+        self.assertEqual(candidate.build_request(uri, None), expected)
+
+    def test_school_vocabulary_is_sent_only_when_given_and_bounded(self):
+        uri = 'https://generativelanguage.googleapis.com/v1beta/files/fixture'
+        payload = candidate.build_request(uri, ['ШМТК', 'Коосэн'])
+        self.assertEqual(payload['generation_config']['transcription_config']['custom_vocabulary'], ['ШМТК', 'Коосэн'])
+        for bad in ([], ['ШМТК', 'ШМТК'], [' ШМТК'], [''], ['x' * 101], ['a%d' % i for i in range(1001)], 'ШМТК', [1]):
+            with self.subTest(bad=str(bad)[:30]), self.assertRaises(ValueError):
+                candidate.build_request(uri, bad)
+
+    def test_rest_adapter_sends_configured_vocabulary_in_the_interaction(self):
+        opener = self.transport_script()
+        adapter = candidate.GeminiTransport('CONSTRUCTED-SECRET-KEY', opener=opener, vocabulary=['ШМТК'])
+        adapter.transcribe(wav_bytes(), display_name='clip-fixture')
+        interaction = [request for request, _ in opener.calls if request.full_url.endswith('/interactions')][0]
+        config = json.loads(interaction.data)['generation_config']['transcription_config']
+        self.assertEqual(config['custom_vocabulary'], ['ШМТК'])
+        self.assertEqual(config['language_codes'], ['mn-MN'])
+
     def test_google_credentials_cannot_be_sent_to_other_hosts(self):
         for url in ('http://generativelanguage.googleapis.com/v1beta/files/a',
                     'https://evil.invalid/v1beta/files/a',
