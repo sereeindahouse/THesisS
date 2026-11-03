@@ -53,6 +53,13 @@ class LockTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already locked'):
             lock(self.path, 'Оюутан')
 
+    def test_lock_records_whether_a_person_or_the_assistant_locked(self):
+        self.assertEqual(lock(self.path, 'Оюутан')['lock_kind'], 'person')
+        self.path.write_text(json.dumps(full_set(), ensure_ascii=False), encoding='utf-8')
+        data = lock(self.path, 'Claude (AI)', assistant=True)
+        self.assertEqual(data['lock_kind'], 'assistant_at_user_instruction')
+        require_locked(data)
+
     def test_change_after_lock_is_refused(self):
         data = lock(self.path, 'Оюутан')
         data['questions'][0]['query'] = 'өөрчилсөн асуулт?'

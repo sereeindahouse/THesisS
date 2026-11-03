@@ -15,6 +15,9 @@ EXPECTED_COUNTS=dict(answerable=20,unanswerable=10,reception=10)
 RETRIEVAL_MODES=('bm25','e5','rrf','production')
 SCOPE=('Assistant-drafted, person-locked development set. Value presence is not full answer correctness; '
     'review each answer by hand before reporting. Not general accuracy.')
+ASSISTANT_SCOPE=('Assistant-drafted, assistant-reviewed and assistant-locked at the user\'s instruction; '
+    'not human-reviewed. Value presence is not full answer correctness; review each answer by hand '
+    'before reporting. Not general accuracy.')
 
 
 def normalize(text):
@@ -91,7 +94,8 @@ def validate_sources(questions,texts):
     return problems
 
 
-def lock(path,locked_by,now=None):
+def lock(path,locked_by,now=None,assistant=False):
+    """``assistant`` records honestly that an AI locked the set at the user's instruction."""
     data=json.loads(path.read_text(encoding='utf-8'))
     if data.get('status')=='locked':
         raise ValueError('Set is already locked; a changed set needs a new file.')
@@ -100,7 +104,9 @@ def lock(path,locked_by,now=None):
     problems=validate_shape(data)
     if problems:
         raise ValueError('; '.join(problems))
-    data.update(status='locked',locked_by=locked_by.strip(),questions_sha256=questions_sha256(data['questions']),
+    data.update(status='locked',locked_by=locked_by.strip(),
+        lock_kind='assistant_at_user_instruction' if assistant else 'person',
+        questions_sha256=questions_sha256(data['questions']),
         locked_at=(now or datetime.now(timezone.utc)).isoformat())
     path.write_text(json.dumps(data,ensure_ascii=False,indent=1)+'\n',encoding='utf-8',newline='\n')
     return data
@@ -161,8 +167,14 @@ def score_answers(questions,ask):
 
 def export_review(data,path):
     """Write the plain page a person reads before locking."""
-    lines=['# W04 шалгах асуултын ноорог','',
-        f"**Төлөв:** {'түгжсэн' if data.get('status')=='locked' else 'ноорог, хүн хянаагүй'}. Агент сайтын эхээс бичсэн; систем эдгээр асуултыг хараахан хараагүй.",'',
+    if data.get('status')!='locked':
+        state='ноорог, хүн хянаагүй'
+    elif data.get('lock_kind')=='assistant_at_user_instruction':
+        state=f"түгжсэн {data['locked_at'][:10]} — {data['locked_by']}"
+    else:
+        state=f"түгжсэн {data['locked_at'][:10]} — {data['locked_by']} (хүн хянасан)"
+    lines=['# W04 шалгах асуултын багц','',
+        f"**Төлөв:** {state}. Агент сайтын эхээс бичсэн; түгжихээс өмнө систем эдгээр асуултыг хараагүй.",'',
         'Асуулт бүрийг холбоосоор нь шалгаж, буруу бол `data/rag-locked-questions-20261102.json`-д засна. Түгжсэний дараа өөрчлөхгүй.','',
         '## Хариутай 20','','| № | Асуулт | Зөв хариу | Эх |','|---|---|---|---|']
     for q in data['questions']:
@@ -177,15 +189,33 @@ def export_review(data,path):
         if q['kind']=='reception':
             now=q['answer_mn'] if q['expected_now']=='answerable' else 'Мэдээлэл алга гэх ёстой'
             lines.append(f"| {q['id']} | {q['query']} | {now} | {q['after_data_mn']} |")
+    review=data.get('review')
+    if review:
+        reviewer='хүн' if review.get('human_reviewed') else 'хүн хянаагүй'
+        lines+=['',f"## Хяналт — {review['by']}, {review['date']} ({reviewer})",'',review['method_mn'],'',
+                '**Өөрчилсөн шалгах утга:**','']+[f'- {item}' for item in review['changes_mn']]
+        lines+=['','**Хилийн жишээ (хэвээр үлдээсэн):**','']+[f'- {item}' for item in review['kept_borderline_mn']]
     path.write_text('\n'.join(lines)+'\n',encoding='utf-8',newline='\n')
 
 
-def run(data,output):
-    """One-shot run through the real route with external network and LLM calls blocked."""
+def run(data,output,single_unit=None,rrf_k=None):
+    """One-shot run through the real route with external network and LLM calls blocked.
+
+    ``single_unit`` (True/False) and ``rrf_k`` override the configured answer stage
+    and RRF constant inside this process only; the report records what ran.
+    """
     require_locked(data)
     import os,socket,threading,http.client
     os.environ.update(HF_HUB_OFFLINE='1',TRANSFORMERS_OFFLINE='1')
     sys.path.insert(0,str(ROOT))
+    import rule_selector,website_retrieval
+    if single_unit is not None:
+        configured=rule_selector.answer_selection
+        rule_selector.answer_selection=lambda root:dict(configured(root),single_unit_coverage=single_unit)
+    if rrf_k is not None:
+        website_retrieval.RRF_K=rrf_k
+    settings=dict(answer_selection=rule_selector.answer_selection(ROOT),rrf_k=website_retrieval.RRF_K,
+        overridden=dict(single_unit_coverage=single_unit,rrf_k=rrf_k),llm_calls_blocked=True,network='localhost_only')
     real_connect=socket.socket.connect
     def guarded(self,address):
         if isinstance(address,tuple) and address[0] not in ('127.0.0.1','localhost','::1'):
@@ -212,8 +242,10 @@ def run(data,output):
         connection.close()
         return body
     try:
-        report=dict(created_utc=datetime.now(timezone.utc).isoformat(),scope=SCOPE,
-            questions_sha256=data['questions_sha256'],locked_by=data['locked_by'],retrieval=score_retrieval(data['questions'],search),
+        person=data.get('lock_kind','person')=='person'
+        report=dict(created_utc=datetime.now(timezone.utc).isoformat(),scope=SCOPE if person else ASSISTANT_SCOPE,
+            questions_sha256=data['questions_sha256'],locked_by=data['locked_by'],lock_kind=data.get('lock_kind','person'),
+            settings=settings,retrieval=score_retrieval(data['questions'],search),
             answers=score_answers(data['questions'],ask),retrieval_status=retriever.status())
     finally:
         server.shutdown()
@@ -233,9 +265,13 @@ if __name__=='__main__':
     action.add_argument('--export-review',type=Path,help='write the page a person reads before locking')
     action.add_argument('--lock',metavar='NAME',help='a person names themselves after reviewing')
     action.add_argument('--run',type=Path,metavar='OUTPUT',help='one-shot scoring run; needs a locked set and .venv-modeltools')
+    parser.add_argument('--assistant-lock',action='store_true',help='with --lock: an AI locks at the user\'s instruction')
+    parser.add_argument('--single-unit',choices=('on','off'),help='with --run: override single_unit_coverage')
+    parser.add_argument('--rrf-k',type=int,help='with --run: override website_retrieval.RRF_K')
     args=parser.parse_args()
     if args.lock:
-        print(json.dumps({k:v for k,v in lock(args.set,args.lock).items() if k!='questions'},ensure_ascii=False))
+        locked=lock(args.set,args.lock,assistant=args.assistant_lock)
+        print(json.dumps({k:v for k,v in locked.items() if k!='questions'},ensure_ascii=False))
         raise SystemExit(0)
     data=json.loads(args.set.read_text(encoding='utf-8'))
     if args.validate:
@@ -246,6 +282,7 @@ if __name__=='__main__':
         export_review(data,args.export_review)
         print(args.export_review)
     else:
-        report=run(data,args.run)
+        report=run(data,args.run,single_unit=None if args.single_unit is None else args.single_unit=='on',
+            rrf_k=args.rrf_k)
         print(json.dumps(dict(retrieval={m:{k:r[k] for k in ('top_1','top_3','top_5')} for m,r in report['retrieval'].items()},
             answers=report['answers']['summary']),ensure_ascii=False))

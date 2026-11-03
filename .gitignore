@@ -442,6 +442,7 @@ __pycache__/
 
 # 2026-11-03 RAG/Gemini improvement (off by default): 20-paper basis, school word list, A/B tool.
 !/papers/18-rag-gemini-improvement-20-20261103.mn.md
+!/papers/19-w04-locked-comparison-20261104.mn.md
 !/config/stt-vocabulary.json
 !/tools/build_stt_vocabulary.py
 !/tools/compare_stt_vocabulary.py
