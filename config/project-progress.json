@@ -2979,11 +2979,11 @@
   },
   "project_note": {
     "schema_version": 1,
-    "updated_date": "2026-11-02",
+    "updated_date": "2026-11-03",
     "active_workstream": "I",
     "verified_code_commit": "c859cc841c79700e3dce48c5b6a1393b6b97e8a0",
-    "current_focus": "W02 · 11/03-ны семинар, багшаас 5 зүйл тодруулах",
-    "status_label": "Эхгүй шинэ 10-ын 1-д буруу эх · хариутай 10-ын 9 · чатын STT gemini-3.5-transcribe",
+    "current_focus": "W03 · Мэдлэгийн модны Excel-ийг сургуульд өгөх; STT нь gemini-3.5-transcribe (шийдсэн)",
+    "status_label": "Эхгүй шинэ 10-ын 1-д буруу эх · хариутай 10-ын 9 · STT gemini-3.5-transcribe (11/03 шийдсэн)",
     "workstreams": [
       {
         "id": "I",
@@ -2994,8 +2994,8 @@
       {
         "id": "II",
         "state": "next",
-        "status_label": "Нэг бодит dev хэмжилт ба засварын багц шалгагдсан · II үргэлжилнэ",
-        "detail": "Ганц Gemini, reference/raw хэмжилт, оны ил тод review, эхтэй хариу ба response-bound TTS. Хүний critical/task/сонсголын үнэлгээ болон даваа гарагийн эцсийн сонголт үлдсэн."
+        "status_label": "STT-г gemini-3.5-transcribe гэж шийдсэн (11/03) · II үргэлжилнэ",
+        "detail": "Хэрэглэгч 11/03-нд дипломын үлдсэн хугацаанд gemini-3.5-transcribe ашиглахаар шийдсэн; Whisper нь 10/30-ны харьцуулалтын суурь л. Нэр/тоо/оны алдаа засах, TTS, хүний сонсголын үнэлгээ үлдсэн."
       },
       {
         "id": "III",

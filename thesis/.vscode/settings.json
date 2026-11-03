@@ -1,6 +1,10 @@
 {
   "latex-workshop.latex.recipes": [
     {
+      "name": "XeLaTeX → BibTeX → XeLaTeX ×2",
+      "tools": ["xelatex", "bibtex", "xelatex", "xelatex"]
+    },
+    {
       "name": "XeLaTeX",
       "tools": ["xelatex"]
     },
@@ -19,6 +23,11 @@
         "-file-line-error",
         "%DOC%"
       ]
+    },
+    {
+      "name": "bibtex",
+      "command": "bibtex",
+      "args": ["%DOCFILE%"]
     },
     {
       "name": "latexmk_xelatex",

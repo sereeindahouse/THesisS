@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#88D4BB"
     },
-    "window.title": "[THesisS · I] W02 · 11/03-ны семинар, багшаас 5 зүйл тодруулах ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · I] W03 · Мэдлэгийн модны Excel-ийг сургуульд өгөх; STT нь gemini-3.5-transcribe (шийдсэн) ${separator} ${dirty}${activeEditorShort}"
   }
 }
