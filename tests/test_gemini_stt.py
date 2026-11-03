@@ -151,14 +151,17 @@ class GeminiVocabularyTests(unittest.TestCase):
             path.write_text('{damaged', encoding='utf-8')
             self.assertIsNone(load_vocabulary(root))
 
-    def test_shipped_vocabulary_file_is_valid_and_off_by_default(self):
+    def test_shipped_vocabulary_is_valid_and_on_only_with_a_recorded_measurement(self):
         from gemini_stt_runtime import load_vocabulary
         from tools.compare_stt_candidate import validate_vocabulary
         root = Path(__file__).resolve().parents[1]
         value = json.loads((root / 'config' / 'stt-vocabulary.json').read_text(encoding='utf-8'))
-        self.assertIs(value['enabled'], False)
         self.assertLessEqual(len(validate_vocabulary(value['terms'])), 100)
-        self.assertIsNone(load_vocabulary(root))
+        if value['enabled'] is True:
+            self.assertEqual(load_vocabulary(root), tuple(value['terms']))
+            self.assertIn('runtime/stt-vocabulary-ab-', value['measurement']['run'])
+        else:
+            self.assertIsNone(load_vocabulary(root))
 
 
 class GeminiVoiceTests(unittest.TestCase):

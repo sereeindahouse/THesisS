@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "enabled": false,
+  "enabled": true,
   "model": "gemini-3.5-transcribe",
   "purpose_mn": "Gemini-д сургуулийн нэр, тэнхим, хөтөлбөр, оныг таниулах жагсаалт. Анхдагчаар унтраалттай; ижил бичлэгээр хэмжиж сайжирвал л асаана.",
   "sources_mn": [
@@ -98,5 +98,21 @@
     "2026",
     "2027",
     "2026–2027"
-  ]
+  ],
+  "measurement": {
+    "date": "2026-11-03",
+    "run": "runtime/stt-vocabulary-ab-20261103/summary.json",
+    "terms_sha256": "5e0dd535878c4081f570940a81b6d3c032c1c7080e8344dacd0c6a1152b2b0f5",
+    "paired_clips": 12,
+    "baseline_word_errors": "55/146",
+    "vocabulary_word_errors": "48/146",
+    "cer_both": "23.40%",
+    "clips_better_same_worse": [
+      5,
+      5,
+      2
+    ],
+    "critical_slots": "6/16 -> 7/16; он (year) хоёуланд алдаатай",
+    "scope_mn": "Нэг хэлэгчийн 12 dev бичлэг; статистикийн ялгаа батлахгүй, ерөнхий accuracy биш."
+  }
 }

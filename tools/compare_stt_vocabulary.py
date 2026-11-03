@@ -58,6 +58,9 @@ def main():
     parser.add_argument('--vocabulary', type=Path, default=ROOT / 'config/stt-vocabulary.json')
     parser.add_argument('--output', type=Path, default=OUTPUT)
     parser.add_argument('--dry-run', action='store_true', help='Validate inputs; send nothing.')
+    parser.add_argument('--resume', action='store_true',
+                        help='Continue a stopped run; keeps earlier records and the 26-call total.')
+    parser.add_argument('--pause', type=float, default=0.0, help='Seconds to wait between calls (free-tier rate).')
     args = parser.parse_args()
     captured = capture_manifest(args.manifest, root=ROOT)
     rows = [row for row in captured['rows'] if row['group'] == 'human']
@@ -68,20 +71,29 @@ def main():
     if args.dry_run:
         print(json.dumps(dict(plan, dry_run=True), ensure_ascii=False))
         return
-    if args.output.exists():
-        sys.exit(f'{args.output} байна; өмнөх raw-ийг дарахгүй.')
+    results_path = args.output / 'results.jsonl'
+    if args.output.exists() and not args.resume:
+        sys.exit(f'{args.output} байна; өмнөх raw-ийг дарахгүй (--resume).')
     from gemini_credentials import WindowsCredentialStore
     saved = WindowsCredentialStore(ROOT / 'runtime/gemini-credentials.dpapi').load()
     if not saved:
         sys.exit('Хадгалсан Gemini түлхүүр алга.')
-    args.output.mkdir(parents=True)
-    results, stopped = [], None
+    args.output.mkdir(parents=True, exist_ok=True)
+    results = ([json.loads(line) for line in results_path.read_text(encoding='utf-8').splitlines()]
+               if results_path.exists() else [])
+    done = {(r['id'], r['arm']) for r in results if 'text' in r}
+    stopped = None
     for index, row in enumerate(rows):
         # Alternate which arm goes first so provider drift does not favour one arm.
         order = ARMS if index % 2 == 0 else ARMS[::-1]
         for arm in order:
-            if stopped:
-                break
+            if stopped or (row['id'], arm) in done:
+                continue
+            if len(results) >= plan['max_calls']:
+                stopped = 'approved_call_budget_used'
+                continue
+            if args.pause and results:
+                time.sleep(args.pause)
             started = time.perf_counter()
             record = dict(id=row['id'], arm=arm)
             try:
@@ -96,11 +108,8 @@ def main():
                     stopped = 'http_429'
             record['elapsed_seconds'] = round(time.perf_counter() - started, 3)
             results.append(record)
-        if stopped:
-            break
-    with (args.output / 'results.jsonl').open('w', encoding='utf-8') as handle:
-        for record in results:
-            handle.write(json.dumps(record, ensure_ascii=False) + '\n')
+            with results_path.open('a', encoding='utf-8') as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + '\n')
     summary = dict(plan, created_utc=datetime.now(timezone.utc).isoformat(), calls=len(results),
                    errors=sum('error' in r for r in results), stopped=stopped, automatic_retry=False,
                    vocabulary_sha256=__import__('hashlib').sha256(
