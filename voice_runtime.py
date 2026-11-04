@@ -506,17 +506,24 @@ class VoiceRuntime:
         if not any(pcm):
             raise VoiceRuntimeError('audio_silent', 'Бичлэг хоосон байна; микрофоноо шалгана уу.')
         wav = _wav_bytes(pcm)
+        cleanup = None
+        if not live:
+            import audio_preprocess
+            if audio_preprocess.enabled(self.root):
+                # Optional, OFF by default: trim silence and raise quiet speech only.
+                wav, cleanup = audio_preprocess.clean_wav(wav)
         try:
             result = self.gemini.transcribe(wav, consent=True, live=live)
         except GeminiSTTError as error:
             raise VoiceRuntimeError('gemini_' + error.code, str(error), 429 if error.code == 'http_429' else 503) from None
         languages=result.get('detected_language_codes', [])
-        from stt_measurement import year_tokens
+        from stt_measurement import check_spans, year_tokens
         detected_years = year_tokens(result['text'])
+        to_check = check_spans(result['text'])
         unexpected_language=bool(live and languages and not any(code.lower().split('-')[0]=='mn' for code in languages))
         details = dict(kind='stt', **result, segments=[],
             input_sha256=hashlib.sha256(audio_bytes).hexdigest(),
-            transmitted_audio_sha256=hashlib.sha256(wav).hexdigest(),
+            transmitted_audio_sha256=hashlib.sha256(wav).hexdigest(), audio_cleanup=cleanup,
             audio_seconds=len(pcm)/(SAMPLE_RATE*2), model_load_seconds=0,
             speech_text_available=bool(result['text'].strip()),
             message=(('Монгол хэлээр танигдсангүй ('+', '.join(languages)+'). Бүтэн Монгол асуултаа дахин хэлэх эсвэл текстээ засна уу.'
@@ -524,13 +531,15 @@ class VoiceRuntime:
                      'Текстээ шалгаад илгээнэ үү.'),
             recognition_review=dict(needs_extra_review=True,
                 unexpected_language=unexpected_language,
-                year_tokens=detected_years, year_tokens_are_literal=True,
+                year_tokens=detected_years, year_tokens_are_literal=True, check_spans=to_check,
                 message='Gemini-ийн нэр, тоо, он болон үгүйсгэлийг өөрөө нягтална уу.'),
             local_files_only=False, language_codes=result.get('detected_language_codes', []) if live else ['mn-MN'], cloud_audio_consent=True,
             reference_confirmed=False, human_review_required=True, fine_tuning_performed=False,
             accuracy_measured=False, text_generated=False, llm_calls=0)
         if detected_years:
             details['message'] += ' Танигдсан он: '+', '.join(detected_years)+'. Онуудаа бичлэгтэй тулгаж нягтлаарай.'
+        if to_check:
+            details['message'] += ' Тоо, нэрийг нягтлаарай: '+' · '.join(to_check)+'.'
         return self._save(wav, 'audio/wav', details)
 
     def _tts_attempt(self, voice, started, *, success, error=None, service_status=None):

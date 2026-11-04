@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "enabled": true,
+  "enabled": false,
   "model": "gemini-3.5-transcribe",
-  "purpose_mn": "Gemini-д сургуулийн нэр, тэнхим, хөтөлбөр, оныг таниулах жагсаалт. Анхдагчаар унтраалттай; ижил бичлэгээр хэмжиж сайжирвал л асаана.",
+  "purpose_mn": "11/03-11/04-д ашигласан 80 үгийн 1-р хувилбар (хадгалсан түүх). Одоо config/stt-vocabulary.json (v2) ашиглана.",
   "sources_mn": [
     "config/knowledge-topics.json",
     "хадгалсан сайтын тэнхим, хөтөлбөр, эрхлэгчийн нэр (2026.10)"

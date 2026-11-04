@@ -21,14 +21,14 @@
       "**/CORE/website/snapshots": true
     },
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#164E43",
+      "titleBar.activeBackground": "#203F70",
       "titleBar.activeForeground": "#FFFFFF",
-      "titleBar.inactiveBackground": "#203B36",
+      "titleBar.inactiveBackground": "#24354F",
       "titleBar.inactiveForeground": "#E0DFE8",
-      "statusBar.background": "#164E43",
+      "statusBar.background": "#203F70",
       "statusBar.foreground": "#FFFFFF",
-      "activityBar.activeBorder": "#88D4BB"
+      "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · I] I/II/III · Ресепшний W09 бэлтгэл, STT хайлтын текст ба тусгаарласан суитийн багц бүртгэ… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Gemini STT: алдааны шинжилгээ, v2 нэрсийн жагсаалт, аудио цэгцлэлт (токен −58%), т… ${separator} ${dirty}${activeEditorShort}"
   }
 }

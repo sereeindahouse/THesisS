@@ -12,6 +12,28 @@ def year_tokens(text):
     return list(dict.fromkeys(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', text)))
 
 
+_YEAR = re.compile(r'(?:19|20)\d{2}')
+# Digits plus the next word when it carries the meaning (money, date, floor...).
+_NUMBER_SPAN = re.compile(r'(?<![\w.])\d[\d ,.]*\d(?![\w])(?:-\w+)?(?:\s+[^\W\d_]+)?|(?<![\w.])\d(?![\w])(?:-\w+)?(?:\s+[^\W\d_]+)?')
+_LATIN_RUN = re.compile(r'[A-Za-z][A-Za-z0-9.&\']*(?:\s+[A-Za-z][A-Za-z0-9.&\']*)*(?:-\w+)?')
+
+
+def check_spans(text, limit=8):
+    """Short pieces of raw STT a person should compare with the recording.
+
+    On the 12 saved Gemini clips the wrong values were a year, a money amount
+    and Latin-script names; plain words were not flagged. This only points,
+    it never rewrites or scores the text. Pure years stay in year_tokens.
+    """
+    spans = []
+    for match in _NUMBER_SPAN.finditer(text):
+        span = ' '.join(match.group().split())
+        if not _YEAR.fullmatch(span.split()[0].split('-')[0]):
+            spans.append(span)
+    spans.extend(match.group() for match in _LATIN_RUN.finditer(text) if len(match.group()) > 1)
+    return list(dict.fromkeys(spans))[:limit]
+
+
 def measure(reference, hypothesis, *, audio_seconds, wall_seconds, provider_seconds=None, cache_hit=False):
     if (not isinstance(reference, str) or not 1 <= len(reference) <= 1000
             or not normalize(reference) or not isinstance(hypothesis, str) or len(hypothesis) > 2000):

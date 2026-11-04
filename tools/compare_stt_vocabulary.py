@@ -85,7 +85,7 @@ def summarize(rows, results):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', default=MANIFEST)
-    parser.add_argument('--vocabulary', type=Path, default=ROOT / 'config/stt-vocabulary.json')
+    parser.add_argument('--vocabulary', type=Path, default=ROOT / 'config/stt-vocabulary-v1-20261103.json')
     parser.add_argument('--output', type=Path, default=OUTPUT)
     parser.add_argument('--dry-run', action='store_true', help='Validate inputs; send nothing.')
     parser.add_argument('--resume', action='store_true',

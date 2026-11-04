@@ -25,6 +25,11 @@ LIMIT = 100  # Google: up to 1000 phrases, about 100 usually works best.
 SKIP_TOPICS = {'nmct', 'review-needed'}
 SCHOOL = ['Шинэ Монгол Технологийн Коллеж', 'ШМТК', 'Шинэ Монгол Коосэн', 'Коосэн', 'NMCT']
 YEARS = ['2026', '2027', '2026–2027']
+# v2 (11/04): Google advises proper nouns and distinct terms, not common words.
+# On the 12 saved clips the Latin 'Sakura' made Gemini write the partner in
+# Latin, so partners keep both spellings found in the stored site text.
+PARTNERS = ['Сакура Интернэт', 'Sakura Internet', 'Сакура Сайэнс', 'Robocon', 'NAPROCK', 'JICA', 'QPay',
+            'Коосэнгийн']
 HEAD = re.compile(r'Тэнхимийн эрхлэгч\s*:\s*([А-ЯЁӨҮ][А-ЯЁӨҮа-яёөү.]*[а-яёөү])')
 PROGRAM_CODE = re.compile(r'^\d{6}\s+')
 
@@ -37,7 +42,7 @@ def published(value):
     return [line for line in str(value).splitlines()]
 
 
-def collect(config, tree):
+def collect(config, tree, *, focus='all'):
     facts = {f['payload']['fact_id']: f['payload']['value'] for f in tree['records']['facts']}
     groups = [('school', SCHOOL)]
     groups.append(('departments', [name for key, value in facts.items()
@@ -47,10 +52,13 @@ def collect(config, tree):
                                 if PROGRAM_CODE.match(line)]))
     groups.append(('department_heads', [m.group(1) for page in tree['records']['pages']
                                         for m in HEAD.finditer(page['payload'].get('full_text', ''))]))
-    groups.append(('japan_programs', ['Sakura', 'ARC'] + [name for key, value in facts.items()
-                                                         if key == 'cs.arc.courses' for name in published(value)]))
-    groups.append(('topics', [part.strip() for topic in config['topics'] if topic['topic_id'] not in SKIP_TOPICS
-                              for part in topic['label_mn'].split(',') if 0 < len(part.split()) <= 3]))
+    groups.append(('japan_programs', ([] if focus == 'names' else ['Sakura']) + ['ARC']
+                   + [name for key, value in facts.items() if key == 'cs.arc.courses' for name in published(value)]))
+    if focus == 'names':
+        groups.append(('partners', PARTNERS))
+    else:
+        groups.append(('topics', [part.strip() for topic in config['topics'] if topic['topic_id'] not in SKIP_TOPICS
+                                  for part in topic['label_mn'].split(',') if 0 < len(part.split()) <= 3]))
     groups.append(('years', YEARS))
     terms, seen, counts = [], set(), {}
     for name, values in groups:
@@ -67,11 +75,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=OUTPUT)
     parser.add_argument('--force', action='store_true', help='Гараар засварласан файлыг дарж бичих.')
+    parser.add_argument('--focus', choices=('all', 'names'), default='all',
+                        help='names: зөвхөн нэр, тусгай нэр томьёо (v2); энгийн сэдвийн үгийг оруулахгүй.')
     args = parser.parse_args()
     if args.output.exists() and not args.force:
         sys.exit(f'{args.output} байна. Таны засварыг дарахгүйн тулд зогслоо; --force эсвэл өөр --output.')
     config = json.loads((ROOT / 'config/knowledge-topics.json').read_text(encoding='utf-8-sig'))
-    terms, counts = collect(config, build_tree(config, load_inputs(ROOT)))
+    terms, counts = collect(config, build_tree(config, load_inputs(ROOT)), focus=args.focus)
     value = dict(
         schema_version=1,
         enabled=False,

@@ -170,7 +170,8 @@ class GeminiVocabularyTests(unittest.TestCase):
         self.assertLessEqual(len(validate_vocabulary(value['terms'])), 100)
         if value['enabled'] is True:
             self.assertEqual(load_vocabulary(root), tuple(value['terms']))
-            self.assertIn('runtime/stt-vocabulary-ab-', value['measurement']['run'])
+            self.assertRegex(value['measurement']['run'], r'^runtime/stt-(vocabulary-ab|gemini-v2)-\d{8}/')
+            self.assertTrue(value['measurement']['scope_mn'])
         else:
             self.assertIsNone(load_vocabulary(root))
 
@@ -192,6 +193,54 @@ class GeminiVoiceTests(unittest.TestCase):
         self.assertEqual(result['recognition_review']['year_tokens'],['2014','2020','2024','2025'])
         self.assertIn('2014, 2020, 2024, 2025',result['message'])
         self.assertFalse(result['reference_confirmed'])
+
+    def test_numbers_with_units_and_latin_names_are_pointed_out_without_rewriting(self):
+        from stt_measurement import check_spans
+        self.assertEqual(check_spans('мэдээлэл нь 7900 төгрөг байна'),['7900 төгрөг'])
+        self.assertEqual(check_spans('Sakura Internet компанитай бид 2022 оноос'),['Sakura Internet'])
+        self.assertEqual(check_spans('2027 оны сургалтын төлбөр хэд вэ'),[])
+        self.assertEqual(check_spans('элсэлтийн бүртгэл хэзээ эхлэх вэ'),[])
+        text='Sakura Internet-тэй 2022 оноос 7900 төгрөг'
+        class Values(Transport):
+            def transcribe(self,*_,**__):
+                return dict(text=text,model='gemini-3.5-transcribe')
+        from test_gemini_live import wav_bytes
+        with tempfile.TemporaryDirectory() as directory:
+            runtime=VoiceRuntime(directory)
+            runtime.gemini=GeminiSTT(Values)
+            runtime.gemini.configure(CONFIG)
+            result=runtime.transcribe_gemini(wav_bytes(),'audio/wav',consent=True)
+        self.assertEqual(result['text'],text)
+        self.assertEqual(result['recognition_review']['check_spans'],['7900 төгрөг','Sakura Internet-тэй'])
+        self.assertIn('7900 төгрөг · Sakura Internet-тэй',result['message'])
+        self.assertIn('2022',result['message'])
+
+    def test_audio_cleanup_runs_only_when_its_switch_is_on(self):
+        import io, json, wave
+        from array import array
+        speech = array('h', [0] * 16000 + [8000, -8000] * 8000 + [0] * 64000)
+        source = io.BytesIO()
+        with wave.open(source, 'wb') as handle:
+            handle.setnchannels(1); handle.setsampwidth(2); handle.setframerate(16000)
+            handle.writeframes(speech.tobytes())
+        sent = []
+        class Capture(Transport):
+            def transcribe(self, wav, **kwargs):
+                sent.append(wave.open(io.BytesIO(wav)).getnframes())
+                return dict(text='элсэлт', model='gemini-3.5-transcribe')
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = VoiceRuntime(directory)
+            runtime.gemini = GeminiSTT(Capture)
+            runtime.gemini.configure(CONFIG)
+            off = runtime.transcribe_gemini(source.getvalue(), 'audio/wav', consent=True)
+            (Path(directory) / 'config').mkdir(exist_ok=True)
+            (Path(directory) / 'config/stt-audio-cleanup.json').write_text(json.dumps(dict(enabled=True)), encoding='utf-8')
+            on = runtime.transcribe_gemini(source.getvalue(), 'audio/wav', consent=True)
+        self.assertIsNone(off['audio_cleanup'])
+        self.assertTrue(on['audio_cleanup']['changed'])
+        self.assertEqual(sent[0], len(speech))
+        self.assertLess(sent[1], len(speech) // 2)
+        self.assertEqual(on['text'], 'элсэлт')
 
     def test_wrong_language_is_preserved_and_warned_instead_of_claiming_mongolian_success(self):
         from gemini_live_transport import LIVE_MODEL
