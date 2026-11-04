@@ -23,23 +23,25 @@
 |---|---|---|---|
 | — | Whisper (STT01) | Гол хэсэг | ✅ 11/02 хэрэглэгч уншсан |
 | — | Халх Монгол ASR (STT08) | Гол хэсэг | ✅ 11/02 хэрэглэгч уншсан |
-| W02 | RAG (RAG01) | Гол хэсэг: 1, 2, 4.1, 4.5, 6 · [Монгол хөтөч](../papers/17-RAG01-unshlagyn-hotoch-20261102.mn.md) | Одоо |
-| W03 | SQuAD 2.0, хариугүй асуулт (RAG08) | Бүтэн | Үлдсэн |
+| W02 | RAG (RAG01) — [arXiv 2005.11401](https://arxiv.org/abs/2005.11401) | Гол хэсэг: 1, 2, 4.1, 4.5, 6 · [хөтөч](../papers/17-RAG01-unshlagyn-hotoch-20261102.mn.md), [дэлгэрэнгүй](../papers/20-RAG01-delgerengui-hotoch-20261104.mn.md) | Одоо |
+| W03 | SQuAD 2.0, хариугүй асуулт (RAG08) | §1–3 | Үлдсэн |
 | W04 | BM25 (RAG02) | Гол хэсэг: 1–3 | Үлдсэн |
-| W05 | RRF (RAG12) + тоймын бичвэр | Бүтэн | Үлдсэн |
-| W07 | Multilingual E5 (RAG05) | Бүтэн | Үлдсэн |
-| W08 | Эшлэлтэй хариулт (RAG07) | Гол хэсэг | Үлдсэн |
-| W09 | RAPTOR (RAG14), GraphRAG (RAG15) | Гол хэсэг: хураангуй, 1, арга | Үлдсэн |
-| W11 | Тоо хэвийн болгох | Гол хэсэг | Үлдсэн |
-| W12 | TTS-ийн ойлгомжийг хүнээр үнэлэх | Бүтэн | Үлдсэн |
-| W13 | ASR алдаа ба нэр (STT18) | Гол хэсэг | Үлдсэн |
-| W14 | DPR (RAG03) | Гол хэсэг: 1, 3, 5 | Үлдсэн |
-| W15 | Утгын хэмжүүр | Гол хэсэг | Үлдсэн |
-| W16 | Хэрэглэгчийн хүлээлт (Bad PA) | Гол хэсэг | Үлдсэн |
+| W05 | 🆕 Bruch, Gai, Ingber — *An Analysis of Fusion Functions for Hybrid Retrieval* ([arXiv 2210.11934](https://arxiv.org/abs/2210.11934)) + RRF (RAG12, 2 хуудас) + тоймын бичвэр | Гол хэсэг | Үлдсэн |
+| W07 | 🆕 Joren нар — *Sufficient Context* (ICLR 2025, [arXiv 2411.06037](https://arxiv.org/abs/2411.06037)) | Хураангуй, 1, тодорхойлолт, гол хүснэгт, дүгнэлт | Үлдсэн |
+| W08 | Эшлэлтэй хариулт ALCE (RAG07) + 🆕 Liu, Zhang, Liang — *Evaluating Verifiability in Generative Search Engines* ([arXiv 2304.09848](https://arxiv.org/abs/2304.09848)) | Гол хэсэг | Үлдсэн |
+| W09 | 🆕 Han нар — *RAG vs. GraphRAG* ([arXiv 2502.11371](https://arxiv.org/abs/2502.11371)) + RAPTOR (RAG14) §3 + GraphRAG (RAG15) хураангуй, зураг | Гол хэсэг | Үлдсэн |
+| W11 | 🆕 Antonova нар — *Thutmose Tagger* (тоо хэвшүүлэх, [arXiv 2208.00064](https://arxiv.org/abs/2208.00064)) + STT17 | Гол хэсэг | Үлдсэн |
+| W12 | 🆕 Taylor, Richmond — *Confidence Intervals for ASR-Based TTS Evaluation* (Interspeech 2021, [DOI](https://doi.org/10.21437/Interspeech.2021-2203)) | Бүтэн | Үлдсэн |
+| W13 | ASR алдаа ба нэр (STT18) + 🆕 Sidiropoulos нар — *ASR errors in passage retrieval for spoken QA* ([arXiv 2209.12944](https://arxiv.org/abs/2209.12944)) | Гол хэсэг | Үлдсэн |
+| W14 | DPR (RAG03) + Multilingual E5 (RAG05) | Гол хэсэг: 1, 3, 5 · E5 богино | Үлдсэн |
+| W15 | Утгын хэмжүүр (STT16 + STT19 нэг дор) | Гол хэсэг | Үлдсэн |
+| W16 | Хэрэглэгчийн хүлээлт (Bad PA) + 🆕 *Unimib Assistant* ([arXiv 2411.19554](https://arxiv.org/abs/2411.19554)) | Гол хэсэг | Үлдсэн |
 | W17 | LLM ба RAG-ийн харьцуулалт (RAG13) | Гол хэсэг | Үлдсэн |
-| W18 | RAGAS (RAG09) | Бүтэн | Үлдсэн |
-| W19 | TTS-ийн хүний үнэлгээ | Бүтэн | Үлдсэн |
+| W18 | 🆕 Yu нар — *Evaluation of RAG: A Survey* ([arXiv 2405.07437](https://arxiv.org/abs/2405.07437)) + RAGAS (RAG09) хэмжүүрийн тодорхойлолт | Гол хэсэг | Үлдсэн |
+| W19 | 🆕 Kirkland нар — *Stuck in the MOS pit* (SSW 2023, [DOI](https://doi.org/10.21437/SSW.2023-7)) | Бүтэн | Үлдсэн |
 | W20 | Blockwise bootstrap (STT15) | Гол хэсэг | Үлдсэн |
+
+**2026.11.04 шинэчлэл:** Агентын судалгаагаар (`/deep-research`) хуучин үндсэн өгүүллүүдийг хадгалж, 10 шинэ өгүүлэл нэмсэн (🆕). ARES (RAG10)-ийг Yu нарын тоймоор сольсон. Сонголтоор: Gao нарын RAG тойм (2312.10997), Sun 2023 нэрийн LLM biasing, chunking (Qu 2025), MMTEB, BGE-M3, abstention тойм, HippoRAG, Cooper 2025, MnTTS, RAG04, RAG06, RAG11. Тайлан: `papers/21-reading-list-update-20261104.mn.md`. Ихэнх лиценз, зарим venue шалгагдаагүй.
 
 **Гол сонголтууд ба шийдэх дараалал** (дуу таних 11/03-нд шийдэгдсэн)
 
