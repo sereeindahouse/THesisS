@@ -16,7 +16,8 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_ARTIFACT_NAMES = ('rag_runtime.py', 'rule_selector.py', 'tools/evaluate_llm_selection.py', 'source_fields.py', 'historical_fields.py', 'question_router.py', 'answer_contract.py',
-    'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'evidence_contract.py', 'speech_text.py')
+    'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py', 'evidence_contract.py', 'speech_text.py',
+    'reception_tables.py', 'stt_text_normalization.py')
 
 
 def sha(path):

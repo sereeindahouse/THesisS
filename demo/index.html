@@ -304,6 +304,10 @@ function renderTurn(turn,result){
  if(["raw_stt","edited_stt"].includes(result.input_lineage?.kind)){
   const provenance=node("details",undefined,"input-lineage");provenance.append(node("summary",result.input_lineage.kind==="edited_stt"?"Таньсан текстийг зассан":"Дуунаас таньсан"));
   provenance.append(node("p","Анхны танилт: "+result.input_lineage.raw_text,"input-lineage-raw"));turn.userElement.append(provenance);turn.lineageElement=provenance;
+  if(result.search_normalization?.changed&&typeof result.search_normalization.normalized_search_text==="string"){
+   provenance.append(node("p","Хайлтад бэлтгэсэн текст: "+result.search_normalization.normalized_search_text,"chat-notice"));
+   provenance.append(node("p","Тоо, нэр томьёоны автомат бэлтгэл. Анхны танилт хадгалагдсан; хүний засвар гэж тооцохгүй.","chat-notice"));
+  }
  }
  if(result.conversation?.applied&&result.conversation.resolved_query!==turn.query){
   target.append(node("p","Тодруулсан асуулт: "+result.conversation.resolved_query,"chat-notice"));

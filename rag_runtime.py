@@ -17,6 +17,8 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from reception_tables import ReceptionAnswerPath
+from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
@@ -42,7 +44,8 @@ RUNTIME_ARTIFACT_SHA256 = {
     name: hashlib.sha256((Path(__file__).resolve().parent / name).read_bytes()).hexdigest()
     for name in ('rag_runtime.py', 'rule_selector.py', 'tools/evaluate_llm_selection.py', 'source_fields.py', 'answer_contract.py',
                  'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py',
-                 'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py')
+                 'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py',
+                 'reception_tables.py', 'stt_text_normalization.py')
 }
 
 def named_office_field_scope(query, sources):
@@ -1287,12 +1290,18 @@ class ChatRAG:
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
 
-    def __init__(self, root, policy, retriever=None, generator=None):
+    def __init__(self, root, policy, retriever=None, generator=None, *, reception=None,
+                 normalizer=None, reception_clock=None):
         self.root, self.policy = Path(root), policy
         if retriever is None:
             retriever = WebsiteRetriever(root=self.root)
         self.retriever = retriever
         self.generator = generator or default_generator(self.root)
+        # Both optional extensions fail closed and are OFF in the public config.
+        # Loading a disabled reception path never opens its table source.
+        self.reception = reception if reception is not None else ReceptionAnswerPath.from_config(self.root)
+        self.normalizer = normalizer if normalizer is not None else Normalizer.from_config(self.root)
+        self.reception_clock = reception_clock
         self._responses = OrderedDict()
         self._lock = threading.Lock()
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
@@ -1365,10 +1374,30 @@ class ChatRAG:
                 raise ValueError("Вебийн эх шинэчлэгдсэн. Асуултаа дахин илгээнэ үү.")
             return deepcopy(result)
 
-    def route(self, database, query, *, allow_draft=False):
+    def route(self, database, query, *, allow_draft=False, stt_text=False):
         started = time.perf_counter()
         timings = {'policy': 0.0, 'retrieval': 0.0, 'generation': 0.0}
-        result = self._route(database, query, allow_draft=allow_draft, timings=timings)
+        # Only server-verified STT lineage opts in. Raw ASR/scoring is untouched;
+        # this is a separate search representation, never a human correction.
+        prepared = self.normalizer.normalize(query) if stt_text is True and self.normalizer.enabled else None
+        search_query = prepared['normalized_search_text'] if prepared is not None else query
+        reception = self.reception.answer(search_query,
+            now=self.reception_clock() if self.reception_clock is not None else None)
+        if reception is not None:
+            # Keep the pinned content package capability used by recall/TTS.
+            result = self.policy.route(database, query, allow_draft=allow_draft)
+            result.update(query=query, route='C' if reception.get('answer') else 'E',
+                answer=None, citations=[], related_sources=[], suggestions=[], clarification=None,
+                exact_matches=[], generated=False, llm_calls=0, answer_kind='reception_table_lookup')
+            result.update(reception)
+            result['rag'] = dict(enabled=False, reason=result['reason_code'], llm_calls=0,
+                answer_text_generated=False, source='reception_tables')
+            result = self._remember(result, allow_draft)
+        else:
+            result = self._route(database, search_query, allow_draft=allow_draft, timings=timings)
+        if prepared is not None:
+            result['query'] = query
+            result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
         result['latency_ms'] = round((time.perf_counter() - started) * 1000, 2)
         result['timings_ms'] = {key: round(value, 2) for key, value in timings.items()}
         result['latency_scope'] = 'chat_route_wall_including_policy_retrieval_generation; excludes_http_stt_tts_user_time'

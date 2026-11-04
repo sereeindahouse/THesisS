@@ -114,8 +114,16 @@ py -3.11 demo_server.py
 ```powershell
 py -3.11 import_content.py status
 py -3.11 sqlite_retrieval.py "Холбоо барих утас хэд вэ?" --allow-draft
-py -3.11 -m unittest discover -s tests -v
+python -m unittest discover
 ```
+
+Бүтэн суитийн орчин, хувийн өгөгдөлгүй тусгаарласан ажиллуулалт ба дүнгийн
+тайлбар: [тестийн заавар](docs/testing.mn.md).
+
+2026.11.04-ний нэмэлт: [ресепшний CSV/XLSX хүснэгтийн зам](docs/reception-tables.mn.md)
+ба [STT-ийн хайлтын текст бэлтгэх алхам](docs/stt-text-normalization.mn.md)
+хоёулаа анхнаасаа **OFF**. STT нь `gemini-3.5-transcribe` хэвээр.
+[Хийсэн ажил, бүтэн суитийн бодит дүн](docs/offline-work-20261104.mn.md).
 
 `--allow-draft` нь эхийг баталсан гэсэн үг биш. CLI-д хадгалсан асуулт/alias яг таарсан, бүрэн хариулт ба guard хангагдсан үед л хязгаарласан preview гарна; fuzzy matching үргэлж ranking төдий. [SQLite хадгалалтын заавар](reports/system/CONTENT-STORE.mn.md).
 

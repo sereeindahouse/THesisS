@@ -630,10 +630,21 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                 token, raw_query, allow_draft=allow_draft,
                                 package_id=package_id, corpus_id=corpus_id)
                         context_elapsed = time.perf_counter() - context_started
-                        result = self.teacher_answer(conversation['resolved_query'], allow_draft, database, rag)
+                        # A configured reception lookup must precede historical
+                        # teacher profiles; it never claims physical presence.
+                        reception = getattr(rag, 'reception', None)
+                        reception_query = bool(reception is not None and
+                            reception.recognizes(conversation['resolved_query']))
+                        result = (None if reception_query else
+                            self.teacher_answer(conversation['resolved_query'], allow_draft, database, rag))
                         if result is None:
-                            result = rag.route(database, conversation["resolved_query"], allow_draft=allow_draft)
-                            cards = teachers.attach(conversation['resolved_query'], result)
+                            stt_options = ({'stt_text': True} if
+                                input_lineage['kind'] in {'raw_stt', 'edited_stt'} and
+                                getattr(getattr(rag, 'normalizer', None), 'enabled', False) else {})
+                            result = rag.route(database, conversation["resolved_query"],
+                                allow_draft=allow_draft, **stt_options)
+                            cards = ([] if result.get('answer_kind') == 'reception_table_lookup' else
+                                teachers.attach(conversation['resolved_query'], result))
                             if cards:
                                 result['teacher_cards'] = cards
                                 result['teacher_media_bundle_id'] = cards[0]['bundle_id']

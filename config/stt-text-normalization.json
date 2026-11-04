@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "normalize_numbers": true,
+  "normalize_vocabulary": true,
+  "purpose_mn": "Танигдсан эх текстийг хадгалж, зөвхөн хайлтын хуулбарт тоо ба маш ойр үгийн зөрүүг ил тод нэгтгэх туршилтын алхам. Анхдагчаар унтраалттай."
+}
