@@ -1,10 +1,12 @@
 """Source/year/scope contracts use invented admissions data, never school gold."""
 from copy import deepcopy
 from datetime import date
+from functools import partial
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from content_store import ContentStore
 from project_policy import ContentUsePolicy
@@ -220,7 +222,9 @@ class ChoiceRouterTests(unittest.TestCase):
         (self.root/'config').mkdir()
         (self.root/'config/content-use.json').write_text(json.dumps(dict(enabled=True,
             basis='user_acceptance_of_official_website',official_hosts=['nmct.edu.mn'])),encoding='utf-8')
-        r=ContentUsePolicy(self.root).route(self.db,'2042–2043 оны элсэлтэд нэг мэргэжил сонгож болох уу?')
+        # Pin the clock like the other tests; the fake source expires 2026-10-31.
+        with mock.patch('project_policy.route_question',partial(route_question,as_of=self.as_of)):
+            r=ContentUsePolicy(self.root).route(self.db,'2042–2043 оны элсэлтэд нэг мэргэжил сонгож болох уу?')
         self.assertIsNotNone(r['answer'])
         self.assertEqual(r['answer_kind'],'official_website_snapshot')
         self.assertFalse(r['school_staff_approval_claimed'])

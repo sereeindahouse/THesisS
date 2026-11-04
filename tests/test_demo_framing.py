@@ -23,7 +23,7 @@ class DemoFramingTests(unittest.TestCase):
             def transcribe(self,data,mime):
                 owner.calls.append((data,mime))
                 return dict(text='fixture',reference_confirmed=False)
-        self.server=make_server(self.root/'absent.db',port=0,project_root=self.root,voice_service=Voice())
+        self.server=make_server(self.root/'absent.db',port=0,project_root=self.root,voice_service=Voice(),legacy_stt=True)
         self.port=self.server.server_address[1]
         self.thread=threading.Thread(target=self.server.serve_forever,daemon=True);self.thread.start()
         self.addCleanup(self.stop)
