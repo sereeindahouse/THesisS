@@ -8,6 +8,8 @@
   const treeState={data:null,pending:false,selected:null,query:'',expanded:new Set()};
   const topicGraph={layout:null,controller:null,nodes:new Map(),edges:[],key:null};
   const brainGraph={layout:null,controller:null,nodes:new Map(),edges:[],key:null};
+  const starGraph={layout:null,controller:null,nodes:new Map(),edges:[],badges:null,mode:'tree',path:[],request:null};
+  const activeTopicGraph=()=>starGraph.mode==='stars'?starGraph:topicGraph;
   const planFilters={month:'all',status:'all',workstream:'all',query:''};
   let toastTimer;
   const norm = text => String(text || '').normalize('NFKC').toLocaleLowerCase('mn');
@@ -367,12 +369,108 @@
       group.addEventListener('click',()=>{if(!graph.controller?.suppressClick())onSelect(node.id,true);});group.addEventListener('focus',()=>graph.controller?.ensureVisible(node));group.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();onSelect(node.id,true);}else if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)){event.preventDefault();event.stopPropagation();const target=event.key==='ArrowLeft'?nodeMap.get(node.parent):event.key==='ArrowRight'?layout.nodes.find(other=>other.parent===node.id):layout.nodes[(index+(event.key==='ArrowUp'?-1:1)+layout.nodes.length)%layout.nodes.length];if(target)graph.nodes.get(target.id)?.focus();}});cards.append(group);graph.nodes.set(node.id,group);});scene.append(lines,cards);(layout.headings||[]).forEach(([text,x,y])=>scene.append(svgElement('text',{'class':'graph-lane-label',x,y},text)));svg.append(scene);graph.layout=layout;graph.controller=createGraphController(svg,scene,zoomLabel,layout);graph.controller.fit();
   }
   function selectGraphTopic(identifier,focus=false) {
-    const topic=treeState.data?.topics.find(item=>item.topic_id===identifier);if(!topic)return;treeState.selected=identifier;treeState.expanded.add(identifier);$('treeTopicJump').value=identifier;renderTopicTree();renderTreeDetail();if(focus)topicGraph.controller.fit(treeDescendants(identifier).map(item=>item.topic_id));
+    const topic=treeState.data?.topics.find(item=>item.topic_id===identifier);if(!topic)return;treeState.selected=identifier;treeState.expanded.add(identifier);$('treeTopicJump').value=identifier;renderTopicTree();renderTreeDetail();if(focus)activeTopicGraph().controller?.fit(treeDescendants(identifier).map(item=>item.topic_id));
     if(matchMedia('(max-width:850px)').matches&&!treeState.data.topics.some(item=>item.parent_id===identifier))$('treeDetail').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});
   }
   function renderKnowledgeGraph(matches,visible) {
     if(!topicGraph.layout){const layout=knowledgeGraphLayout(treeState.data.topics);layout.nodes.forEach(node=>{const topic=treeState.data.topics.find(item=>item.topic_id===node.id),count=topic.subtree_counts||topic.direct_counts||{},refs=treeDescendants(node.id).reduce((sum,item)=>sum+(item.source_references||[]).length+(item.sources||[]).length,0);node.subtitle=count.passages?`${number(count.passages)} хэсэг · ${number(count.facts||0)} баримт`:refs?'Эхийн холбоос байна':`${number(count.facts||0)} баримт · ${number(count.faqs||0)} FAQ`;});drawSvgGraph($('knowledgeGraph'),topicGraph,$('treeZoomLabel'),layout,selectGraphTopic,{title:'Шинэ Монгол Коосэны мэдлэгийн мод',description:'Хадгалсан сургуулийн мэдээллийн сэдвүүд topic_contains холбоосоор салаална. Зангилааг сонгоод бодит эх, баримт, FAQ-г нээнэ.'});}
     const searching=Boolean(treeState.query.trim());topicGraph.nodes.forEach((group,id)=>{const node=topicGraph.layout.nodes.find(item=>item.id===id),selected=id===treeState.selected;group.setAttribute('class',`graph-node${node.root?' graph-root':''}${selected?' selected':''}${searching&&matches.has(id)?' search-match':''}${searching&&!visible.has(id)?' graph-muted':''}`);group.setAttribute('aria-pressed',String(selected));group.setAttribute('aria-controls','treeDetail');const topic=treeState.data.topics.find(item=>item.topic_id===id);group.setAttribute('aria-label',`${topic.label_mn}. ${node.subtitle}. Эхийг харах.`);});topicGraph.edges.forEach(edge=>edge.setAttribute('class',`graph-edge${searching&&(!visible.has(edge.getAttribute('data-from'))||!visible.has(edge.getAttribute('data-to')))?' graph-muted':''}`));
+  }
+  // Star map: the same topic tree drawn as a radial sky. Reads tree data only; the
+  // question path uses read-only BM25 FAQ search, not the chat's final answer route.
+  const starStatusText={known:'Эхтэй сэдэв',gap:'Эх алга, сургуулиас мэдээлэл хэрэгтэй',thin:'Бүртгэл бага'};
+  function starStatus(topic) {
+    if((treeState.data.gaps?.missing_source_topics||[]).includes(topic.topic_id))return 'gap';
+    const count=topic.subtree_counts||topic.direct_counts||{};
+    return count.passages||count.sources||count.facts||count.faqs||(topic.sources||[]).length||(topic.source_references||[]).length?'known':'thin';
+  }
+  function starMapLayout(topics) {
+    const root=topics.find(topic=>topic.parent_id===null),children=id=>topics.filter(topic=>topic.parent_id===id),centre=800,nodes=[],edges=[];
+    const size=topic=>Math.min(26,6+2.4*Math.sqrt((topic.subtree_counts||{}).passages||0));
+    function place(topic,depth,start,span,parent){const angle=start+span/2,radius=depth===0?0:depth===1?330:640+(depth-2)*190,r=depth===0?30:depth===1?Math.max(11,size(topic)):size(topic),reach=depth===0?r+40:r+14+String(topic.label_mn).length*(depth===1?9.5:8.2);
+      nodes.push({id:topic.topic_id,parent,x:centre+Math.cos(angle)*radius,y:centre+Math.sin(angle)*radius,r,width:2*reach,height:2*reach,label:topic.label_mn,depth,angle,status:starStatus(topic),sources:(topic.sources||[]).length+(topic.source_references||[]).length});if(parent)edges.push({from:parent,to:topic.topic_id});
+      if(depth===0)return;const kids=children(topic.topic_id);kids.forEach((kid,index)=>place(kid,depth+1,start+index*span/kids.length,span/kids.length,topic.topic_id));}
+    place(root,0,0,0,null);
+    const domains=children(root.topic_id),slots=domains.map(domain=>Math.max(2,children(domain.topic_id).length)),step=Math.PI*2/(slots.reduce((sum,value)=>sum+value,0)||1);let cursor=-Math.PI/2;
+    domains.forEach((domain,index)=>{place(domain,1,cursor,slots[index]*step,root.topic_id);cursor+=slots[index]*step;});
+    return {nodes,edges,width:1600,height:1600,rootId:root.topic_id};
+  }
+  function drawStarMap() {
+    const svg=$('starMap'),layout=starMapLayout(treeState.data.topics),nodeMap=new Map(layout.nodes.map(node=>[node.id,node]));starGraph.controller?.dispose();starGraph.layout=layout;starGraph.nodes.clear();starGraph.edges=[];
+    svg.replaceChildren(svgElement('title',{},'Мэдлэгийн одны зураг'),svgElement('desc',{},'Төвд сургууль, дотор тойрогт хүрээнүүд, гадна тойрогт дэд сэдвүүд. Ногоон од эхтэй, улбар тасархай од эхгүй.'));
+    const defs=svgElement('defs');[['known','#7fe0b0'],['gap','#ffb067'],['thin','#9fb3c8']].forEach(([id,colour])=>{const gradient=svgElement('radialGradient',{id:`starGlow-${id}`});gradient.append(svgElement('stop',{offset:'0%','stop-color':colour,'stop-opacity':.5}),svgElement('stop',{offset:'100%','stop-color':colour,'stop-opacity':0}));defs.append(gradient);});svg.append(defs);
+    const scene=svgElement('g',{'class':'graph-scene'}),sky=svgElement('g',{'class':'star-sky'}),lines=svgElement('g',{'class':'star-edges'}),stars=svgElement('g',{'class':'star-nodes'}),badges=svgElement('g',{'class':'star-path-layer'});
+    let seed=7;const random=()=>(seed=seed*16807%2147483647)/2147483647;
+    for(let index=0;index<170;index++)sky.append(svgElement('circle',{cx:(random()*1900-150).toFixed(1),cy:(random()*1900-150).toFixed(1),r:(random()*1.4+.3).toFixed(2),opacity:(random()*.6+.2).toFixed(2),'class':'sky-star'}));
+    [330,640].forEach(radius=>sky.append(svgElement('circle',{cx:800,cy:800,r:radius,'class':'star-orbit'})));
+    layout.edges.forEach(edge=>{const from=nodeMap.get(edge.from),to=nodeMap.get(edge.to),line=svgElement('line',{x1:from.x.toFixed(1),y1:from.y.toFixed(1),x2:to.x.toFixed(1),y2:to.y.toFixed(1),'class':`star-edge ${to.status}`,'data-from':edge.from,'data-to':edge.to,'data-status':to.status,'vector-effect':'non-scaling-stroke'});lines.append(line);starGraph.edges.push(line);});
+    layout.nodes.forEach(node=>{
+      const group=svgElement('g',{'class':`star-node ${node.status}`,'data-node-id':node.id,transform:`translate(${node.x.toFixed(1)} ${node.y.toFixed(1)})`,role:'button',tabindex:0});
+      group.append(svgElement('title',{},`${node.label} · ${starStatusText[node.status]}`),svgElement('circle',{r:(node.r*2.6).toFixed(1),fill:`url(#starGlow-${node.status})`,'class':'star-glow'}));
+      const moons=Math.min(node.sources,24);for(let index=0;index<moons;index++){const angle=index*2*Math.PI/moons;group.append(svgElement('circle',{cx:(Math.cos(angle)*(node.r+7)).toFixed(1),cy:(Math.sin(angle)*(node.r+7)).toFixed(1),r:1.6,'class':'star-source'}));}
+      group.append(svgElement('circle',{r:node.r.toFixed(1),'class':'star-core'}));
+      // Labels follow the ray: leaves point outward, domains point inward, so neighbours never share a line.
+      if(node.depth>0){const flip=Math.cos(node.angle)<0,outward=node.depth>=2,degrees=node.angle*180/Math.PI+(flip?180:0),offset=(node.r+12)*(outward!==flip?1:-1);group.append(svgElement('text',{'class':`star-label${node.depth===1?' star-label-1':''}`,x:offset,y:5,'text-anchor':offset>0?'start':'end',transform:`rotate(${degrees.toFixed(1)})`},node.label));}
+      group.addEventListener('click',()=>{if(!starGraph.controller?.suppressClick())selectGraphTopic(node.id);});
+      group.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();event.stopPropagation();selectGraphTopic(node.id);}});
+      group.addEventListener('focus',()=>starGraph.controller?.ensureVisible(node));
+      stars.append(group);starGraph.nodes.set(node.id,group);
+    });
+    scene.append(sky,lines,stars,badges);svg.append(scene);starGraph.badges=badges;
+    starGraph.controller=createGraphController(svg,scene,$('treeZoomLabel'),layout);drawStarBadges();
+  }
+  function starTrail() {
+    const trail=new Set(),parents=new Map(treeState.data.topics.map(topic=>[topic.topic_id,topic.parent_id]));
+    starGraph.path.forEach(hit=>{let current=hit.topicId;while(current&&!trail.has(current)){trail.add(current);current=parents.get(current);}});return trail;
+  }
+  function renderStarClasses(matches,visible) {
+    if(!starGraph.layout)return;const searching=Boolean(treeState.query.trim()),ranks=new Map(starGraph.path.map(hit=>[hit.topicId,hit.rank])),trail=starTrail();
+    starGraph.layout.nodes.forEach(node=>{const group=starGraph.nodes.get(node.id),selected=node.id===treeState.selected;group.setAttribute('class',`star-node ${node.status}${node.depth===0?' star-root':''}${selected?' selected':''}${searching&&matches.has(node.id)?' search-match':''}${searching&&!visible.has(node.id)?' star-muted':''}${trail.has(node.id)?' on-path':''}`);group.setAttribute('aria-pressed',String(selected));group.setAttribute('aria-controls','treeDetail');group.setAttribute('aria-label',`${node.label}. ${starStatusText[node.status]}${ranks.has(node.id)?`. Асуултын ${ranks.get(node.id)}-р тохирол`:''}. Эхийг харах.`);});
+    starGraph.edges.forEach(edge=>{const from=edge.getAttribute('data-from'),to=edge.getAttribute('data-to');edge.setAttribute('class',`star-edge ${edge.getAttribute('data-status')}${trail.has(to)?' on-path':''}${searching&&(!visible.has(from)||!visible.has(to))?' star-muted':''}`);});
+  }
+  function drawStarBadges() {
+    const layer=starGraph.badges;if(!layer||!starGraph.layout)return;layer.replaceChildren();const nodeMap=new Map(starGraph.layout.nodes.map(node=>[node.id,node]));
+    starGraph.path.forEach(hit=>{const node=nodeMap.get(hit.topicId);if(!node)return;const side=node.r+13,badge=svgElement('g',{'class':'star-badge',transform:`translate(${(node.x-Math.sin(node.angle)*side).toFixed(1)} ${(node.y+Math.cos(node.angle)*side).toFixed(1)})`});badge.append(svgElement('circle',{r:11}),svgElement('text',{y:4,'text-anchor':'middle'},String(hit.rank)));layer.append(badge);});
+  }
+  function starTopicTrail(identifier) {
+    const labels=[],byId=new Map(treeState.data.topics.map(topic=>[topic.topic_id,topic]));let current=byId.get(identifier);
+    while(current&&current.parent_id!==null&&labels.length<6){labels.unshift(current.label_mn);current=byId.get(current.parent_id);}return labels.join(' › ')||str(current?.label_mn);
+  }
+  function starPathRows(candidates) {
+    const topics=treeState.data.topics,key=url=>String(url||'').split('#')[0].replace(/\/+$/,'');
+    return candidates.slice(0,5).map((candidate,index)=>{const urls=new Set((candidate.citations||[]).map(citation=>key(citation.source_url_or_filename)));
+      const linked=topics.filter(topic=>(topic.faq_records||[]).some(record=>record.faq_id===candidate.faq_id)||[...(topic.sources||[]),...(topic.source_references||[])].some(source=>urls.has(key(source.url))));
+      return {rank:index+1,question:str(candidate.question),topics:linked.map(topic=>topic.topic_id)};});
+  }
+  function renderStarPathResult(rows,query) {
+    const target=$('starPathResult');target.replaceChildren();target.hidden=false;
+    if(!rows.length){target.append(element('p','star-path-empty','Хадгалсан FAQ-аас тохирох зүйл олдсонгүй.'));return;}
+    target.append(element('p','star-path-note',`«${query}» — үгээр хайж (BM25) олсон FAQ ба тэдгээрийн сэдэв. Энэ нь чатын эцсийн хариулт биш.`));
+    const list=element('ol','star-path-list');rows.forEach(row=>{const item=element('li'),places=element('span','star-path-topics');item.append(element('span','star-path-question',row.question));
+      if(!row.topics.length)places.textContent='Модны сэдэвтэй холбогдоогүй';
+      row.topics.forEach(identifier=>{const button=element('button','text-button',starTopicTrail(identifier));button.type='button';button.addEventListener('click',()=>{selectGraphTopic(identifier);const node=starGraph.layout?.nodes.find(item=>item.id===identifier);if(node)starGraph.controller?.ensureVisible(node);});places.append(button);});
+      item.append(places);list.append(item);});target.append(list);
+  }
+  async function traceStarPath(query) {
+    starGraph.request?.abort();const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000),target=$('starPathResult');starGraph.request=controller;
+    target.hidden=false;target.replaceChildren(element('p','star-path-note','Хайж байна…'));$('starPathSubmit').disabled=true;
+    try{const response=await fetch('/api/search',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({query,limit:5})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(str(data.error)||`HTTP ${response.status}`);
+      if(starGraph.request!==controller||!treeState.data)return;
+      const rows=starPathRows(Array.isArray(data.candidates)?data.candidates:[]),best=new Map();rows.forEach(row=>row.topics.forEach(identifier=>{if(!best.has(identifier))best.set(identifier,{topicId:identifier,rank:row.rank});}));
+      starGraph.path=[...best.values()];renderTopicTree();drawStarBadges();renderStarPathResult(rows,query);if(starGraph.path.length)starGraph.controller?.fit([...starTrail()]);}
+    catch(error){if(starGraph.request!==controller)return;target.replaceChildren(element('p','star-path-empty',error.name==='AbortError'?'Хайлт удаан байна. Дахин оролдоно уу.':`Хайж чадсангүй. ${str(error.message)}`));}
+    finally{clearTimeout(timer);if(starGraph.request===controller){starGraph.request=null;$('starPathSubmit').disabled=false;}}
+  }
+  function clearStarPath() {
+    starGraph.request?.abort();starGraph.request=null;starGraph.path=[];$('starQuery').value='';$('starPathResult').replaceChildren();$('starPathResult').hidden=true;$('starPathSubmit').disabled=false;
+    if(treeState.data){renderTopicTree();drawStarBadges();}
+  }
+  function setTopicMode(mode) {
+    starGraph.mode=mode==='stars'?'stars':'tree';const stars=starGraph.mode==='stars';
+    $('treeGraphViewport').hidden=stars;$('starViewport').hidden=!stars;$('starPathForm').hidden=!stars;$('treeLegend').hidden=stars;$('starLegend').hidden=!stars;$('starPathResult').hidden=!stars||!$('starPathResult').children.length;
+    $('treeModeTree').setAttribute('aria-pressed',String(!stars));$('treeModeStars').setAttribute('aria-pressed',String(stars));
+    if(!treeState.data)return;if(stars&&!starGraph.layout){drawStarMap();renderTopicTree();}
+    const graph=activeTopicGraph();graph.controller?.resize();graph.controller?.fit();
   }
   function renderSystemGraph() {
     if(brainGraph.layout)return;
@@ -451,7 +549,7 @@
         if(children){const toggle=element('button','tree-toggle',expanded?'−':'+');toggle.type='button';toggle.disabled=Boolean(treeState.query.trim());toggle.setAttribute('aria-label',`${topic.label_mn} — ${expanded?'салааг хураах':'салааг нээх'}`);toggle.setAttribute('aria-expanded',String(expanded));toggle.setAttribute('aria-controls',childId);toggle.addEventListener('click',()=>{if(treeState.expanded.has(topic.topic_id))treeState.expanded.delete(topic.topic_id);else treeState.expanded.add(topic.topic_id);const index=topics.indexOf(topic);renderTopicTree();document.querySelector(`[data-tree-toggle="${index}"]`)?.focus();});toggle.dataset.treeToggle=topics.indexOf(topic);row.append(toggle);}else row.append(element('span','tree-leaf','·'));
         const button=element('button',`tree-topic${treeState.selected===topic.topic_id?' selected':''}`);button.type='button';button.dataset.treeTopic=topics.indexOf(topic);button.setAttribute('aria-pressed',String(treeState.selected===topic.topic_id));button.setAttribute('aria-controls','treeDetail');button.append(element('span','tree-topic-label',topic.label_mn),element('small','',`${number(topic.subtree_counts?.passages||0)} хэсэг · ${number(topic.subtree_counts?.facts||0)} баримт`));button.addEventListener('click',()=>{selectGraphTopic(topic.topic_id,true);document.querySelector(`[data-tree-topic="${topics.indexOf(topic)}"]`)?.focus({preventScroll:true});});row.append(button);item.append(row);if(children){const sublist=branch(topic.topic_id,nextAncestors);sublist.id=childId;sublist.hidden=!expanded;item.append(sublist);}list.append(item);});return list;
     }
-    target.append(branch(null));if(!matches.size)target.append(element('p','tree-no-match','Тохирох сэдэв алга. Өөр нэрээр хайж үзээрэй.'));renderKnowledgeGraph(matches,visible);return {matches,visible};
+    target.append(branch(null));if(!matches.size)target.append(element('p','tree-no-match','Тохирох сэдэв алга. Өөр нэрээр хайж үзээрэй.'));renderKnowledgeGraph(matches,visible);renderStarClasses(matches,visible);return {matches,visible};
   }
   function renderInformationScope() {
     const scope=treeState.data?.information_scope,host=$('informationScope');
@@ -470,13 +568,13 @@
     $('treeTopicCount').textContent=`${number(data.topics.length)} зангилаа`;
     const jump=$('treeTopicJump');jump.replaceChildren(element('option','','Сэдэв сонгох…'));jump.children[0].value='';data.topics.forEach(topic=>{const option=element('option','',(topic.parent_id?'↳ ':'')+topic.label_mn);option.value=topic.topic_id;jump.append(option);});
     const release=data.release||{};$('treeRelease').textContent=release.release_id?`Идэвхтэй эхийн хувилбар: ${str(release.release_id)}`:'Идэвхтэй өгөгдлийн сангийн сэдвийн зураглал.';
-    renderInformationScope();renderTopicTree();renderTreeDetail();renderSystemGraph();
+    starGraph.layout=null;starGraph.controller?.dispose();starGraph.controller=null;renderInformationScope();renderTopicTree();renderTreeDetail();renderSystemGraph();if(starGraph.mode==='stars')setTopicMode('stars');
   }
   async function loadTree() {
     if(treeState.data||treeState.pending)return;treeState.pending=true;$('treeLoadState').hidden=false;$('treeError').hidden=true;$('treeContent').hidden=true;
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
     try{const response=await fetch('/api/explorer/tree',{signal:controller.signal,headers:{Accept:'application/json'}});if(!response.ok)throw new Error(`HTTP ${response.status}`);const data=await response.json();if(data?.schema_version!==1||!Array.isArray(data.topics)||!data.topics.length||!data.topics.every(topic=>typeof topic.topic_id==='string'&&typeof topic.label_mn==='string'))throw new Error('Сэдвийн бүртгэлийн бүтэц тохирохгүй байна.');treeState.data=data;const root=data.topics.find(topic=>topic.parent_id===null);treeState.selected=root?.topic_id||data.topics[0].topic_id;treeState.expanded.add(treeState.selected);renderTree();$('treeContent').hidden=false;setTimeout(()=>{topicGraph.controller?.fit();brainGraph.controller?.fit();},0);}
-    catch(error){treeState.data=null;treeState.selected=null;treeState.expanded.clear();[topicGraph,brainGraph].forEach(graph=>{graph.controller?.dispose();graph.controller=null;graph.layout=null;graph.nodes.clear();graph.edges=[];});$('treeError').hidden=false;$('treeErrorMessage').textContent=error.name==='AbortError'?'Мэдлэгийн модыг унших хугацаа хэтэрлээ. Дахин оролдоно уу.':`Мэдлэгийн модыг нээж чадсангүй. ${str(error.message)}`;}
+    catch(error){treeState.data=null;treeState.selected=null;treeState.expanded.clear();[topicGraph,brainGraph,starGraph].forEach(graph=>{graph.controller?.dispose();graph.controller=null;graph.layout=null;graph.nodes.clear();graph.edges=[];});$('treeError').hidden=false;$('treeErrorMessage').textContent=error.name==='AbortError'?'Мэдлэгийн модыг унших хугацаа хэтэрлээ. Дахин оролдоно уу.':`Мэдлэгийн модыг нээж чадсангүй. ${str(error.message)}`;}
     finally{clearTimeout(timer);treeState.pending=false;$('treeLoadState').hidden=true;}
   }
   function setView(view,focus=false) {if(!views.includes(view))view='knowledge';state.view=view;views.forEach(id=>{const active=id===view,button=$(id+'Tab');$(id+'View').hidden=!active;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;});if(focus)$(view+'Tab').focus();if(state.data)history.replaceState(null,'',view==='knowledge'?'/data':`/data#${view}`);if(view==='tree')loadTree();}
@@ -494,10 +592,12 @@
   $('treeSearch').addEventListener('input',event=>{treeState.query=event.target.value;if(treeState.data){const result=renderTopicTree();if(result.matches.size)topicGraph.controller.fit(treeState.query.trim()?[...result.matches]:undefined);}});$('retryTree').addEventListener('click',loadTree);
   $('treeSearch').addEventListener('keydown',event=>{if(event.key==='Escape'){event.target.value='';treeState.query='';if(treeState.data){renderTopicTree();topicGraph.controller.fit();}}});
   $('treeTopicJump').addEventListener('change',event=>{if(event.target.value)selectGraphTopic(event.target.value,true);});
-  $('treeZoomIn').addEventListener('click',()=>topicGraph.controller?.zoom(1.25));$('treeZoomOut').addEventListener('click',()=>topicGraph.controller?.zoom(.8));$('treeFit').addEventListener('click',()=>topicGraph.controller?.fit());$('treeFocus').addEventListener('click',()=>{if(treeState.data)topicGraph.controller.fit(treeDescendants(treeState.selected).map(topic=>topic.topic_id));});
-  $('treeReset').addEventListener('click',()=>{if(!treeState.data)return;treeState.query='';$('treeSearch').value='';treeState.selected=treeState.data.topics.find(topic=>topic.parent_id===null).topic_id;$('treeTopicJump').value=treeState.selected;renderTopicTree();renderTreeDetail();topicGraph.controller.fit();});
+  $('treeZoomIn').addEventListener('click',()=>activeTopicGraph().controller?.zoom(1.25));$('treeZoomOut').addEventListener('click',()=>activeTopicGraph().controller?.zoom(.8));$('treeFit').addEventListener('click',()=>activeTopicGraph().controller?.fit());$('treeFocus').addEventListener('click',()=>{if(treeState.data)activeTopicGraph().controller?.fit(treeDescendants(treeState.selected).map(topic=>topic.topic_id));});
+  $('treeReset').addEventListener('click',()=>{if(!treeState.data)return;treeState.query='';$('treeSearch').value='';treeState.selected=treeState.data.topics.find(topic=>topic.parent_id===null).topic_id;$('treeTopicJump').value=treeState.selected;renderTopicTree();renderTreeDetail();activeTopicGraph().controller?.fit();});
+  $('treeModeTree').addEventListener('click',()=>setTopicMode('tree'));$('treeModeStars').addEventListener('click',()=>setTopicMode('stars'));
+  $('starPathForm').addEventListener('submit',event=>{event.preventDefault();const query=$('starQuery').value.trim();if(query&&treeState.data)traceStarPath(query);});$('starPathClear').addEventListener('click',clearStarPath);
   $('brainZoomIn').addEventListener('click',()=>brainGraph.controller?.zoom(1.25));$('brainZoomOut').addEventListener('click',()=>brainGraph.controller?.zoom(.8));$('brainFit').addEventListener('click',()=>brainGraph.controller?.fit());
-  let graphResizeTimer;window.addEventListener('resize',()=>{clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(()=>{if(state.view==='tree'){topicGraph.controller?.resize();brainGraph.controller?.resize();}},120);});
+  let graphResizeTimer;window.addEventListener('resize',()=>{clearTimeout(graphResizeTimer);graphResizeTimer=setTimeout(()=>{if(state.view==='tree'){topicGraph.controller?.resize();starGraph.controller?.resize();brainGraph.controller?.resize();}},120);});
   $('curatedSearch').addEventListener('input',renderCurated);
   $('planMonthFilter').addEventListener('change',event=>{planFilters.month=event.target.value;renderPlanWeeks();});
   $('planStatusFilter').addEventListener('change',event=>{planFilters.status=event.target.value;renderPlanWeeks();});

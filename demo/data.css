@@ -184,3 +184,50 @@
 .simple-weeks{list-style:none;margin:0;padding:0 0 12px}.simple-week{display:grid;grid-template-columns:48px 100px 1fr;gap:8px;padding:7px 8px;border-top:1px solid #eef1ea;font-size:.92rem}.simple-week-date{color:#66736c}.simple-week-now{background:#e9efdf;border-radius:8px;font-weight:600}
 .progress-quiet{margin:0 0 8px;font-size:.82rem;color:#66736c}.progress-quiet>summary{cursor:pointer;padding:6px 0}
 @media(max-width:850px){.simple-months{grid-template-columns:repeat(2,minmax(0,1fr))}.simple-week{grid-template-columns:44px 90px 1fr}}
+.graph-mode{display:inline-flex;margin-left:auto;border:1px solid #d7e3ce;border-radius:8px;background:#fff;overflow:hidden}
+.graph-toolbar .graph-mode button{border:0;border-radius:0;min-height:32px}
+.graph-toolbar .graph-mode button[aria-pressed=true]{background:#14304a;color:#ffe8a3}
+.star-viewport{background-color:#0b1626;background-image:radial-gradient(ellipse at center,#18344f 0%,#0b1626 60%,#070d18 100%);background-size:auto}
+.star-path{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:12px 25px;background:#0f1d2e;border-bottom:1px solid #22384f}
+.star-path .search-box{flex:1;min-width:220px;height:40px}
+.star-path button[type=submit]{min-height:40px;padding:0 15px;border:0;border-radius:8px;background:#ffd76a;color:#14304a;font-weight:650}
+.star-path button[type=submit]:disabled{opacity:.55}
+.star-path .text-button{color:#9fb3c8;font-size:11px}
+.sky-star{fill:#dfe9ff}
+.star-orbit{fill:none;stroke:#2c4766;stroke-width:1;stroke-dasharray:3 7;vector-effect:non-scaling-stroke}
+.star-edge{stroke:#3d6a8a;stroke-width:1.2;opacity:.75}
+.star-edge.gap{stroke:#a8673a;stroke-dasharray:4 6}
+.star-edge.on-path{stroke:#ffd76a;stroke-width:2.6;opacity:1;stroke-dasharray:none}
+.star-node{cursor:pointer;outline:none}
+.star-core{fill:#7fe0b0;stroke:#d9fff0;stroke-width:1.2}
+.star-node.gap .star-core{fill:#0b1626;stroke:#ffb067;stroke-width:2;stroke-dasharray:3 3}
+.star-node.thin .star-core{fill:#7d8fa5;stroke:#b9c6d6}
+.star-root .star-core{fill:#fff4cf;stroke:#ffd76a;stroke-width:2}
+.star-source{fill:#cfe9ff;opacity:.8}
+.star-label{fill:#dce8f5;font-family:"Segoe UI",Arial,sans-serif;font-size:15px;paint-order:stroke;stroke:#0b1626;stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+.star-label-1{fill:#fff;font-size:17px;font-weight:650}
+.star-node.gap .star-label{fill:#ffc58f}
+.star-node:hover .star-core,.star-node:focus-visible .star-core{stroke:#fff;stroke-width:3}
+.star-node.search-match .star-core{stroke:#ffd76a;stroke-width:3}
+.star-node.selected .star-core{stroke:#ffd76a;stroke-width:4}
+.star-node.selected .star-label{fill:#ffd76a;font-weight:650}
+.star-node.on-path .star-glow{transform-box:fill-box;transform-origin:center;animation:star-pulse 1.8s ease-in-out infinite}
+.star-muted{opacity:.15}
+.star-badge{pointer-events:none}
+.star-badge circle{fill:#ffd76a;stroke:#0b1626;stroke-width:2}
+.star-badge text{fill:#0b1626;font-family:"Segoe UI",Arial,sans-serif;font-size:13px;font-weight:700}
+@keyframes star-pulse{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.35);opacity:1}}
+@media(prefers-reduced-motion:reduce){.star-node.on-path .star-glow{animation:none}}
+.star-path-result{padding:12px 25px 14px;background:#0f1d2e;color:#dce8f5;border-top:1px solid #22384f}
+.star-path-note{margin:0 0 8px;font-size:12px;color:#9fb3c8}
+.star-path-empty{margin:0;font-size:13px;color:#ffc58f}
+.star-path-list{display:grid;gap:9px;margin:0;padding-left:20px;font-size:13px}
+.star-path-question{display:block;color:#fff}
+.star-path-topics{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:2px;color:#9fb3c8;font-size:12px}
+.star-path-topics .text-button{color:#ffd76a;font-size:12px;padding:2px 0}
+.star-key{display:inline-block;width:10px;height:10px;margin-left:8px;border-radius:50%;vertical-align:-1px}
+.star-key:first-child{margin-left:0}
+.star-key.known{background:#2f9e6e}
+.star-key.gap{border:2px dashed #d9822b;width:6px;height:6px}
+.star-key.thin{background:#8a9aac}
+@media(max-width:600px){.star-path{padding:11px 19px}.star-path-result{padding:11px 19px}.graph-mode{margin-left:0}}
