@@ -42,6 +42,12 @@
 Энэ блок нь бүртгэсэн төлөвийн хуулбар; шинэ туршилт, хүний үнэлгээ, дипломын completion хувь үүсгэдэггүй.
 <!-- project-state:end -->
 
+**11.04 (4) — III · Codex-ийн ажлыг Claude шалгаж main-д нийлүүлсэн.**
+- **Шалгасан:** шинэ 68 тест OK; test_demo_server, test_no_llm_mode, test_locked_questions, test_gemini_stt 66 OK (.venv). Хоёр FAIL (test_choice_router expiry, test_demo_framing token) main `1f9f62d` дээр ч ижил унасан (түр worktree). Хоёр шинэ боломж config-оор OFF; disabled үед reception зам `None` буцаана.
+- **Git:** main fast-forward `2274844`, origin/main `2274844` push хийсэн.
+- **Хязгаар:** ресепшний код жинхэнэ сургуулийн хүснэгтгүй; текст цэгцлэх засвар хэмжигдээгүй.
+- **Дараагийн алхам:** Codex: хадгалсан 12 Gemini гаралт дээр цэгцлэлтийг сүлжээгүй хэмжих (хэрэглэгч Codex-д өгнө).
+
 **11.04 (3) — I/II/III · Хүснэгт, хайлтын текст ба бүтэн суитийн тусгаарласан шалгалт.**
 - **Хийсэн:** `feat/reception-offline-normalization-20261104` салбарт CSV/XLSX ресепшний дөрвөн хүснэгт/FAKE fixture, багшийн зөвхөн хуваарьт төлөвийн зам; STT-ийн хайлтын хуулбарын тоо/нэр томьёоны дүрэм; root `python -m unittest discover` ба хувийн өгөгдөлгүй runner нэмсэн. Хоёр шинэ боломж OFF. Кодын локал commit `3ae46a8d1c9626dc6a38a063492f4dbde2c44776`; main-д merge/push хийгээгүй.
 - **Бодит нотолгоо:** шинэ 36+23+9 = 68 тест PASS. Тусгаарласан бүтэн суит **1844 = 1839 PASS / 2 FAIL / 0 ERROR / 3 SKIP**. Хоёр FAIL нь хугацаа дууссан хуучин fixture болон Gemini/token-ийн одоогийн contract-тай зөрсөн legacy fixture; суурь код/тестүүд ижил. Хуучин assertion өөрчлөөгүй. Тайлангийн файл дарахгүй болгосны дараа strict, сүлжээгүй 9 contract дахин PASS. [Команд, унасан тест, хязгаар](../docs/offline-work-20261104.mn.md).
