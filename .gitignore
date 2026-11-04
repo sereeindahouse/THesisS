@@ -523,3 +523,10 @@ __pycache__/
 !/tests/test_stt_normalization_metrics.py
 !/tests/test_stt_normalization_retrieval.py
 !/papers/20-stt-normalization-offline-20261104.mn.md
+
+# Paper reader: built from our Mongolian guide only (no copied paper text).
+!/tools/build_paper_reader.py
+!/tests/test_paper_reader.py
+!/papers/reader/
+/papers/reader/*
+!/papers/reader/RAG01-reader.html
