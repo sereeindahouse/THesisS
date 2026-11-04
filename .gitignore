@@ -512,3 +512,14 @@ __pycache__/
 !/tools/stt_normalization_metrics.py
 !/tests/test_audio_preprocess.py
 !/tests/test_stt_normalization_metrics.py
+
+# Offline normalization evaluator: public code, FAKE tests, aggregate-only paper.
+!/tools/evaluate_stt_normalization.py
+!/tools/analyze_stt_normalization_results.py
+!/tools/stt_normalization_metrics.py
+!/tools/stt_normalization_retrieval.py
+!/tools/stt_normalization_reference.py
+!/tests/test_evaluate_stt_normalization.py
+!/tests/test_stt_normalization_metrics.py
+!/tests/test_stt_normalization_retrieval.py
+!/papers/20-stt-normalization-offline-20261104.mn.md

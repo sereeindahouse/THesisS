@@ -12,6 +12,7 @@ import re
 from score import normalize, score
 from stt_text_normalization import spoken_integer
 from tools.compare_stt_vocabulary import spoken_year
+from website_retrieval import search_terms
 
 MODEL = 'gemini-3.5-transcribe'
 ARMS = ('baseline', 'vocabulary')
@@ -156,15 +157,38 @@ def annotate_reference(reference, critical_slots, terms):
                     labels[index] = dict(category=category, term=None)
             if category == 'name':
                 spans.append(dict(start=start, end=start + len(phrase), category=category, canonical=slot['expected']))
-    canonical_terms = sorted(set(terms), key=lambda value: (-len(_tokens(value)), value.casefold()))
-    for term in canonical_terms:
+    # Initial+given-name entries in the public vocabulary are person names,
+    # even where the old manifest did not declare a separate name slot.
+    for term in terms:
+        if not re.fullmatch(r'[A-ZА-ЯЁӨҮ]\.\s*[A-ZА-ЯЁӨҮ][a-zа-яёөү]+', term):
+            continue
         phrase = _tokens(term)
         for start in _positions(tokens, phrase):
             end = start + len(phrase)
+            if all(labels[i]['category'] == 'other' for i in range(start, end)):
+                for i in range(start, end):
+                    labels[i] = dict(category='name', term=None)
+                spans.append(dict(start=start, end=end, category='name', canonical=term))
+    canonical_terms = sorted(set(terms), key=lambda value: (-len(_tokens(value)), value.casefold()))
+    # Reference-only inflection labels; output text is never used to choose
+    # a canonical term. One scorer token stays one token in this annotation.
+    stems = [tuple(search_terms(token)) for token in tokens]
+    for term in canonical_terms:
+        phrase = _tokens(term)
+        term_stems = [tuple(search_terms(token)) for token in phrase]
+        positions = set(_positions(tokens, phrase))
+        if all(len(stem) == 1 for stem in term_stems):
+            positions.update(i for i in range(len(tokens) - len(phrase) + 1)
+                             if stems[i:i + len(phrase)] == term_stems)
+        for start in sorted(positions):
+            end = start + len(phrase)
             if all(labels[index]['category'] == 'other' for index in range(start, end)):
+                category = ('name' if re.fullmatch(r'[A-ZА-ЯЁӨҮ]\.\s*[A-ZА-ЯЁӨҮ][a-zа-яёөү]+', term)
+                            else 'school_term')
                 for index in range(start, end):
-                    labels[index] = dict(category='school_term', term=term)
-                spans.append(dict(start=start, end=end, category='school_term', canonical=term))
+                    labels[index] = dict(category=category, term=term if category == 'school_term' else None)
+                spans.append(dict(start=start, end=end, category=category,
+                                  canonical=' '.join(tokens[start:end]), canonical_term=term))
     return dict(tokens=tokens, labels=labels, spans=spans,
         names=sorted(set(span['canonical'] for span in spans if span['category'] == 'name')),
         terms=sorted(set(span['canonical'] for span in spans if span['category'] == 'school_term')))
@@ -237,8 +261,11 @@ def score_texts(rows, texts, annotations, terms):
     name_tokens = set(token for annotation in annotations.values() for name in annotation['names'] for token in _tokens(name))
     term_lookup = defaultdict(set)
     for term in terms:
+        if re.fullmatch(r'[A-ZА-ЯЁӨҮ]\.\s*[A-ZА-ЯЁӨҮ][a-zа-яёөү]+', term):
+            continue
         for token in _tokens(term):
-            term_lookup[token].add(term)
+            if len(token) >= 3:
+                term_lookup[token].add(term)
     for row in rows:
         identity, reference = row['id'], row['reference']
         annotation, hypothesis = annotations[identity], texts[identity]
