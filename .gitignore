@@ -474,6 +474,8 @@ __pycache__/
 /data/school-request/*
 !/data/school-request/ШМТК_мэдлэгийн_мод_мэдээлэл_хүсэх.xlsx
 !/tools/build_school_request_xlsx.py
+!/data/school-request/ШМТК_сургуулиас_хэрэгтэй_мэдээлэл.pdf
+!/tools/build_school_data_list.py
 
 # Дипломын LaTeX эх (build гаралт дотоод .gitignore-оор хасагдана)
 !/thesis/
