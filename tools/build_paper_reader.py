@@ -1,10 +1,11 @@
-"""Өгүүллийн Монгол хөтчөөс (markdown) нэг файлтай HTML уншигч үүсгэнэ.
+"""Өгүүллийн Монгол хөтчөөс (markdown) нэг HTML уншигч үүсгэнэ.
 
-Зөвхөн манай хөтчийн текстийг харуулна; англи өгүүллийг хуулахгүй, холбоосоор нээнэ.
-Сүлжээ, LLM, гаднын сан ашиглахгүй. Хэрэглэгчийн хариулт/тэмдэглэл зөвхөн хөтчийн
-localStorage-д үлдэнэ; энэ нь «уншсан» гэсэн бүртгэл биш.
+`/reader/<код>` хуудас (reading_room.py) үүнийг хүсэлт бүрд ашиглана; CLI нь зөвхөн
+серверээс гадуур хуулбар хэрэгтэй үед. Зөвхөн манай хөтчийн текстийг харуулна; англи
+өгүүллийг хуулахгүй, холбоосоор нээнэ. Сүлжээ, LLM, гаднын сан ашиглахгүй. Хариулт,
+тэмдэглэл зөвхөн хөтчийн localStorage-д үлдэнэ; энэ нь «уншсан» гэсэн бүртгэл биш.
 
-    .venv/Scripts/python.exe tools/build_paper_reader.py
+    .venv/Scripts/python.exe tools/build_paper_reader.py --out <файл.html>
 """
 from __future__ import annotations
 
@@ -17,7 +18,6 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 GUIDE = ROOT / 'papers/20-RAG01-delgerengui-hotoch-20261104.mn.md'
-OUTPUT = ROOT / 'papers/reader/RAG01-reader.html'
 
 GLOSSARY_TITLE = 'Гол нэр томьёо'
 LINKS_TITLE = 'Манай системтэй холбох'
@@ -157,7 +157,7 @@ class Renderer:
         return ''.join(out)
 
 
-def build(markdown, *, pdf_url, abs_url, link_base=''):
+def build(markdown, *, pdf_url, abs_url, link_base='', home_url=None):
     title, meta, sections = split_sections(markdown)
     find = lambda needle: next((body for heading, body in sections if needle in heading), [])
     glossary = {}
@@ -203,7 +203,8 @@ def build(markdown, *, pdf_url, abs_url, link_base=''):
         pdf=html.escape(pdf_url), abs=html.escape(abs_url), intro=rich.blocks(find(INTRO_TITLE)),
         nav=''.join(nav), articles=''.join(articles), links=link_rows,
         link_notes=''.join(f'<p class="links-limit">{rich.inline(note)}</p>' for note in link_notes),
-        questions=question_cards, notes=note_fields, terms=len(glossary), store=json.dumps(store_key))
+        questions=question_cards, notes=note_fields, terms=len(glossary), store=json.dumps(store_key),
+        home=f'<a href="{html.escape(home_url)}">← Бүх өгүүлэл</a>' if home_url else '')
 
 
 PAGE = '''<!doctype html>
@@ -252,7 +253,7 @@ textarea{{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);bo
 </style>
 </head>
 <body>
-<div class="top"><h1>{title}</h1><a href="{abs}" target="_blank" rel="noopener">arXiv ↗</a><a href="{pdf}" target="_blank" rel="noopener">Англи PDF ↗</a><label><input type="checkbox" id="onlyStarred"> Зөвхөн ★ хэсэг</label><div class="progress" id="progress"></div></div>
+<div class="top">{home}<h1>{title}</h1><a href="{abs}" target="_blank" rel="noopener">arXiv ↗</a><a href="{pdf}" target="_blank" rel="noopener">Англи PDF ↗</a><label><input type="checkbox" id="onlyStarred"> Зөвхөн ★ хэсэг</label><div class="progress" id="progress"></div></div>
 <div class="layout">
 <nav aria-label="Хэсгүүд"><p class="nav-title">ХЭСГҮҮД · ★ заавал унших</p><ol id="toc">{nav}</ol></nav>
 <main id="reader">
@@ -286,7 +287,7 @@ textarea{{width:100%;font:inherit;font-size:13px;border:1px solid var(--line);bo
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('guide', nargs='?', type=Path, default=GUIDE)
-    parser.add_argument('--out', type=Path, default=OUTPUT)
+    parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--pdf', default='https://arxiv.org/pdf/2005.11401')
     parser.add_argument('--abs', default='https://arxiv.org/abs/2005.11401')
     args = parser.parse_args()

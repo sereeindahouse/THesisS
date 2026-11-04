@@ -28,6 +28,8 @@ from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
 from release_runtime import LiveContentRuntime
 from website_retrieval import WebsiteRetriever
 from teacher_media import TeacherMedia, TeacherMediaError
+import code_map
+import reading_room
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
@@ -296,6 +298,29 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.error(404, 'Админ хуудас олдсонгүй.')
                 mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}[file.suffix]
                 return self.send_data(200, file.read_bytes(), mime + '; charset=utf-8')
+            # Study views read repo files live: reading plan + guides, and the Python code map.
+            if path == '/reader' or path.startswith('/reader/'):
+                code = path.removeprefix('/reader').strip('/')
+                try:
+                    if not code:
+                        return self.send_data(200, reading_room.index_page(root).encode('utf-8'), 'text/html; charset=utf-8')
+                    if not re.fullmatch(r'[A-Z]{3}\d{2}', code):
+                        return self.error(404, 'Ийм өгүүллийн хөтөч алга.')
+                    return self.send_data(200, reading_room.guide_page(root, code).encode('utf-8'), 'text/html; charset=utf-8')
+                except KeyError:
+                    return self.error(404, 'Энэ өгүүлэлд Монгол хөтөч хараахан бэлдээгүй.')
+                except (OSError, ValueError, UnicodeDecodeError):
+                    return self.error(503, 'Унших жагсаалт эсвэл хөтчийг уншиж чадсангүй.')
+            if path == '/code-map':
+                file = root / 'demo' / 'code-map.html'
+                if not file.is_file():
+                    return self.error(404, 'Кодын хотын хуудас олдсонгүй.')
+                return self.send_data(200, file.read_bytes(), 'text/html; charset=utf-8')
+            if path == '/api/code-map':
+                try:
+                    return self.send_json(200, code_map.scan(root))
+                except (OSError, ValueError):
+                    return self.error(503, 'Кодын жагсаалтыг уншиж чадсангүй.')
             if path.startswith('/api/admin/'):
                 try:
                     return self.admin_get(path)

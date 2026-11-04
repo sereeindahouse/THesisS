@@ -24,7 +24,7 @@
 | — | Whisper (STT01) | Гол хэсэг | ✅ 11/02 хэрэглэгч уншсан |
 | — | Халх Монгол ASR (STT08) | Гол хэсэг | ✅ 11/02 хэрэглэгч уншсан |
 | W02 | RAG (RAG01) — [arXiv 2005.11401](https://arxiv.org/abs/2005.11401) | Гол хэсэг: 1, 2, 4.1, 4.5, 6 · [хөтөч](../papers/17-RAG01-unshlagyn-hotoch-20261102.mn.md), [дэлгэрэнгүй](../papers/20-RAG01-delgerengui-hotoch-20261104.mn.md) | Одоо |
-| W03 | SQuAD 2.0, хариугүй асуулт (RAG08) | §1–3 | Үлдсэн |
+| W03 | SQuAD 2.0, хариугүй асуулт (RAG08) — [arXiv 1806.03822](https://arxiv.org/abs/1806.03822) | Хураангуй, §1–3 · [дэлгэрэнгүй хөтөч](../papers/22-RAG08-delgerengui-hotoch-20261104.mn.md) | Үлдсэн |
 | W04 | BM25 (RAG02) | Гол хэсэг: 1–3 | Үлдсэн |
 | W05 | 🆕 Bruch, Gai, Ingber — *An Analysis of Fusion Functions for Hybrid Retrieval* ([arXiv 2210.11934](https://arxiv.org/abs/2210.11934)) + RRF (RAG12, 2 хуудас) + тоймын бичвэр | Гол хэсэг | Үлдсэн |
 | W07 | 🆕 Joren нар — *Sufficient Context* (ICLR 2025, [arXiv 2411.06037](https://arxiv.org/abs/2411.06037)) | Хураангуй, 1, тодорхойлолт, гол хүснэгт, дүгнэлт | Үлдсэн |

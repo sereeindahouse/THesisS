@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Кодын хот · THesisS</title>
+<style>
+:root{--night:#0b1626;--panel:#0f1d2e;--line:#22384f;--text:#dce8f5;--muted:#9fb3c8;--gold:#ffd76a;font-family:"Segoe UI",Arial,sans-serif;color:var(--text);background:var(--night)}
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;flex-direction:column}
+.top{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 22px;background:var(--panel);border-bottom:1px solid var(--line)}
+.top h1{margin:0;font-size:17px;color:#fff}.top a{color:var(--gold);font-size:13px;text-decoration:none}
+.stats{font-size:12px;color:var(--muted);flex:1}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 22px;background:#0d1a2a;border-bottom:1px solid var(--line)}
+.tools input[type=search]{flex:1;min-width:200px;height:36px;border-radius:8px;border:1px solid var(--line);background:#081120;color:#fff;padding:0 12px;font:inherit;font-size:13px}
+.tools label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.tools button{height:34px;border-radius:8px;border:1px solid var(--line);background:#132a42;color:var(--text);font:inherit;font-size:12px;padding:0 12px;cursor:pointer}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);align-items:center;flex-wrap:wrap}.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.stage{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:0}
+.view{position:relative;min-height:0;background:radial-gradient(ellipse at 50% 40%,#18344f 0%,#0b1626 65%,#070d18 100%);cursor:grab;touch-action:none}
+.view:active{cursor:grabbing}svg{width:100%;height:100%;display:block;user-select:none}
+aside{background:var(--panel);border-left:1px solid var(--line);padding:18px;overflow:auto}
+aside h2{font-size:15px;margin:0 0 4px;color:#fff;word-break:break-all}aside .sub{font-size:12px;color:var(--muted);margin:0 0 12px}
+aside p.doc{font-size:13px;line-height:1.55;background:#132a42;border-radius:8px;padding:9px 11px}
+aside h3{font-size:12px;letter-spacing:.06em;color:var(--muted);margin:16px 0 6px}
+aside ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+aside li button{width:100%;text-align:left;background:none;border:0;color:var(--text);font:inherit;font-size:12px;padding:5px 7px;border-radius:6px;cursor:pointer;word-break:break-all}
+aside li button:hover{background:#132a42}.out button{border-left:3px solid var(--gold)}.in button{border-left:3px solid #6fd3ff}
+.hint{font-size:13px;color:var(--muted);line-height:1.6}
+.ground{fill:#11263b;stroke:#24476a;stroke-width:1}.district-label{fill:#9fb3c8;font-size:15px;font-weight:600;paint-order:stroke;stroke:#0b1626;stroke-width:4px}
+.building{cursor:pointer;outline:none}.building.dim{opacity:.16}.building.match .top{stroke:var(--gold);stroke-width:2}
+.building.selected .top{stroke:#fff;stroke-width:2.5}.building:focus-visible .top{stroke:var(--gold);stroke-width:3}
+.edge{fill:none;stroke-width:2;opacity:.9;pointer-events:none}.edge.out{stroke:var(--gold)}.edge.in{stroke:#6fd3ff}
+.error{padding:30px;color:#ffc58f}
+@media(max-width:900px){.stage{grid-template-columns:1fr;grid-template-rows:minmax(380px,1fr) auto}aside{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="top"><h1>Кодын хот</h1><span class="stats" id="stats">Кодыг уншиж байна…</span><a href="/data">← Мэдлэгийн атлас</a><a href="/reader">Өгүүлэл унших</a></div>
+<div class="tools">
+  <input id="query" type="search" placeholder="Файл хайх: rag, stt, server…" autocomplete="off" aria-label="Файл хайх">
+  <label><input id="showTests" type="checkbox"> Тестийг харуулах</label>
+  <button id="fit" type="button">Бүтнээр харах</button>
+  <span class="legend"><span><i style="background:#3aa4a0"></i>I мэдлэг/RAG</span><span><i style="background:#3b7dd8"></i>II дуу</span><span><i style="background:#8a63c9"></i>III систем</span><span>Өнгийг файлын нэрээр тааварласан · өндөр = мөрийн тоо</span></span>
+</div>
+<div class="stage">
+  <div class="view" id="view"><svg id="city" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Кодын хот. Байшин бүр нэг Python файл." tabindex="0"></svg></div>
+  <aside id="panel" aria-live="polite"><p class="hint">Байшин бүр нэг Python файл. Дарвал тэр файл юу хийдэг, хэнийг дууддаг (шар), хэн түүнийг дууддаг (цэнхэр) гарна. Шинэ код бичигдэхэд хуудсыг дахин ачаалахад өөрөө шинэчлэгдэнэ.</p></aside>
+</div>
+<script>
+'use strict';
+(() => {
+  const NS='http://www.w3.org/2000/svg',$=id=>document.getElementById(id),W=46,H=W/2;
+  const colours={I:['#3aa4a0','#2a7a77','#1f5c5a'],II:['#3b7dd8','#2c5fa6','#21477d'],III:['#8a63c9','#694b9a','#4f3874']};
+  const order=['Үндсэн код','Хэрэгслүүд','CORE','Тестүүд'];
+  const state={files:[],byPath:new Map(),incoming:new Map(),selected:null,query:'',tests:false,nodes:new Map(),view:{x:0,y:0,w:1200,h:800},bounds:null};
+  const el=(tag,attrs={},text)=>{const node=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([key,value])=>node.setAttribute(key,String(value)));if(text!=null)node.textContent=text;return node;};
+  const html=(tag,className,text)=>{const node=document.createElement(tag);if(className)node.className=className;if(text!=null)node.textContent=text;return node;};
+  const iso=(gx,gy)=>({x:(gx-gy)*W/2,y:(gx+gy)*H/2});
+  const height=lines=>8+Math.sqrt(lines)*3.2;
+
+  function layout() {
+    const visible=state.files.filter(file=>state.tests||file.district!=='Тестүүд'),groups=new Map();
+    visible.forEach(file=>{if(!groups.has(file.district))groups.set(file.district,[]);groups.get(file.district).push(file);});
+    const names=[...groups.keys()].sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99));
+    let offset=0;const districts=[],buildings=[];
+    names.forEach(name=>{const files=groups.get(name).sort((a,b)=>b.lines-a.lines),cols=Math.ceil(Math.sqrt(files.length));
+      files.forEach((file,index)=>buildings.push({file,gx:offset+index%cols,gy:Math.floor(index/cols)}));
+      districts.push({name,gx:offset,cols,rows:Math.ceil(files.length/cols)});offset+=cols+2;});
+    return {districts,buildings};
+  }
+  function diamond(gx,gy,w,h,lift=0){const c=iso(gx+.5,gy+.5);return [[c.x,c.y-h/2-lift],[c.x+w/2,c.y-lift],[c.x,c.y+h/2-lift],[c.x-w/2,c.y-lift]];}
+  const points=list=>list.map(point=>point.map(value=>value.toFixed(1)).join(',')).join(' ');
+  function draw() {
+    const svg=$('city'),{districts,buildings}=layout();svg.replaceChildren();state.nodes.clear();
+    const scene=el('g'),ground=el('g'),edges=el('g',{id:'edges'}),blocks=el('g');
+    districts.forEach(district=>{const a=iso(district.gx-.3,-.3),b=iso(district.gx+district.cols+.3,-.3),c=iso(district.gx+district.cols+.3,district.rows+.3),d=iso(district.gx-.3,district.rows+.3);
+      ground.append(el('polygon',{points:points([[a.x,a.y],[b.x,b.y],[c.x,c.y],[d.x,d.y]]),'class':'ground'}));
+      const label=iso(district.gx+district.cols/2,district.rows+1.4);ground.append(el('text',{x:label.x,y:label.y,'text-anchor':'middle','class':'district-label'},district.name));});
+    buildings.sort((a,b)=>(a.gx+a.gy)-(b.gx+b.gy)).forEach(item=>{
+      const {file}=item,h=height(file.lines),[light,mid,dark]=colours[file.workstream]||colours.III,w=W*.72,d=H*.72;
+      const top=diamond(item.gx,item.gy,w,d,h),base=diamond(item.gx,item.gy,w,d,0);
+      const group=el('g',{'class':'building',tabindex:0,role:'button','aria-label':`${file.path}, ${file.lines} мөр`});
+      group.append(el('title',{},`${file.path} · ${file.lines} мөр`),
+        el('polygon',{points:points([base[3],base[2],top[2],top[3]]),fill:mid}),
+        el('polygon',{points:points([base[2],base[1],top[1],top[2]]),fill:dark}),
+        el('polygon',{points:points(top),fill:light,'class':'top'}));
+      group.addEventListener('click',()=>{if(!moved)select(file.path);});
+      group.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();select(file.path);}});
+      blocks.append(group);state.nodes.set(file.path,{group,anchor:{x:top[0][0],y:top[0][1]+d/2}});});
+    scene.append(ground,edges,blocks);svg.append(scene);
+    const box=scene.getBBox();state.bounds={x:box.x-40,y:box.y-40,w:box.width+80,h:box.height+80};fit();paint();
+  }
+  function related(path){const file=state.byPath.get(path);return {out:new Set(file?.imports||[]),in:new Set(state.incoming.get(path)||[])};}
+  function paint() {
+    const query=state.query.trim().toLowerCase(),links=state.selected?related(state.selected):null,layer=$('edges');
+    state.nodes.forEach(({group},path)=>{const match=query&&path.toLowerCase().includes(query),near=links&&(path===state.selected||links.out.has(path)||links.in.has(path));
+      group.setAttribute('class',`building${path===state.selected?' selected':''}${match?' match':''}${(query&&!match)||(links&&!near)?' dim':''}`);});
+    layer?.replaceChildren();if(!links)return;const from=state.nodes.get(state.selected)?.anchor;if(!from)return;
+    [['out',links.out],['in',links.in]].forEach(([kind,paths])=>paths.forEach(path=>{const to=state.nodes.get(path)?.anchor;if(!to)return;
+      const mid={x:(from.x+to.x)/2,y:Math.min(from.y,to.y)-60-Math.abs(from.x-to.x)*.15};layer.append(el('path',{d:`M ${from.x} ${from.y} Q ${mid.x} ${mid.y} ${to.x} ${to.y}`,'class':`edge ${kind}`}));}));
+  }
+  function select(path) {
+    state.selected=path;const file=state.byPath.get(path),panel=$('panel');panel.replaceChildren();paint();if(!file)return;
+    panel.append(html('h2','',file.path),html('p','sub',`${file.district} · ${file.lines} мөр · ${file.workstream} хэсэг (нэрээр тааварласан)`),html('p','doc',file.doc||'Файлын эхэнд тайлбар (docstring) алга.'));
+    const list=(title,paths,kind)=>{panel.append(html('h3','',`${title} · ${paths.length}`));const ul=html('ul',kind);if(!paths.length)ul.append(html('li','', '—'));
+      paths.forEach(other=>{const li=html('li'),button=html('button','',other);button.type='button';button.addEventListener('click',()=>{if(!state.tests&&other.startsWith('tests/')){state.tests=true;$('showTests').checked=true;draw();}select(other);});li.append(button);ul.append(li);});panel.append(ul);};
+    list('ЭНЭ ФАЙЛ ДУУДДАГ',file.imports,'out');list('ЭНЭ ФАЙЛЫГ ДУУДДАГ',state.incoming.get(path)||[],'in');
+  }
+  function setView(){$('city').setAttribute('viewBox',`${state.view.x} ${state.view.y} ${state.view.w} ${state.view.h}`);}
+  function fit(){const box=state.bounds,rect=$('view').getBoundingClientRect();if(!box||!rect.width)return;const scale=Math.max(box.w/rect.width,box.h/rect.height);
+    state.view={w:rect.width*scale,h:rect.height*scale,x:box.x-(rect.width*scale-box.w)/2,y:box.y-(rect.height*scale-box.h)/2};setView();}
+  let drag=null,moved=false;const view=$('view');
+  view.addEventListener('wheel',event=>{event.preventDefault();const rect=view.getBoundingClientRect(),factor=Math.exp(event.deltaY*.0012),px=state.view.x+(event.clientX-rect.left)/rect.width*state.view.w,py=state.view.y+(event.clientY-rect.top)/rect.height*state.view.h;
+    state.view.w*=factor;state.view.h*=factor;state.view.x=px-(event.clientX-rect.left)/rect.width*state.view.w;state.view.y=py-(event.clientY-rect.top)/rect.height*state.view.h;setView();},{passive:false});
+  view.addEventListener('pointerdown',event=>{drag={x:event.clientX,y:event.clientY,view:{...state.view}};moved=false;});
+  addEventListener('pointermove',event=>{if(!drag)return;const rect=view.getBoundingClientRect(),dx=event.clientX-drag.x,dy=event.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+    state.view.x=drag.view.x-dx/rect.width*state.view.w;state.view.y=drag.view.y-dy/rect.height*state.view.h;setView();});
+  addEventListener('pointerup',()=>{drag=null;setTimeout(()=>{moved=false;},0);});
+  $('query').addEventListener('input',event=>{state.query=event.target.value;paint();});
+  $('query').addEventListener('keydown',event=>{if(event.key!=='Enter')return;const query=state.query.trim().toLowerCase(),hit=[...state.nodes.keys()].find(path=>path.toLowerCase().includes(query));if(hit)select(hit);});
+  $('showTests').addEventListener('change',event=>{state.tests=event.target.checked;if(!state.tests&&state.selected?.startsWith('tests/'))state.selected=null;draw();if(state.selected)select(state.selected);});
+  $('fit').addEventListener('click',fit);addEventListener('resize',fit);
+  fetch('/api/code-map',{headers:{Accept:'application/json'}}).then(response=>response.ok?response.json():Promise.reject(new Error(`HTTP ${response.status}`))).then(data=>{
+    state.files=Array.isArray(data.files)?data.files:[];state.files.forEach(file=>{state.byPath.set(file.path,file);file.imports.forEach(target=>{if(!state.incoming.has(target))state.incoming.set(target,[]);state.incoming.get(target).push(file.path);});});
+    $('stats').textContent=`${state.files.length} Python файл · ${data.edges} импортын холбоос · ${state.files.reduce((sum,file)=>sum+file.lines,0).toLocaleString('mn-MN')} мөр`;draw();
+  }).catch(error=>{$('view').replaceChildren(html('p','error',`Кодын зургийг уншиж чадсангүй. ${error.message}`));$('stats').textContent='';});
+})();
+</script>
+</body>
+</html>
