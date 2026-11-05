@@ -26,7 +26,7 @@ INDEX = '00_ЭНДЭЭС_ЭХЭЛ.md'
 LATEX_LINK = ('01_Диплом', 'LaTeX_бичвэр')
 
 SECTIONS = {
-    '01_Диплом': 'Дипломын бичвэр: LaTeX эх (холбоос, засвар шууд `thesis/`-д орно) ба хамгийн сүүлийн PDF.',
+    '01_Диплом': 'Дипломын бичвэр: LaTeX эх (холбоос, засвар шууд `thesis/`-д орно), хамгийн сүүлийн PDF, системийн бүтэц ба UML зургийн PDF (`tools/export_system_diagrams.py`).',
     '02_Семинар': 'Хамгийн сүүлийн семинарын PPT ба яриа.',
     '03_Сургуульд_өгөх': 'Сургуульд өгөх баримт.',
     '04_Унших': 'Өгүүлэл унших Монгол хөтөч (англи эхтэй хамт уншина).',
@@ -56,6 +56,8 @@ def planned_copies(root: Path):
             plan.append((section, name or source.name, source))
 
     add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_ноорог.pdf')
+    for source in sorted(root.glob('docs/diagrams/*.pdf')):
+        add('01_Диплом', source)
     seminars = sorted(root.glob('CORE/seminar-*'))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*.pptx')))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*Яриа*.md')))
