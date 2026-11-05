@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "new_speakers_confirmed": false,
+  "clips": [
+    {
+      "clip_id": "sp01-q01",
+      "speaker_code": "sp01",
+      "consent": false,
+      "question_id": "Q01",
+      "reference_text": "",
+      "audio_path": "audio/sp01-q01.wav"
+    }
+  ]
+}

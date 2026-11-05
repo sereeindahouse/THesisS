@@ -23,7 +23,9 @@ TEXT_SUFFIXES = {'.py', '.js', '.html', '.css', '.json', '.md', '.txt', '.svg',
 PUBLIC_DIRECTORIES = {'CORE', 'config', 'demo', 'schemas', 'tests', 'tools'}
 NEW_SOURCE_NAMES = {'reception_tables.py', 'stt_text_normalization.py', 'mn_numbers.py'}
 PUBLIC_DATA_INPUTS = {'data/content-draft-v1.json', 'data/content-draft-v2-20261015.json',
-                      'data/content-evidence-v2-20261015.json', 'data/rag-locked-questions-20261102.json'}
+                      'data/content-evidence-v2-20261015.json', 'data/rag-locked-questions-20261102.json',
+                      'data/stt-recording-kit/README.mn.md', 'data/stt-recording-kit/questions.mn.md',
+                      'data/stt-recording-kit/consent.mn.md', 'data/stt-recording-kit/manifest.example.json'}
 
 
 def permitted(name):

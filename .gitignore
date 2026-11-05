@@ -500,6 +500,18 @@ __pycache__/
 !/data/school-request/ШМТК_сургуулиас_хэрэгтэй_мэдээлэл.pdf
 !/tools/build_school_data_list.py
 
+# New-speaker measurement preparation: public code, constructed prompts and FAKE tests.
+!/tools/measure_new_speaker_stt.py
+!/tools/new_speaker_stt_scoring.py
+!/tests/test_measure_new_speaker_stt.py
+!/tests/test_new_speaker_stt_scoring.py
+!/data/stt-recording-kit/
+/data/stt-recording-kit/*
+!/data/stt-recording-kit/README.mn.md
+!/data/stt-recording-kit/questions.mn.md
+!/data/stt-recording-kit/consent.mn.md
+!/data/stt-recording-kit/manifest.example.json
+
 # Дипломын LaTeX эх (build гаралт дотоод .gitignore-оор хасагдана)
 !/thesis/
 
