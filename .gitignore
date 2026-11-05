@@ -476,6 +476,8 @@ __pycache__/
 !/CORE/seminar-2026-11-03/06_*
 !/CORE/seminar-2026-11-03/07_*
 !/CORE/seminar-2026-11-03/08_*
+# 07_* is meant for the speech file; the v5 deck shares the prefix and stays local.
+/CORE/seminar-2026-11-03/07_*.pptx
 !/tools/nmct_slides/
 !/tools/nmct_slides/**
 
