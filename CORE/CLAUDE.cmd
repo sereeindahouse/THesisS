@@ -6,7 +6,7 @@ if exist "%THESIS_CLAUDE%" goto found
 set "THESIS_CLAUDE="
 for /f "delims=" %%C in ('where claude.exe 2^>nul') do if not defined THESIS_CLAUDE set "THESIS_CLAUDE=%%C"
 if defined THESIS_CLAUDE goto found
-echo Claude Code is not installed. Read CORE\CLAUDE-HANDOFF.mn.md.
+echo Claude Code is not installed. Read CORE\THESIS-START.mn.md.
 pause
 exit /b 1
 :found

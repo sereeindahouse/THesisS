@@ -410,6 +410,7 @@ __pycache__/
 # Public, concise project handoff and its deterministic workspace snapshot.
 !/AGENTS.md
 !/CORE/PROJECT-NOTE.mn.md
+!/CORE/PROJECT-REFERENCE.mn.md
 !/tools/sync_project_note.py
 !/tools/compare_stt_candidate.py
 !/tools/evaluate_stt_candidate_rag.py
@@ -438,6 +439,9 @@ __pycache__/
 !/CORE/CLAUDE-HANDOFF.mn.md
 !/CORE/CLAUDE.cmd
 !/tools/claude_context.py
+!/tools/build_my_thesis_folder.py
+!/tests/test_build_my_thesis_folder.py
+!/tests/test_claude_context_brief.py
 !/.claude/skills/thesis-resume/
 /.claude/skills/thesis-resume/*
 !/.claude/skills/thesis-resume/SKILL.md
@@ -545,3 +549,6 @@ __pycache__/
 !/tests/test_reading_room.py
 !/tests/test_code_map.py
 !/papers/*hotoch*.mn.md
+
+# Хэрэглэгчийн нэг хавтас (хувийн хуулбар, LaTeX холбоос) — tools/build_my_thesis_folder.py
+МИНИЙ-ДИПЛОМ/

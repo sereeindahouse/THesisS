@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#90B9F1"
     },
-    "window.title": "[THesisS · II] II · Gemini STT: алдааны шинжилгээ, v2 нэрсийн жагсаалт, аудио цэгцлэлт (токен −58%), т… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · II] II · Шинэ хэлэгчийн manifest runner, 15 асуулт/consent багц, сүлжээгүй fake тестүүд бэл… ${separator} ${dirty}${activeEditorShort}"
   }
 }

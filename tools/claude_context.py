@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -115,12 +116,107 @@ def snapshot(root: Path):
     }
 
 
+WEEK_HEADING = re.compile(r"^### (W\d+) · (\d{4})\.(\d\d)\.(\d\d)–(\d\d)\.(\d\d)")
+ENTRY_HEADING = re.compile(r"^(?:\*\*(\d\d\.\d\d[^*]{0,160})\*\*|#{2,3} (2026\.\d\d\.\d\d[^\n]{0,160}))")
+NOTE_FILES = ("CORE/PROJECT-NOTE.mn.md", "CORE/archive/PROJECT-NOTE-2026-11.mn.md")
+
+
+def _text(root: Path, name: str):
+    try:
+        return (root / name).read_text(encoding="utf-8-sig")
+    except OSError:
+        return ""
+
+
+def current_block(note: str):
+    start, end = "<!-- project-state:start -->", "<!-- project-state:end -->"
+    if start not in note or end not in note:
+        return ""
+    return note.split(start, 1)[1].split(end, 1)[0].strip()
+
+
+def week_section(plan: str, today: date):
+    """Return (this week's section, next week's heading) from the weekly plan."""
+    lines = plan.splitlines()
+    for index, line in enumerate(lines):
+        match = WEEK_HEADING.match(line)
+        if not match:
+            continue
+        year, month, day, end_month, end_day = (int(value) for value in match.groups()[1:])
+        start = date(year, month, day)
+        end = date(year + (end_month < month), end_month, end_day)
+        if start <= today <= end:
+            body = [line]
+            following = ""
+            for later in lines[index + 1:]:
+                if later.startswith("### "):
+                    following = later
+                    break
+                body.append(later)
+            return "\n".join(body).strip(), following
+    return "", ""
+
+
+def reading_rows(plan: str):
+    rows, inside = [], False
+    for line in plan.splitlines():
+        if "Унших дараалал ба төлөв" in line:
+            inside = True
+            continue
+        if inside and line.startswith("|") and not line.startswith("|---"):
+            cells = [re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", cell).strip() for cell in line.strip("|").split("|")]
+            if cells and cells[0] != "7 хоног":
+                rows.append(f"{cells[0]} · {cells[1][:70]} · {cells[-1]}")
+        elif inside and rows and not line.startswith("|"):
+            break
+    return rows
+
+
+def entry_index(root: Path):
+    found = []
+    for name in NOTE_FILES:
+        for line in _text(root, name).splitlines():
+            match = ENTRY_HEADING.match(line)
+            if match:
+                title = (match.group(1) or match.group(2)).strip()
+                found.append(f"{Path(name).name}: {title[:110]}")
+    return found
+
+
+def brief(root: Path, today: date | None = None):
+    """One-screen digest so a new session knows everything recorded without reading every note."""
+    today = today or date.today()
+    plan = _text(root, "CORE/WEEKLY-PLAN-2026-2027.mn.md")
+    week, following = week_section(plan, today)
+    status = git(root, "status", "--short")
+    head = git(root, "log", "-1", "--format=%h %s")
+    folder = root / "МИНИЙ-ДИПЛОМ"
+    parts = [
+        f"# THesisS товчоо — {today.isoformat()}",
+        f"Git: {head.get('value', '?')} · өөрчлөлт: {len(status.get('value', '').splitlines())} файл",
+        "", "## Одоогийн бүртгэл (PROJECT-NOTE)", current_block(_text(root, "CORE/PROJECT-NOTE.mn.md")),
+        "", "## Энэ долоо хоног (WEEKLY-PLAN)", week or "(олдсонгүй)",
+        f"Дараагийнх: {following}" if following else "",
+        "", "## Унших төлөв (✅ = хэрэглэгч өөрөө хэлсэн)", *reading_rows(plan),
+        "", "## Бүх бүртгэлийн гарчиг (дэлгэрэнгүйг grep-ээр хай)", *entry_index(root),
+        "", "## Хэрэглэгчийн нэг хавтас",
+        f"{folder.name}/00_ЭНДЭЭС_ЭХЭЛ.md" if (folder / "00_ЭНДЭЭС_ЭХЭЛ.md").is_file()
+        else "алга — python tools/build_my_thesis_folder.py",
+        "", "Лавлагаа: CORE/THESIS-START.mn.md (хэрэглэгчийн 1 хуудас), CORE/PROJECT-REFERENCE.mn.md (тогтвортой мэдээлэл).",
+    ]
+    return "\n".join(part for part in parts if part is not None)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--brief", action="store_true", help="One-screen Mongolian digest for resuming.")
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
+    if args.brief:
+        print(brief(args.root.resolve()))
+        return
     print(json.dumps(snapshot(args.root.resolve()), ensure_ascii=False, indent=2))
 
 
