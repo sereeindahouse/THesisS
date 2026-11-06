@@ -37,6 +37,11 @@
 - **Тэмдэглэлийн шалгалт:** current/project_note ба workspace title sync хийсэн; `sync_project_note.py --check` зөрүүгүй. Дараах тусгаарласан plan/note/policy/UI-ийн 65 тест PASS; эдгээрийг шинэ 57 тестэд нэмж тооцоогүй.
 <!-- stt-new-speaker-kit-20261105:end -->
 
+**11.06 (5) — III · Codex-ийн ресепшний импортыг Claude шалгаж main-д нийлүүлсэн.**
+- **Хийсэн:** `codex/reception-import-20261106` (d029e63, 1930a9c)-ийн код/тест/docs-ийг merge хийв: `tools/import_school_tables.py` (Монгол загвар → 4 CSV + metadata), `reception_tables.py`-д `rooms.services`, 12 асуултын тест. **Codex тэмдэглэлийн 3 файлд (PROJECT-NOTE, project-progress.json, workspace) Монгол текстийг «????» болгож эвдсэн** — эдгээрт main-ийн хувилбарыг үлдээв (ours).
+- **Нотолгоо:** `unittest tests.test_reception_tables tests.test_import_school_tables tests.test_build_my_thesis_folder` 105 OK. Импортыг 11/06-ны бодит хоосон Excel загвар дээр ажиллуулахад 0 мөр, exit 0; туршилтын гаралтыг `THesisS-устгах-20261106/`-д зөөв.
+- **Хязгаар:** бөглөсөн бодит хүснэгт ирээгүй; ресепшн OFF хэвээр; «одоо» цагийн оролт (`reception_clock`) үлдсэн. Codex-д дараагийн даалгаварт UTF-8-аар бичихийг шаардах.
+
 **11.06 (4) — III · Бодит төлөвийн шалгалт ба Codex-ийн даалгавар.** Олдсон зүйл: 11.06-нд хийсэн сургуулийн Excel загвар нь бэлэн `reception_tables.py`-тай таарахгүй (тэр нь англи 4 хуудас шаарддаг; 36 тест PASS, унтраалттай). Даалгавар: [docs/codex/CODEX-TASK-20261106-reception-import.mn.md](../docs/codex/CODEX-TASK-20261106-reception-import.mn.md) (импорт, салаа `codex/reception-import-20261106`, асаахгүй). Хэрэглэгчид үнэн төлөв: STT v1/v2/цэгцлэлт 22/88 — нарийвчлал сайжраагүй; RAG хайлт top-3 20/20 (хүн хянаагүй багц), хариулт 13/20, эхгүй асуултад 4/10 + 3/9 зохиосон хариу; F1–F3, B, C тэнцээгүй. Санал болгосон W03–W06 төлөвлөгөөг хэрэглэгч хараахан зөвшөөрөөгүй.
 
 **11.06 (3) — III · Багшийн шүүмжээр сургуулийн хүснэгт ба Whisper–Gemini нооргийг дахин хийсэн.** Багш уурласан: модны зураг/өнгөт хүснэгт ойлгомжгүй, ноорог стандарт өгүүлэл шиг биш (хэрэглэгч 11/06).

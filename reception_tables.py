@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 import io
 import json
 from pathlib import Path, PurePosixPath
@@ -24,6 +24,14 @@ SCHEMA = {
     'classes': ('group', 'room'),
     'timetable': ('day', 'time', 'group', 'room', 'teacher'),
 }
+OPTIONAL_SCHEMA = {
+    'rooms': ('purpose', 'department', 'services'),
+    'staff': ('role',),
+    'classes': ('course', 'department', 'teacher'),
+    'timetable': ('subject',),
+}
+MAX_SERVICES = 16
+MAX_SERVICES_CELL = 8192
 MAX_BYTES = 2 * 1024 * 1024
 MAX_ROWS = 5000
 MAX_CELL = 300
@@ -37,6 +45,9 @@ _REL_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}
 
 class ReceptionDataError(ValueError):
     """The whole dataset is rejected; no partially loaded answer is usable."""
+    def __init__(self, message, *, table=None, row_index=None):
+        super().__init__(message)
+        self.table, self.row_index = table, row_index
 
 
 def _key(value):
@@ -73,9 +84,19 @@ def _interval(value):
 
 
 @dataclass(frozen=True)
+class Service:
+    name: str
+    office_hours: str
+    contact: str
+
+
+@dataclass(frozen=True)
 class Room:
     floor: int
     name: str
+    purpose: str = ''
+    department: str = ''
+    services: tuple[Service, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -84,12 +105,16 @@ class Staff:
     department: str
     room: str
     office_hours: str
+    role: str = ''
 
 
 @dataclass(frozen=True)
 class ClassGroup:
     group: str
     room: str
+    course: str = ''
+    department: str = ''
+    teacher: str = ''
 
 
 @dataclass(frozen=True)
@@ -99,6 +124,7 @@ class Lesson:
     group: str
     room: str
     teacher: str
+    subject: str = ''
 
     @property
     def interval(self):
@@ -114,13 +140,30 @@ class ReceptionTables:
     timetable_complete: bool = False
     dataset_label: str = 'Reception tables'
     is_fake: bool = False
+    term_start: date | None = None
+    term_end: date | None = None
+    holidays: tuple[date, ...] = ()
+    calendar_bound: bool = False
+    holidays_reviewed: bool = False
+
+
+def _optional_cell(value, field):
+    if value is None or not str(value).strip():
+        return ''
+    if field == 'services':
+        value = str(value).strip()
+        if len(value) > MAX_SERVICES_CELL:
+            raise ReceptionDataError('Services cell is oversized.')
+        return value
+    return _cell(value)
 
 
 def _rows(values, table):
     if not values:
         raise ReceptionDataError(f'{table}: missing header.')
     header = tuple(str(v).strip() for v in values[0])
-    if len(header) != len(set(header)) or set(header) != set(SCHEMA[table]):
+    if (len(header) != len(set(header)) or not set(SCHEMA[table]).issubset(header)
+            or not set(header).issubset(SCHEMA[table] + OPTIONAL_SCHEMA[table])):
         raise ReceptionDataError(f'{table}: columns must be {", ".join(SCHEMA[table])}.')
     result = []
     for line in values[1:]:
@@ -128,7 +171,8 @@ def _rows(values, table):
             continue
         if len(line) != len(header):
             raise ReceptionDataError(f'{table}: row width does not match its header.')
-        result.append({name: _cell(value) for name, value in zip(header, line)})
+        result.append({name: (_cell(value) if name in SCHEMA[table] else _optional_cell(value, name))
+                       for name, value in zip(header, line)})
         if len(result) > MAX_ROWS:
             raise ReceptionDataError(f'{table}: too many rows.')
     return result
@@ -244,62 +288,159 @@ def _xlsx_tables(path):
         raise ReceptionDataError('Malformed or unreadable XLSX.') from error
 
 
-def _unique(rows, field, table):
-    result = {_key(row[field]) for row in rows}
-    if len(result) != len(rows):
-        raise ReceptionDataError(f'{table}: duplicate {field}.')
-    return result
+def _date_value(value):
+    if not isinstance(value, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', value):
+        raise ReceptionDataError('Calendar dates must be YYYY-MM-DD.')
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise ReceptionDataError('Invalid calendar date.') from error
 
 
-def load_tables(path, *, timetable_complete=False, dataset_label='Reception tables', is_fake=False):
-    """Read four CSV files in a directory, or four named sheets in one XLSX.
+def _metadata(value):
+    if value is None:
+        return False, None, None, (), False, None
+    if (not isinstance(value, dict) or type(value.get('schema_version')) is not int
+            or value['schema_version'] != 1 or type(value.get('timetable_complete')) is not bool
+            or type(value.get('is_fake', False)) is not bool
+            or type(value.get('holidays_reviewed', False)) is not bool):
+        raise ReceptionDataError('Invalid import metadata schema/flags.')
+    start, end = value.get('term_start'), value.get('term_end')
+    if bool(start) != bool(end):
+        raise ReceptionDataError('Both term dates are required together.')
+    start, end = (_date_value(start), _date_value(end)) if start and end else (None, None)
+    if start and start > end:
+        raise ReceptionDataError('Term end precedes its start.')
+    holidays = value.get('holidays', [])
+    if not isinstance(holidays, list) or len(holidays) > 366:
+        raise ReceptionDataError('Invalid holiday list.')
+    holidays = tuple(_date_value(day) for day in holidays)
+    if len(set(holidays)) != len(holidays) or any(start and not start <= day <= end for day in holidays):
+        raise ReceptionDataError('Duplicate or out-of-term holiday.')
+    if value['timetable_complete'] and (not start or not value.get('holidays_reviewed', False)):
+        raise ReceptionDataError('A complete imported schedule requires term dates and reviewed holidays.')
+    label = _cell(value['dataset_label']) if 'dataset_label' in value else None
+    return value['timetable_complete'], start, end, holidays, value.get('is_fake', False), label
 
-    All references and overlaps are checked before the immutable value is
-    returned. CSV/XLSX files are inputs only; this function writes no files.
+
+def validate_table_rows(rows, *, timetable_complete=False, dataset_label='Reception tables',
+                        is_fake=False, metadata=None):
+    """Pure all-or-nothing validation, also used by the school importer.
+
+    ReceptionDataError.table/row_index locate a zero-based data row when known.
     """
     if type(timetable_complete) is not bool or type(is_fake) is not bool:
         raise ReceptionDataError('Dataset metadata flags must be booleans.')
+    complete, term_start, term_end, holidays, metadata_fake, label = _metadata(metadata)
+    if metadata is not None:
+        timetable_complete = timetable_complete and complete
+        is_fake = is_fake or metadata_fake
+        dataset_label = label or dataset_label
     dataset_label = _cell(dataset_label)
-    path = Path(path)
-    try:
-        if path.is_dir():
-            rows = _csv_tables(path)
-        elif path.suffix.casefold() == '.xlsx':
-            rows = _xlsx_tables(path)
-        else:
-            raise ReceptionDataError('Select a CSV directory or an .xlsx workbook.')
-    except OSError as error:
-        raise ReceptionDataError('Reception input could not be read.') from error
-    room_names = _unique(rows['rooms'], 'name', 'rooms')
-    staff_names = _unique(rows['staff'], 'name', 'staff')
-    group_names = _unique(rows['classes'], 'group', 'classes')
-    rooms = []
-    for row in rows['rooms']:
+    normalized = {}
+    for table in SCHEMA:
+        if table not in rows or not isinstance(rows[table], list) or len(rows[table]) > MAX_ROWS:
+            raise ReceptionDataError('Missing or oversized table.', table=table)
+        normalized[table] = []
+        for index, row in enumerate(rows[table]):
+            try:
+                if (not isinstance(row, dict) or not set(SCHEMA[table]).issubset(row)
+                        or not set(row).issubset(SCHEMA[table] + OPTIONAL_SCHEMA[table])):
+                    raise ReceptionDataError('Invalid row fields.')
+                normalized[table].append({field: (_cell(value) if field in SCHEMA[table]
+                    else _optional_cell(value, field)) for field, value in row.items()})
+            except ReceptionDataError as error:
+                raise ReceptionDataError(str(error), table=table, row_index=index) from error
+    rows = normalized
+    def fail(message, table, index):
+        raise ReceptionDataError(message, table=table, row_index=index)
+    def unique(table, field):
+        seen = set()
+        for index, row in enumerate(rows[table]):
+            key = _key(row[field])
+            if key in seen:
+                fail(f'{table}: duplicate {field}.', table, index)
+            seen.add(key)
+        return seen
+    room_names = unique('rooms', 'name')
+    staff_names = unique('staff', 'name')
+    group_names = unique('classes', 'group')
+    rooms, service_names = [], set()
+    for index, row in enumerate(rows['rooms']):
         if not re.fullmatch(r'-?\d{1,2}', row['floor']) or not -5 <= int(row['floor']) <= 99:
-            raise ReceptionDataError('Room floor must be an integer from -5 through 99.')
-        rooms.append(Room(int(row['floor']), row['name']))
+            fail('Room floor must be an integer from -5 through 99.', 'rooms', index)
+        room = dict(row)
+        try:
+            services = json.loads(room.pop('services', '') or '[]')
+            if not isinstance(services, list) or len(services) > MAX_SERVICES:
+                raise ReceptionDataError('Invalid services list.')
+            attached = []
+            for service in services:
+                if not isinstance(service, dict) or set(service) != {'name', 'office_hours', 'contact'}:
+                    raise ReceptionDataError('Invalid service fields.')
+                service = {field: (_optional_cell(value, field) if field == 'contact' else _cell(value))
+                           for field, value in service.items()}
+                if _key(service['name']) in service_names:
+                    raise ReceptionDataError('Duplicate service name.')
+                service_names.add(_key(service['name']))
+                attached.append(Service(**service))
+            rooms.append(Room(int(room.pop('floor')), **room, services=tuple(attached)))
+        except (ReceptionDataError, ValueError, TypeError) as error:
+            fail('Invalid room services: ' + str(error), 'rooms', index)
     for table in ('staff', 'classes', 'timetable'):
-        for row in rows[table]:
+        for index, row in enumerate(rows[table]):
             if _key(row['room']) not in room_names:
-                raise ReceptionDataError(f'{table}: unknown room.')
+                fail(f'{table}: unknown room.', table, index)
+    for index, row in enumerate(rows['classes']):
+        if row.get('course') and (not re.fullmatch(r'[1-9]|10', row['course'])):
+            fail('Class course must be 1 through 10.', 'classes', index)
+        if row.get('teacher') and _key(row['teacher']) not in staff_names:
+            fail('Class teacher is not in staff.', 'classes', index)
     lessons = []
-    for row in rows['timetable']:
+    for index, row in enumerate(rows['timetable']):
         day = _DAY_LOOKUP.get(_key(row['day']))
         if day is None:
-            raise ReceptionDataError('Timetable day must be mon..sun or a Mongolian weekday.')
+            fail('Timetable day must be mon..sun or a Mongolian weekday.', 'timetable', index)
         if _key(row['teacher']) not in staff_names or _key(row['group']) not in group_names:
-            raise ReceptionDataError('Timetable teacher/group is not in staff/classes.')
-        start, end = _interval(row['time'])
+            fail('Timetable teacher/group is not in staff/classes.', 'timetable', index)
+        try:
+            start, end = _interval(row['time'])
+        except ReceptionDataError as error:
+            fail(str(error), 'timetable', index)
         for previous in lessons:
             old_start, old_end = previous.interval
             if (previous.day == _DAYS[day] and start < old_end and old_start < end
                     and any(_key(getattr(previous, field)) == _key(row[field])
                             for field in ('teacher', 'group', 'room'))):
-                raise ReceptionDataError('Timetable contains an overlapping teacher, group or room.')
-        lessons.append(Lesson(_DAYS[day], row['time'], row['group'], row['room'], row['teacher']))
+                fail('Timetable contains an overlapping teacher, group or room.', 'timetable', index)
+        lessons.append(Lesson(**dict(row, day=_DAYS[day])))
     return ReceptionTables(tuple(rooms), tuple(Staff(**row) for row in rows['staff']),
         tuple(ClassGroup(**row) for row in rows['classes']), tuple(lessons),
-        timetable_complete, dataset_label, is_fake)
+        timetable_complete, dataset_label, is_fake, term_start, term_end, holidays, metadata is not None,
+        bool(metadata and metadata.get('holidays_reviewed', False)))
+
+
+def load_tables(path, *, timetable_complete=None, dataset_label='Reception tables', is_fake=False):
+    """Load four CSVs or legacy XLSX, validating optional import calendar metadata."""
+    path, metadata = Path(path), None
+    try:
+        if path.is_dir():
+            rows = _csv_tables(path)
+            meta_path = path / 'import-metadata.json'
+            if meta_path.exists():
+                if not meta_path.resolve().is_relative_to(path.resolve()):
+                    raise ReceptionDataError('Import metadata escapes its dataset directory.')
+                metadata = json.loads(_read_bytes(meta_path).decode('utf-8-sig'))
+        elif path.suffix.casefold() == '.xlsx':
+            rows = _xlsx_tables(path)
+        else:
+            raise ReceptionDataError('Select a CSV directory or an .xlsx workbook.')
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ReceptionDataError('Reception input could not be read.') from error
+    if timetable_complete is None:
+        timetable_complete = metadata.get('timetable_complete', False) if isinstance(metadata, dict) else False
+    return validate_table_rows(rows, timetable_complete=timetable_complete,
+        dataset_label=dataset_label, is_fake=is_fake, metadata=metadata)
 
 
 class ReceptionAnswerPath:
@@ -361,6 +502,13 @@ class ReceptionAnswerPath:
             'reception_time_required': 'Хуваарьт төлөвийг шалгах өдөр, цагийг нэмнэ үү (жишээ: даваа 09:30). Бодит байршлыг батлахгүй.',
             'reception_invalid_time': 'Цагийг 00:00–23:59 хэлбэрээр бичнэ үү.',
             'reception_timetable_incomplete': 'Энэ цагт хичээл бүртгэгдээгүй боловч хуваарь бүрэн гэж батлагдаагүй. Чөлөөтэй эсвэл байршлыг батлахгүй.',
+            'reception_date_required': 'Улирлын хуваарийг шалгах бодит огноо шаардлагатай. Байршлыг батлахгүй.',
+            'reception_calendar_unknown': 'Улирлын огноо эсвэл амралтын мэдээлэл дутуу. Хуваарьт төлөвийг батлахгүй.',
+            'reception_outside_term': 'Энэ огноо импортолсон улиралд багтахгүй. Хичээлтэй эсэхийг батлахгүй.',
+            'reception_holiday': 'Энэ огноо бүртгэлтэй амралтын өдөр. Долоо хоногийн хуваарийг хэрэглэхгүй.',
+            'reception_lookup_missing': 'Шаардсан талбар хүснэгтэд батлагдаагүй байна.',
+            'reception_contact_unknown': 'Энэ албаны нийтэд өгөх холбоо хүснэгтэд батлагдаагүй байна.',
+            'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
         }
         return dict(query=query, answer=answer, reason_code=reason, message=messages.get(reason, ''),
             reception=dict(dataset_label=self.tables.dataset_label if self.tables else None,
@@ -387,10 +535,141 @@ class ReceptionAnswerPath:
                 return None, None
         return room, teacher
 
+    @staticmethod
+    def _extra_match(query):
+        if not isinstance(query, str) or not 0 < len(query) <= 1000:
+            return None
+        text = query.strip().rstrip('?!？.').strip()
+        patterns = (
+            ('office_full', r'(.{1,120}?) хаана байдаг вэ\?\s*Хэдэн цагт ажилладаг вэ'),
+            ('room_floor', r'([^\s?!,;/]{1,120}) тоот хэддүгээр давхарт вэ'),
+            ('office_floor', r'(.{1,120}?) хэддүгээр давхарт вэ'),
+            ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
+            ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
+            ('department', r'(.{1,120}?) тэнхим хаана вэ'),
+            ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
+            ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
+            ('teacher_now', r'(.{1,120}?) багш одоо хичээлтэй юу'),
+            ('class_room', r'(.{1,120}?) анги хаана хичээллэдэг вэ'),
+            ('course_today', r'([1-9]|10)-р курс өнөөдөр хэдэн цагт хичээлтэй вэ'),
+            ('class_teacher', r'(.{1,120}?) ангийн багш хэн бэ'),
+        )
+        if text.casefold() == 'ангийн багш хэн бэ':
+            return 'group_required', ''
+        for intent, pattern in patterns:
+            match = re.fullmatch(pattern, text, re.I)
+            if match:
+                value = match[1]
+                if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', value, re.I):
+                    return None
+                return intent, value
+        return None
+
     def recognizes(self, query):
-        return self.enabled and any(self._match(query))
+        return self.enabled and (any(self._match(query)) or self._extra_match(query) is not None)
+
+    def _calendar_reason(self, now):
+        if not self.tables.calendar_bound:
+            return None
+        if not isinstance(now, datetime):
+            return 'reception_date_required'
+        if (self.tables.term_start is None or self.tables.term_end is None
+                or not self.tables.holidays_reviewed):
+            return 'reception_calendar_unknown'
+        if not self.tables.term_start <= now.date() <= self.tables.term_end:
+            return 'reception_outside_term'
+        if now.date() in self.tables.holidays:
+            return 'reception_holiday'
+        return None
 
     def answer(self, query, *, now=None):
+        if not self.enabled:
+            return None
+        extra = self._extra_match(query)
+        if extra is None:
+            return self._answer_legacy(query, now=now)
+        if self.error or self.tables is None:
+            return self._result(query, None, 'reception_data_unavailable')
+        intent, value = extra
+        prefix = '[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else ''
+        def missing(reason='reception_lookup_missing'):
+            return self._result(query, None, reason)
+        def reply(text, table, reason):
+            return self._result(query, prefix + text, reason, source_table=table)
+        if intent == 'group_required':
+            return missing('reception_group_required')
+        if intent.startswith('office_'):
+            matches = [(room, service) for room in self.tables.rooms for service in room.services
+                       if _key(service.name) == _key(value)]
+            if len(matches) != 1:
+                return missing()
+            room, service = matches[0]
+            if intent == 'office_floor':
+                text = service.name + ': ' + str(room.floor) + '-р давхар.'
+            elif intent == 'office_full':
+                text = service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар. Ажлын цаг: ' + service.office_hours + '.'
+            elif intent == 'office_hours':
+                text = service.name + ' — ажлын цаг: ' + service.office_hours + '.'
+            else:
+                if not service.contact or service.contact in {'—', '-'}:
+                    return missing('reception_contact_unknown')
+                text = service.name + ' — албаны холбоо: ' + service.contact + '.'
+            return reply(text, 'rooms', 'reception_service_lookup')
+        if intent == 'room_floor':
+            return self._answer_legacy(value + ' өрөө хаана вэ?', now=now) | {'query': query}
+        if intent == 'department':
+            # These are affiliated rooms, not proof of a unique department office.
+            matches = [room for room in self.tables.rooms if room.department and
+                       _key(value) in {_key(room.department), _key(room.department) + 'ы'}]
+            if not matches:
+                return missing()
+            return reply('Тэнхимд хамаарах бүртгэлтэй өрөө: ' + '; '.join(
+                room.name + ' (' + str(room.floor) + '-р давхар; ' + (room.purpose or 'зориулалт дутуу') + ')'
+                for room in matches) + '. Тэнхимийн ганц төв байр гэж батлахгүй.', 'rooms', 'reception_department_rooms')
+        if intent.startswith('teacher_'):
+            person = next((person for person in self.tables.staff if _key(person.name) == _key(value)), None)
+            if person is None:
+                return missing('reception_teacher_not_found')
+            if intent == 'teacher_now':
+                result = self._answer_legacy(value + ' багш хаана вэ?', now=now)
+                result['query'] = query
+                if result['answer']:
+                    result['answer'] = 'Хуваариар бол ' + result['answer']
+                return result
+            if intent == 'teacher_hours':
+                return reply(person.name + ' — бүртгэсэн уулзах цаг: ' + person.office_hours
+                             + '. Тэр цагт ирсэн эсэх, байршлыг батлахгүй.', 'staff', 'reception_teacher_hours')
+            room = next(room for room in self.tables.rooms if _key(room.name) == _key(person.room))
+            return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
+                         + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
+        if intent in {'class_room', 'class_teacher'}:
+            group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
+            if group is None or intent == 'class_teacher' and not group.teacher:
+                return missing()
+            if intent == 'class_teacher':
+                return reply(group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '.', 'classes', 'reception_class_teacher')
+            return reply(group.group + ' — бүртгэсэн үндсэн өрөө: ' + group.room
+                         + '. Тухайн хичээлийн өрөө хуваариар өөр байж болно.', 'classes', 'reception_class_room')
+        if intent == 'course_today':
+            reason = self._calendar_reason(now)
+            if reason:
+                return missing(reason)
+            if not isinstance(now, datetime):
+                return missing('reception_date_required')
+            if not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            groups = {_key(group.group) for group in self.tables.classes if group.course == value}
+            if not groups:
+                return missing()
+            lessons = [lesson for lesson in self.tables.timetable if _key(lesson.group) in groups
+                       and lesson.day == _DAYS[now.weekday()]]
+            text = ('; '.join(lesson.group + ': ' + lesson.time for lesson in lessons)
+                    if lessons else 'энэ өдрийн бүрэн хуваарьт хичээл бүртгэгдээгүй')
+            return reply(now.strftime('%Y-%m-%d') + ' — хуваариар бол ' + text
+                         + '. Бодит байршлыг батлахгүй.', 'timetable', 'reception_course_timetable')
+        return None
+
+    def _answer_legacy(self, query, *, now=None):
         if not self.enabled:
             return None
         room, teacher = self._match(query)
@@ -421,6 +700,12 @@ class ReceptionAnswerPath:
             moment = now.strftime('%H:%M')
         else:
             return self._result(query, None, 'reception_time_required')
+        if self.tables.calendar_bound and day and moment:
+            if not isinstance(now, datetime) or weekday != now.weekday():
+                return self._result(query, None, 'reception_date_required')
+        calendar_reason = self._calendar_reason(now)
+        if calendar_reason:
+            return self._result(query, None, calendar_reason)
         own_lessons = [lesson for lesson in self.tables.timetable if _key(lesson.teacher) == _key(person.name)]
         active = any(lesson.day == _DAYS[weekday] and lesson.interval[0] <= minute < lesson.interval[1]
                      for lesson in own_lessons)

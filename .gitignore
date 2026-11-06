@@ -554,5 +554,13 @@ __pycache__/
 !/tests/test_code_map.py
 !/papers/*hotoch*.mn.md
 
+# Reviewed offline school-template importer; filled workbooks/exports stay private.
+!/tools/import_school_tables.py
+!/tests/test_import_school_tables.py
+!/docs/codex/
+/docs/codex/*
+!/docs/codex/RECEPTION-IMPORT-REVIEW-20261106.mn.md
+!/docs/codex/CODEX-TASK-20261106-reception-import.mn.md
+
 # Хэрэглэгчийн нэг хавтас (хувийн хуулбар, LaTeX холбоос) — tools/build_my_thesis_folder.py
 МИНИЙ-ДИПЛОМ/
