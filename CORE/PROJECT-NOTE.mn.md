@@ -37,6 +37,8 @@
 - **Тэмдэглэлийн шалгалт:** current/project_note ба workspace title sync хийсэн; `sync_project_note.py --check` зөрүүгүй. Дараах тусгаарласан plan/note/policy/UI-ийн 65 тест PASS; эдгээрийг шинэ 57 тестэд нэмж тооцоогүй.
 <!-- stt-new-speaker-kit-20261105:end -->
 
+**11.06 (6) — III · Сургуульд өгөх PDF-ийг хуучин жагсаалтын хэлбэрт буцааж, дэлгэрэнгүй болгосон (хэрэглэгч уурласан).** Миний 11.06 (3)-ын хоосон бөглөх маягт буруу байсан; хэрэглэгч хуучин «Хүрээ | Салаа | Сургуулиас хэрэгтэй мэдээлэл» жагсаалтыг л хүссэн. Одоо `tools/build_school_data_list.py` → 2 хуудас PDF: А огт алга (8 салаа), Б дутуу (13), В сайтад бий/шалгах (3); модны 11 хүрээнээс «Мэдээ»-гээс бусад бүгд. Хуудсыг зургаар шалгасан. Excel загвар зөвхөн импортод (`tools/import_school_tables.py`), `МИНИЙ-ДИПЛОМ/03`-т хуулахаа больсон; `test_build_my_thesis_folder` 5/5 OK.
+
 **11.06 (5) — III · Codex-ийн ресепшний импортыг Claude шалгаж main-д нийлүүлсэн.**
 - **Хийсэн:** `codex/reception-import-20261106` (d029e63, 1930a9c)-ийн код/тест/docs-ийг merge хийв: `tools/import_school_tables.py` (Монгол загвар → 4 CSV + metadata), `reception_tables.py`-д `rooms.services`, 12 асуултын тест. **Codex тэмдэглэлийн 3 файлд (PROJECT-NOTE, project-progress.json, workspace) Монгол текстийг «????» болгож эвдсэн** — эдгээрт main-ийн хувилбарыг үлдээв (ours).
 - **Нотолгоо:** `unittest tests.test_reception_tables tests.test_import_school_tables tests.test_build_my_thesis_folder` 105 OK. Импортыг 11/06-ны бодит хоосон Excel загвар дээр ажиллуулахад 0 мөр, exit 0; туршилтын гаралтыг `THesisS-устгах-20261106/`-д зөөв.
