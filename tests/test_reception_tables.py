@@ -12,7 +12,7 @@ from unittest.mock import patch
 import zipfile
 
 from reception_tables import (CONFIG_PATH, MAX_BYTES, ReceptionAnswerPath,
-    ReceptionDataError, SCHEMA, load_tables)
+    ReceptionDataError, SCHEMA, load_tables, validate_table_rows)
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'reception_fake'
 
@@ -308,6 +308,146 @@ class ReceptionConfigurationTests(unittest.TestCase):
                     path = ReceptionAnswerPath.from_config(self.root)
                 self.assertEqual(path.error, 'reception_data_unavailable')
                 load.assert_not_called()
+
+
+class ImportedReceptionSafetyTests(unittest.TestCase):
+    """Constructed records only; never real staff, contact details or dates."""
+    def setUp(self):
+        self.rows = {
+            'rooms': [dict(floor='3', name='FAKE-301', purpose='Зохиомол лаборатори',
+                department='Зохиомол ухаан', services=json.dumps([
+                    dict(name='Зохиомол сан', office_hours='09:00-18:00', contact='fake@example.invalid'),
+                    dict(name='Зохиомол алба', office_hours='10:00-17:00', contact='—')], ensure_ascii=False))],
+            'staff': [dict(name='Зохиомол Хүн', department='Зохиомол ухаан', room='FAKE-301',
+                           office_hours='Даваа 14:00-15:00', role='Багш')],
+            'classes': [dict(group='FAKE-2', room='FAKE-301', course='2', department='Зохиомол ухаан',
+                             teacher='Зохиомол Хүн')],
+            'timetable': [dict(day='mon', time='09:00-10:00', group='FAKE-2', room='FAKE-301',
+                               teacher='Зохиомол Хүн', subject='Зохиомол хичээл')],
+        }
+        self.metadata = dict(schema_version=1, timetable_complete=True, is_fake=True,
+            term_start='2030-01-01', term_end='2030-01-31', holidays=[], holidays_reviewed=True,
+            dataset_label='FAKE calendar')
+
+    def tables(self, **updates):
+        meta = dict(self.metadata, **updates)
+        return validate_table_rows(self.rows, metadata=meta, timetable_complete=True)
+
+    def path(self, **updates):
+        return ReceptionAnswerPath(self.tables(**updates), enabled=True)
+
+    def test_several_services_share_one_unique_immutable_room(self):
+        tables = self.tables()
+        self.assertEqual(len(tables.rooms), 1)
+        self.assertEqual(len(tables.rooms[0].services), 2)
+        self.assertTrue(tables.is_fake)
+        with self.assertRaises(FrozenInstanceError):
+            tables.rooms[0].services[0].contact = 'changed'
+
+    def test_duplicate_service_across_rooms_is_rejected(self):
+        self.rows['rooms'].append(dict(self.rows['rooms'][0], name='FAKE-302'))
+        with self.assertRaisesRegex(ReceptionDataError, 'Duplicate service'):
+            self.tables()
+
+    def test_invalid_services_and_unknown_fields_are_rejected(self):
+        original = self.rows['rooms'][0]['services']
+        for value in ['not json', '{}', '[{}]', json.dumps([dict(name='x', office_hours='x', contact='=A1')])]:
+            with self.subTest(value=value):
+                self.rows['rooms'][0]['services'] = value
+                with self.assertRaises(ReceptionDataError):
+                    self.tables()
+        self.rows['rooms'][0]['services'] = original
+        self.rows['rooms'][0]['secret'] = 'x'
+        with self.assertRaises(ReceptionDataError):
+            self.tables()
+
+    def test_unknown_class_teacher_and_invalid_course_have_row_locator(self):
+        for field, value in [('teacher', 'unknown'), ('course', '2.5'), ('course', '11')]:
+            with self.subTest(field=field, value=value):
+                previous = self.rows['classes'][0][field]
+                self.rows['classes'][0][field] = value
+                with self.assertRaises(ReceptionDataError) as caught:
+                    self.tables()
+                self.assertEqual((caught.exception.table, caught.exception.row_index), ('classes', 0))
+                self.rows['classes'][0][field] = previous
+
+    def test_calendar_metadata_rejects_missing_review_and_invalid_dates(self):
+        for update in [dict(term_start=None), dict(term_end='2029-12-31'),
+                       dict(term_start='2030-02-30'), dict(holidays_reviewed=False),
+                       dict(holidays=['2030-02-01']), dict(holidays=['2030-01-07'] * 2),
+                       dict(schema_version=True), dict(timetable_complete='true')]:
+            with self.subTest(update=update), self.assertRaises(ReceptionDataError):
+                self.tables(**update)
+
+    def test_imported_weekday_without_calendar_date_is_unknown(self):
+        result = self.path().answer('Зохиомол Хүн багш хаана вэ mon 09:30')
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['reason_code'], 'reception_date_required')
+
+    def test_now_question_schedule_prefix_and_no_location(self):
+        result = self.path().answer('Зохиомол Хүн багш одоо хичээлтэй юу?', now=datetime(2030, 1, 7, 9, 30))
+        self.assertTrue(result['answer'].startswith('Хуваариар бол'))
+        self.assertIn('FAKE', result['answer'])
+        self.assertEqual(result['reception']['timetable_status'], 'in_class')
+        self.assertFalse(result['reception']['physical_location_confirmed'])
+        self.assertNotIn('FAKE-301', result['answer'])
+        self.assertNotIn('FAKE-2', result['answer'])
+
+    def test_holiday_overrides_positive_weekly_lesson(self):
+        result = self.path(holidays=['2030-01-07']).answer(
+            'Зохиомол Хүн багш одоо хичээлтэй юу?', now=datetime(2030, 1, 7, 9, 30))
+        self.assertIsNone(result['answer'])
+        self.assertEqual(result['reason_code'], 'reception_holiday')
+
+    def test_outside_term_never_reports_free_or_in_class(self):
+        for moment in [datetime(2029, 12, 31, 9, 30), datetime(2030, 2, 4, 9, 30)]:
+            with self.subTest(moment=moment):
+                result = self.path().answer('Зохиомол Хүн багш одоо хичээлтэй юу?', now=moment)
+                self.assertIsNone(result['answer'])
+                self.assertEqual(result['reason_code'], 'reception_outside_term')
+
+    def test_incomplete_calendar_blocks_even_positive_schedule(self):
+        path = self.path(timetable_complete=False, term_start=None, term_end=None, holidays_reviewed=False)
+        result = path.answer('Зохиомол Хүн багш одоо хичээлтэй юу?', now=datetime(2030, 1, 7, 9, 30))
+        self.assertEqual(result['reason_code'], 'reception_calendar_unknown')
+
+    def test_course_lists_all_groups_and_requires_complete_schedule(self):
+        self.rows['rooms'].append(dict(floor='2', name='FAKE-202'))
+        self.rows['staff'].append(dict(name='Зохиомол Өөр', department='Зохиомол ухаан',
+            room='FAKE-202', office_hours='—'))
+        self.rows['classes'].append(dict(group='FAKE-2B', room='FAKE-202', course='2'))
+        self.rows['timetable'].append(dict(day='mon', time='11:00-12:00', group='FAKE-2B',
+            room='FAKE-202', teacher='Зохиомол Өөр'))
+        result = self.path().answer('2-р курс өнөөдөр хэдэн цагт хичээлтэй вэ?', now=datetime(2030, 1, 7, 8))
+        self.assertIn('FAKE-2: 09:00-10:00', result['answer'])
+        self.assertIn('FAKE-2B: 11:00-12:00', result['answer'])
+        self.assertEqual(self.path(timetable_complete=False).answer(
+            '2-р курс өнөөдөр хэдэн цагт хичээлтэй вэ?', now=datetime(2030, 1, 7, 8))['reason_code'],
+            'reception_timetable_incomplete')
+
+    def test_teacher_office_is_recorded_office_not_presence(self):
+        result = self.path().answer('Зохиомол Хүн багшийн өрөө хаана вэ?')
+        self.assertIn('FAKE-301', result['answer'])
+        self.assertIn('Одоо тэнд байгааг батлахгүй', result['answer'])
+        self.assertFalse(result['reception']['physical_location_confirmed'])
+
+    def test_department_rooms_do_not_claim_unique_headquarters(self):
+        result = self.path().answer('Зохиомол ухааны тэнхим хаана вэ?')
+        self.assertIn('FAKE-301', result['answer'])
+        self.assertIn('Тэнхимийн ганц төв байр гэж батлахгүй', result['answer'])
+
+    def test_exact_class_teacher_and_bare_question_clarify(self):
+        self.assertEqual(self.path().answer('Ангийн багш хэн бэ?')['reason_code'], 'reception_group_required')
+        self.assertIn('Зохиомол Хүн', self.path().answer('FAKE-2 ангийн багш хэн бэ?')['answer'])
+
+    def test_extra_intents_reject_compound_queries_and_partial_teacher(self):
+        for query in ['Зохиомол Хүн багшийн цалин хэд вэ?',
+                      'Зохиомол сан болон Зохиомол алба хэддүгээр давхарт вэ?',
+                      'Зохиомол Хүн багш одоо хичээлтэй юу мөн төлбөр хэд вэ?']:
+            with self.subTest(query=query):
+                self.assertIsNone(self.path().answer(query))
+        self.assertEqual(self.path().answer('Хүн багшийн өрөө хаана вэ?')['reason_code'],
+                         'reception_teacher_not_found')
 
 
 if __name__ == '__main__':
