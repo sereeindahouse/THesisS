@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_date": "2026-11-05",
+  "updated_date": "2026-11-06",
   "target_date": "2027-05-31",
   "scope_label": "10.26-ны шинэ шийдвэр: 11.10-ны зорилго цуцлагдсан. Өнөөдрөөс 2027.05 хүртэлх долоо хоногийн төлөвлөгөө; 5.31 нь төлөвлөлтийн хязгаар, албан хамгаалалтын өдөр биш. Доорх 8 нь инженерийн checklist; нийт дипломын хувь эсвэл чанарын оноо биш.",
   "current_week": "II · Шинэ хэлэгчийн STT хэмжилтийн бэлтгэл бэлэн; бодит Gemini API/шинэ хүний хэмжилт хийгээгүй.",
@@ -2992,11 +2992,11 @@
   },
   "project_note": {
     "schema_version": 1,
-    "updated_date": "2026-11-05",
-    "active_workstream": "II",
+    "updated_date": "2026-11-06",
+    "active_workstream": "III",
     "verified_code_commit": "388d631f93815f71fc92a5ba8cad3c7de0b6f492",
-    "current_focus": "II · Шинэ хэлэгчийн manifest runner, 15 асуулт/consent багц, сүлжээгүй fake тестүүд бэлэн; зөвхөн бэлтгэл, бодит Gemini API 0",
-    "status_label": "Шинэ 57: 56 PASS / 1 SKIP · хамаарах 78: 77 PASS / 1 SKIP · модель/flags хэвээр · шинэ хүний хэмжилт үгүй",
+    "current_focus": "III · Багшийн 11/06 шүүмжээр: сургуульд энгийн хүснэгт (модгүй), Whisper–Gemini дипломын ноорог стандарт өгүүллийн бүтцээр (3–4-р бүлэг)",
+    "status_label": "Сургуулийн PDF 4 х. + Excel · диплом 17 х., undefined ref/cite 0 · bootstrap CI шинэ (сүлжээ 0) · шинэ API/аудио 0",
     "workstreams": [
       {
         "id": "I",

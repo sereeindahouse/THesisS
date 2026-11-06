@@ -21,14 +21,14 @@
       "**/CORE/website/snapshots": true
     },
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#203F70",
+      "titleBar.activeBackground": "#44316A",
       "titleBar.activeForeground": "#FFFFFF",
-      "titleBar.inactiveBackground": "#24354F",
+      "titleBar.inactiveBackground": "#342C46",
       "titleBar.inactiveForeground": "#E0DFE8",
-      "statusBar.background": "#203F70",
+      "statusBar.background": "#44316A",
       "statusBar.foreground": "#FFFFFF",
-      "activityBar.activeBorder": "#90B9F1"
+      "activityBar.activeBorder": "#C6A8EF"
     },
-    "window.title": "[THesisS · II] II · Шинэ хэлэгчийн manifest runner, 15 асуулт/consent багц, сүлжээгүй fake тестүүд бэл… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · III] III · Багшийн 11/06 шүүмжээр: сургуульд энгийн хүснэгт (модгүй), Whisper–Gemini дипломы… ${separator} ${dirty}${activeEditorShort}"
   }
 }

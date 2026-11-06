@@ -26,6 +26,7 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         _write(self.root / 'CORE/seminar-2026-11-03/10_Семинар_v7.pptx', 'old', now - 100)
         _write(self.root / 'CORE/seminar-2026-11-03/11_Семинар_v8.pptx', 'new', now - 50)
         _write(self.root / 'data/school-request/list.pdf', 'school')
+        _write(self.root / 'data/school-request/tables.xlsx', 'tables')
         _write(self.root / 'papers/17-RAG01-hotoch.md', 'guide')
         _write(self.root / 'docs/diagrams/UML.pdf', 'uml')
         self.out = self.root / folder.FOLDER
@@ -40,6 +41,7 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.assertTrue((self.out / '02_Семинар/11_Семинар_v8.pptx').is_file())
         self.assertFalse((self.out / '02_Семинар/10_Семинар_v7.pptx').exists())
         self.assertTrue((self.out / '03_Сургуульд_өгөх/list.pdf').is_file())
+        self.assertTrue((self.out / '03_Сургуульд_өгөх/tables.xlsx').is_file())
         self.assertTrue((self.out / '01_Диплом/UML.pdf').is_file())
         index = (self.out / folder.INDEX).read_text(encoding='utf-8')
         self.assertIn('CORE/THESIS-START.mn.md', index)

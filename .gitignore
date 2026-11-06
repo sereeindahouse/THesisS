@@ -505,6 +505,8 @@ __pycache__/
 !/tools/build_school_request_xlsx.py
 !/data/school-request/ШМТК_сургуулиас_хэрэгтэй_мэдээлэл.pdf
 !/tools/build_school_data_list.py
+!/data/school-request/ШМТК_сургуульд_өгөх_хүснэгт.xlsx
+!/tools/bootstrap_stt_1030.py
 
 # New-speaker measurement preparation: public code, constructed prompts and FAKE tests.
 !/tools/measure_new_speaker_stt.py

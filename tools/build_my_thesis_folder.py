@@ -61,8 +61,9 @@ def planned_copies(root: Path):
     seminars = sorted(root.glob('CORE/seminar-*'))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*.pptx')))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*Яриа*.md')))
-    for source in sorted(root.glob('data/school-request/*.pdf')):
-        add('03_Сургуульд_өгөх', source)
+    for pattern in ('*.pdf', '*.xlsx'):
+        for source in sorted(root.glob(f'data/school-request/{pattern}')):
+            add('03_Сургуульд_өгөх', source)
     for source in sorted(root.glob('papers/*hotoch*.md')):
         add('04_Унших', source)
     add('05_Дэвтэр', _newest(p for folder in seminars for p in folder.glob('*Дэвтэр*.md')))

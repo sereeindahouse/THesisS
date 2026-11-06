@@ -1,13 +1,12 @@
-"""Сургуульд өгөх 3 хуудас PDF: мэдлэгийн модны зураг + хэрэгтэй мэдээллийн жагсаалт.
+"""Сургуульд өгөх энгийн хүснэгтүүд (PDF + Excel) ба ресепшний энгийн асуултууд.
 
-Мод `config/knowledge-topics.json`-оос, салаа бүрийн эх байгаа эсэх
-`build_knowledge_tree`-ээс (DB-г зөвхөн уншина). XeLaTeX (MiKTeX) хэрэгтэй.
+Багшийн 2026.11.06-ны заавар: мэдлэгийн модны зураг, өнгөт тайлбаргүй; зөвхөн
+хэрэгтэй мэдээллийн хүснэгт. XeLaTeX (MiKTeX) ба openpyxl хэрэгтэй.
 
     .venv/Scripts/python.exe tools/build_school_data_list.py
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 import shutil
@@ -16,45 +15,52 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'tools'))
-from build_knowledge_tree import build_tree, load_inputs  # noqa: E402
+OUT_DIR = ROOT / 'data/school-request'
+PDF = OUT_DIR / 'ШМТК_сургуулиас_хэрэгтэй_мэдээлэл.pdf'
+XLSX = OUT_DIR / 'ШМТК_сургуульд_өгөх_хүснэгт.xlsx'
+BLANK_ROWS = 6
 
-OUTPUT = ROOT / 'data/school-request/ШМТК_сургуулиас_хэрэгтэй_мэдээлэл.pdf'
-SKIP = {'nmct', 'review-needed'}
-
-# Огт эх байхгүй салаа: заавал хэрэгтэй (А).
-MISSING = [
-    ('Байршил, өрөө', [
-        ('Давхар бүрийн өрөө', 'Өрөө бүрийн дугаар, давхар, зориулалт (анги, лаборатори, алба, багшийн өрөө).'),
-        ('Ресепшн, үйлчилгээний өрөө', 'Ресепшн, сургалтын алба, санхүү, номын сан, цайны газар, эмнэлгийн өрөө, спорт заал: давхар, өрөө, ажлын цаг.'),
-        ('Тэнхимийн өрөө', '6 тэнхим тус бүрийн өрөөний дугаар.'),
-    ]),
-    ('Багш, ажилтан', [
-        ('Тэнхимийн багш, албан тушаал', 'Тэнхим бүрийн багш, ажилтны овог нэр, албан тушаал (нийтэд харуулахыг зөвшөөрсөн хүмүүс).'),
-        ('Багшийн өрөө, уулзах цаг', 'Багш бүрийн өрөө, оюутан уулзах өдөр, цаг.'),
-        ('Хуваариар хичээлтэй эсвэл сул', 'Багшийн нэртэй хичээлийн хуваарь (доорх хуваариас гарна).'),
-    ]),
-    ('Анги, хичээлийн хуваарь', [
-        ('Бүлэг, ангийн өрөө', 'Бүлэг бүрийн нэр (жишээ: КУ-2), курс, тэнхим, үндсэн өрөө, ангийн багш.'),
-        ('Долоо хоногийн хуваарь', 'Энэ улирлын хуваарь: гараг, эхлэх-дуусах цаг, хичээл, багш, өрөө, бүлэг. '
-                                   'Улирлын эхлэх, дуусах өдөр, амралт.'),
-    ]),
+# (хүснэгтийн нэр, тайлбар, баганууд, жишээ мөр)
+TABLES = [
+    ('1. Өрөө', 'Сургуулийн бүх өрөө.',
+     ['Өрөөний дугаар', 'Давхар', 'Зориулалт (анги, лаборатори, алба, багшийн өрөө)', 'Тэнхим'],
+     ['305', '3', 'Компьютерын лаборатори', 'Компьютерын ухаан']),
+    ('2. Алба, үйлчилгээ', 'Сургалтын алба, санхүү, номын сан, цайны газар, эмнэлэг, спорт заал, ресепшн.',
+     ['Алба', 'Давхар', 'Өрөө', 'Ажлын цаг', 'Албаны утас эсвэл имэйл'],
+     ['Номын сан', '2', '210', 'Да–Ба 09:00–18:00', '—']),
+    ('3. Багш, ажилтан', 'Нийтэд харуулахыг зөвшөөрсөн хүмүүс л.',
+     ['Овог нэр', 'Тэнхим', 'Албан тушаал', 'Өрөө', 'Оюутантай уулзах цаг'],
+     ['Б.Бат', 'Компьютерын ухаан', 'Багш', '302', 'Мя 14:00–16:00']),
+    ('4. Анги (бүлэг)', 'Энэ хичээлийн жилийн бүлгүүд.',
+     ['Бүлгийн нэр', 'Курс', 'Тэнхим', 'Үндсэн өрөө', 'Ангийн багш'],
+     ['КУ-2', '2', 'Компьютерын ухаан', '305', 'Б.Бат']),
+    ('5. Хичээлийн хуваарь', 'Энэ улирлын хуваарь. Байгаа Excel хуваарийг шууд өгч болно.',
+     ['Гараг', 'Цаг (эхлэх–дуусах)', 'Хичээл', 'Багш', 'Өрөө', 'Бүлэг'],
+     ['Даваа', '09:00–10:30', 'Програмчлал', 'Б.Бат', '305', 'КУ-2']),
 ]
-# Эх бий боловч дутуу салаа (Б).
-THIN = [
-    ('Оюутны амьдрал', [
-        ('Номын сан', 'Ажлын цаг; нэг удаад хэдэн ном, хэдэн хоног зээлэх журам.'),
-        ('Спортын орчин', 'Заалны ажлын цаг, клуб, секцийн нэр ба цаг.'),
-        ('Суралцах орчин', 'Дотуур байр байгаа эсэх, төлбөр, хаана; цайны газрын цаг.'),
-        ('Оюутны зөвлөл', 'Холбогдох хаяг; дарга, гишүүдийг нийтэд харуулах бол нэр.'),
-    ]),
-    ('Карьер, хамтын ажиллагаа', [
-        ('Дадлага', 'Дадлагын журам: хэзээ, хэдэн долоо хоног, хаана.'),
-        ('Японтой холбоотой хөтөлбөр', 'Хөтөлбөр бүрийн дараагийн бүртгэлийн хугацаа, тэнцэх нөхцөл.'),
-    ]),
-    ('Элсэлт', [('Бүх салаа', '2027 оны элсэлтийн журам гармагц: огноо, төлбөр, шалгалт.')]),
-    ('Холбоо барих', [('—', 'Алба тус бүрийн утас, имэйл (сургалтын алба, санхүү, ресепшн).')]),
-    ('Арга хэмжээ', [('—', 'Энэ хичээлийн жилийн арга хэмжээний хуваарь (нээлттэй хаалганы өдөр, олимпиад г.м.).')]),
+
+DATES = ['Улирал эхлэх өдөр', 'Улирал дуусах өдөр', 'Амралтын өдрүүд']
+
+# (асуулт, аль хүснэгтээс хариулах вэ)
+QUESTIONS = [
+    ('Номын сан хэддүгээр давхарт вэ?', '2'),
+    ('Сургалтын алба хаана байдаг вэ? Хэдэн цагт ажилладаг вэ?', '2'),
+    ('Цайны газар хэдэн цагт ажилладаг вэ?', '2'),
+    ('305 тоот хэддүгээр давхарт вэ?', '1'),
+    ('Компьютерын ухааны тэнхим хаана вэ?', '1'),
+    ('Бат багшийн өрөө хаана вэ?', '3'),
+    ('Бат багш хэзээ оюутантай уулздаг вэ?', '3'),
+    ('Бат багш одоо хичээлтэй юу?', '5 (зөвхөн хуваариар)'),
+    ('КУ-2 анги хаана хичээллэдэг вэ?', '4'),
+    ('2-р курс өнөөдөр хэдэн цагт хичээлтэй вэ?', '5'),
+    ('Санхүүгийн албатай яаж холбогдох вэ?', '2'),
+    ('Ангийн багш хэн бэ?', '4'),
+]
+
+RECEPTION_STAFF = [
+    'Ирсэн хүмүүс танаас хамгийн их юу асуудаг вэ? (5 асуулт)',
+    'Аль асуултад хариулахад хэцүү байдаг вэ?',
+    'Танд ямар жагсаалт байдаг вэ? (өрөө, утас, хуваарь)',
 ]
 
 
@@ -63,96 +69,122 @@ def tex(text):
             .replace('#', r'\#').replace('_', r'\_'))
 
 
-def tree_picture(tree):
-    topics = [t for t in tree['topics'] if t['topic_id'] not in SKIP]
-    frames = [t for t in topics if t['parent_id'] == 'nmct']
-    has = lambda t: any(t['subtree_counts'][k] for k in ('pages', 'facts', 'faqs'))
-    lines = [r'\begin{tikzpicture}[x=24.2mm,y=-1mm,',
-             r'  frame/.style={draw,rounded corners=2pt,align=center,text width=21mm,minimum height=11mm,font=\scriptsize\bfseries},',
-             r'  leaf/.style={draw,rounded corners=1.5pt,align=left,text width=20mm,minimum height=7mm,font=\tiny,inner sep=1.6pt},',
-             r'  ok/.style={fill=okfill,draw=okline}, gap/.style={fill=gapfill,draw=gapline}]',
-             r'\node[draw,fill=rootfill,rounded corners=3pt,font=\normalsize\bfseries,minimum width=80mm,minimum height=10mm]'
-             r' (root) at (5,0) {ШМТК-ийн AI чатбот — мэдлэгийн мод};']
-    for i, frame in enumerate(frames):
-        style = 'ok' if has(frame) else 'gap'
-        lines.append(rf'\node[frame,{style}] (f{i}) at ({i},22) {{{tex(frame["label_mn"])}}};')
-        lines.append(rf'\draw[line] (root.south) -- ++(0,-4) -| (f{i}.north);')
-        children = [t for t in topics if t['parent_id'] == frame['topic_id']]
-        for j, child in enumerate(children):
-            style = 'ok' if has(child) else 'gap'
-            lines.append(rf'\node[leaf,{style}] (f{i}c{j}) at ({i},{40 + j * 11}) {{{tex(child["label_mn"])}}};')
-            lines.append(rf'\draw[line] (f{i}.south) -- (f{i}c{j}.north);' if j == 0 else
-                         rf'\draw[line] (f{i}c{j - 1}.south) -- (f{i}c{j}.north);')
-    lines.append(r'\end{tikzpicture}')
-    return '\n'.join(lines), len(frames), len(topics) - len(frames)
+def latex_table(title, note, columns, example):
+    spec = '|r|' + '|'.join(['X'] * len(columns)) + '|'
+    head = ' & '.join([r'\textbf{№}'] + [rf'\textbf{{{tex(c)}}}' for c in columns])
+    sample = ' & '.join([r'\textit{жишээ}'] + [rf'\textcolor{{gray}}{{\textit{{{tex(v)}}}}}' for v in example])
+    blanks = '\n'.join(rf'{i} & ' + ' & '.join([''] * len(columns)) + r'\\[2.2mm]\hline'
+                       for i in range(1, BLANK_ROWS + 1))
+    return rf'''\par\noindent\begin{{minipage}}{{\linewidth}}
+\subsection*{{{tex(title)}}}
+{{\small {tex(note)}}}\par\vspace{{1mm}}
+\begin{{tabularx}}{{\linewidth}}{{{spec}}}\hline
+\rowcolor{{headfill}}{head}\\\hline
+{sample}\\\hline
+{blanks}
+\end{{tabularx}}
+\end{{minipage}}\par\vspace{{3mm}}
+'''
 
 
-def table(groups):
-    rows = [r'\begin{longtable}{|>{\raggedright\arraybackslash}p{38mm}|>{\raggedright\arraybackslash}p{50mm}|>{\raggedright\arraybackslash}p{168mm}|}\hline\noalign{}',
-            r'\rowcolor{headfill}\textbf{Хүрээ} & \textbf{Салаа} & \textbf{Сургуулиас хэрэгтэй мэдээлэл}\\\hline\endhead']
-    for frame, leaves in groups:
-        for k, (leaf, need) in enumerate(leaves):
-            rows.append(rf'{tex(frame) if k == 0 else ""} & {tex(leaf)} & {tex(need)}\\\hline')
-    rows.append(r'\end{longtable}')
-    return '\n'.join(rows)
-
-
-def document(tree):
-    picture, n_frames, n_leaves = tree_picture(tree)
-    counts = tree['counts']
+def document():
+    tables = '\n'.join(latex_table(*t) for t in TABLES)
+    dates = '\n'.join(rf'{tex(d)} & \\[2.2mm]\hline' for d in DATES)
+    questions = '\n'.join(rf'{i} & {tex(q)} & {tex(t)}\\\hline' for i, (q, t) in enumerate(QUESTIONS, 1))
+    staff = '\n'.join(rf'\item {tex(s)}' for s in RECEPTION_STAFF)
     return rf'''\documentclass[10pt]{{article}}
-\usepackage[a4paper,landscape,margin=12mm]{{geometry}}
+\usepackage[a4paper,landscape,margin=14mm]{{geometry}}
 \usepackage{{fontspec}}
 \IfFontExistsTF{{Arial}}{{\setmainfont{{Arial}}}}{{\setmainfont{{Liberation Sans}}}}
-\usepackage{{tikz,xcolor,longtable,colortbl,array}}
-\definecolor{{okfill}}{{HTML}}{{E2F0D9}}\definecolor{{okline}}{{HTML}}{{548235}}
-\definecolor{{gapfill}}{{HTML}}{{FCE4D6}}\definecolor{{gapline}}{{HTML}}{{C55A11}}
-\definecolor{{rootfill}}{{HTML}}{{DDEBF7}}\definecolor{{headfill}}{{HTML}}{{DDEBF7}}
-\tikzset{{line/.style={{draw=gray!70,thin}}}}
+\usepackage{{xcolor,colortbl,array,tabularx}}
+\definecolor{{headfill}}{{HTML}}{{E7E6E6}}
 \pagestyle{{empty}}\setlength{{\parindent}}{{0pt}}
+\renewcommand{{\arraystretch}}{{1.25}}
 \begin{{document}}
 {{\Large\bfseries ШМТК-ийн AI чатботод сургуулиас хэрэгтэй мэдээлэл}}\hfill{{\small Компьютерын ухааны тэнхимийн төгсөлтийн ажил}}\par
-\vspace{{1mm}}{{\small Чатбот зөвхөн сургуулийн өгсөн мэдээллээс хариулна. Доорх модны {n_frames} хүрээ, {n_leaves} салааны
-\colorbox{{okfill}}{{ногоон}} нь сайтаас мэдээлэлтэй, \colorbox{{gapfill}}{{улбар}} нь мэдээлэл огт алга.
-Одоо сайтаас {counts["pages"]} хуудас, {counts["facts"]} баримт хадгалсан.}}\par\vspace{{3mm}}
-\begin{{center}}{picture}\end{{center}}
+\vspace{{1mm}}{{\small Чатбот ресепшнд ирсэн хүний асуултад зөвхөн эдгээр хүснэгтээс хариулна.
+Хүснэгтийг бөглөх эсвэл байгаа файлаа (Excel, Word, хуваарь) шууд өгөхөд болно.
+Хувийн утас, гэрийн хаяг, оюутны дүн, ирц хэрэггүй.}}\par\vspace{{2mm}}
+{tables}
+\subsection*{{6. Улирлын огноо}}
+\begin{{tabularx}}{{0.6\linewidth}}{{|p{{55mm}}|X|}}\hline
+{dates}
+\end{{tabularx}}
 \newpage
-{{\Large\bfseries А. Огт байхгүй — заавал хэрэгтэй}}\par\vspace{{1mm}}
-{{\small Эдгээр нь сургуулийн сайтад байхгүй тул систем одоо хариулж чадахгүй: «Багш хаана байна?», «Анги хаана вэ?»,
-«Сургалтын алба хэддүгээр давхарт вэ?». Багш одоо хаана байгааг систем зөвхөн хуваариар таамаглаж хэлнэ, хүнийг хянахгүй.}}\par\vspace{{2mm}}
-{table(MISSING)}
-\newpage
-{{\Large\bfseries Б. Сайтад дутуу — боломжтой бол}}\par\vspace{{2mm}}
-{table(THIN)}
-\vspace{{4mm}}
-{{\large\bfseries Хэрхэн өгөх вэ?}}\par\vspace{{1mm}}
-\begin{{itemize}}\setlength{{\itemsep}}{{1pt}}
-\item Байгаа хэлбэрээр нь өгөхөд болно: Excel, Word, PDF эсвэл хуваарийн хуулбар. Шинээр хүснэгт бөглөх шаардлагагүй.
-\item А хэсэг хамгийн чухал. Эхлээд өрөөний жагсаалт ба энэ улирлын хичээлийн хуваарь хангалттай.
-\item Нийтэд харуулахгүй мэдээллийг тэмдэглэнэ үү. Хувийн утас, гэрийн хаяг, оюутны дүн, ирц хэрэггүй.
-\item Хуваарь, өрөө өөрчлөгдвөл шинэ хувилбараа өгнө үү.
-\end{{itemize}}
-\vspace{{3mm}}Холбоо барих: \rule{{70mm}}{{0.4pt}} \qquad Хугацаа: \rule{{40mm}}{{0.4pt}}
+\section*{{Ресепшнд асуух энгийн асуултууд}}
+{{\small Чатбот эдгээр асуултад хариулах ёстой. Хариулт нь баруун баганад заасан хүснэгтээс гарна.
+«Багш одоо хаана?» гэсэн асуултад зөвхөн хуваариар хариулна; багш өрөөндөө байгааг батлахгүй.}}\par\vspace{{2mm}}
+\begin{{tabularx}}{{\linewidth}}{{|r|X|p{{55mm}}|}}\hline
+\rowcolor{{headfill}}\textbf{{№}} & \textbf{{Асуулт}} & \textbf{{Хүснэгт}}\\\hline
+{questions}
+\end{{tabularx}}
+\subsection*{{Ресепшний ажилтнаас асуух}}
+\begin{{enumerate}}\setlength{{\itemsep}}{{1pt}}
+{staff}
+\end{{enumerate}}
+\vspace{{4mm}}Хариуцсан хүн: \rule{{70mm}}{{0.4pt}} \qquad Өгөх хугацаа: \rule{{40mm}}{{0.4pt}}
 \end{{document}}
 '''
 
 
-def main():
-    config = json.loads((ROOT / 'config/knowledge-topics.json').read_text(encoding='utf-8-sig'))
-    tree = build_tree(config, load_inputs(ROOT))
+def build_pdf():
     xelatex = shutil.which('xelatex') or str(Path(os.environ.get('LOCALAPPDATA', '')) /
                                              'Programs/MiKTeX/miktex/bin/x64/xelatex.exe')
     with tempfile.TemporaryDirectory() as work:
         source = Path(work) / 'list.tex'
-        source.write_text(document(tree), encoding='utf-8')
+        source.write_text(document(), encoding='utf-8')
         for _ in range(2):
             run = subprocess.run([xelatex, '-interaction=nonstopmode', '-halt-on-error', source.name],
                                  cwd=work, capture_output=True, text=True, encoding='utf-8', errors='replace')
             if run.returncode:
                 sys.exit(run.stdout[-3000:])
-        OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(Path(work) / 'list.pdf', OUTPUT)
-    print(OUTPUT)
+        shutil.copyfile(Path(work) / 'list.pdf', PDF)
+
+
+def build_xlsx():
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    book = Workbook()
+    book.remove(book.active)
+    bold, head = Font(bold=True), PatternFill('solid', fgColor='E7E6E6')
+    sample_font = Font(italic=True, color='808080')
+    for title, note, columns, example in TABLES:
+        sheet = book.create_sheet(title.split('. ', 1)[1][:31])
+        sheet.append([note])
+        sheet.append(columns)
+        sheet.append(example)
+        for cell in sheet[2]:
+            cell.font, cell.fill = bold, head
+        for cell in sheet[3]:
+            cell.font = sample_font
+        for i, column in enumerate(columns):
+            sheet.column_dimensions[chr(65 + i)].width = max(16, min(45, len(column) + 4))
+        sheet.freeze_panes = 'A3'
+    sheet = book.create_sheet('Улирлын огноо')
+    for row in DATES:
+        sheet.append([row, ''])
+    sheet.column_dimensions['A'].width = 24
+    sheet = book.create_sheet('Ресепшний асуулт')
+    sheet.append(['№', 'Асуулт', 'Хүснэгт'])
+    for cell in sheet[1]:
+        cell.font, cell.fill = bold, head
+    for i, (question, source) in enumerate(QUESTIONS, 1):
+        sheet.append([i, question, source])
+    sheet.column_dimensions['B'].width = 60
+    sheet.column_dimensions['C'].width = 22
+    for row in sheet.iter_rows():
+        for cell in row:
+            cell.alignment = Alignment(wrap_text=True, vertical='top')
+    book.save(XLSX)
+
+
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    build_pdf()
+    build_xlsx()
+    print(PDF)
+    print(XLSX)
 
 
 if __name__ == '__main__':
