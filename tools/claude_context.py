@@ -194,10 +194,11 @@ def brief(root: Path, today: date | None = None):
     parts = [
         f"# THesisS товчоо — {today.isoformat()}",
         f"Git: {head.get('value', '?')} · өөрчлөлт: {len(status.get('value', '').splitlines())} файл",
+        # Long tool output gets cut in the middle (11/07 desktop session lost the ✅ rows), so keep reading status on top.
+        "", "## Унших төлөв (✅ = хэрэглэгч өөрөө хэлсэн)", *reading_rows(plan),
         "", "## Одоогийн бүртгэл (PROJECT-NOTE)", current_block(_text(root, "CORE/PROJECT-NOTE.mn.md")),
         "", "## Энэ долоо хоног (WEEKLY-PLAN)", week or "(олдсонгүй)",
         f"Дараагийнх: {following}" if following else "",
-        "", "## Унших төлөв (✅ = хэрэглэгч өөрөө хэлсэн)", *reading_rows(plan),
         "", "## Бүх бүртгэлийн гарчиг (дэлгэрэнгүйг grep-ээр хай)", *entry_index(root),
         "", "## Хэрэглэгчийн нэг хавтас",
         f"{folder.name}/00_ЭНДЭЭС_ЭХЭЛ.md" if (folder / "00_ЭНДЭЭС_ЭХЭЛ.md").is_file()

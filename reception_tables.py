@@ -20,13 +20,15 @@ import zipfile
 CONFIG_PATH = 'config/reception-tables.json'
 SCHEMA = {
     'rooms': ('floor', 'name'),
-    'staff': ('name', 'department', 'room', 'office_hours'),
+    # Real school lists often lack an office or meeting hours; those stay
+    # optional and are answered as "not recorded", never guessed.
+    'staff': ('name', 'department'),
     'classes': ('group', 'room'),
     'timetable': ('day', 'time', 'group', 'room', 'teacher'),
 }
 OPTIONAL_SCHEMA = {
     'rooms': ('purpose', 'department', 'services'),
-    'staff': ('role',),
+    'staff': ('role', 'room', 'office_hours'),
     'classes': ('course', 'department', 'teacher'),
     'timetable': ('subject',),
 }
@@ -103,8 +105,8 @@ class Room:
 class Staff:
     name: str
     department: str
-    room: str
-    office_hours: str
+    room: str = ''
+    office_hours: str = ''
     role: str = ''
 
 
@@ -145,6 +147,11 @@ class ReceptionTables:
     holidays: tuple[date, ...] = ()
     calendar_bound: bool = False
     holidays_reviewed: bool = False
+
+
+def _recorded(value):
+    """A dash means the school confirmed nothing is recorded."""
+    return bool(value) and value not in {'—', '–', '-'}
 
 
 def _optional_cell(value, field):
@@ -378,8 +385,8 @@ def validate_table_rows(rows, *, timetable_complete=False, dataset_label='Recept
             for service in services:
                 if not isinstance(service, dict) or set(service) != {'name', 'office_hours', 'contact'}:
                     raise ReceptionDataError('Invalid service fields.')
-                service = {field: (_optional_cell(value, field) if field == 'contact' else _cell(value))
-                           for field, value in service.items()}
+                service = {field: (_optional_cell(value, field) if field in {'contact', 'office_hours'}
+                                   else _cell(value)) for field, value in service.items()}
                 if _key(service['name']) in service_names:
                     raise ReceptionDataError('Duplicate service name.')
                 service_names.add(_key(service['name']))
@@ -389,6 +396,8 @@ def validate_table_rows(rows, *, timetable_complete=False, dataset_label='Recept
             fail('Invalid room services: ' + str(error), 'rooms', index)
     for table in ('staff', 'classes', 'timetable'):
         for index, row in enumerate(rows[table]):
+            if table == 'staff' and not row.get('room'):
+                continue
             if _key(row['room']) not in room_names:
                 fail(f'{table}: unknown room.', table, index)
     for index, row in enumerate(rows['classes']):
@@ -409,7 +418,10 @@ def validate_table_rows(rows, *, timetable_complete=False, dataset_label='Recept
             fail(str(error), 'timetable', index)
         for previous in lessons:
             old_start, old_end = previous.interval
-            if (previous.day == _DAYS[day] and start < old_end and old_start < end
+            # One joint session (same slot and subject: English by level, a
+            # shared gym class) may span several groups, teachers and rooms.
+            joint = previous.time == row['time'] and _key(previous.subject) == _key(row.get('subject', ''))
+            if (previous.day == _DAYS[day] and start < old_end and old_start < end and not joint
                     and any(_key(getattr(previous, field)) == _key(row[field])
                             for field in ('teacher', 'group', 'room'))):
                 fail('Timetable contains an overlapping teacher, group or room.', 'timetable', index)
@@ -508,6 +520,8 @@ class ReceptionAnswerPath:
             'reception_holiday': 'Энэ огноо бүртгэлтэй амралтын өдөр. Долоо хоногийн хуваарийг хэрэглэхгүй.',
             'reception_lookup_missing': 'Шаардсан талбар хүснэгтэд батлагдаагүй байна.',
             'reception_contact_unknown': 'Энэ албаны нийтэд өгөх холбоо хүснэгтэд батлагдаагүй байна.',
+            'reception_hours_unknown': 'Ажлын эсвэл уулзах цаг хүснэгтэд бүртгэгдээгүй байна.',
+            'reception_room_unknown': 'Энэ хүний ажлын өрөө хүснэгтэд бүртгэгдээгүй байна.',
             'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
         }
         return dict(query=query, answer=answer, reason_code=reason, message=messages.get(reason, ''),
@@ -542,8 +556,8 @@ class ReceptionAnswerPath:
         text = query.strip().rstrip('?!？.').strip()
         patterns = (
             ('office_full', r'(.{1,120}?) хаана байдаг вэ\?\s*Хэдэн цагт ажилладаг вэ'),
-            ('room_floor', r'([^\s?!,;/]{1,120}) тоот хэддүгээр давхарт вэ'),
-            ('office_floor', r'(.{1,120}?) хэддүгээр давхарт вэ'),
+            ('room_floor', r'([^\s?!,;/]{1,120}) тоот хэддүгээр давхарт (?:байдаг |байна )?вэ'),
+            ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
             ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
             ('department', r'(.{1,120}?) тэнхим хаана вэ'),
@@ -553,6 +567,8 @@ class ReceptionAnswerPath:
             ('class_room', r'(.{1,120}?) анги хаана хичээллэдэг вэ'),
             ('course_today', r'([1-9]|10)-р курс өнөөдөр хэдэн цагт хичээлтэй вэ'),
             ('class_teacher', r'(.{1,120}?) ангийн багш хэн бэ'),
+            # Plain "X хаана вэ?" is claimed only when X is a recorded office or group.
+            ('place_where', r'(.{1,120}?) хаана (?:байдаг|байна|байрладаг)? ?вэ'),
         )
         if text.casefold() == 'ангийн багш хэн бэ':
             return 'group_required', ''
@@ -566,7 +582,36 @@ class ReceptionAnswerPath:
         return None
 
     def recognizes(self, query):
-        return self.enabled and (any(self._match(query)) or self._extra_match(query) is not None)
+        if not self.enabled:
+            return False
+        extra = self._extra_match(query)
+        if extra is not None and extra[0] == 'place_where':
+            return any(self._match(query)) or self._place(extra[1]) is not None
+        return any(self._match(query)) or extra is not None
+
+    def _service(self, value):
+        """(room, service) by exact name, or by a unique shorter name such as
+        «Карьер хөгжлийн төв» for «Гадаад харилцаа, карьер хөгжлийн төв»."""
+        if self.tables is None:
+            return None
+        name = _key(value)
+        pairs = [(room, service) for room in self.tables.rooms for service in room.services]
+        exact = [pair for pair in pairs if _key(pair[1].name) == name]
+        if len(exact) == 1:
+            return exact[0]
+        partial = [pair for pair in pairs if len(name) >= 6 and name in _key(pair[1].name)]
+        return partial[0] if len(partial) == 1 else None
+
+    def _place(self, value):
+        """A recorded office or class group named in a plain location question."""
+        if self.tables is None:
+            return None
+        name = _key(re.sub(r'\s+анги(?:йн)?$', '', value.strip(), flags=re.I))
+        found = self._service(value)
+        if found is not None:
+            return 'office', found[0], found[1]
+        group = next((group for group in self.tables.classes if _key(group.group) == name), None)
+        return ('class', group, None) if group is not None else None
 
     def _calendar_reason(self, now):
         if not self.tables.calendar_bound:
@@ -598,17 +643,34 @@ class ReceptionAnswerPath:
             return self._result(query, prefix + text, reason, source_table=table)
         if intent == 'group_required':
             return missing('reception_group_required')
+        if intent == 'place_where':
+            place = self._place(value)
+            if place is None:
+                # Not a recorded office/group: a room/teacher lookup or the main RAG path.
+                return self._answer_legacy(query, now=now)
+            kind, first, second = place
+            if kind == 'office':
+                return reply(second.name + ': ' + first.name + ' өрөө, ' + str(first.floor) + '-р давхар.',
+                             'rooms', 'reception_service_lookup')
+            return reply(first.group + ' — бүртгэсэн үндсэн өрөө: ' + first.room
+                         + '. Тухайн хичээлийн өрөө хуваариар өөр байж болно.', 'classes', 'reception_class_room')
         if intent.startswith('office_'):
-            matches = [(room, service) for room in self.tables.rooms for service in room.services
-                       if _key(service.name) == _key(value)]
-            if len(matches) != 1:
-                return missing()
-            room, service = matches[0]
+            found = self._service(value)
+            if found is None:
+                code = re.fullmatch(r'(.{1,40}?)\s+өрөө', value.strip())
+                if intent == 'office_floor' and code:
+                    return self._answer_legacy(code[1] + ' өрөө хаана вэ?', now=now) | {'query': query}
+                return None  # not a recorded office ("Сургууль хэдэн цагт…"): main RAG path
+            room, service = found
             if intent == 'office_floor':
                 text = service.name + ': ' + str(room.floor) + '-р давхар.'
             elif intent == 'office_full':
-                text = service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар. Ажлын цаг: ' + service.office_hours + '.'
+                text = (service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар. '
+                        + ('Ажлын цаг: ' + service.office_hours + '.' if _recorded(service.office_hours)
+                           else 'Ажлын цаг хүснэгтэд бүртгэгдээгүй.'))
             elif intent == 'office_hours':
+                if not _recorded(service.office_hours):
+                    return missing('reception_hours_unknown')
                 text = service.name + ' — ажлын цаг: ' + service.office_hours + '.'
             else:
                 if not service.contact or service.contact in {'—', '-'}:
@@ -619,8 +681,10 @@ class ReceptionAnswerPath:
             return self._answer_legacy(value + ' өрөө хаана вэ?', now=now) | {'query': query}
         if intent == 'department':
             # These are affiliated rooms, not proof of a unique department office.
+            def unit(text):
+                return _key(re.sub(r'\s*тэнхим\w*$', '', text.strip(), flags=re.I))
             matches = [room for room in self.tables.rooms if room.department and
-                       _key(value) in {_key(room.department), _key(room.department) + 'ы'}]
+                       unit(value) in {unit(room.department), unit(room.department) + 'ы'}]
             if not matches:
                 return missing()
             return reply('Тэнхимд хамаарах бүртгэлтэй өрөө: ' + '; '.join(
@@ -634,11 +698,16 @@ class ReceptionAnswerPath:
                 result = self._answer_legacy(value + ' багш хаана вэ?', now=now)
                 result['query'] = query
                 if result['answer']:
-                    result['answer'] = 'Хуваариар бол ' + result['answer']
+                    # Avoid "Хуваариар бол Хуваарийн дагуу …" (same qualifier twice).
+                    result['answer'] = 'Хуваариар бол ' + re.sub(r'^Хуваарийн дагуу\s*', '', result['answer'])
                 return result
             if intent == 'teacher_hours':
+                if not _recorded(person.office_hours):
+                    return missing('reception_hours_unknown')
                 return reply(person.name + ' — бүртгэсэн уулзах цаг: ' + person.office_hours
                              + '. Тэр цагт ирсэн эсэх, байршлыг батлахгүй.', 'staff', 'reception_teacher_hours')
+            if not person.room:
+                return missing('reception_room_unknown')
             room = next(room for room in self.tables.rooms if _key(room.name) == _key(person.room))
             return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
                          + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
@@ -663,7 +732,9 @@ class ReceptionAnswerPath:
                 return missing()
             lessons = [lesson for lesson in self.tables.timetable if _key(lesson.group) in groups
                        and lesson.day == _DAYS[now.weekday()]]
-            text = ('; '.join(lesson.group + ': ' + lesson.time for lesson in lessons)
+            # A joint lesson is stored once per teacher/room; list each slot once.
+            slots = list(dict.fromkeys(lesson.group + ': ' + lesson.time for lesson in lessons))
+            text = ('; '.join(slots)
                     if lessons else 'энэ өдрийн бүрэн хуваарьт хичээл бүртгэгдээгүй')
             return reply(now.strftime('%Y-%m-%d') + ' — хуваариар бол ' + text
                          + '. Бодит байршлыг батлахгүй.', 'timetable', 'reception_course_timetable')

@@ -192,6 +192,11 @@ def _table_rows(sheets):
                 _fail(sheet, line, 'Загвараас гадуур бөглөсөн багана байна.')
             row = {mapping[title]: cells.get(i, '') for i, title in columns.items()}
             optional = {'purpose', 'department', 'role', 'contact'}
+            if table == 'staff':
+                # Room and meeting hours are often missing from school lists.
+                optional |= {'room', 'office_hours'}
+            if table == 'services':
+                optional |= {'office_hours'}
             for field, value in row.items():
                 row[field] = (_floor(value, sheet, line) if field == 'floor'
                               else _text(value, sheet, line, optional=field in optional, contact=field == 'contact'))
@@ -304,9 +309,10 @@ def _convert(sheets):
         sheet, rows = parsed[table]
         previous = []
         for line, row in rows:
-            if reception._key(row['room']) not in rooms:
+            if (table != 'staff' or row['room']) and reception._key(row['room']) not in rooms:
                 _fail(sheet, line, 'Өрөөний холбоос өрөө/албаны хүснэгтэд алга байна.')
-            if table in {'classes', 'timetable'} and reception._key(row['teacher']) not in staff:
+            if (table in {'classes', 'timetable'} and (table == 'timetable' or row['teacher'])
+                    and reception._key(row['teacher']) not in staff):
                 _fail(sheet, line, 'Багшийн холбоос ажилтны хүснэгтэд алга байна.')
             if table == 'timetable':
                 if reception._key(row['group']) not in groups:
@@ -314,7 +320,8 @@ def _convert(sheets):
                 start, end = reception._interval(row['time'])
                 for old in previous:
                     a, b = reception._interval(old['time'])
-                    if (row['day'] == old['day'] and start < b and a < end
+                    joint = row['time'] == old['time'] and reception._key(row['subject']) == reception._key(old['subject'])
+                    if (row['day'] == old['day'] and start < b and a < end and not joint
                             and any(reception._key(row[f]) == reception._key(old[f]) for f in ('teacher', 'room', 'group'))):
                         _fail(sheet, line, 'Багш, бүлэг эсвэл өрөөний цаг өмнөх мөртэй давхцаж байна.')
                 previous.append(row)

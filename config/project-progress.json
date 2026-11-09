@@ -2992,11 +2992,11 @@
   },
   "project_note": {
     "schema_version": 1,
-    "updated_date": "2026-11-06",
+    "updated_date": "2026-11-09",
     "active_workstream": "III",
     "verified_code_commit": "388d631f93815f71fc92a5ba8cad3c7de0b6f492",
-    "current_focus": "III · Багшийн 11/06 шүүмжээр: сургуульд энгийн хүснэгт (модгүй), Whisper–Gemini дипломын ноорог стандарт өгүүллийн бүтцээр (3–4-р бүлэг)",
-    "status_label": "Сургуулийн PDF 4 х. + Excel · диплом 17 х., undefined ref/cite 0 · bootstrap CI шинэ (сүлжээ 0) · шинэ API/аудио 0",
+    "current_focus": "III · Хэрэглэгчийн 11/09-ний аудитаар диплом: ресепшнд байрлах туслах гэж гарчиг/үндэслэл, 8 шинэ өгүүлэл, сургуулийн 5 бүлэг",
+    "status_label": "Диплом 28 х., иш 19, undefined ref/cite 0 · шинэ 8 өгүүлэл агент бүтэн уншсан (papers/24) · шинэ API/аудио 0",
     "workstreams": [
       {
         "id": "I",

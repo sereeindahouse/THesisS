@@ -8,6 +8,7 @@ import secrets
 import sqlite3
 import time
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -87,7 +88,9 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
     review = review_service if review_service is not None else ListeningReview(root)
 
     content_policy = ContentUsePolicy(root)
-    rag = rag_service if rag_service is not None else ChatRAG(root, content_policy)
+    # The reception desk is in Ulaanbaatar (UTC+8, no DST): timetable answers need a real date.
+    rag = rag_service if rag_service is not None else ChatRAG(root, content_policy,
+        reception_clock=lambda: datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None))
     llm = _transcription_corrector(root, rag, llm_service)
     clarification_context = clarification_service if clarification_service is not None else ClarificationContext()
     explorer = SourceExplorer(root,content_database=database)

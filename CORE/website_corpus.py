@@ -638,6 +638,12 @@ def collect(destination=SNAPSHOTS, *, max_pages=300, delay=0.3):
                         kind = 'document' if document and document.endswith('.pdf') else 'external_or_excluded'
                         manifest['inventory'].append({'url': urljoin(url, link), 'kind': kind, 'reason': 'linked resource; not crawled as public HTML'})
                 for asset in extracted['assets']:
+                    if asset.strip().casefold().startswith('data:'):
+                        # Inline base64 images (site change, 11/2026) are not links; record
+                        # only a short digest so the manifest stays within release limits.
+                        manifest['inventory'].append({'url': 'data:inline#' + sha256(asset.encode('utf-8', 'replace'))[:16],
+                                                      'kind': 'media', 'reason': 'inline data image on ' + url})
+                        continue
                     manifest['inventory'].append({'url': urljoin(url, asset), 'kind': 'media', 'reason': 'linked media; image/audio/video text not extracted'})
                 print(f'Collected {len(manifest["pages"])} pages: {url} ({len(extracted["text"])} characters)', flush=True)
             except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:

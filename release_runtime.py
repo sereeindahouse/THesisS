@@ -56,7 +56,8 @@ class LiveContentRuntime:
             # Generator has its own bounded concurrency lock. Model weights and
             # provider stay in the project; release data never includes them.
             generator = getattr(self.legacy.rag, 'generator', None)
-            rag = ChatRAG(self.root, self.policy, retriever=retriever, generator=generator)
+            rag = ChatRAG(self.root, self.policy, retriever=retriever, generator=generator,
+                          reception_clock=getattr(self.legacy.rag, 'reception_clock', None))
             explorer = SourceExplorer(self.root, database=website_database, content_database=database)
             bundle = ContentBundle(database, website_database, rag, explorer, ClarificationContext(), active)
             self._current = bundle

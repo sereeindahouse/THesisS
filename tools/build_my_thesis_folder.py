@@ -55,7 +55,9 @@ def planned_copies(root: Path):
         if source is not None and source.is_file():
             plan.append((section, name or source.name, source))
 
-    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_ноорог.pdf')
+    # 11/09: хоёр ноорог — 1) багшид үзүүлэх (main_teacher), 2) ажлын, бүх бүлэг (main).
+    add('01_Диплом', root / 'thesis/main_teacher.pdf', 'Диплом_1_багшид_үзүүлэх.pdf')
+    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_2_ажлын_ноорог.pdf')
     for source in sorted(root.glob('docs/diagrams/*.pdf')):
         add('01_Диплом', source)
     seminars = sorted(root.glob('CORE/seminar-*'))

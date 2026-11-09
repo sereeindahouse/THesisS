@@ -45,7 +45,8 @@ def reading_list(root):
         rows.append({'week': week, 'paper': paper, 'how': how, 'status': status, 'status_note': status_cell,
                      'guide': code})
     upcoming = [row for row in rows if row['status'] == 'later']
-    if upcoming and any(row['status'] == 'current' for row in rows):
+    if upcoming:
+        # After the current paper is marked ✅ there is no «Одоо» row; the first unread one is still next.
         upcoming[0]['status'] = 'next'
     return rows
 

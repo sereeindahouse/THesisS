@@ -565,3 +565,15 @@ __pycache__/
 
 # Хэрэглэгчийн нэг хавтас (хувийн хуулбар, LaTeX холбоос) — tools/build_my_thesis_folder.py
 МИНИЙ-ДИПЛОМ/
+
+# Сургуулийн түүхий файлыг импортын загварт хөрвүүлэх (11/09): код ба FAKE тест л; өгөгдөл runtime/-д
+!/tools/prepare_school_dataset.py
+!/tests/test_prepare_school_dataset.py
+# «Хаанаас авах» чиглүүлэх давхарга (сургалтын алба, 11/09): код, тохиргоо, тест
+!/referral.py
+!/config/referral.json
+!/tests/test_referral.py
+# 9-р сарын Excel хуваарийг импортын загварт нэмэх (11/10)
+!/tools/convert_school_timetable.py
+!/tests/test_convert_school_timetable.py
+!/tools/evaluate_reception_questions.py

@@ -115,7 +115,8 @@ class ReceptionLoaderTests(unittest.TestCase):
     def test_blank_rows_accepted_but_blank_cells_rejected(self):
         self.change('staff', lambda rows: rows.append([]))
         self.assertEqual(len(load_tables(self.csv).staff), 2)
-        self.change('staff', lambda rows: rows[1].__setitem__(2, ''))
+        # Room and hours are optional (often missing in school lists); department is not.
+        self.change('staff', lambda rows: rows[1].__setitem__(1, ''))
         with self.assertRaises(ReceptionDataError):
             load_tables(self.csv)
 
@@ -424,6 +425,28 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
         self.assertEqual(self.path(timetable_complete=False).answer(
             '2-р курс өнөөдөр хэдэн цагт хичээлтэй вэ?', now=datetime(2030, 1, 7, 8))['reason_code'],
             'reception_timetable_incomplete')
+
+    def test_missing_staff_room_and_hours_are_reported_not_guessed(self):
+        self.rows['staff'].append(dict(name='Зохиомол Шинэ', department='Зохиомол ухаан',
+                                       room='', office_hours='', role='Багш'))
+        self.rows['rooms'][0]['services'] = json.dumps([
+            dict(name='Зохиомол сан', office_hours='', contact='—')], ensure_ascii=False)
+        path = self.path()
+        self.assertEqual(path.answer('Зохиомол Шинэ багшийн өрөө хаана вэ?')['reason_code'],
+                         'reception_room_unknown')
+        self.assertEqual(path.answer('Зохиомол Хүн багш хэзээ оюутантай уулздаг вэ?')['reason_code'],
+                         'reception_teacher_hours')
+        self.assertEqual(path.answer('Зохиомол сан хэдэн цагт ажилладаг вэ?')['reason_code'],
+                         'reception_hours_unknown')
+
+    def test_plain_where_question_only_claims_recorded_offices_and_groups(self):
+        path = self.path()
+        self.assertEqual(path.answer('Зохиомол сан хаана байдаг вэ?')['reason_code'], 'reception_service_lookup')
+        self.assertIn('FAKE-301', path.answer('FAKE-2 анги хаана вэ?')['answer'])
+        self.assertIsNone(path.answer('Сургууль хаана вэ?'))
+        self.assertFalse(path.recognizes('Сургууль хаана вэ?'))
+        result = path.answer('Зохиомол ухааны тэнхим хаана вэ?')
+        self.assertEqual(result['reason_code'], 'reception_department_rooms')
 
     def test_teacher_office_is_recorded_office_not_presence(self):
         result = self.path().answer('Зохиомол Хүн багшийн өрөө хаана вэ?')

@@ -20,6 +20,7 @@ from uuid import uuid4
 from reception_tables import ReceptionAnswerPath
 from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
+from referral import attach_referral, load_referral, load_topic_rules
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -348,6 +349,16 @@ COMMON_QUESTION_ALIASES = (
                 r'сургуулийн\s+ут(?:ас|асны\s+дугаар)(?:\s+хэд)?(?:\s+вэ)?'), 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.'),
     (re.compile(r'сургууль(?:ийн)?\s+(?:хаана\s+(?:байрладаг|байдаг|вэ)|байршил\s+хаана)(?:\s+вэ)?|'
                 r'(?:сургуулийн\s+)?хаяг\s+(?:хаана|юу)(?:\s+вэ)?'), 'Сургуулийн хаяг хаана вэ?'),
+    # 11/10: general working hours. Without this the hybrid search chose an
+    # unrelated event time («олимпиад 10:00–12:30») for «Сургууль хэдэн цагт ажилладаг вэ?».
+    (re.compile(r'сургууль(?:ийн)?\s+(?:хэдэн\s+цагт\s+ажилладаг|хэдээс\s+хэд\s+хүртэл\s+ажилладаг|'
+                r'(?:ерөнхий\s+)?ажлын\s+цаг\s+(?:хэд|хэдэн|ямар))(?:\s+вэ)?'), 'Сургуулийн ерөнхий ажлын цаг хэд вэ?'),
+    # A first-year ("1-р курс") qualifier is the default intake on the
+    # admission page; it must not block the stored annual tuition / duration.
+    (re.compile(r'(?:(?:1|нэг)(?:-р|-?рүү)?\s+курс(?:ийн|ын)?\s+)?(?:нэг\s+)?(?:жилийн\s+)?сургалтын\s+төлбөр\s+'
+                r'(?:хэд|хэдэн\s+төгрөг|ямар)(?:\s+вэ)?'), '2026 оны элсэлтийн хуудсанд жилийн сургалтын төлбөр хэд гэж нийтэлсэн бэ?'),
+    (re.compile(r'(?:(?:1|нэг)-р\s+курс(?:ээс|т)\s+элсвэл\s+|хөтөлбөр\s+)?хэдэн\s+жил\s+(?:суралцах|сурах|үргэлжлэх)(?:\s+вэ)?'),
+     '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?'),
 )
 
 
@@ -1302,9 +1313,20 @@ class ChatRAG:
         self.reception = reception if reception is not None else ReceptionAnswerPath.from_config(self.root)
         self.normalizer = normalizer if normalizer is not None else Normalizer.from_config(self.root)
         self.reception_clock = reception_clock
+        # "Where to ask" sentence for unanswered results (training office, 11/09).
+        self.referral = load_referral(self.root)
+        self.topic_rules = load_topic_rules(self.root) if self.referral else []
         self._responses = OrderedDict()
         self._lock = threading.Lock()
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
+
+    def _office_place(self, name):
+        """Room and floor of an office, only from enabled, reviewed reception tables."""
+        tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
+        for room in getattr(tables, 'rooms', ()):
+            if any(service.name == name for service in room.services):
+                return room.name + ' өрөө, ' + str(room.floor) + '-р давхар'
+        return None
 
     def _school_topic_questions(self, database, package_id, *, allow_draft=False):
         """Offer existing usable canonical topics from the same pinned package."""
@@ -1398,6 +1420,7 @@ class ChatRAG:
         if prepared is not None:
             result['query'] = query
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
+        result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
         result['latency_ms'] = round((time.perf_counter() - started) * 1000, 2)
         result['timings_ms'] = {key: round(value, 2) for key, value in timings.items()}
         result['latency_scope'] = 'chat_route_wall_including_policy_retrieval_generation; excludes_http_stt_tts_user_time'

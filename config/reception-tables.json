@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
-  "enabled": false,
-  "reviewed": false,
-  "source": "",
-  "dataset_label": "Сургуулиас хянаж өгөх ресепшний хүснэгт",
+  "enabled": true,
+  "reviewed": true,
+  "reviewed_note_mn": "2026-11-09: хэрэглэгч сургууль нийтэд харуулахыг зөвшөөрсөн гэж хэлсэн. Агент цэгцэлж импортолсон (tools/prepare_school_dataset.py); шалгах жагсаалт МИНИЙ-ДИПЛОМ/school's given dataset/цэгцэлсэн_шалгах/. Өгөгдөл git-д ороогүй. 2026-11-10: 2026-09-11-ний Excel хуваарь нэмсэн (tools/convert_school_timetable.py; 726 хичээл, 4 давхцал сургууль шалгана). Шинэ хуваарь ирэхэд дахин ажиллуулна. Улирал 2026-09-07..2026-12-25, амралт 11-10, 11-26 (жилийн төлөвлөгөөнөөс агент уншсан); timetable_complete=true — туршилтын зорилгоор, хүн шалгаагүй.",
+  "source": "data/reception/school-20261110",
+  "dataset_label": "ШМТК-ийн өгсөн хүснэгт + 2026-09-11 хуваарь (туршилт)",
   "is_fake": false,
-  "timetable_complete": false
+  "timetable_complete": true
 }

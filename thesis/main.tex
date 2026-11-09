@@ -87,20 +87,29 @@
 %---------  Хүснэгт, зургийн жагсаалт
 \newpage
 \listoftab
-\newpage
-\listoffig
+% \newpage
+% \listoffig   % зураг нэмэгдэхэд буцааж асаана (11/07: хоосон хуудас байсан)
 
-%---------  Үндсэн хэсэг
+%---------  Үндсэн хэсэг (IMRaD, 11/07)
 \newpage
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
-\input{Chapters/plan}                    % Ажлын төлөвлөгөө
+% Ажлын төлөвлөгөө стандарт өгүүллийн бүлэг биш (11/07 хэрэглэгч) — дипломд оруулахгүй.
+% Төлөвлөгөө: CORE/WEEKLY-PLAN-2026-2027.mn.md; Chapters/plan.tex файл хадгалагдсан.
+% 11/09: сургуулийн 5 бүлгийн бүтэц (хэрэглэгчийн шийдвэр). Хэлэлцүүлгийг 4.3 ба
+% 5-р бүлэгт нэгтгэсэн; Chapters/Chapter5_Discussion.tex файл хадгалагдсан.
+% 11/09: хоёр ноорог. main.tex = 2-р, ажлын ноорог (бүх бүлэг).
+% main_teacher.tex = 1-р, багшид үзүүлэх ноорог (Chapters/teacher/chapters.tex).
+\ifdefined\TeacherDraft
+\input{Chapters/teacher/chapters}
+\else
 \input{Chapters/Chapter1_Introduction}   % 1. Удиртгал
 \input{Chapters/Chapter2_Literature}     % 2. Онол, өнөөгийн түвшин
 \input{Chapters/Chapter3_Methodology}    % 3. Арга зүй
-\input{Chapters/Chapter4_Results}        % 4. Үр дүн
-\input{Chapters/Chapter5_Conclusion}     %    Дүгнэлт (4-р бүлгийн төгсгөл)
+\input{Chapters/Chapter4_Results}        % 4. Үр дүн ба тайлбар
+\input{Chapters/Chapter5_Conclusion}     % 5. Дүгнэлт, хязгаарлалт
+\fi
 
 %---------  Ном зүй, талархал, хавсралт
 \input{Chapters/Bibliography}

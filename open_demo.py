@@ -136,14 +136,15 @@ def start_or_reuse(root=ROOT, *, port=PORT):
     # A published bundle verifies capture metadata and opens both SQLite files
     # on its first request. Keep the identity checks, with a bounded cold-start
     # budget instead of rejecting our healthy server during that verification.
-    deadline = time.monotonic() + 20
+    # Startup now verifies the sealed release and loads school tables (~10–30 s).
+    deadline = time.monotonic() + 90
     try:
         while time.monotonic() < deadline:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
             try:
-                status = probe_demo(port, timeout=min(8, remaining / 2))
+                status = probe_demo(port, timeout=min(30, remaining / 2))
             except DemoProbeTimeout:
                 # Only our newly launched child gets the remaining cold-start
                 # budget. An unexpected identity still stops immediately.
@@ -160,7 +161,7 @@ def start_or_reuse(root=ROOT, *, port=PORT):
             if process.poll() is not None:
                 raise RuntimeError("Demo сервер эхлэхэд алдаа гарлаа. runtime/demo-server.stderr.log-ийг харна уу.")
             time.sleep(min(0.15, max(0, deadline - time.monotonic())))
-        raise RuntimeError("Demo сервер 20 секундэд бэлэн болсонгүй. runtime/demo-server.stderr.log-ийг харна уу.")
+        raise RuntimeError("Demo сервер 90 секундэд бэлэн болсонгүй. runtime/demo-server.stderr.log-ийг харна уу.")
     except Exception:
         if process.poll() is None:
             process.terminate()  # Only our newly started child; never an unrelated service.
