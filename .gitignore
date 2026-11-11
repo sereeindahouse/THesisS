@@ -479,6 +479,7 @@ __pycache__/
 # Current seminar deck, speech and notebook sheet; slide builder referenced by CLAUDE.md. Older deck versions stay local.
 !/CORE/seminar-2026-11-03/
 /CORE/seminar-2026-11-03/*
+/CORE/seminar-2026-11-17/*
 !/CORE/seminar-2026-11-03/06_*
 !/CORE/seminar-2026-11-03/07_*
 !/CORE/seminar-2026-11-03/08_*
@@ -577,3 +578,9 @@ __pycache__/
 !/tools/convert_school_timetable.py
 !/tests/test_convert_school_timetable.py
 !/tools/evaluate_reception_questions.py
+
+# 11/11: domain-boost comparison (off by default) and the Mongolian thesis style note.
+!/config/knowledge-domains.json
+!/tools/compare_domain_boost.py
+!/tests/test_domain_boost.py
+!/papers/28-mn-thesis-style-20261111.mn.md

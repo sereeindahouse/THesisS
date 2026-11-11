@@ -1,0 +1,53 @@
+% Асуултад хариулах үйл явц — UML идэвхийн диаграмм (TikZ).
+% Эх: docs/diagrams/UML_идэвхийн_диаграмм.pdf (11/06)-ийг хялбарчилсан; ресепшний хүснэгт
+% ба «хэнд, хаана хандах» алхмыг нэмсэн. Байрлалыг (x,y) координатаар өгсөн.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    act/.style={draw, rounded corners=6pt, align=center, text width=4.2cm,
+                minimum height=0.85cm, inner sep=2pt},
+    ext/.style={act, fill=black!8},
+    dec/.style={draw, diamond, aspect=2, minimum width=1.1cm, minimum height=0.55cm, inner sep=0pt},
+    arr/.style={-{Stealth[length=2mm]}, semithick},
+    q/.style={font=\scriptsize\itshape},
+    g/.style={font=\scriptsize, inner sep=1.5pt}]
+
+\node[circle, fill=black, minimum size=3.2mm, inner sep=0pt] (start) at (0,0) {};
+\node[act] (ask)   at (0,-1.0)  {Асуултаа ярих эсвэл бичих};
+\node[dec] (dvoice) at (0,-2.3) {};
+\node[q, anchor=east] at (-0.7,-2.3) {Дуугаар асуусан уу?};
+\node[ext] (stt)   at (5.2,-2.3) {Яриаг текст болгох\\{\scriptsize Gemini 3.5 Transcribe}};
+\node[act] (route) at (0,-3.7)  {Асуултыг чиглүүлэх};
+\node[dec] (dtab)  at (0,-5.0)  {};
+\node[q, anchor=west] at (0.7,-5.0) {Өрөө, анги, хуваарийн асуулт уу?};
+\node[act] (table) at (-5.2,-6.4) {Ресепшний хүснэгтээс мөрийг авах};
+\node[act] (search) at (0,-6.4) {BM25 ба E5-аар хайж,\\RRF-ээр нэгтгэх};
+\node[act] (select) at (0,-7.8) {Дүрмээр хэсэг сонгох};
+\node[act] (guard) at (0,-9.2)  {Эхийн шалгалт хийх};
+\node[dec] (dpass) at (0,-10.5) {};
+\node[q, anchor=east] at (-0.7,-10.5) {Тэнцсэн үү?};
+\node[act] (refer) at (5.2,-10.5) {Хэнд, хаана хандахыг заах};
+\node[act] (answer) at (0,-11.9) {Эхийн үгээр хариулт бүрдүүлэх};
+\node[act] (show)  at (0,-13.3) {Хариулт, эхийг харуулах};
+\node[ext] (tts)   at (0,-14.6) {Хариултыг дуугаар унших\\{\scriptsize Edge TTS}};
+\node[circle, draw, minimum size=4.4mm, inner sep=0pt] (end) at (0,-15.7) {};
+\node[circle, fill=black, minimum size=2.6mm, inner sep=0pt] at (end) {};
+
+\draw[arr] (start) -- (ask);
+\draw[arr] (ask) -- (dvoice);
+\draw[arr] (dvoice) -- node[g, above] {[тийм]} (stt);
+\draw[arr] (dvoice) -- node[g, left] {[үгүй]} (route);
+\draw[arr] (stt.south) |- (route.east);
+\draw[arr] (route) -- (dtab);
+\draw[arr] (dtab.west) -| node[g, above, pos=0.25] {[тийм]} (table.north);
+\draw[arr] (dtab) -- node[g, right] {[үгүй]} (search);
+\draw[arr] (search) -- (select);
+\draw[arr] (select) -- (guard);
+\draw[arr] (table.south) |- (answer.west);
+\draw[arr] (guard) -- (dpass);
+\draw[arr] (dpass) -- node[g, above] {[үгүй]} (refer);
+\draw[arr] (dpass) -- node[g, right] {[тийм]} (answer);
+\draw[arr] (answer) -- (show);
+\draw[arr] (refer.south) |- (show.east);
+\draw[arr] (show) -- (tts);
+\draw[arr] (tts) -- (end);
+\end{tikzpicture}

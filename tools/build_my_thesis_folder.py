@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 FOLDER = 'МИНИЙ-ДИПЛОМ'
 MANIFEST = '.manifest.json'
 INDEX = '00_ЭНДЭЭС_ЭХЭЛ.md'
+KEEP_OLDER = ('02_Семинар/',)
 LATEX_LINK = ('01_Диплом', 'LaTeX_бичвэр')
 
 SECTIONS = {
@@ -55,9 +56,8 @@ def planned_copies(root: Path):
         if source is not None and source.is_file():
             plan.append((section, name or source.name, source))
 
-    # 11/09: хоёр ноорог — 1) багшид үзүүлэх (main_teacher), 2) ажлын, бүх бүлэг (main).
-    add('01_Диплом', root / 'thesis/main_teacher.pdf', 'Диплом_1_багшид_үзүүлэх.pdf')
-    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_2_ажлын_ноорог.pdf')
+    # 11/11: нэг л бичвэр (main); багшид үзүүлэх тусдаа ноорог (main_teacher) хасагдсан.
+    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом.pdf')
     for source in sorted(root.glob('docs/diagrams/*.pdf')):
         add('01_Диплом', source)
     seminars = sorted(root.glob('CORE/seminar-*'))
@@ -114,10 +114,13 @@ def build(root: Path = ROOT):
         rows.append((section, name, source.relative_to(root).as_posix(),
                      datetime.fromtimestamp(source.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
     # An older copy that a newer file replaced: remove it only if the user never touched it.
+    # Earlier seminar decks stay: the user builds each week's deck on the previous ones (11/11).
     for relative, recorded in old.items():
         dest = out / relative
         if relative not in new and dest.is_file():
-            if _stamp(dest) == recorded:
+            if relative.startswith(KEEP_OLDER):
+                new[relative] = recorded
+            elif _stamp(dest) == recorded:
                 dest.unlink()
             else:
                 edited.append(relative)

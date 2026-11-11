@@ -23,6 +23,7 @@ from CORE.website_corpus import readonly, structural_spans
 from CORE.document_corpus import read_document_rows
 from CORE.client_tab_corpus import read_client_tab_rows
 from retrieval_probe import bm25_scores, sha256
+from referral import load_topic_rules, topic_of
 
 ROOT = Path(__file__).resolve().parent
 INDEX_VERSION = 'website-hybrid-v5-complete-physical-boundaries'
@@ -67,6 +68,37 @@ RANKING_MODES = ('bm25', 'e5', 'rrf', 'rrf_boosted', 'production')
 RRF_K = 30
 ANCHOR_COVERAGE_WEIGHT = .035
 CATEGORY_WEIGHT = .09
+DOMAINS_PATH = 'config/knowledge-domains.json'
+
+
+def load_domains(root):
+    """Knowledge-tree domain keywords (option Б), or None when missing/invalid."""
+    try:
+        data = json.loads((Path(root) / DOMAINS_PATH).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get('domains'), dict):
+        return None
+    return data
+
+
+def predict_domain(query, domains):
+    """The one domain whose keywords the query mentions most, else None.
+
+    A tie means a broad, many-sided question; it gets no domain boost.
+    """
+    text = unicodedata.normalize('NFC', query).casefold()
+    counts = {}
+    for domain_id, domain in (domains or {}).items():
+        hits = sum(1 for keyword in domain.get('keywords', [])
+                   if re.search(r'(?<!\w)' + re.escape(keyword.casefold()), text))
+        if hits:
+            counts[domain_id] = hits
+    if not counts:
+        return None
+    best = max(counts.values())
+    winners = [domain_id for domain_id, hits in counts.items() if hits == best]
+    return winners[0] if len(winners) == 1 else None
 STOPWORDS = set('би миний бид манай танай та надад талаар талаарх тухай юу вэ бэ уу үү юм байна байдаг болох бол ямар хэд хэрхэн яаж хаана хэзээ нь ын ийн ы ий н р болон буюу эсвэл бас мөн энэ тэр тэгээд гэж гэсэн сайн уу мэдээлэл авах өгөөч тайлбарла тайлбарлаж болно болох уу'.split())
 STOPWORDS.update('боломж боломжтой бий дээр доор хэдэн бүх одоо оны онд жил жилийн сонирхож мэдэх мэдмээр хүсэж суралц суралцах'.split())
 # Transparent domain search aliases, not a Mongolian morphological model.
@@ -423,7 +455,7 @@ class WebsiteRetriever:
             self._embeddings = None
             return None
 
-    def search(self, query, limit=5, *, mode='production'):
+    def search(self, query, limit=5, *, mode='production', domain_boost=None):
         if mode not in RANKING_MODES:
             raise ValueError('Unknown ranking mode.')
         if not isinstance(query, str) or not query.strip() or len(query) > 1000 or not re.search(r'\w', query):
@@ -484,6 +516,18 @@ class WebsiteRetriever:
                         fused[index] = 0
                     if mode == 'production' and 'ном' in anchors and 'сан' in query_lower and 'номын сан' not in body:
                         fused[index] = 0
+            # Option Б: a soft bonus for pages in the query's knowledge-tree domain.
+            # It only reorders already-scored pages; nothing is removed or revived.
+            domains = load_domains(self.root)
+            boost_on = (domains or {}).get('enabled') is True if domain_boost is None else bool(domain_boost)
+            predicted_domain = predict_domain(query, (domains or {}).get('domains')) if boost_on else None
+            if predicted_domain and mode in {'production', 'rrf_boosted'}:
+                weight = float(domains.get('weight', 0))
+                rules = load_topic_rules(self.root)
+                for index, row in enumerate(self._rows):
+                    topic = topic_of(row.get('url'), rules) or ''
+                    if fused[index] > 0 and (topic == predicted_domain or topic.startswith(predicted_domain + '.')):
+                        fused[index] += weight
             candidates, used = [], []
             for index in sorted(range(len(self._rows)), key=lambda i: (-fused[i], self._rows[i]['source_id'])):
                 if mode != 'e5' and not fused[index]:
@@ -530,6 +574,7 @@ class WebsiteRetriever:
                 corpus_id=self._corpus_id,
                 backend=('bm25+e5_rrf' if dense is not None else 'bm25_mongolian') if mode == 'production' else mode,
                 ranking_mode=mode, lexical_topic_gates=(mode == 'production'),
+                domain_boost=boost_on, predicted_domain=predicted_domain,
                 rrf_k=RRF_K if mode in {'rrf', 'rrf_boosted', 'production'} else None,
                 candidates=candidates, counts=dict(self._counts), warnings=warnings,
                 query_terms=sorted(query_terms), query_anchor_terms=sorted(anchors),

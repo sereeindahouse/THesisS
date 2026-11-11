@@ -22,7 +22,6 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.root = Path(self.tmp.name)
         now = time.time()
         _write(self.root / 'thesis/main.pdf', 'pdf')
-        _write(self.root / 'thesis/main_teacher.pdf', 'teacher pdf')
         _write(self.root / 'thesis/main.tex', 'tex')
         _write(self.root / 'CORE/seminar-2026-11-03/10_Семинар_v7.pptx', 'old', now - 100)
         _write(self.root / 'CORE/seminar-2026-11-03/11_Семинар_v8.pptx', 'new', now - 50)
@@ -38,8 +37,7 @@ class BuildMyThesisFolderTest(unittest.TestCase):
     def test_copies_newest_deliverables_and_writes_index(self):
         result = folder.build(self.root)
         self.assertEqual(result['edited_copies'], [])
-        self.assertTrue((self.out / '01_Диплом/Диплом_2_ажлын_ноорог.pdf').is_file())
-        self.assertTrue((self.out / '01_Диплом/Диплом_1_багшид_үзүүлэх.pdf').is_file())
+        self.assertTrue((self.out / '01_Диплом/Диплом.pdf').is_file())
         self.assertTrue((self.out / '02_Семинар/11_Семинар_v8.pptx').is_file())
         self.assertFalse((self.out / '02_Семинар/10_Семинар_v7.pptx').exists())
         self.assertTrue((self.out / '03_Сургуульд_өгөх/list.pdf').is_file())
@@ -60,13 +58,22 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.assertIn('⚠', (self.out / folder.INDEX).read_text(encoding='utf-8'))
 
     def test_replaced_copy_removed_only_when_untouched(self):
+        _write(self.root / 'CORE/seminar-2026-11-03/01_Дэвтэр_v1.md', 'v1', time.time() - 10)
         folder.build(self.root)
-        _write(self.root / 'CORE/seminar-2026-11-03/12_Семинар_v9.pptx', 'v9', time.time() + 10)
+        _write(self.root / 'CORE/seminar-2026-11-03/02_Дэвтэр_v2.md', 'v2', time.time() + 10)
         folder.build(self.root)
-        self.assertFalse((self.out / '02_Семинар/11_Семинар_v8.pptx').exists())
-        self.assertTrue((self.out / '02_Семинар/12_Семинар_v9.pptx').is_file())
+        self.assertFalse((self.out / '05_Дэвтэр/01_Дэвтэр_v1.md').exists())
+        self.assertTrue((self.out / '05_Дэвтэр/02_Дэвтэр_v2.md').is_file())
         # sources are never touched
-        self.assertTrue((self.root / 'CORE/seminar-2026-11-03/11_Семинар_v8.pptx').is_file())
+        self.assertTrue((self.root / 'CORE/seminar-2026-11-03/01_Дэвтэр_v1.md').is_file())
+
+    def test_earlier_seminar_decks_are_kept(self):
+        folder.build(self.root)
+        _write(self.root / 'CORE/seminar-2026-11-17/12_Семинар_v9.pptx', 'v9', time.time() + 10)
+        folder.build(self.root)
+        folder.build(self.root)
+        self.assertTrue((self.out / '02_Семинар/11_Семинар_v8.pptx').is_file())
+        self.assertTrue((self.out / '02_Семинар/12_Семинар_v9.pptx').is_file())
 
     def test_latex_link_points_at_thesis_source(self):
         result = folder.build(self.root)
