@@ -28,7 +28,7 @@ SCHEMA = {
 }
 OPTIONAL_SCHEMA = {
     'rooms': ('purpose', 'department', 'services'),
-    'staff': ('role', 'room', 'office_hours'),
+    'staff': ('role', 'room', 'office_hours', 'email'),
     'classes': ('course', 'department', 'teacher'),
     'timetable': ('subject',),
 }
@@ -108,6 +108,8 @@ class Staff:
     room: str = ''
     office_hours: str = ''
     role: str = ''
+    # School (work) address only; the import step drops private addresses.
+    email: str = ''
 
 
 @dataclass(frozen=True)
@@ -147,6 +149,9 @@ class ReceptionTables:
     holidays: tuple[date, ...] = ()
     calendar_bound: bool = False
     holidays_reviewed: bool = False
+
+
+_EMAIL = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,4}')
 
 
 def _recorded(value):
@@ -394,6 +399,9 @@ def validate_table_rows(rows, *, timetable_complete=False, dataset_label='Recept
             rooms.append(Room(int(room.pop('floor')), **room, services=tuple(attached)))
         except (ReceptionDataError, ValueError, TypeError) as error:
             fail('Invalid room services: ' + str(error), 'rooms', index)
+    for index, row in enumerate(rows['staff']):
+        if row.get('email') and not _EMAIL.fullmatch(row['email']):
+            fail('Staff email is not a plain address.', 'staff', index)
     for table in ('staff', 'classes', 'timetable'):
         for index, row in enumerate(rows[table]):
             if table == 'staff' and not row.get('room'):
@@ -521,6 +529,7 @@ class ReceptionAnswerPath:
             'reception_lookup_missing': 'Шаардсан талбар хүснэгтэд батлагдаагүй байна.',
             'reception_contact_unknown': 'Энэ албаны нийтэд өгөх холбоо хүснэгтэд батлагдаагүй байна.',
             'reception_hours_unknown': 'Ажлын эсвэл уулзах цаг хүснэгтэд бүртгэгдээгүй байна.',
+            'reception_email_unknown': 'Энэ багш, ажилтны сургуулийн имэйл хүснэгтэд бүртгэгдээгүй байна.',
             'reception_room_unknown': 'Энэ хүний ажлын өрөө хүснэгтэд бүртгэгдээгүй байна.',
             'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
         }
@@ -561,6 +570,7 @@ class ReceptionAnswerPath:
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
             ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
             ('department', r'(.{1,120}?) тэнхим хаана вэ'),
+            ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
             ('teacher_now', r'(.{1,120}?) багш одоо хичээлтэй юу'),
@@ -706,6 +716,15 @@ class ReceptionAnswerPath:
                     return missing('reception_hours_unknown')
                 return reply(person.name + ' — бүртгэсэн уулзах цаг: ' + person.office_hours
                              + '. Тэр цагт ирсэн эсэх, байршлыг батлахгүй.', 'staff', 'reception_teacher_hours')
+            if intent == 'teacher_email':
+                if not person.email:
+                    return missing('reception_email_unknown')
+                where = ''
+                if person.room:
+                    room = next(room for room in self.tables.rooms if _key(room.name) == _key(person.room))
+                    where = ' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.'
+                return reply(person.name + ' — сургуулийн имэйл: ' + person.email + '.' + where,
+                             'staff', 'reception_teacher_email')
             if not person.room:
                 return missing('reception_room_unknown')
             room = next(room for room in self.tables.rooms if _key(room.name) == _key(person.room))

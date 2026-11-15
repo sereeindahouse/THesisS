@@ -1,6 +1,8 @@
 % Асуултад хариулах үйл явц — UML идэвхийн диаграмм (TikZ).
 % Эх: docs/diagrams/UML_идэвхийн_диаграмм.pdf (11/06)-ийг хялбарчилсан; ресепшний хүснэгт
 % ба «хэнд, хаана хандах» алхмыг нэмсэн. Байрлалыг (x,y) координатаар өгсөн.
+% 2026.11.15 (3): 5 хянагчийн шалгалтын D1–D4 — таньсан текстийг засах, тодруулж асуух,
+% хүснэгтийн мөр олдоогүй үед чиглүүлэх, дуугаар сонсох эсэхийг сонгох алхмыг нэмсэн.
 \begin{tikzpicture}[
     font=\footnotesize,
     act/.style={draw, rounded corners=6pt, align=center, text width=4.2cm,
@@ -16,38 +18,48 @@
 \node[dec] (dvoice) at (0,-2.3) {};
 \node[q, anchor=east] at (-0.7,-2.3) {Дуугаар асуусан уу?};
 \node[ext] (stt)   at (5.2,-2.3) {Яриаг текст болгох\\{\scriptsize Gemini 3.5 Transcribe}};
-\node[act] (route) at (0,-3.7)  {Асуултыг чиглүүлэх};
+\node[act] (edit)  at (5.2,-3.7) {Таньсан текстийг засах};
+\node[act] (route) at (0,-3.7)  {Асуултыг ангилах};
+\node[act] (clar)  at (-5.2,-3.7) {Тодруулж асуух};
 \node[dec] (dtab)  at (0,-5.0)  {};
-\node[q, anchor=west] at (0.7,-5.0) {Өрөө, анги, хуваарийн асуулт уу?};
-\node[act] (table) at (-5.2,-6.4) {Ресепшний хүснэгтээс мөрийг авах};
+\node[q, anchor=west] at (0.7,-5.0) {Өрөө, анги, багш, хуваарийн асуулт уу?};
+\node[act] (table) at (-5.2,-6.4) {Сургуулийн хүснэгтээс мөрийг хайх};
 \node[act] (search) at (0,-6.4) {BM25 ба E5-аар хайж,\\RRF-ээр нэгтгэх};
 \node[act] (select) at (0,-7.8) {Дүрмээр хэсэг сонгох};
-\node[act] (guard) at (0,-9.2)  {Эхийн шалгалт хийх};
+\node[act] (guard) at (0,-9.2)  {Сонгосон хэсгийг шалгах};
 \node[dec] (dpass) at (0,-10.5) {};
-\node[q, anchor=east] at (-0.7,-10.5) {Тэнцсэн үү?};
+\node[q, anchor=east] at (-0.5,-10.1) {Хариулт олдсон уу?};
 \node[act] (refer) at (5.2,-10.5) {Хэнд, хаана хандахыг заах};
-\node[act] (answer) at (0,-11.9) {Эхийн үгээр хариулт бүрдүүлэх};
-\node[act] (show)  at (0,-13.3) {Хариулт, эхийг харуулах};
-\node[ext] (tts)   at (0,-14.6) {Хариултыг дуугаар унших\\{\scriptsize Edge TTS}};
-\node[circle, draw, minimum size=4.4mm, inner sep=0pt] (end) at (0,-15.7) {};
+\node[act] (answer) at (0,-11.9) {Эх сурвалжийн үгээр\\хариулт бүрдүүлэх};
+\node[act] (show)  at (0,-13.3) {Хариулт, эх сурвалжийг харуулах};
+\node[dec] (dlisten) at (0,-14.6) {};
+\node[q, anchor=east] at (-0.7,-14.6) {Дуугаар сонсох уу?};
+\node[ext] (tts)   at (0,-15.9) {Хариултыг дуугаар унших\\{\scriptsize Edge TTS}};
+\node[circle, draw, minimum size=4.4mm, inner sep=0pt] (end) at (0,-17.1) {};
 \node[circle, fill=black, minimum size=2.6mm, inner sep=0pt] at (end) {};
 
 \draw[arr] (start) -- (ask);
 \draw[arr] (ask) -- (dvoice);
 \draw[arr] (dvoice) -- node[g, above] {[тийм]} (stt);
 \draw[arr] (dvoice) -- node[g, left] {[үгүй]} (route);
-\draw[arr] (stt.south) |- (route.east);
+\draw[arr] (stt) -- (edit);
+\draw[arr] (edit) -- (route);
+\draw[arr] (route) -- (clar);
+\node[g] at (-2.6,-3.1) {[тодорхойгүй]};
+\draw[arr] (clar.north) |- (ask.west);
 \draw[arr] (route) -- (dtab);
 \draw[arr] (dtab.west) -| node[g, above, pos=0.25] {[тийм]} (table.north);
 \draw[arr] (dtab) -- node[g, right] {[үгүй]} (search);
 \draw[arr] (search) -- (select);
 \draw[arr] (select) -- (guard);
-\draw[arr] (table.south) |- (answer.west);
+\draw[arr] (table.south) |- (dpass.west);
 \draw[arr] (guard) -- (dpass);
 \draw[arr] (dpass) -- node[g, above] {[үгүй]} (refer);
 \draw[arr] (dpass) -- node[g, right] {[тийм]} (answer);
 \draw[arr] (answer) -- (show);
 \draw[arr] (refer.south) |- (show.east);
-\draw[arr] (show) -- (tts);
+\draw[arr] (show) -- (dlisten);
+\draw[arr] (dlisten) -- node[g, right] {[тийм]} (tts);
+\draw[arr] (dlisten.east) -- ++(3.0,0) node[g, above, pos=0.5] {[үгүй]} |- (end.east);
 \draw[arr] (tts) -- (end);
 \end{tikzpicture}

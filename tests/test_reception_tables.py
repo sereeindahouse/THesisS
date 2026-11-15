@@ -454,6 +454,20 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
         self.assertIn('Одоо тэнд байгааг батлахгүй', result['answer'])
         self.assertFalse(result['reception']['physical_location_confirmed'])
 
+    def test_teacher_email_is_school_address_or_reported_missing(self):
+        self.assertEqual(self.path().answer('Зохиомол Хүн багшийн имэйл юу вэ?')['reason_code'],
+                         'reception_email_unknown')
+        self.rows['staff'][0]['email'] = 'fake.person@example.invalid'
+        result = self.path().answer('Зохиомол Хүн багшийн имэйл хаяг юу вэ?')
+        self.assertEqual(result['reason_code'], 'reception_teacher_email')
+        self.assertIn('fake.person@example.invalid', result['answer'])
+        self.assertIn('FAKE-301', result['answer'])
+        self.assertEqual(self.path().answer('Байхгүй Хүн багшийн имэйл')['reason_code'],
+                         'reception_teacher_not_found')
+        self.rows['staff'][0]['email'] = '99112233'
+        with self.assertRaises(ReceptionDataError):
+            self.tables()
+
     def test_department_rooms_do_not_claim_unique_headquarters(self):
         result = self.path().answer('Зохиомол ухааны тэнхим хаана вэ?')
         self.assertIn('FAKE-301', result['answer'])

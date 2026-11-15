@@ -584,3 +584,9 @@ __pycache__/
 !/tools/compare_domain_boost.py
 !/tests/test_domain_boost.py
 !/papers/28-mn-thesis-style-20261111.mn.md
+
+# 11/16: one thesis source, two PDFs (short supervisor draft + full draft); build and review helpers.
+!/tools/thesis_to_markdown.py
+!/tests/test_thesis_to_markdown.py
+!/tools/build_thesis_pdfs.py
+!/tools/export_thesis_figure.py

@@ -24,6 +24,7 @@ FOLDER = 'МИНИЙ-ДИПЛОМ'
 MANIFEST = '.manifest.json'
 INDEX = '00_ЭНДЭЭС_ЭХЭЛ.md'
 KEEP_OLDER = ('02_Семинар/',)
+ARCHIVE = 'Хуучин'   # earlier seminar decks and speeches are moved here, never deleted
 LATEX_LINK = ('01_Диплом', 'LaTeX_бичвэр')
 
 SECTIONS = {
@@ -56,14 +57,20 @@ def planned_copies(root: Path):
         if source is not None and source.is_file():
             plan.append((section, name or source.name, source))
 
-    # 11/11: нэг л бичвэр (main); багшид үзүүлэх тусдаа ноорог (main_teacher) хасагдсан.
-    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом.pdf')
-    for source in sorted(root.glob('docs/diagrams/*.pdf')):
-        add('01_Диплом', source)
+    # 11/16: нэг эх бичвэр, хоёр PDF — багшид үзүүлэх богино ноорог ба бүтэн ажлын ноорог.
+    add('01_Диплом', root / 'thesis/main_teacher.pdf', 'Диплом_1_багшид_үзүүлэх.pdf')
+    add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_2_бүтэн_ноорог.pdf')
+    # 11/16: docs/diagrams/*.pdf (11/06-ны хуучин зураг) хуулахгүй — диаграммууд одоо хоёр PDF-ийн дотор.
     seminars = sorted(root.glob('CORE/seminar-*'))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*.pptx')))
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*Яриа*.md')))
     for source in sorted(root.glob('data/school-request/*.pdf')):
+        add('03_Сургуульд_өгөх', source)
+    # 11/15: хэрэглэгч сургуулиас асууж тэмдэглэх асуултын хуудас.
+    for source in sorted(root.glob('data/school-request/*.md')):
+        add('03_Сургуульд_өгөх', source)
+    # 11/16: албанд имэйлээр хавсаргах Word файл (жишээ нь карьерын төв).
+    for source in sorted(root.glob('data/school-request/*.docx')):
         add('03_Сургуульд_өгөх', source)
     for source in sorted(root.glob('papers/*hotoch*.md')):
         add('04_Унших', source)
@@ -114,11 +121,19 @@ def build(root: Path = ROOT):
         rows.append((section, name, source.relative_to(root).as_posix(),
                      datetime.fromtimestamp(source.stat().st_mtime).strftime('%Y-%m-%d %H:%M')))
     # An older copy that a newer file replaced: remove it only if the user never touched it.
-    # Earlier seminar decks stay: the user builds each week's deck on the previous ones (11/11).
+    # Earlier seminar decks are kept (the user builds each week's deck on the previous ones, 11/11),
+    # but out of the way in a «Хуучин» subfolder (11/16: the folder had become a pile of versions).
+    # A deck the user edited stays where it is: it is their working copy.
     for relative, recorded in old.items():
         dest = out / relative
         if relative not in new and dest.is_file():
             if relative.startswith(KEEP_OLDER):
+                if _stamp(dest) == recorded and dest.parent.name != ARCHIVE:
+                    archived = dest.parent / ARCHIVE / dest.name
+                    archived.parent.mkdir(exist_ok=True)
+                    if not archived.exists():
+                        shutil.move(str(dest), str(archived))
+                        continue
                 new[relative] = recorded
             elif _stamp(dest) == recorded:
                 dest.unlink()

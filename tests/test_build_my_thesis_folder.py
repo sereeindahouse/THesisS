@@ -22,11 +22,13 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.root = Path(self.tmp.name)
         now = time.time()
         _write(self.root / 'thesis/main.pdf', 'pdf')
+        _write(self.root / 'thesis/main_teacher.pdf', 'short pdf')
         _write(self.root / 'thesis/main.tex', 'tex')
         _write(self.root / 'CORE/seminar-2026-11-03/10_Семинар_v7.pptx', 'old', now - 100)
         _write(self.root / 'CORE/seminar-2026-11-03/11_Семинар_v8.pptx', 'new', now - 50)
         _write(self.root / 'data/school-request/list.pdf', 'school')
         _write(self.root / 'data/school-request/tables.xlsx', 'tables')
+        _write(self.root / 'data/school-request/questions.mn.md', 'questions')
         _write(self.root / 'papers/17-RAG01-hotoch.md', 'guide')
         _write(self.root / 'docs/diagrams/UML.pdf', 'uml')
         self.out = self.root / folder.FOLDER
@@ -37,12 +39,14 @@ class BuildMyThesisFolderTest(unittest.TestCase):
     def test_copies_newest_deliverables_and_writes_index(self):
         result = folder.build(self.root)
         self.assertEqual(result['edited_copies'], [])
-        self.assertTrue((self.out / '01_Диплом/Диплом.pdf').is_file())
+        self.assertTrue((self.out / '01_Диплом/Диплом_1_багшид_үзүүлэх.pdf').is_file())
+        self.assertTrue((self.out / '01_Диплом/Диплом_2_бүтэн_ноорог.pdf').is_file())
         self.assertTrue((self.out / '02_Семинар/11_Семинар_v8.pptx').is_file())
         self.assertFalse((self.out / '02_Семинар/10_Семинар_v7.pptx').exists())
         self.assertTrue((self.out / '03_Сургуульд_өгөх/list.pdf').is_file())
         self.assertFalse((self.out / '03_Сургуульд_өгөх/tables.xlsx').exists())
-        self.assertTrue((self.out / '01_Диплом/UML.pdf').is_file())
+        self.assertTrue((self.out / '03_Сургуульд_өгөх/questions.mn.md').is_file())
+        self.assertFalse((self.out / '01_Диплом/UML.pdf').exists())   # old standalone diagrams are not copied
         index = (self.out / folder.INDEX).read_text(encoding='utf-8')
         self.assertIn('CORE/THESIS-START.mn.md', index)
         self.assertIn('11_Семинар_v8.pptx', index)
@@ -67,13 +71,24 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         # sources are never touched
         self.assertTrue((self.root / 'CORE/seminar-2026-11-03/01_Дэвтэр_v1.md').is_file())
 
-    def test_earlier_seminar_decks_are_kept(self):
+    def test_earlier_seminar_decks_move_to_archive_subfolder(self):
         folder.build(self.root)
         _write(self.root / 'CORE/seminar-2026-11-17/12_Семинар_v9.pptx', 'v9', time.time() + 10)
         folder.build(self.root)
         folder.build(self.root)
-        self.assertTrue((self.out / '02_Семинар/11_Семинар_v8.pptx').is_file())
+        self.assertFalse((self.out / '02_Семинар/11_Семинар_v8.pptx').exists())
+        self.assertEqual((self.out / '02_Семинар/Хуучин/11_Семинар_v8.pptx').read_text(encoding='utf-8'), 'new')
         self.assertTrue((self.out / '02_Семинар/12_Семинар_v9.pptx').is_file())
+
+    def test_earlier_deck_the_user_edited_stays_in_place(self):
+        folder.build(self.root)
+        copy = self.out / '02_Семинар/11_Семинар_v8.pptx'
+        _write(copy, 'user edit in PowerPoint', time.time() + 5)
+        _write(self.root / 'CORE/seminar-2026-11-17/12_Семинар_v9.pptx', 'v9', time.time() + 10)
+        folder.build(self.root)
+        folder.build(self.root)
+        self.assertEqual(copy.read_text(encoding='utf-8'), 'user edit in PowerPoint')
+        self.assertFalse((self.out / '02_Семинар/Хуучин/11_Семинар_v8.pptx').exists())
 
     def test_latex_link_points_at_thesis_source(self):
         result = folder.build(self.root)

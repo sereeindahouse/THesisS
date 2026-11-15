@@ -21,14 +21,14 @@
       "**/CORE/website/snapshots": true
     },
     "workbench.colorCustomizations": {
-      "titleBar.activeBackground": "#164E43",
+      "titleBar.activeBackground": "#44316A",
       "titleBar.activeForeground": "#FFFFFF",
-      "titleBar.inactiveBackground": "#203B36",
+      "titleBar.inactiveBackground": "#342C46",
       "titleBar.inactiveForeground": "#E0DFE8",
-      "statusBar.background": "#164E43",
+      "statusBar.background": "#44316A",
       "statusBar.foreground": "#FFFFFF",
-      "activityBar.activeBorder": "#88D4BB"
+      "activityBar.activeBorder": "#C6A8EF"
     },
-    "window.title": "[THesisS · I] III/I · Дипломын бичвэрийг хэрэглэгчийн 11/11-ний шүүмжээр зассан (нэг бичвэр main.tex,… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · III] III/I · Диплом дөнгөж эхэлж байгаа: багшид үзүүлэх богино ноорог (20 х., таван диаграмм… ${separator} ${dirty}${activeEditorShort}"
   }
 }
