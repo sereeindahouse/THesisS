@@ -1,0 +1,60 @@
+% Дуугаар асуусан нэг асуултын дарааллын (sequence) диаграмм (TikZ).
+% Эх: demo_server.py — /api/voice/transcribe, /api/route, /api/voice/speak;
+% reception_tables.py (хүснэгтийн зам), website_retrieval.py (хайлт), referral.py.
+% Босоо шугам = оролцогч, хэвтээ сум = мессеж; y тэнхлэг доошоо цаг.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    obj/.style={draw, align=center, text width=2.2cm, minimum height=0.9cm, fill=white},
+    ext/.style={obj, fill=black!8},
+    life/.style={dashed, black!60},
+    msg/.style={-{Stealth[length=2mm]}, semithick},
+    ret/.style={-{Stealth[length=2mm]}, semithick, dashed},
+    lab/.style={font=\scriptsize, inner sep=1.5pt, above},
+    frame/.style={draw, black!70},
+    tag/.style={font=\scriptsize\bfseries, anchor=north west, inner sep=2pt, draw, black!70, fill=white}]
+
+% --- оролцогчид (x байрлал)
+\def\xu{0}\def\xb{2.9}\def\xs{5.8}\def\xg{8.7}\def\xk{11.6}\def\xt{14.5}
+\node[obj] (u) at (\xu,0) {Хэрэглэгч};
+\node[obj] (b) at (\xb,0) {Вэб хуудас};
+\node[obj] (s) at (\xs,0) {Сервер\\{\scriptsize ангилагч}};
+\node[ext] (g) at (\xg,0) {Яриа таних\\{\scriptsize Gemini}};
+\node[obj] (k) at (\xk,0) {Сургуулийн хүснэгт,\\баримтын сан};
+\node[ext] (t) at (\xt,0) {Дуу үүсгэх\\{\scriptsize Edge TTS}};
+\foreach \x in {\xu,\xb,\xs,\xg,\xk,\xt} \draw[life] (\x,-0.45) -- (\x,-14.3);
+
+% --- 1. яриа таних
+\draw[msg] (\xu,-1.1) -- node[lab] {асуултаа хэлнэ} (\xb,-1.1);
+\draw[msg] (\xb,-1.7) -- node[lab] {бичлэг} (\xs,-1.7);
+\draw[msg] (\xs,-2.3) -- node[lab] {бичлэг, нэрийн жагсаалт} (\xg,-2.3);
+\draw[ret] (\xg,-2.9) -- node[lab] {текст} (\xs,-2.9);
+\draw[ret] (\xs,-3.5) -- node[lab] {текст} (\xb,-3.5);
+\node[font=\scriptsize\itshape, anchor=west] at (\xg+0.12,-3.3) {хязгаарт хүрвэл: бичгээр асууна};
+\draw[msg] (\xu,-4.1) -- node[lab] {засаж, илгээнэ} (\xb,-4.1);
+\draw[msg] (\xb,-4.7) -- node[lab] {асуултын текст} (\xs,-4.7);
+
+% --- 2. хариулт хайх (alt)
+\draw[frame] (\xs-1.3,-5.2) rectangle (\xk+1.4,-10.4);
+\node[tag] at (\xs-1.3,-5.2) {alt};
+\node[font=\scriptsize\itshape, anchor=west] at (\xs-0.55,-5.45) {[өрөө, анги, багш, хуваарийн асуулт]};
+\draw[msg] (\xs,-6.2) -- node[lab] {хүснэгтээс харах} (\xk,-6.2);
+\draw[ret] (\xk,-6.8) -- node[lab] {мөр} (\xs,-6.8);
+\draw[frame, dashed] (\xs-1.3,-7.2) -- (\xk+1.4,-7.2);
+\node[font=\scriptsize\itshape, anchor=west] at (\xs-0.55,-7.45) {[бусад асуулт]};
+\draw[msg] (\xs,-8.2) -- node[lab] {BM25 + E5 хайлт} (\xk,-8.2);
+\draw[ret] (\xk,-8.8) -- node[lab] {олдсон хэсгүүд} (\xs,-8.8);
+\draw[msg] (\xs,-9.4) -- ++(0.9,0) -- ++(0,-0.5) -- (\xs,-9.9);
+\node[font=\scriptsize, anchor=west] at (\xs+0.95,-9.65) {хэсэг сонгож, шалгана};
+
+% --- 3. хариулт
+\draw[ret] (\xs,-10.9) -- node[lab] {хариулт + эх сурвалж} (\xb,-10.9);
+\node[font=\scriptsize\itshape, anchor=west] at (\xs+0.1,-11.15) {олдоогүй бол: хэнд, хаана хандах};
+\draw[ret] (\xb,-11.5) -- node[lab] {дэлгэцэнд} (\xu,-11.5);
+\node[font=\scriptsize\itshape, anchor=west] at (\xb+0.1,-11.95) {хэрэглэгч сонсохыг хүсвэл:};
+
+% --- 4. дуугаар унших
+\draw[msg] (\xb,-12.6) -- node[lab] {хариултын текст} (\xs,-12.6);
+\draw[msg] (\xs,-13.1) -- node[lab, pos=0.75] {текст} (\xt,-13.1);
+\draw[ret] (\xt,-13.6) -- node[lab, pos=0.25] {дуу} (\xs,-13.6);
+\draw[ret] (\xs,-14.1) -- node[lab] {дуу} (\xb,-14.1);
+\end{tikzpicture}

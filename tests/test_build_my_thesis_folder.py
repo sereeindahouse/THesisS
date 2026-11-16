@@ -30,6 +30,7 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         _write(self.root / 'data/school-request/tables.xlsx', 'tables')
         _write(self.root / 'data/school-request/questions.mn.md', 'questions')
         _write(self.root / 'papers/17-RAG01-hotoch.md', 'guide')
+        _write(self.root / 'reports/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md', 'register report')
         _write(self.root / 'docs/diagrams/UML.pdf', 'uml')
         self.out = self.root / folder.FOLDER
 
@@ -46,6 +47,8 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.assertTrue((self.out / '03_Сургуульд_өгөх/list.pdf').is_file())
         self.assertFalse((self.out / '03_Сургуульд_өгөх/tables.xlsx').exists())
         self.assertTrue((self.out / '03_Сургуульд_өгөх/questions.mn.md').is_file())
+        self.assertTrue((self.out / '04_Унших/17-RAG01-hotoch.md').is_file())
+        self.assertTrue((self.out / '04_Унших/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md').is_file())
         self.assertFalse((self.out / '01_Диплом/UML.pdf').exists())   # old standalone diagrams are not copied
         index = (self.out / folder.INDEX).read_text(encoding='utf-8')
         self.assertIn('CORE/THESIS-START.mn.md', index)

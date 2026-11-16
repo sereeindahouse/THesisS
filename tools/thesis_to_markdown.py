@@ -26,8 +26,15 @@ def printed(tex):
     `\\iffull ... [\\else ...] \\fi` marks text that only the full draft prints (the short
     teacher draft skips it). FULL_DRAFT chooses which draft to follow: the full draft keeps the
     first branch and unwraps `\\fullonly{...}`; the teacher draft (`--teacher`) keeps the
-    `\\else` branch and drops `\\fullonly{...}`.
+    `\\else` branch and drops `\\fullonly{...}`. A `\\fullinput{Chapters/full/x}` line pulls in a
+    file that only the full draft prints.
     """
+    def full_only_file(match):
+        if not FULL_DRAFT:
+            return ''
+        return (THESIS / f'{match.group(1)}.tex').read_text(encoding='utf-8')
+
+    tex = re.sub(r'^[ \t]*\\fullinput\{([^}]*)\}[ \t]*$', full_only_file, tex, flags=re.M)
     lines, stack = [], []          # stack entries: True = this level is printed
     for line in tex.splitlines():
         code = re.sub(r'(?<!\\)%.*$', '', line)
@@ -73,7 +80,7 @@ def inline(text):
             arg, end = macro_arg(text, match.end() - 1)
             wrap = {'bold': '**', 'it': '*', 'tt': '`'}[name]
             text = text[:match.start()] + wrap + arg + wrap + text[end:]
-    text = re.sub(r'\\ac\{([^}]*)\}', r'\1', text)
+    text = re.sub(r'\\acs?\{([^}]*)\}', r'\1', text)
     text = re.sub(r'\\cite\{([^}]*)\}', r'[\1]', text)
     text = re.sub(r'\\(allowbreak|centering|hline|noindent)\b\s*', '', text)
     text = re.sub(r'\\cline\{[^}]*\}', '', text)

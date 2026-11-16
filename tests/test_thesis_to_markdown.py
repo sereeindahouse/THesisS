@@ -12,6 +12,15 @@ class PrintedTextTests(unittest.TestCase):
         tex = 'А мөр % тайлбар\n% бүтэн тайлбар\n\\iffalse\nунтраасан\n\\fi\n100\\% үлдэнэ'
         self.assertEqual(flat.printed(tex), 'А мөр\n100\\% үлдэнэ')
 
+    def test_full_only_file_is_printed_only_in_the_full_draft(self):
+        tex = 'Хамтын мөр\n\\fullinput{Chapters/full/ch1_structure}\nТөгсгөл'
+        self.addCleanup(setattr, flat, 'FULL_DRAFT', flat.FULL_DRAFT)
+        flat.FULL_DRAFT = False
+        self.assertEqual(flat.printed(tex), 'Хамтын мөр\n\nТөгсгөл')
+        if (ROOT / 'thesis/Chapters/full/ch1_structure.tex').is_file():
+            flat.FULL_DRAFT = True
+            self.assertIn('\\section{Судалгааны ажлын бүтэц}', flat.printed(tex))
+
     def test_inline_markup(self):
         text = flat.inline(r'\textbf{Тод} \cite{lewis2020rag} \ac{WER} 5\%')
         self.assertEqual(text, '**Тод** [lewis2020rag] WER 5%')

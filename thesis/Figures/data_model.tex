@@ -3,8 +3,8 @@
 % Staff.email-ийг ресепшний хэрэгцээгээр нэмсэн). Талбарын нэрийг Монголоор бичив.
 \begin{tikzpicture}[
     font=\footnotesize,
-    cls/.style={draw, rectangle split, rectangle split parts=2, align=left,
-                text width=3.6cm, inner sep=3pt, fill=white},
+    cls/.style={draw=green!45!black, line width=0.7pt, rectangle split, rectangle split parts=2, align=left,
+                text width=3.6cm, inner sep=3pt, rectangle split part fill={green!22, green!5}},
     rel/.style={semithick},
     lab/.style={font=\scriptsize, inner sep=1.5pt},
     mult/.style={font=\scriptsize, inner sep=2pt}]
@@ -12,9 +12,9 @@
 \node[cls] (room) at (0,0) {\centering\textbf{Өрөө}
   \nodepart{second} дугаар\\давхар\\зориулалт\\тэнхим};
 \node[cls] (service) at (7.2,0) {\centering\textbf{Алба, үйлчилгээ}
-  \nodepart{second} нэр\\ажлын цаг (ирээгүй)\\албаны холбоо барих (ирээгүй)};
+  \nodepart{second} нэр\\ажлын цаг\\албаны холбоо барих};
 \node[cls] (staff) at (-7.2,0) {\centering\textbf{Багш, ажилтан}
-  \nodepart{second} нэр\\нэгж, тэнхим\\албан тушаал\\уулзах цаг (ирээгүй)\\сургуулийн имэйл};
+  \nodepart{second} нэр\\нэгж, тэнхим\\албан тушаал\\уулзах цаг\\сургуулийн имэйл};
 \node[cls] (group) at (-7.2,-5.2) {\centering\textbf{Анги бүлэг}
   \nodepart{second} бүлгийн нэр\\курс\\тэнхим};
 \node[cls] (lesson) at (0,-5.2) {\centering\textbf{Хичээл (хуваарийн мөр)}

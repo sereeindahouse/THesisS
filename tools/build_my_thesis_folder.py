@@ -74,6 +74,8 @@ def planned_copies(root: Path):
         add('03_Сургуульд_өгөх', source)
     for source in sorted(root.glob('papers/*hotoch*.md')):
         add('04_Унших', source)
+    # 11/16: багшийн зөвлөгөөгөөр хийсэн Монгол эрдэм шинжилгээний хэллэгийн тайлан (дипломын найруулгад баримтална).
+    add('04_Унших', root / 'reports/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md')
     add('05_Дэвтэр', _newest(p for folder in seminars for p in folder.glob('*Дэвтэр*.md')))
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan

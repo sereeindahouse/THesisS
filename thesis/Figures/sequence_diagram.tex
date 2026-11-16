@@ -4,8 +4,10 @@
 % Босоо шугам = оролцогч, хэвтээ сум = мессеж; y тэнхлэг доошоо цаг.
 \begin{tikzpicture}[
     font=\footnotesize,
-    obj/.style={draw, align=center, text width=2.2cm, minimum height=0.9cm, fill=white},
-    ext/.style={obj, fill=black!8},
+    obj/.style={draw=blue!65!black, fill=blue!10, line width=0.7pt, align=center, text width=2.2cm, minimum height=0.9cm},
+    ext/.style={obj, draw=orange!70!black, fill=orange!38},
+    usr/.style={obj, draw=teal!60!black, fill=teal!30},
+    dat/.style={obj, draw=green!45!black, fill=green!13},
     life/.style={dashed, black!60},
     msg/.style={-{Stealth[length=2mm]}, semithick},
     ret/.style={-{Stealth[length=2mm]}, semithick, dashed},
@@ -15,11 +17,11 @@
 
 % --- оролцогчид (x байрлал)
 \def\xu{0}\def\xb{2.9}\def\xs{5.8}\def\xg{8.7}\def\xk{11.6}\def\xt{14.5}
-\node[obj] (u) at (\xu,0) {Хэрэглэгч};
+\node[usr] (u) at (\xu,0) {Хэрэглэгч};
 \node[obj] (b) at (\xb,0) {Вэб хуудас};
 \node[obj] (s) at (\xs,0) {Сервер\\{\scriptsize ангилагч}};
 \node[ext] (g) at (\xg,0) {Яриа таних\\{\scriptsize Gemini}};
-\node[obj] (k) at (\xk,0) {Сургуулийн хүснэгт,\\баримтын сан};
+\node[dat] (k) at (\xk,0) {Сургуулийн хүснэгт,\\баримтын сан};
 \node[ext] (t) at (\xt,0) {Дуу үүсгэх\\{\scriptsize Edge TTS}};
 \foreach \x in {\xu,\xb,\xs,\xg,\xk,\xt} \draw[life] (\x,-0.45) -- (\x,-14.3);
 

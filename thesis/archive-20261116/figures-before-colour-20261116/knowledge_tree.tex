@@ -1,0 +1,49 @@
+% Мэдлэгийн модны бүтэц (TikZ). Эх: config/knowledge-topics.json (2026.11.16-нд тулгасан):
+% үндэс -> 11 хүрээ -> 31 дэд сэдэв. Зурагт «Элсэлт», «Байршил, өрөө» хоёр хүрээний дэд сэдвийг жишээ болгон задалсан.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    node distance=0pt,
+    box/.style={draw, rounded corners=1.5pt, align=left, inner sep=3pt, minimum height=5.2mm, fill=white},
+    dom/.style={box, text width=4.3cm, anchor=west},
+    subt/.style={box, text width=6.6cm, anchor=west},
+    open/.style={fill=black!8},
+    line/.style={semithick}]
+
+\node[box, align=center, text width=2.3cm] (root) at (0,-3.25) {Сургуулийн\\мэдээлэл};
+
+\node[dom]       (d0)  at (2.9,0)     {Сургуулийн тухай};
+\node[dom, open] (d1)  at (2.9,-0.65) {Элсэлт};
+\node[dom]       (d2)  at (2.9,-1.30) {Сургалт, тэнхимүүд};
+\node[dom]       (d3)  at (2.9,-1.95) {Оюутны амьдрал};
+\node[dom]       (d4)  at (2.9,-2.60) {Карьер, хамтын ажиллагаа};
+\node[dom]       (d5)  at (2.9,-3.25) {Мэдээ};
+\node[dom]       (d6)  at (2.9,-3.90) {Арга хэмжээ};
+\node[dom]       (d7)  at (2.9,-4.55) {Холбоо барих};
+\node[dom, open] (d8)  at (2.9,-5.20) {Байршил, өрөө};
+\node[dom]       (d9)  at (2.9,-5.85) {Багш, ажилтан};
+\node[dom]       (d10) at (2.9,-6.50) {Анги, хичээлийн хуваарь};
+
+\foreach \n in {d0,d1,d2,d3,d4,d6,d7,d8,d9,d10}
+    \draw[line] (root.east) -- ++(0.45,0) |- (\n.west);
+\draw[line] (root.east) -- (d5.west);
+
+\node[subt] (a1) at (8.6,0.35)  {Элсэх шаардлага};
+\node[subt] (a2) at (8.6,-0.30) {Шалгалт, эссэ, ярилцлага};
+\node[subt] (a3) at (8.6,-0.95) {Бүрдүүлэх материал};
+\node[subt] (a4) at (8.6,-1.60) {Төлбөр, хураамж};
+\node[subt] (a5) at (8.6,-2.25) {Бүртгэл, элсэлтийн журам};
+\node[subt] (a6) at (8.6,-2.90) {Олимпиад, холбогдох элсэлтийн нөхцөл};
+\foreach \n in {a1,a2,a3,a4,a5,a6}
+    \draw[line] (d1.east) -- ++(0.45,0) |- (\n.west);
+
+\node[subt] (l1) at (8.6,-4.55) {Давхар бүрийн өрөө};
+\node[subt] (l2) at (8.6,-5.20) {Ресепшн, үйлчилгээний өрөө};
+\node[subt] (l3) at (8.6,-5.85) {Тэнхимийн өрөө};
+\foreach \n in {l1,l3}
+    \draw[line] (d8.east) -- ++(0.45,0) |- (\n.west);
+\draw[line] (d8.east) -- (l2.west);
+
+\node[font=\scriptsize\bfseries, anchor=south] at (root.north |- 0,0.75) {Үндэс};
+\node[font=\scriptsize\bfseries, anchor=south west] at (2.9,0.75) {Хүрээ (11)};
+\node[font=\scriptsize\bfseries, anchor=south west] at (8.6,0.75) {Дэд сэдэв (жишээ)};
+\end{tikzpicture}

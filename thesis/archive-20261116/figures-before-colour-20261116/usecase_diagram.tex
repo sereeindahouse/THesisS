@@ -1,0 +1,60 @@
+% Хэрэглээний тохиолдлын (use case) диаграмм (TikZ).
+% Эх: demo_server.py-ийн нээлттэй API (/api/route, /api/voice/transcribe, /api/voice/speak,
+% /api/admin/*) ба tools/import_school_tables.py. Оролцогчдыг 2026.11.12-ны ресепшний
+% мэдээллээр хоёр бүлэгт хуваасан: өдөр тутмын зочин, нээлттэй өдөрлөгийн зочин.
+% Байрлалыг (x,y) координатаар өгсөн.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    uc/.style={draw, ellipse, align=center, text width=3.3cm, minimum height=0.95cm, inner sep=1pt},
+    actor/.style={align=center, font=\footnotesize},
+    extbox/.style={draw, align=center, text width=2.5cm, minimum height=0.9cm, fill=black!8},
+    line/.style={semithick},
+    dep/.style={dashed, -{Stealth[length=2mm]}},
+    gen/.style={-{Triangle[open, length=2.6mm, width=2.6mm]}, semithick},
+    lab/.style={font=\scriptsize, inner sep=1.5pt, fill=white}]
+
+% --- хүний дүрс зурах макро: #1 нэр, #2 (x,y), #3 бичиг
+\newcommand{\stickman}[3]{%
+  \begin{scope}[shift={(#2)}]
+    \draw[semithick] (0,0.55) circle (0.17);
+    \draw[semithick] (0,0.38) -- (0,-0.1) (-0.3,0.2) -- (0.3,0.2) (0,-0.1) -- (-0.25,-0.5) (0,-0.1) -- (0.25,-0.5);
+    \node[actor, anchor=north] at (0,-0.55) {#3};
+    \coordinate (#1) at (0.35,0.1);
+    \coordinate (#1-l) at (-0.35,0.1);
+  \end{scope}}
+
+% --- системийн хүрээ
+\draw[semithick] (2.4,2.1) rectangle (11.0,-9.6);
+\node[font=\footnotesize\bfseries] at (6.7,1.75) {Сургуулийн ухаалаг туслах};
+
+% --- хэрэглээний тохиолдлууд
+\node[uc] (typed)  at (4.6,0.7)   {Бичгээр асуух};
+\node[uc] (voice)  at (4.6,-0.8)  {Дуугаар асуух};
+\node[uc] (answer) at (4.6,-2.5)  {Эх сурвалж, огноотой\\хариулт авах};
+\node[uc] (refer)  at (4.6,-4.2)  {Хэнд, хаана хандахыг\\мэдэх};
+\node[uc] (listen) at (4.6,-5.9)  {Хариултыг дуугаар\\сонсох};
+\node[uc] (stt)    at (8.9,-0.8)  {Яриаг текст болгох};
+\node[uc] (tts)    at (8.9,-5.9)  {Текстийг дуу болгох};
+\node[uc] (import) at (8.9,-7.4)  {Сургуулийн хүснэгт\\оруулах};
+\node[uc] (publish) at (8.9,-8.8) {Мэдээллийн шинэ хувилбар\\шалгаж нийтлэх};
+
+% --- оролцогчид
+\stickman{guest}{0.4,-2.4}{Зочин}
+\stickman{daily}{-3.2,-0.4}{Өдөр тутмын зочин\\{\scriptsize оюутан, эцэг эх,}\\{\scriptsize ажил горилогч}}
+\stickman{open}{-3.2,-4.4}{Нээлттэй өдөрлөгийн\\зочин\\{\scriptsize элсэгч, эцэг эх}}
+\stickman{staff}{13.4,-8.0}{Сургуулийн\\ажилтан}
+\node[extbox] (gemini) at (13.4,-0.8) {Яриа таних\\үйлчилгээ\\{\scriptsize Gemini 3.5 Transcribe}};
+\node[extbox] (edge)   at (13.4,-5.9) {Дуу үүсгэх\\үйлчилгээ\\{\scriptsize Edge TTS}};
+
+% --- холбоос
+\foreach \u in {typed, voice, answer, refer, listen} \draw[line] (guest) -- (\u.west);
+\draw[gen] (daily) -- (guest-l);
+\draw[gen] (open) -- (guest-l);
+\draw[dep] (voice) -- node[lab] {«include»} (stt);
+\draw[dep] (listen) -- node[lab] {«include»} (tts);
+\draw[dep] (refer) -- node[lab, right] {«extend»} (answer);
+\draw[line] (stt) -- (gemini);
+\draw[line] (tts) -- (edge);
+\draw[line] (staff-l) -- (import.east);
+\draw[line] (staff-l) -- (publish.east);
+\end{tikzpicture}
