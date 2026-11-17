@@ -2995,7 +2995,7 @@
     "schema_version": 1,
     "updated_date": "2026-11-17",
     "active_workstream": "III",
-    "verified_code_commit": "b706ea83b82e1f84c99c22e7676382eaecba86ce",
+    "verified_code_commit": "7ef67b7ef2c187a18248a5513f5b0aa2b3c9a74e",
     "current_focus": "III/I · Диплом дөнгөж эхэлж байгаа: багшид үзүүлэх богино ноорог (23 х., зургаан зурагтай; 11/16 (2)–(3)-нд хэрэглэгчийн шүүмжээр дахин бичсэн, мэдлэгийн мод RAG-ийн суурь) ба бүтэн ажлын ноорог (31 х.) нэг эх бичвэрээс гарна. Гарчиг «ШМТК-ийн ухаалаг туслах» (хэрэглэгч, эцсийн). 11/17-нд багшаас чиглэл авна. Ресепшн, карьерын төв, олон нийтийн албанаас алба/өрөөний жагсаалт ба бодит асуулт хүлээж байна",
     "status_label": "11/18: агент өөрөө 34 асуудал олж засав (3–5-р тойрог): алба+өрөө заах, ажилтны гар утас нуух, захирал/менежер, дагалдах асуулт, нууц үг, «хэрхэн төлөх» · W04 зөв 12→17/20, буруу 0 · хэрэглэгчийн шийдэх 7 зүйл papers/41 §7",
     "workstreams": [
@@ -3352,7 +3352,7 @@
   },
   "gemini_live_integration_20261030": {
     "model": "gemini-3.5-live-translate-preview",
-    "verified_code_commit": "b706ea83b82e1f84c99c22e7676382eaecba86ce",
+    "verified_code_commit": "7ef67b7ef2c187a18248a5513f5b0aa2b3c9a74e",
     "related_tests_passed": 150,
     "cloud_live_calls": 0,
     "provider": "gemini_live",
@@ -3432,7 +3432,7 @@
     "human_pid": 32940,
     "saved_listening_preserved": 12,
     "initial_measurement_code_commit": "eb57816",
-    "verified_code_commit": "b706ea83b82e1f84c99c22e7676382eaecba86ce",
+    "verified_code_commit": "7ef67b7ef2c187a18248a5513f5b0aa2b3c9a74e",
     "publication": "local_commits_not_pushed",
     "report": "papers/13-gemini-real-use-evaluation-20261031.mn.md",
     "year_scope_regressions_passed": 202,
