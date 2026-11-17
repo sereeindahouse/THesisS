@@ -127,11 +127,118 @@ class AnchorBindingTests(unittest.TestCase):
             self.assertTrue(selection['abstained'])
             self.assertEqual('requested_value_missing' in reasons, typed, reasons)
 
+    def test_question_words_and_the_school_name_are_no_topic(self):
+        # 11/17 (5): the index cuts «хэддүгээр» to «хэддүг»; the school's name names the school.
+        self.assertEqual(rule_selector.key_terms('Сургууль Баянзүрх дүүргийн хэддүгээр хороонд байрладаг вэ?'),
+                         ('баянзүрх', 'дүүрг', 'хоро'))
+        self.assertEqual(rule_selector.key_terms('Шинэ Монгол Технологийн Коллежийн эрхэм зорилго юу вэ?'),
+                         ('эрхэм', 'зорилго'))
+        self.assertNotIn('өнөөдрийг', rule_selector.key_terms('Хөтөлбөрийг өнөөдрийг хүртэл хэдэн оюутан төгссөн бэ?'))
+        # «одоогийн» (current) stays a topic word: the site rarely states who holds a post now.
+        self.assertIn('одоог', rule_selector.key_terms('Оюутны зөвлөлийн одоогийн дарга хэн бэ?'))
+
+    def test_dated_period_needs_a_calendar_date(self):
+        query = '2026 оны элсэлтийн цахим бүртгэл хэдий хугацаанд явагдсан бэ?'
+        self.assertEqual(expected_value(query)[0], 'date')
+        # The named year and a season are no answer; a month/day is.
+        self.assertFalse(value_supported(query, 'ШМТК — Элсэлт 2026. Элсэлтийн шалгалтаа намар болон хавар авдаг.'))
+        self.assertTrue(value_supported(query, 'Цахим бүртгэл 08/03-08/13'))
+        # Without a year a season still answers «хэзээ».
+        self.assertTrue(value_supported('Элсэлтийн шалгалт хэзээ болдог вэ?', 'Шалгалтаа намар авдаг.'))
+
+    def test_publication_date_place_and_two_word_topics(self):
+        # 11/17 (5): an article's dated heading line is not the date asked about.
+        self.assertFalse(value_supported('Элсэлт хэзээ эхлэх вэ?', 'ЭЛСЭЛТИЙН МЭДЭЭЛЭЛ\n2026 оны есдүгээр сарын 11'))
+        self.assertTrue(value_supported('Элсэлт хэзээ эхлэх вэ?', 'Бүртгэл 2026 оны есдүгээр сарын 11-нд эхэлнэ.'))
+        # Where an office is: a room or a floor, in digits or in words.
+        self.assertEqual(expected_value('Хүний нөөцийн алба хаана байдаг вэ?')[0], 'place')
+        self.assertIsNone(expected_value('Японд хаана дадлага хийдэг вэ?'))
+        self.assertFalse(value_supported('Хүний нөөцийн алба хаана байдаг вэ?', 'Байгууллагын бүтэц, алба нэгж'))
+        self.assertTrue(value_supported('Хүний нөөцийн алба хаана байдаг вэ?', 'Хүний нөөцийн алба 406 тоот'))
+        self.assertTrue(value_supported('Номын сан хаана вэ', 'Номын сан гуравдугаар давхарт.'))
+        # A two-word topic must stand together in the text: «цайны цаг» is no cafeteria.
+        self.assertEqual(rule_selector.phrase_pair('Цайны газар байдаг уу?'), ('цайны', 'газар'))
+        self.assertFalse(rule_selector.topic_covered('Цайны газар байдаг уу?',
+                                                     'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
+        self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
+
+    def test_review_findings_round_three(self):
+        # A labelled date on its own line is an answer, not a publication heading.
+        self.assertTrue(value_supported('Элсэлтийн бүртгэл хэзээ эхлэх вэ?', 'Бүртгэл эхлэх огноо:\n2026 оны 8 сарын 1\n'))
+        # A building or block is a place too.
+        self.assertTrue(value_supported('Мэдээллийн технологийн төв хаана байрладаг вэ?',
+                                        'Төв нь хичээлийн 2-р байрны А корпуст байрладаг.'))
+        # The two-word rule is for existence questions only.
+        self.assertIsNone(rule_selector.phrase_pair('Сургуулийн имэйл хаяг юу вэ?'))
+        self.assertIsNone(rule_selector.phrase_pair('Элсэлтийн шалгалт хэзээ болох вэ?'))
+        self.assertTrue(rule_selector.topic_covered('Сургуулийн имэйл хаяг юу вэ?',
+                                                    'Хаяг: Улаанбаатар хот\nУтас: 7577\nИмэйл: info@nmct.edu.mn'))
+        # «Төлбөрөө хэрхэн төлөх вэ?» asks which fee; a named fee does not.
+        from source_fields import ambiguity
+        self.assertEqual(ambiguity('Төлбөрөө хэрхэн төлөх вэ?', [dict(text='QPay')])[1],
+                         ['Бүртгэлийн хураамжаа хэрхэн төлөх вэ?', 'Сургалтын төлбөрөө хэрхэн төлөх вэ?'])
+        self.assertIsNone(ambiguity('Бүртгэлийн хураамжаа хэрхэн төлөх вэ?', [dict(text='QPay')]))
+
+    def test_unanchored_question_takes_only_a_school_wide_page(self):
+        query = 'Хэдэн оюутан суралцдаг вэ?'
+        claim = 'Оюутны тоо\n2025–2026 оны хичээлийн жилд нийт 128 оюутан суралцаж байна.'
+        department = 'Механик инженерийн тэнхим\n\nhttps://nmct.edu.mn/departments/mechanical'
+        school = 'Бидний тухай\n\nhttps://nmct.edu.mn/about'
+        self.assertTrue(rule_selector.value_missing(query, [claim], True, (), contexts=[department]))
+        self.assertFalse(rule_selector.value_missing(query, [claim], True, (), contexts=[school]))
+        # A range or an ordinal does not count a building: «тэргүүн байранд 1-3 байр».
+        self.assertTrue(rule_selector.value_missing('Сургууль хэдэн байртай вэ?', ['тэргүүн байранд 1-3 байр'],
+                                                    True, (), contexts=[school]))
+
+    def test_title_only_anchor_needs_the_question_verb_for_a_count(self):
+        query = 'Компьютерын ухааны тэнхимд хэдэн оюутан суралцдаг вэ?'
+        page = 'Компьютерын ухааны тэнхим\n\nhttps://nmct.edu.mn/departments/computer-science'
+        focus = {'компьютер'}
+        self.assertTrue(rule_selector.value_missing(query, ['КУ-5 ангийн 3 оюутан компанид дадлага хийсэн.'],
+                                                    True, focus, contexts=[page]))
+        self.assertFalse(rule_selector.value_missing(query, ['Хичээлийн жилд нийт 128 оюутан суралцаж байна.'],
+                                                     True, focus, contexts=[page]))
+
     def test_heading_line_matches_the_question_terms(self):
         self.assertTrue(rule_selector.heading_match('Сургуулийн эрхэм зорилго юу вэ?',
                                                     'Эрхэм зорилго\nМэргэжлийн болон харилцааны өндөр ур чадвартай'))
         self.assertFalse(rule_selector.heading_match('Сургуулийн эрхэм зорилго юу вэ?',
                                                      'Үнэт зүйлс\nсургуулийн эрхэм зорилго, үзэл санааны дор'))
+
+
+class SiblingWindowTests(unittest.TestCase):
+    def test_left_out_window_of_a_returned_page_joins(self):
+        # 11/17 (5): two windows per page return; the window with the asked count was left out.
+        from rag_runtime import sibling_windows
+        url = 'https://nmct.edu.mn/departments/mechanical'
+
+        def window(sid, text, address=url):
+            return dict(source_id=sid, url=address, text=text, text_scope='main_element', title='Механик тэнхим')
+
+        returned = [window('w1', 'Механик инженерийн тэнхим нь үйлдвэрлэлд суурилсан сургалттай.'),
+                    window('w2', 'Механик инженерийн тэнхимийн лаборатори.')]
+        rows = returned + [window('w3', 'Оюутны тоо\nНийт 128 оюутан суралцаж байна.'),
+                           window('x1', 'Нийт 50 оюутан суралцаж байна.', 'https://nmct.edu.mn/departments/civil')]
+        found = dict(candidates=list(returned), query_anchor_terms=['механик', 'тэнхим'])
+        out = sibling_windows('Механик инженерийн тэнхимд хэдэн оюутан суралцдаг вэ?', found, rows)
+        self.assertEqual(out['sibling_windows'], ['w3'])
+        self.assertEqual([c['source_id'] for c in out['candidates']], ['w1', 'w2', 'w3'])
+        # Review 11/17 (5): a window repeating a returned one by > 55 %, or lacking the asked class
+        # code, does not join.
+        repeat = dict(window('w4', 'Механик инженерийн тэнхим нь үйлдвэрлэлд суурилсан сургалттай. 128 оюутан'),
+                      start_offset=0, end_offset=70)
+        first = dict(returned[0], start_offset=0, end_offset=60)
+        out = sibling_windows('Механик инженерийн тэнхимд хэдэн оюутан суралцдаг вэ?',
+                              dict(candidates=[first], query_anchor_terms=[]), [first, repeat])
+        self.assertNotIn('sibling_windows', out)
+        out = sibling_windows('КУ-5 анги хэдэн оюутантай вэ?', dict(candidates=list(returned), query_anchor_terms=[]),
+                              rows)
+        self.assertNotIn('sibling_windows', out)
+        # Only the returned page's own windows join, never another page's, and none twice.
+        found = dict(candidates=[window('w3', 'Оюутны тоо\nНийт 128 оюутан суралцаж байна.')], query_anchor_terms=[])
+        added = sibling_windows('Механик тэнхимд хэдэн оюутан суралцдаг вэ?', found, rows)['sibling_windows']
+        self.assertNotIn('x1', added)
+        self.assertNotIn('w3', added)
 
 
 class EvidenceTests(unittest.TestCase):
@@ -141,6 +248,17 @@ class EvidenceTests(unittest.TestCase):
                                                         '2 том танхим\n242 суудал', text))
         self.assertIn('total', missing_query_markers('Нийт хэдэн суудал вэ?', '242 суудал',
                                                      text + '\nНийт 900 суудал'))
+
+    def test_page_title_may_supply_a_year_anchor(self):
+        # 11/17 (5): «Цахим бүртгэл 08/03-08/13» on the page «Элсэлт 2026» answers a 2026 question.
+        query = '2026 оны элсэлтийн цахим бүртгэл хэдий хугацаанд явагдсан бэ?'
+        self.assertEqual(missing_query_markers(query, 'Цахим бүртгэл 08/03-08/13', '2026 онд\nЦахим бүртгэл'),
+                         ['anchor:2026'])
+        self.assertEqual(missing_query_markers(query, 'Цахим бүртгэл 08/03-08/13', '2026 онд\nЦахим бүртгэл',
+                                               selected_context='ШМТК — Элсэлт 2026'), [])
+        # Review 11/17 (5): only a year from the title; other numbers there never stand in.
+        self.assertEqual(missing_query_markers('3-р курсын хичээл хэзээ вэ?', 'Хичээл эхэлнэ', '3-р курс',
+                                               selected_context='2026 оны 3 сарын 11'), ['anchor:3'])
 
     def test_navigation_and_view_counter_are_trimmed_from_a_unit(self):
         text = 'Бүх мэдээ\nМэдээ, мэдээлэл\nОюутны амжилтын мэдээлэл\n2026 оны аравдугаар сарын 29 70 үзсэн'
@@ -181,6 +299,44 @@ class ReceptionWordingTests(unittest.TestCase):
         # An unrecorded teacher stays with the staff path (which says phones are not shown).
         self.assertFalse(self.path.recognizes('Х.Хүрэлбаатар багшийн утас?'))
         self.assertFalse(self.path.recognizes('ЗЗ-9 ангийн багшийн утас?'))
+
+    def test_teacher_day_from_the_published_timetable(self):
+        # 11/17 (5): busy/free and times only; never presence in the office.
+        tables = ReceptionTables(
+            rooms=(Room(6, '604'),), classes=(),
+            staff=(Staff(name='А.Номин-Эрдэнэ', department='КУ', room='604', email='fake.teacher@nmct.edu.mn'),),
+            timetable=(Lesson('mon', '09:35-11:05', 'КУ-5', '609', 'А.Номин-Эрдэнэ'),
+                       Lesson('mon', '08:00-09:30', 'КУ-5', '602', 'А.Номин-Эрдэнэ')),
+            timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+            holidays=(date(2026, 11, 26),), holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        result = path.answer('А.Номин-Эрдэнэ багш даваа гарагт хичээлтэй юу?')
+        self.assertEqual(result['reason_code'], 'reception_teacher_day')
+        self.assertLess(result['answer'].index('08:00-09:30'), result['answer'].index('09:35-11:05'))
+        self.assertIn('өрөөндөө байгааг батлахгүй', result['answer'])
+        self.assertNotIn('609', result['answer'])
+        # Sunday 11/15 → tomorrow is Monday; Monday 11/16 → Tuesday has no lessons.
+        tomorrow = path.answer('А.Номин-Эрдэнэ багш маргааш хичээлтэй юу?', now=datetime(2026, 11, 15, 9))
+        self.assertIn('маргааш (даваа)', tomorrow['answer'])
+        self.assertIn('08:00-09:30', tomorrow['answer'])
+        free = path.answer('А.Номин-Эрдэнэ багш маргааш хичээлтэй юу?', now=datetime(2026, 11, 16, 9))
+        self.assertIn('(сул)', free['answer'])
+        holiday = path.answer('А.Номин-Эрдэнэ багш маргааш хичээлтэй юу?', now=datetime(2026, 11, 25, 9))
+        self.assertEqual(holiday['reason_code'], 'reception_holiday')
+        self.assertEqual(path.answer('А.Номин-Эрдэнэ багш маргааш хичээлтэй юу?')['reason_code'],
+                         'reception_date_required')
+        self.assertEqual(path.answer('Х.Хүрэлбаатар багш даваа гарагт хичээлтэй юу?')['reason_code'],
+                         'reception_teacher_not_found')
+
+    def test_lesson_times_from_the_whole_timetable(self):
+        # 11/17 (5): the school day's lesson times, read from the timetable (usual double periods).
+        times = ['08:00-09:30'] * 25 + ['09:35-11:05'] * 25 + ['13:20-14:05'] * 3
+        tables = ReceptionTables(rooms=(), staff=(), classes=(), timetable=tuple(
+            Lesson('mon', time, 'КУ-5', '602', 'А.Номин-Эрдэнэ') for time in times), timetable_complete=True)
+        result = ReceptionAnswerPath(tables, enabled=True).answer('Хичээл хэдэн цагт эхэлдэг вэ?')
+        self.assertEqual(result['reason_code'], 'reception_bell_schedule')
+        self.assertIn('08:00-д эхэлж', result['answer'])
+        self.assertIn('Ихэвчлэн: 08:00-09:30, 09:35-11:05.', result['answer'])
 
     def test_class_weekday_in_time_order(self):
         result = self.path.answer('КУ-5 анги даваа гарагт хэдэн цагт хичээлтэй вэ?', now=datetime(2026, 11, 17, 9))

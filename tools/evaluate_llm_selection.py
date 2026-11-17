@@ -97,7 +97,12 @@ def common_render(query, ids, units, *, abstained=False, sources=None):
     scoped = scoped_sources(query,sources) if sources is not None else None
     if scoped is not None and not scoped:
         return dict(accepted=False, answer=None, claims=[], reason='no_scoped_sources')
-    resolved = resolve_evidence_selection(query, ids, units, max_characters=1800, max_claims=6)
+    # A selected paragraph's own page title and first heading line may supply a year anchor
+    # («ШМТК — Элсэлт 2026»); not the rest of the header text (dates, view counters).
+    titles = {source.get('source_id'): (source.get('title') or '') + '\n'
+              + (source.get('page_header') or '').split('\n', 1)[0] for source in sources or []}
+    resolved = resolve_evidence_selection(query, ids, units, max_characters=1800, max_claims=6,
+                                          source_titles=titles)
     if not resolved['accepted']:
         return dict(resolved, answer=None)
     if scoped is not None:

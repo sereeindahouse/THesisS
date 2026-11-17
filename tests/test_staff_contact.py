@@ -18,6 +18,22 @@ PAGE = dict(source_id='p1', title='Химийн инженерийн тэнхи�
 class StaffContactTests(unittest.TestCase):
     catalog = [PAGE, ROSTER, EMAILS]
 
+    def test_working_hours_and_degree_wordings(self):
+        # 11/17 (5): at the reception desk a subjectless question is about the school.
+        for query in ('Хэдэн цагт ажилладаг вэ?', 'Та нар хэдэн цагаас хэдэн цаг хүртэл ажилладаг вэ?',
+                      'Сургууль хэдэн цагт ажилладаг вэ?'):
+            self.assertEqual(common_question_alias(query), 'Сургуулийн ерөнхий ажлын цаг хэд вэ?')
+        self.assertIsNone(common_question_alias('Номын сан хэдэн цагт ажилладаг вэ?'))
+        self.assertEqual(common_question_alias('Төгсөхөд ямар зэрэг авах вэ?'),
+                         '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?')
+
+    def test_event_participant_count_is_not_a_staff_question(self):
+        # 11/17 (5): «намрын ажилд хэдэн багш оролцсон» is a news item's figure, not a roster.
+        self.assertIsNone(staff_query_scope('2026 оны намрын ажилд хэдэн багш оролцсон бэ?', [PAGE],
+                                            catalog=self.catalog))
+        self.assertIsNotNone(staff_query_scope('Химийн инженерийн тэнхимд хэдэн багш ажилладаг вэ?', [PAGE],
+                                               catalog=self.catalog))
+
     def test_unnamed_teacher_contact_asks_which_department(self):
         for query in ('Багштай яаж холбогдох вэ?', 'Багшийн имэйл хаяг авч болох уу?',
                       'Хүүхдийнхээ багштай холбогдмоор байна'):

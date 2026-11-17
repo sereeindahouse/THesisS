@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import csv
 from dataclasses import dataclass
-from datetime import date, datetime
+from collections import Counter
+from datetime import date, datetime, timedelta
 import io
 import json
 from pathlib import Path, PurePosixPath
@@ -580,9 +581,14 @@ class ReceptionAnswerPath:
                                     r'(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('class_day', r'(.{1,120}?) анги(?:йн)? (даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт хэдэн цагт хичээлтэй вэ'),
             ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
+            # 11/17 (5): the school day's lesson times, read from the whole timetable.
+            ('bell_schedule', r'хичээл(?:үүд)? хэдэн цаг(?:т|аас) (эхэл\w*|эхл\w*|дуус\w*|тар\w*)(?: вэ)?'),
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
+            # 11/17 (5): a named day («маргааш», «даваа гарагт»); the published timetable only.
+            ('teacher_day', r'(.{1,120}?) багш (өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)'
+                            r'(?: гарагт)? хичээлтэй юу'),
             ('teacher_now', r'(.{1,120}?) багш одоо хичээлтэй юу'),
             ('class_room', r'(.{1,120}?) анги хаана хичээллэдэг вэ'),
             ('course_today', r'([1-9]|10)-р курс өнөөдөр хэдэн цагт хичээлтэй вэ'),
@@ -598,7 +604,7 @@ class ReceptionAnswerPath:
                 if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
                     return None
                 # A weekday question carries its group and its day.
-                return intent, (match[1], match[2]) if intent == 'class_day' else match[1]
+                return intent, (match[1], match[2]) if intent in ('class_day', 'teacher_day') else match[1]
         return None
 
     def recognizes(self, query):
@@ -696,6 +702,40 @@ class ReceptionAnswerPath:
                 text += ' ' + who + person.email + '.' + where
             return reply(text, 'classes' if group is not None else 'staff',
                          'reception_class_teacher_phone' if group is not None else 'reception_teacher_phone')
+        if intent == 'teacher_day':
+            # «Б.Сэлмаа багш маргааш хичээлтэй юу?»: lessons in the published timetable that day
+            # only (busy/free and times); presence in the office is never confirmed.
+            name, day = value
+            person = next((person for person in self.tables.staff if _key(person.name) == _key(name)), None)
+            if person is None:
+                return missing('reception_teacher_not_found')
+            if _key(day) in ('өнөөдөр', 'маргааш'):
+                if not isinstance(now, datetime):
+                    return missing('reception_date_required')
+                target = now.date() + timedelta(days=1 if _key(day) == 'маргааш' else 0)
+                weekday = target.weekday()
+                when = _key(day) + ' (' + _MN_DAYS[weekday] + ')'
+                if self.tables.calendar_bound:
+                    if (self.tables.term_start is None or self.tables.term_end is None
+                            or not self.tables.holidays_reviewed):
+                        return missing('reception_calendar_unknown')
+                    if not self.tables.term_start <= target <= self.tables.term_end:
+                        return missing('reception_outside_term')
+                    if target in self.tables.holidays:
+                        return reply(person.name + ' — ' + when + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.',
+                                     'timetable', 'reception_holiday')
+            else:
+                weekday = _DAY_LOOKUP[_key(day)]
+                when = _MN_DAYS[weekday] + ' гарагт'
+            lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.teacher) == _key(person.name)
+                              and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
+            if not lessons and not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            # A joint lesson is stored once per group; list each time once.
+            times = list(dict.fromkeys(lesson.time for lesson in lessons))
+            status = ('хуваариар хичээлтэй: ' + ', '.join(times)) if times else 'хуваарьт хичээл бүртгэгдээгүй (сул)'
+            return reply(person.name + ' — ' + when + ' ' + status
+                         + '. Хуваарь өөрчлөгдсөн байж болно; өрөөндөө байгааг батлахгүй.', 'timetable', 'reception_teacher_day')
         if intent == 'place_where':
             place = self._place(value)
             if place is None:
@@ -803,6 +843,23 @@ class ReceptionAnswerPath:
             return reply(group.group + ' — ' + _MN_DAYS[weekday] + ' гарагийн бүртгэсэн хуваарь: '
                          + ('; '.join(slots) if slots else 'хичээл бүртгэгдээгүй') + '.' + period
                          + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
+        if intent == 'bell_schedule':
+            lessons = list(self.tables.timetable)
+            if not lessons or not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            def clock(minutes):
+                return '%02d:%02d' % divmod(minutes, 60)
+            slots = {lesson.time: lesson.interval for lesson in lessons}
+            counts = Counter(lesson.time for lesson in lessons)
+            # The usual lesson length (a double period); half and joined periods are left out.
+            usual = Counter(lesson.interval[1] - lesson.interval[0] for lesson in lessons).most_common(1)[0][0]
+            common = sorted((time for time, (start, end) in slots.items() if end - start == usual and counts[time] >= 20),
+                            key=lambda time: slots[time][0])
+            return reply('Ресепшний хуваарийн хүснэгтээр хичээл ' + clock(min(start for start, _ in slots.values()))
+                         + '-д эхэлж, хамгийн оройдоо ' + clock(max(end for _, end in slots.values())) + '-д дуусна.'
+                         + (' Ихэвчлэн: ' + ', '.join(common) + '.' if common else '')
+                         + ' Анги, өдөр бүрийн хуваарь өөр; тухайн ангийн өдрийн хуваарийг асууж болно.',
+                         'timetable', 'reception_bell_schedule')
         if intent == 'term_dates':
             if not (self.tables.calendar_bound and self.tables.term_start and self.tables.term_end):
                 return missing('reception_calendar_unknown')

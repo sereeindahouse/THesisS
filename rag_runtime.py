@@ -351,7 +351,11 @@ COMMON_QUESTION_ALIASES = (
                 r'(?:сургуулийн\s+)?хаяг\s+(?:хаана|юу)(?:\s+вэ)?'), 'Сургуулийн хаяг хаана вэ?'),
     # 11/10: general working hours. Without this the hybrid search chose an
     # unrelated event time («олимпиад 10:00–12:30») for «Сургууль хэдэн цагт ажилладаг вэ?».
-    (re.compile(r'сургууль(?:ийн)?\s+(?:хэдэн\s+цагт\s+ажилладаг|хэдээс\s+хэд\s+хүртэл\s+ажилладаг|'
+    # 11/17 (5): at the reception desk a question without a subject («Хэдэн цагт ажилладаг вэ?»,
+    # «Та нар …», «Танай сургууль …») asks about the school too.
+    (re.compile(r'(?:(?:сургууль(?:ийн)?|танай(?:\s+сургууль)?|та\s+нар)\s+)?'
+                r'(?:хэдэн\s+цагт\s+ажилладаг|хэдээс\s+хэд\s+хүртэл\s+ажилладаг|'
+                r'хэдэн\s+цагаас\s+хэдэн\s+цаг\s+хүртэл\s+ажилладаг|'
                 r'(?:ерөнхий\s+)?ажлын\s+цаг\s+(?:хэд|хэдэн|ямар))(?:\s+вэ)?'), 'Сургуулийн ерөнхий ажлын цаг хэд вэ?'),
     # A first-year ("1-р курс") qualifier is the default intake on the
     # admission page; it must not block the stored annual tuition / duration.
@@ -362,6 +366,11 @@ COMMON_QUESTION_ALIASES = (
     (re.compile(r'(?:(?:1|нэг)-р\s+курс(?:ээс|т)\s+элсвэл\s+|хөтөлбөр\s+)?хэдэн\s+жил\s+'
                 r'(?:суралцах|суралцдаг|сурах|сурдаг|үргэлжлэх|үргэлжилдэг)(?:\s+вэ)?'),
      '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?'),
+    # 11/17 (5): the degree on graduation; the same stored answer quotes the rules' I.1
+    # («инженерийн 5 жилийн хөтөлбөрөөр дэд бакалаврын зэрэг олгодог»).
+    (re.compile(r'(?:(?:төгсөхөд|төгсөөд|төгссөний\s+дараа)\s+)?ямар\s+(?:зэрэг|диплом)\s+'
+                r'(?:авах|авдаг|олгох|олгодог|өгөх|өгдөг|эзэмших)(?:\s+вэ)?'),
+     '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?'),
     # 11/17: plain wordings of the stored admission-programme and department lists.
     (re.compile(r'(?:сургууль\s+)?ямар(?:\s+ямар)?\s+(?:мэргэж(?:ил|л)\w*|хөтөлбөр\w*)\s+'
                 r'(?:элсүүлдэг|элсүүлэх|элсүүлж\s+байна|элсэлт\s+авдаг|элсэлт\s+авна|элсэлт\s+авч\s+байна|'
@@ -370,8 +379,80 @@ COMMON_QUESTION_ALIASES = (
     (re.compile(r'(?:сургууль(?:д)?\s+)?ямар(?:\s+ямар)?\s+тэнхим(?:үүд|үүдтэй|тэй)?(?:\s+(?:байдаг|бий))?(?:\s+вэ)?'),
      'Сургууль ямар тэнхимүүдтэй вэ?'),
 )
+def sibling_windows(query, found, rows, limit=2):
+    """Windows of an already retrieved page that the search's two-windows-per-page rule left out.
+
+    A long page (a department) is searched in overlapping windows and at most two of them
+    return. When a left-out window of a returned page covers more of the question's key words
+    than its returned windows («Robocon чиглэлийн NewRobo клуб»), or holds a value of the asked
+    type that they lack («нийт 128 оюутан» for «Механик … тэнхимд хэдэн оюутан»), up to
+    ``limit`` such windows join the candidates. No new page is added and every later guard
+    still applies (11/17 (5)). The search's own rules are kept: no window that repeats a
+    returned one by more than 55 %, and a class or course code in the question must stand in
+    the window. ``rows`` must be the snapshot ``found`` came from (the caller checks).
+    """
+    try:
+        return _sibling_windows(query, found, rows, limit)
+    except Exception:
+        return found    # an aid to the search, never a reason for the search to fail
+
+
+def _sibling_windows(query, found, rows, limit):
+    from answer_types import expected_value, value_supported
+    from rule_selector import key_term_coverage, key_terms
+    from website_retrieval import search_terms
+    candidates = list(found.get('candidates', []))
+    codes = [code.casefold() for code in re.findall(r'(?<![\w-])[А-ЯӨҮЁA-Z]{2}-\d(?!\d)', query)]
+
+    def repeats(row, source):
+        start, end = row.get('start_offset'), row.get('end_offset')
+        other_start, other_end = source.get('start_offset'), source.get('end_offset')
+        if not all(type(value) is int for value in (start, end, other_start, other_end)):
+            return False
+        shared = max(0, min(end, other_end) - max(start, other_start))
+        return shared > .55 * min(len(row['text']), len(source['text']))
+    returned = {}
+    for source in candidates:
+        if source.get('text_scope') == 'main_element' and source.get('url'):
+            returned.setdefault(source['url'], []).append(source)
+    if not returned or not key_terms(query):
+        return found
+    typed = expected_value(query) is not None
+    have = {source['source_id'] for source in candidates}
+    best = {url: max(key_term_coverage(query, source['text']) for source in sources)
+            for url, sources in returned.items()}
+    valued_page = {url: typed and any(value_supported(query, source['text']) for source in sources)
+                   for url, sources in returned.items()}
+    picked = []
+    for row in rows:
+        url = row.get('url')
+        if url not in returned or row.get('source_id') in have or row.get('text_scope') != 'main_element':
+            continue
+        if any(code not in row['text'].casefold() for code in codes) or any(
+                repeats(row, source) for source in returned[url]):
+            continue
+        coverage = key_term_coverage(query, row['text'])
+        valued = typed and not valued_page[url] and coverage > 0 and value_supported(query, row['text'])
+        if coverage > best[url] or valued:
+            picked.append((coverage, valued, row))
+    if not picked:
+        return found
+    picked.sort(key=lambda item: (-item[0], -item[1], item[2]['source_id']))
+    anchors = set(found.get('query_anchor_terms') or [])
+    added = []
+    for coverage, valued, row in picked[:limit]:
+        overlap = sorted(anchors & set(search_terms(row['text'])))
+        added.append(dict(row, lexical_score=0.0, dense_score=None, score=0.0, matched_terms=overlap,
+                          query_anchor_terms=sorted(anchors), lexical_overlap_count=len(overlap),
+                          requested_years=sorted(set(re.findall(r'\b20\d{2}\b', query))),
+                          query_answer_support_established=False))
+    return dict(found, candidates=candidates + added,
+                sibling_windows=[source['source_id'] for source in added])
+
+
 # The school's own mission, vision and values are not a department's; see school_scope_sources.
 SCHOOL_IDENTITY = re.compile(r'эрхэм\s+зорилго|алсын\s+хараа|үнэт\s+зүйл')
+from rule_selector import SCHOOL_NAME as SCHOOL_FULL_NAME  # one definition (review 11/17 (5))
 
 
 def school_scope_sources(query, sources):
@@ -1559,7 +1640,10 @@ class ChatRAG:
             # A compound fee question can rank payment-confirmation clauses above
             # the fee itself. Keep the original query/ranking, inspect up to ten
             # candidates, then require an actual registration amount clause.
-            found = self.retriever.search(query, limit=10 if registration_amount_query(query) else 5)
+            # The school's full name names the school itself («сургууль»), not a topic: ranking on
+            # «технологийн коллеж» would prefer pages that merely repeat the name (11/17 (5)).
+            found = self.retriever.search(SCHOOL_FULL_NAME.sub('сургууль', query),
+                                          limit=10 if registration_amount_query(query) else 5)
             expansions=field_search_expansions(query)
             if expansions:
                 original=list(found.get('candidates',[]));seen={source['source_id'] for source in original}
@@ -1597,6 +1681,10 @@ class ChatRAG:
                 found = dict(found, candidates=(additions + original)[:10],
                     event_query_expansion=dict(query=expanded,
                         supplemental_source_ids=[source['source_id'] for source in additions]))
+            # Only the same corpus snapshot the candidates came from (a release swap in between
+            # would mix two corpora, as the field-search check above refuses).
+            if getattr(self.retriever, '_corpus_id', None) == found.get('corpus_id'):
+                found = sibling_windows(query, found, getattr(self.retriever, '_rows', None) or [])
         except Exception:
             result.update(message="Мэдээллийн хайлт түр ажиллахгүй байна. Түр хүлээгээд дахин оролдоорой.",
                           reason_code="website_search_unavailable", suggestions=self.SUGGESTIONS)
@@ -1635,6 +1723,9 @@ class ChatRAG:
             # reporting frame. Explicit today/now/registration requests below
             # still retain the live-state guard, even when a date is supplied.
             live_query=re.sub(r'\b(?:энэ\s+жил|одоогоор)\b','',live_query)
+        # «өнөөдрийг хүртэл нийт хэдэн оюутан төгссөн» (to date) asks for a cumulative figure
+        # that a dated page states, not for today's live registration state (11/17 (5)).
+        live_query=re.sub(r'(?<!\w)(?:өнөөдрийг|өнөөг|одоог)\s+хүртэл(?!\w)',' ',live_query)
         live = bool(re.search(r"өнөөдөр|өнөөдр\w*|яг одоо|одоогоор|энэ жил|одоо.*(?:бүртг|нээлт|элс)|бүртг.*(?:одоо|нээлт)", live_query))
         years = set(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", query))
         year_evidence = year_evidence_sources(query, candidates)
@@ -1970,7 +2061,7 @@ class ChatRAG:
                 label = VALUE_LABELS.get(generated.get('expected_value'), 'утга')
                 result.update(reason_code='requested_value_not_found',suggestions=[],
                     message='Асуусан ' + label + ' хадгалсан эх сурвалжид олдсонгүй. Холбоотой хэсгийг доор '
-                            'харуулав; өөр тоо, огноогоор орлуулж хариулахгүй.')
+                            'харуулав; өөр утгаар орлуулж хариулахгүй.')
             if generated["generated"]:
                 sources = {s["source_id"]: s for s in evidence}
                 answer, cited = render_claims(generated['claims'])

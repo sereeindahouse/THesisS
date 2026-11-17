@@ -491,13 +491,15 @@ def _anchors(text):
     return anchors
 
 
-def missing_query_markers(query, selected_text, available_text):
+def missing_query_markers(query, selected_text, available_text, selected_context=''):
     """Check bounded explicit omissions, without claiming semantic coverage.
 
     A marker is mandatory only if it occurs in both the question and supplied
     units. Thus a spelling alias does not by itself reject all model selections;
     retrieval, entity/attribute ambiguity and unsupported-field guards remain
     the caller's responsibility. Roman course/month labels share digit anchors.
+    ``selected_context`` (the selected paragraphs' own page titles) may supply a year
+    anchor only; it never adds a requirement.
     """
     q, selected, available = query.casefold(), selected_text.casefold(), available_text.casefold()
     missing = []
@@ -512,7 +514,10 @@ def missing_query_markers(query, selected_text, available_text):
         if not re.search(pattern, selected) and not table_per_group:
             missing.append(name)
     required = _anchors(query) & _anchors(available_text)
-    missing.extend('anchor:' + anchor for anchor in sorted(required - _anchors(selected_text)))
+    # From the page's own title only a year counts: it scopes the whole page («Элсэлт 2026»).
+    supplied = _anchors(selected_text) | {anchor for anchor in (_anchors(selected_context) if selected_context else ())
+                                          if re.fullmatch(r'(?:19|20)\d{2}', anchor)}
+    missing.extend('anchor:' + anchor for anchor in sorted(required - supplied))
     return missing
 
 
@@ -602,11 +607,14 @@ def _named_heading_context(query, expanded, units, known):
     return list(dict.fromkeys(context))
 
 
-def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, max_claims=3):
+def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, max_claims=3,
+                               source_titles=None):
     """Resolve IDs into server-owned exact claims, preserving linked context.
 
     No free-form statement is accepted. Accepted means provenance and these
     bounded structural/explicit-marker checks passed; it is not entailment.
+    ``source_titles`` (source_id -> page title and heading) lets a selected paragraph's own
+    page title supply an explicit anchor such as the year in «Элсэлт 2026».
     """
     def result(reason, accepted=False, claims=None, **extra):
         return dict(accepted=accepted, reason=reason, claims=claims or [], **extra)
@@ -711,7 +719,10 @@ def resolve_evidence_selection(query, selected_ids, units, max_characters=1800, 
     selected_text = '\n\n'.join(claim['text'] for claim in claims)
     if len(selected_text) > max_characters:
         return result('evidence_selection_exceeds_budget')
-    missing = missing_query_markers(query, selected_text, '\n'.join(u['text'] for u in units))
+    titles = source_titles or {}
+    selected_context = '\n'.join(dict.fromkeys(titles.get(known[sid].get('source_id'), '') for sid in expanded))
+    missing = missing_query_markers(query, selected_text, '\n'.join(u['text'] for u in units),
+                                    selected_context=selected_context)
     if missing:
         return result('requested_evidence_markers_missing', missing_markers=missing)
     return result('verbatim_evidence_selection', accepted=True, claims=claims,

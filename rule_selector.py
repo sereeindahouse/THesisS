@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 import re
 import time
+from urllib.parse import urlsplit
 
 RULE_SELECTOR = 'bm25_bounded_complete_subset'
 GEMMA_SELECTOR = 'gemma_production_selector'
@@ -31,6 +32,15 @@ REQUEST_WORDS = frozenset('''хэлнэ хэлээрэй хэлж хэлээд �
     тайлбарлана тайлбарлаач тайлбарлаарай ялгаж ялгаад харьцуулна харьцуулж өгнө аль хамт
     ажилладаг сургууль коллеж хэн хэдэн хэддүгээр үнэхээр хүртэл байдаг болдог тавьдаг
     өгдөг авдаг хийдэг ордог байх ёстой гараг гарагт гарагийн нийт'''.split())
+# The same kinds of words as the search index writes them (it cuts endings: «хэддүгээр» → «хэддүг»),
+# and the school's short names (11/17 (5)).
+QUESTION_TERMS = frozenset('хэддүг хэдий хэдийд хэдийн шмтк nmct'.split())
+# «өнөөдрийг / одоог хүртэл» (to date) frames a cumulative figure; removed as a phrase, since
+# «одоогийн» (current: «одоогийн дарга») cuts to the same «одоог» and must stay a topic word.
+TO_DATE = re.compile(r'(?<!\w)(?:өнөөдрийг|өнөөг|одоог)\s+хүртэл(?!\w)', re.I)
+# Pages about the school as a whole (not a department, programme, event or news item).
+SCHOOL_WIDE_PATH = re.compile(r'^/(?:about(?:/.*)?|contact|elselt|elseltiin-juram/.*|student)?/?$')
+SCHOOL_NAME = re.compile(r'(?<!\w)шинэ\s+монгол\s+технологийн\s+коллеж\w*', re.I)
 FINAL_PREDICATE = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх)$')
 NUMERIC_QUESTION = re.compile(r'(?<!\w)(?:хэзээ|хэдэн|хэд|хэдэд|хэдний|хэддүгээр)(?!\w)')
 SHORT_QUESTION_TERMS = 6
@@ -70,8 +80,11 @@ def key_terms(query):
     # Cached and immutable: every candidate subset of one answer asks for the same query's terms.
     from answer_types import normalise_units
     from website_retrieval import search_terms
-    terms = tuple(term for term in dict.fromkeys(search_terms(normalise_units(query, numerals=True)))
-                  if term not in REQUEST_WORDS)
+    # «Шинэ Монгол Технологийн Коллежийн эрхэм зорилго» asks about the school's mission: the
+    # full name names the school itself, like «сургууль», and is not a topic word.
+    text = TO_DATE.sub(' ', SCHOOL_NAME.sub(' сургууль ', normalise_units(query, numerals=True)))
+    terms = tuple(term for term in dict.fromkeys(search_terms(text))
+                  if term not in REQUEST_WORDS and term not in QUESTION_TERMS)
     # Mongolian ends a sentence with its verb; that word names no topic.
     return terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
 
@@ -140,15 +153,79 @@ def value_missing(query, claims, typed=True, focus=(), contexts=None):
         stated = set(re.findall(r'(?<!\d)(?:19|20)\d{2}(?!\d)', claim))
         return bool(years and stated and not stated & years)
 
-    return not any(value_supported(query, claim) and not other_year(claim)
-                   and (not focus or any(_has_term(term, _anchor_words(claim + '\n' + context)) for term in focus))
+    def school_scope(context):
+        # With no anchor of its own («Хэдэн цагт ажилладаг вэ?», «Хэдэн оюутан суралцдаг вэ?») the
+        # question is about the school itself: only a school-wide page (home, about, contact,
+        # admissions, student life) may answer it, not a department's figure («Механик … 128
+        # оюутан»), a programme's or an event's (an olympiad at 10:00), 11/17 (5).
+        address = re.search(r'https?://\S+', context)
+        if focus or not address:
+            return True     # an anchored question, or no known page: the earlier behaviour
+        return bool(SCHOOL_WIDE_PATH.match(urlsplit(address.group()).path or '/'))
+
+    count = expected_value(query)[0] == 'count'
+    predicate = question_predicate(query)
+
+    def anchored(claim, context):
+        if not focus:
+            return True
+        words = _anchor_words(claim)
+        if any(_has_term(term, words) for term in focus):
+            return True
+        if not any(_has_term(term, _anchor_words(claim + '\n' + context)) for term in focus):
+            return False
+        # The anchor only in the page title is a weak tie for a count: «КУ-5 ангийн 3 оюутан …
+        # дадлага хийсэн» on the computer-science page does not answer «… тэнхимд хэдэн оюутан
+        # суралцдаг». Then the number's sentence must share the question's verb («суралцаж»).
+        return not count or predicate is None or _has_term(predicate, words)
+
+    # With no anchor term (focus) nothing else ties a number to the question: strict count.
+    return not any(value_supported(query, claim, strict=not focus) and not other_year(claim)
+                   and school_scope(context) and anchored(claim, context)
                    for claim, context in zip(claims, contexts))
+
+
+@lru_cache(maxsize=1024)
+def question_predicate(query):
+    """The question's own verb («… хэдэн оюутан суралцдаг вэ?» → «суралцдаг»), or None."""
+    words = [word for word in re.findall(r'\w+', query.casefold())
+             if word not in ('вэ', 'бэ', 'уу', 'үү', 'юу', 'юм')]
+    return words[-1] if words and FINAL_PREDICATE.search(words[-1]) else None
+
+
+@lru_cache(maxsize=1024)
+def phrase_pair(query):
+    """A two-word facility named in an existence question («Цайны газар байдаг уу?», «Дотуур байр
+    бий юу?»), or None. Other questions («Элсэлтийн шалгалт хэзээ болох вэ?», «Сургуулийн имэйл
+    хаяг юу вэ?») keep their words apart in a correct text (review 11/17 (5))."""
+    terms = key_terms(query)
+    if len(terms) != 2 or not re.search(r'(?:байдаг|бий|байгаа|байна)\s+(?:уу|үү|юу)\s*[?？]?\s*$',
+                                        query.casefold().strip()):
+        return None
+    from answer_types import normalise_units
+    words = re.findall(r'\w+', normalise_units(query, numerals=True))
+    first = [i for i, word in enumerate(words) if _has_term(terms[0], {word})]
+    second = [i for i, word in enumerate(words) if _has_term(terms[1], {word})]
+    return terms if any(j - i == 1 for i in first for j in second) else None
+
+
+def _near(text, first, second, distance=2):
+    from answer_types import normalise_units
+    words = re.findall(r'\w+', normalise_units(text, numerals=True))
+    left = [i for i, word in enumerate(words) if _has_term(first, {word})]
+    right = [i for i, word in enumerate(words) if _has_term(second, {word})]
+    return any(abs(i - j) <= distance for i in left for j in right)
 
 
 def topic_covered(query, text):
     required = (SHORT_QUESTION_COVERAGE if len(key_terms(query)) <= SHORT_QUESTION_TERMS
                 else LONG_QUESTION_COVERAGE)
-    return key_term_coverage(query, text) >= required
+    if key_term_coverage(query, text) < required:
+        return False
+    # «Цайны газар байдаг уу?» (a cafeteria) is not answered by «цайны цаг … газар»: a two-word
+    # topic must stand together in the text too (11/17 (5)).
+    pair = phrase_pair(query)
+    return pair is None or _near(text, *pair)
 
 
 def relevant_to_question(query, text, typed=True, claims=None, focus=(), contexts=None):
@@ -197,9 +274,28 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
             missing_field_evidence(requirements, [texts_by_id[row['unit_id']]])) < len(requirements)][:4]
     checked = []
     focus = focus_terms(query, units) if typed else set()
-    # A page's title and heading name what its paragraphs are about (the anchor check).
+    # A page's title and heading name what its paragraphs are about (the anchor check); its
+    # address tells a department page or a news item from a school-wide page (school_scope).
     headings = {source.get('source_id'): source.get('title', '') + '\n' + source.get('page_header', '')
-                for source in sources or []}
+                + '\n' + (source.get('url') or '') for source in sources or []}
+    source_of = {unit['unit_id']: unit.get('source_id') for unit in units}
+    if typed and not requirements:
+        from answer_types import expected_value, value_supported
+        if expected_value(query) is not None:
+            # The paragraph that holds the asked value («Энэ жил 78 оюутан…») can rank below
+            # paragraphs that only repeat the topic words (Jia & Liang 2017). Up to two units
+            # with a value of the asked type next to the anchor join the subsets; every guard
+            # below still applies (11/17 (5)).
+            chosen = {row['unit_id'] for row in ranked}
+
+            def anchored(unit_id):
+                # The anchor may stand in the paragraph or in its own page's title (as below).
+                words = _anchor_words(texts_by_id[unit_id] + '\n' + headings.get(source_of.get(unit_id), ''))
+                return not focus or any(_has_term(term, words) for term in focus)
+
+            ranked = ranked + [row for row in scored if row['score'] > 0 and row['unit_id'] not in chosen
+                               and value_supported(query, texts_by_id[row['unit_id']], strict=not focus)
+                               and anchored(row['unit_id'])][:2]
     headed_unit = {row['unit_id']: heading_match(query, texts_by_id[row['unit_id']]) for row in ranked}
     for count in range(1, min(3, len(ranked)) + 1):
         choices = list(combinations(range(len(ranked)), count))

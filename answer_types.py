@@ -27,7 +27,15 @@ _ORDINAL_WORDS = r'нэг|хоёр|гурав|дөрөв|тав|зургаа|д�
 _RANK_VALUE = re.compile(r'\d{1,3}\s*-?\s*(?:р|дугаар|дүгээр)\s+байр|(?:' + _ORDINAL_WORDS + r')(?:дугаар|дүгээр)\s+байр|'
                          r'(?:тэргүүн|тусгай|шилдэг)\s+байр|(?:алт|мөнгө|хүрэл)\w*\s+медаль|аварга|'
                          r'(?<!\w)[ivx]+\s+зэрэг\w*\s+(?:диплом|шагнал)', re.I)
-_FLOOR_VALUE = re.compile(r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*давхар', re.I)
+# A floor in digits («3-р давхар») or in words («гуравдугаар давхар»).
+_FLOOR = (r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*давхар|'
+          r'(?:' + _ORDINAL_WORDS + r'|арван\s*нэг|арван\s*хоёр)(?:дугаар|дүгээр)\s+давхар')
+# A place inside the campus: a room, a floor, a building or block («2-р байрны А корпус»),
+# or a street address (review 11/17 (5)).
+_PLACE_VALUE = re.compile(r'(?<!\d)\d{2,4}\s*(?:тоот|-?р\s+өрөө|өрөө)|(?:өрөө|тоот)\s*[:№#]?\s*\d{2,4}(?!\d)|'
+                          r'(?<!\w)(?:корпус|блок)\w*|\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)\s+байр(?:ны|анд|нд)?(?!\w)|'
+                          r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*хороо|гудамж\w*|' + _FLOOR, re.I)
+_FLOOR_VALUE = re.compile(_FLOOR, re.I)
 _TIME_VALUE = re.compile(r'(?<!\d)\d{1,2}[:.]\d{2}(?!\d)|(?<!\d)\d{1,2}\s*(?:-\s*\d{1,2}\s*)?цаг', re.I)
 # A month.day pair needs a two-digit day; «2.5 сая» (a decimal) and «2-3 оюутан» (a range) are no dates.
 _DATE_VALUE = re.compile(
@@ -36,6 +44,8 @@ _DATE_VALUE = re.compile(
     r'(?<!\d)\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*сар|(?:' + _ORDINAL_WORDS + r'|арван\s*нэг|арван\s*хоёр)'
     r'(?:дугаар|дүгээр)\s+сар|(?<!\w)(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?:\s+гараг\w*)?(?!\w)|'
     r'(?<!\w)(?:хавар|намар|өвөл|зун)\w*|\d+\s*(?:хоног|долоо\s+хоног|сар|жил)\w*\s+(?:дотор|дараа|өмнө|хойш)', re.I)
+_SEASON = re.compile(r'(?<!\w)(?:хавар|намар|өвөл|зун)\w*', re.I)
+_YEAR = r'(?<!\d)(?:19|20)\d{2}(?!\d)'
 _STOP_AFTER_COUNT = frozenset('вэ бэ уу үү юу юм нийт ба болон эсвэл'.split())
 _ORDINAL_MARKERS = frozenset('р дугаар дүгээр дахь дэх дахи дэхь дэхи'.split())
 
@@ -66,7 +76,7 @@ def normalise_units(text, numerals=False):
 
 @lru_cache(maxsize=1024)
 def expected_value(query):
-    """('time'|'rank'|'floor'|'date'|'count'|'number', count-noun stems) or None."""
+    """('time'|'rank'|'floor'|'place'|'date'|'count'|'number', count-noun stems) or None."""
     q = normalise_units(query)
     when = re.search(r'(?<!\w)хэзээ(?!\w)(.{0,40})', q)
     # «хэзээ нээгддэг / ажилладаг» asks for opening hours; «хэзээ нээгдсэн», «хэзээ хамтран
@@ -82,7 +92,13 @@ def expected_value(query):
         return 'rank', ()
     if re.search(r'хэддүгээр\s+давхар|хэдэн\s+давхар', q):
         return 'floor', ()
-    if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)', q):
+    # «Хүний нөөцийн алба хаана байдаг вэ?»: where an office or room is, inside the building
+    # (a room number or a floor), not «Японд хаана дадлага хийдэг» (11/17 (5)).
+    if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан)\w*\s+хаана(?!\w)', q):
+        return 'place', ()
+    # «хэдий хугацаанд» (over what period), «хэдийд» (when), «хэдийнээс» (since when) ask for a date.
+    if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)|'
+                 r'(?<!\w)хэдий\s+хугаца|(?<!\w)хэдийд(?!\w)|(?<!\w)хэдийнээс(?!\w)', q):
         return 'date', ()
     match = re.search(r'(?<!\w)хэдэн\s+([^?!.,;]+)', q)
     if match:
@@ -96,9 +112,21 @@ def expected_value(query):
     return None
 
 
-def _count_supported(stems, text):
+def _count_supported(stems, text, strict=False):
+    """A number counting the asked noun. ``strict`` (a question with no anchor of its own,
+    «Сургууль хэдэн байртай вэ?») takes only a number right before the noun, not a range
+    («1-3 байр»), since nothing else ties the number to the question (11/17 (5))."""
     # Trailing punctuation is not part of a number («25,», «1200.»).
-    tokens = [(match.group().rstrip('.,'), match.end()) for match in re.finditer(r'[\w²+.,]+', text)]
+    matches = list(re.finditer(r'[\w²+.,]+', text))
+    tokens = [(match.group().rstrip('.,'), match.end()) for match in matches]
+
+    def in_range(index):
+        dash = r'\s*[-–—]\s*'
+        before = index > 0 and re.fullmatch(_NUMBER, tokens[index - 1][0]) and re.fullmatch(
+            dash, text[matches[index - 1].end():matches[index].start()])
+        after = index + 1 < len(tokens) and re.fullmatch(_NUMBER, tokens[index + 1][0]) and re.fullmatch(
+            dash, text[matches[index].end():matches[index + 1].start()])
+        return bool(before or after)
 
     def counted(token):
         stem = light_stem(token.strip('.,+'))
@@ -112,8 +140,9 @@ def _count_supported(stems, text):
     for index, (token, end) in enumerate(tokens):
         # An ordinal («3-р байр», «6 дахь удаагаа») ranks or orders; it does not count anything.
         ordinal = index + 1 < len(tokens) and tokens[index + 1][0] in _ORDINAL_MARKERS
-        if (re.fullmatch(_NUMBER, token) and not ordinal
-                and any(counted(following) for following, _ in tokens[index + 1:index + 4])):
+        window = tokens[index + 1:index + (3 if strict else 4)]
+        if (re.fullmatch(_NUMBER, token) and not ordinal and not (strict and in_range(index))
+                and any(counted(following) for following, _ in window)):
             return True
         # A table or list line names the counted noun first: «Оюутны тоо: 1200», «Оюутан: 1200».
         if counted(token) and index + 1 < len(tokens):
@@ -125,8 +154,9 @@ def _count_supported(stems, text):
     return False
 
 
-def value_supported(query, text):
-    """True when text holds a value of the type the question asks for (or no type is asked)."""
+def value_supported(query, text, strict=False):
+    """True when text holds a value of the type the question asks for (or no type is asked).
+    ``strict``: the question has no anchor term of its own (see _count_supported)."""
     expected = expected_value(query)
     if expected is None:
         return True
@@ -138,14 +168,33 @@ def value_supported(query, text):
         return bool(_RANK_VALUE.search(shown))
     if kind == 'floor':
         return bool(_FLOOR_VALUE.search(shown))
+    if kind == 'place':
+        return bool(_PLACE_VALUE.search(shown))
     if kind == 'date':
+        # «2026 оны элсэлтийн бүртгэл хэдий хугацаанд явагдсан бэ?»: the named year is not its own
+        # answer, and a season («намар») is too vague for a dated event or a period (11/17 (5)).
+        # A dated heading line («2026 оны есдүгээр сарын 11») at the top of an article says when it
+        # was published, not the date asked about («Элсэлт хэзээ эхлэх вэ?»), 11/17 (5). Only a
+        # date-only line among the first two, not after a label («Бүртгэл эхлэх огноо:»).
+        from evidence_contract import _PUBLICATION_DATE
+        lines = shown.splitlines()
+        shown = '\n'.join(line for index, line in enumerate(lines)
+                          if not (index < 2 and _PUBLICATION_DATE.fullmatch(line.strip())
+                                  and not (index and lines[index - 1].rstrip().endswith(':'))))
+        asked_years = re.findall(_YEAR, query)
+        if asked_years or re.search(r'хэдий\s+хугаца', normalise_units(query)):
+            for year in asked_years:
+                shown = re.sub(r'(?<!\d)' + year + r'(?!\d)', ' ', shown)
+            shown = _SEASON.sub(' ', shown)
         return bool(_DATE_VALUE.search(shown))
     if kind == 'count':
-        return _count_supported(stems, shown)
+        return _count_supported(stems, shown, strict=strict)
     return bool(re.search(r'\d', shown))
 
 
-VALUE_LABELS = {'time': 'цаг', 'rank': 'эзэлсэн байр', 'floor': 'давхар', 'date': 'огноо, хугацаа',
+VALUE_LABELS = {'time': 'цаг', 'rank': 'эзэлсэн байр', 'floor': 'давхар', 'place': 'байршил (өрөө, давхар)',
+                'date': 'огноо, хугацаа',
                 'count': 'тоо', 'number': 'тоон утга'}
 # Words that name the asked value itself, not the topic (excluded from the anchor terms).
-VALUE_WORDS = {'time': ('цаг',), 'rank': ('байр',), 'floor': ('давхар',), 'date': ('сар', 'өдөр')}
+VALUE_WORDS = {'time': ('цаг',), 'rank': ('байр',), 'floor': ('давхар',), 'place': ('өрөө', 'давхар', 'байрла'),
+               'date': ('сар', 'өдөр', 'хугаца', 'огноо')}

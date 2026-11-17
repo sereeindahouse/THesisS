@@ -159,6 +159,9 @@ def staff_query_scope(query, sources, *, catalog=None):
         return None
     count = bool(re.search(r'хэд(?:эн)?\s+(?:(?:үндсэн|цагийн|туслах)\s+)?багш|'
         r'багш\w*(?:\s+нар\w*)?\s+(?:нийт\s+)?хэд(?:эн)?\b|багш\w*(?:\s+нар\w*)?\s+тоо', q))
+    # «намрын ажилд хэдэн багш оролцсон бэ» counts an event's participants (a news item),
+    # not a department's staff roster (11/17 (5)).
+    event = bool(re.search(r'оролц|хамрагд', q))
     # Bind names to staff, not an unrelated teaching-method group's name.
     names = bool(re.search(r'багш\w*(?:\s+нар\w*)?\s+'
         r'(?:(?:бүх|бүрийн|бүтэн|овог)\s+){0,2}(?:нэр\w*|хэн\b)|'
@@ -168,6 +171,8 @@ def staff_query_scope(query, sources, *, catalog=None):
     head = bool(re.search(r'эрхлэгч', q))
     # «Багштай яаж холбогдох вэ?»: a contact request, answered with published school e-mail.
     contact = bool(staff_contact_fields(query) or re.search(r'холбо(?:о\s+бар|гд)', q))
+    if event and not (names or head or contact):
+        return None
     if not (count or names or overview or head or contact):
         # A named teacher's requested subject/qualification still needs identity.
         if not re.search(r'\b[А-ЯӨҮЁ][а-яөүё-]+\s+багш', query, re.I):
@@ -594,6 +599,12 @@ def _number_measurements(query, sources):
 def ambiguity(query, sources):
     q = query.casefold()
     text = '\n'.join(s['text'].casefold() for s in sources)
+    # «Төлбөрөө хэрхэн төлөх вэ?»: the site describes one payment (the admission registration
+    # fee, by QPay); ask which fee instead of answering with that step (user's 11/12 note, 11/17 (5)).
+    if (re.search(r'(?:хэрхэн|яаж|ямар\s+аргаар)\s+(?:\w+\s+)?төл|төлбөр\w*\s+(?:хэрхэн|яаж)', q)
+            and not re.search(r'бүртгэл|хураамж|сургалтын\s+төлбөр|жилийн\s+төлбөр|хэсэгчлэн', q)):
+        return ('Аль төлбөрийг асууж байна вэ? Элсэлтийн бүртгэлийн хураамж уу, эсвэл сургалтын төлбөр үү?',
+                ['Бүртгэлийн хураамжаа хэрхэн төлөх вэ?', 'Сургалтын төлбөрөө хэрхэн төлөх вэ?'])
     if _competition_rank_query(query) and not _detail_names(query):
         return ('Аль оюутан эсвэл багийн, ямар тэмцээний дүнг асууж байна вэ? '
                 'Тэмцээний нэр, оролцогч болон он/огноог тодруулна уу.', [])

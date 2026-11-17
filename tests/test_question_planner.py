@@ -45,6 +45,20 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(plan), ['Сургалтын төлбөр хэд вэ?', 'Сургалтын төлбөр хэсэгчлэн төлж болох уу?'])
         self.assertEqual([p['original'] for p in plan['parts']], ['Сургалтын төлбөр хэд вэ?', 'хэсэгчлэн төлж болох уу?'])
 
+    def test_parallel_counts_share_the_subject_and_the_predicate(self):
+        # 11/17 (5): one predicate over two asked counts (W04-A18).
+        plan = planner().plan('2026 оны намрын ажилд хэдэн оюутан, хэдэн багш оролцсон бэ?')
+        self.assertEqual(self.queries(plan), ['2026 оны намрын ажилд хэдэн оюутан оролцсон бэ?',
+                                              '2026 оны намрын ажилд хэдэн багш оролцсон бэ?'])
+        # Review 11/17 (5): a whole first question («ямар байна») is not glued to the next predicate.
+        self.assertEqual(QuestionPlanner._distribute(['Төлбөр ямар байна?', 'хэдэн жил суралцах вэ?']),
+                         ['Төлбөр ямар байна?', 'хэдэн жил суралцах вэ?'])
+        # «юм» ends a statement: one request, not two parts.
+        self.assertFalse(planner().plan('Багштай уулзах гэсэн юм, имэйл хаяг нь юу вэ?')['compound'])
+        # Two complete questions are not rewritten.
+        plan = planner().plan('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?')
+        self.assertEqual(self.queries(plan), ['Сургалтын төлбөр хэд вэ?', 'Сургалтын төлбөр хэсэгчлэн төлж болох уу?'])
+
     def test_part_with_its_own_topic_is_not_prefixed(self):
         plan = planner().plan('Номын сан хэддүгээр давхарт байдаг вэ, ажлын цаг хэд вэ?')
         self.assertEqual(self.queries(plan), ['Номын сан хэддүгээр давхарт байдаг вэ?', 'ажлын цаг хэд вэ?'])
@@ -126,8 +140,15 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(p.plan('КУ-2 ангийн багштай холбоо барих утас хэд вэ?')),
                          ['КУ-2 ангийн багшийн утас?'])
         self.assertEqual(self.queries(p.plan('Сэлмаа багш хэзээ хичээлтэй вэ?')), ['Б.Сэлмаа багш хэзээ хичээлтэй вэ?'])
+        # 11/17 (5): a named day goes to that day's timetable wording, never to «now» or the office.
         self.assertEqual(self.queries(p.plan('Сэлмаа багш даваа гарагт хаана байна вэ?')),
-                         ['Б.Сэлмаа багш даваа гарагт хаана байна вэ?'])
+                         ['Б.Сэлмаа багш даваа гарагт хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багштай өнөөдөр уулзаж болох уу?')),
+                         ['Б.Сэлмаа багш өнөөдөр хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш 15:00 цагт хаана байна вэ?')),
+                         ['Б.Сэлмаа багш 15:00 цагт хаана байна вэ?'])
+        # Review 11/17 (5): a teacher named like a weekday («А.Даваа») is not read as that day.
+        self.assertEqual(self.queries(p.plan('А.Даваа багштай уулзаж болох уу?')), ['А.Даваа багш одоо хичээлтэй юу?'])
 
     def test_teacher_rewrite_uses_the_table_spelling(self):
         reception = FakeReception()

@@ -35,7 +35,9 @@ import re
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
-QUESTION_WORD = re.compile(r'(?<!\w)(?:вэ|бэ|уу|үү|юу|юм|хэн|хэнд|хэнээс|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|'
+# «юм» alone ends a statement («Багштай уулзах гэсэн юм, имэйл нь юу вэ?» is one request); only
+# «юм бэ» asks, and «бэ» is here already (11/17 (5)).
+QUESTION_WORD = re.compile(r'(?<!\w)(?:вэ|бэ|уу|үү|юу|хэн|хэнд|хэнээс|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|'
                            r'ямар|яаж|яах|аль|болох\s+уу|байдаг\s+уу)(?!\w)', re.I)
 # Words that carry no topic of their own; a part made only of these needs the previous subject.
 FUNCTION_WORDS = frozenset('''вэ бэ уу үү юу юм хэн хэнд хэд хэдэн хэдэд хаана хаашаа хэзээ ямар яаж аль
@@ -54,7 +56,14 @@ OTHER_TIME = re.compile(r'маргааш|өчигдөр|нөгөөдөр|(?<!\w)
 MEETING = re.compile(r'уулз|одоо|чөлөөтэй|(?<!\w)сул(?!\w)|хичээлтэй', re.I)
 ROOM_ASK = re.compile(r'өрөө|тоот|хаана\s+(?:суудаг|байдаг|ажилладаг|байна)', re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
+DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
+# Parallel asked values sharing one predicate: «…хэдэн оюутан» + «хэдэн багш оролцсон бэ».
+PARALLEL_HEAD = re.compile(r'^(?P<subject>.*?)(?P<ask>(?<!\w)(?:хэдэн|хэд|хэддүгээр|ямар)\s+[\w-]+)$', re.I)
+PARALLEL_TAIL = re.compile(r'^(?P<ask>(?:хэдэн|хэд|хэддүгээр|ямар)\s+[\w-]+)\s+(?P<predicate>\S.*)$', re.I)
+PARTICLES = frozenset('вэ бэ уу үү юу юм'.split())
+# Finite verb endings («байна», «байдаг», «оролцсон»); a counted noun («удаа», «оюутан») keeps none.
+VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх)$')
 COURSE = re.compile(r'(?<!\d)([1-5])\s*(?:-?\s*(?:р|дугаар|дүгээр|дахь|дэх)\b)?\s*курс\w*', re.I)
 
 
@@ -143,6 +152,23 @@ class QuestionPlanner:
         if len(parts) < 2 or len(parts) > MAX_PARTS:
             return [query.strip()]
         return [part + '?' for part in parts]
+
+    @staticmethod
+    def _distribute(parts):
+        """«X-д хэдэн оюутан, хэдэн багш оролцсон бэ?» asks two counts under one predicate: each
+        part gets the shared subject (from the first) and predicate (from the last), 11/17 (5)."""
+        texts = [part.rstrip('?？').strip() for part in parts]
+        tail = PARALLEL_TAIL.match(texts[-1])
+        heads = [PARALLEL_HEAD.match(text) for text in texts[:-1]]
+        # A head must end in the asked noun («хэдэн оюутан»), not a verb or a particle: «Төлбөр
+        # ямар байна?» is already a whole question (review 11/17 (5)).
+        if (not tail or not all(heads) or not heads[0].group('subject').strip()
+                or any(head.group('ask').split()[-1].casefold() in PARTICLES
+                       or VERB_END.search(head.group('ask').split()[-1].casefold()) for head in heads)):
+            return parts
+        subject, predicate = heads[0].group('subject').strip(), tail.group('predicate').strip()
+        return ([(head.group('subject').strip() or subject) + ' ' + head.group('ask') + ' ' + predicate + '?'
+                 for head in heads] + [subject + ' ' + tail.group('ask') + ' ' + predicate + '?'])
 
     def _has_topic(self, text):
         words = [w for w in _words(text) if w not in FUNCTION_WORDS]
@@ -257,12 +283,21 @@ class QuestionPlanner:
                     text=match.group(1), value=full)
         return text, None
 
+    @staticmethod
+    def _day_wording(full, day):
+        word = day.group(1).casefold()
+        return full + ' багш ' + (word if word in ('өнөөдөр', 'маргааш') else word + ' гарагт') + ' хичээлтэй юу?'
+
     def _teacher_intent(self, text):
         match = TEACHER.search(text)
         key = match and (match.group(1) + '.' + match.group(2)).casefold()
         if not match or key not in self.staff:
             return text, None
         full = self.staff[key]
+        # Day and time words are looked for outside the teacher's own name («Г.Баасан», «А.Даваа»).
+        rest = text[:match.start()] + ' ' + text[match.end():]
+        day = DAY_WORD.search(rest)
+        other_time = OTHER_TIME.search(rest)
         # Already the closed wording (e.g. «…багшийн имэйл юу вэ?»): leave it as asked.
         # «…багш хаана (байна) вэ?» is the timetable-status wording; it must not become an office room.
         if re.search(r'багшийн\s+(?:и-?мэйл|имэйл|мэйл|цахим\s+шуудан|утас)|багшийн\s+өрөө\s+хаана\s+вэ|'
@@ -276,11 +311,14 @@ class QuestionPlanner:
         elif CONTACT.search(text):
             canonical = full + ' багшийн имэйл?'
         elif ROOM_ASK.search(text):
-            # «…багш даваа гарагт хаана байна вэ?» asks where the teacher is then (the timetable),
-            # not for the office room.
-            if OTHER_TIME.search(text) and not re.search(r'өрөө|тоот', text, re.I):
-                return text, None
-            canonical = full + ' багшийн өрөө хаана вэ?'
+            # «…багш даваа гарагт хаана байна вэ?» asks where the teacher is then: that day's
+            # timetable (11/17 (5)), not the office room; a clock time has no wording, so it stays.
+            if (day or other_time) and not re.search(r'өрөө|тоот', text, re.I):
+                if not day:
+                    return text, None
+                canonical = self._day_wording(full, day)
+            else:
+                canonical = full + ' багшийн өрөө хаана вэ?'
         elif MEETING.search(text):
             if re.search(r'(?<!\w)хэзээ(?!\w)', text, re.I):
                 # «хэзээ уулзах» asks for office hours; «хэзээ хичээлтэй» asks for the teacher's
@@ -288,8 +326,11 @@ class QuestionPlanner:
                 if not re.search(r'уулз|чөлөөтэй|(?<!\w)сул(?!\w)', text, re.I):
                     return text, None
                 canonical = full + ' багш хэзээ оюутантай уулздаг вэ?'
-            elif OTHER_TIME.search(text):
-                # «маргааш», a weekday or a clock time is not «now»: leave the question as asked.
+            elif day:
+                # «маргааш», «өнөөдөр» or a weekday is not «now»: that day's timetable wording.
+                canonical = self._day_wording(full, day)
+            elif other_time:
+                # A clock time has no closed wording: leave the question as asked.
                 return text, None
             else:
                 canonical = full + ' багш одоо хичээлтэй юу?'
@@ -302,7 +343,11 @@ class QuestionPlanner:
     def plan(self, query):
         """Return parts to route; each keeps the visitor's original wording for the reply."""
         originals = self._split(query) if self.split_compound else [query.strip()]
-        routed = self._inherit(originals) if len(originals) > 1 else list(originals)
+        routed = list(originals)
+        if len(originals) > 1:
+            # Distributed parallel parts already carry the subject; others may inherit it.
+            distributed = self._distribute(originals)
+            routed = distributed if distributed != originals else self._inherit(originals)
         parts = []
         for original, text in zip(originals, routed):
             rewrites = []
