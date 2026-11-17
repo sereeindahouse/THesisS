@@ -42,6 +42,18 @@ _DAYS = ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun')
 _MN_DAYS = ('даваа', 'мягмар', 'лхагва', 'пүрэв', 'баасан', 'бямба', 'ням')
 _DAY_LOOKUP = {**{day: i for i, day in enumerate(_DAYS)},
                **{day: i for i, day in enumerate(_MN_DAYS)}}
+_RELATIVE_DAYS = {'өнөөдөр': 'өнөөдрийн', 'маргааш': 'маргаашийн'}
+
+
+def normalize_wording(text):
+    """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
+    давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
+    both reception matchers read the result."""
+    text = re.sub(r'(?<!\w)хэд(?:эн)?\s+давхарт', 'хэддүгээр давхарт', text, flags=re.I)
+    text = re.sub(r'(?<!\w)лаб(?!\w)', 'лаборатори', text, flags=re.I)
+    return re.sub(r'(?<!\w)хаана\s+суудаг', 'хаана байдаг', text, flags=re.I)
+
+
 _XML_NS = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 _REL_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
 
@@ -545,11 +557,11 @@ class ReceptionAnswerPath:
             return None, None
         # Only this closed wording is handled. Unknown modifiers, multiple
         # questions and ambiguous partial names remain for the normal router.
-        cleaned = query.strip().rstrip('?!？.').strip()
+        cleaned = normalize_wording(query.strip().rstrip('?!？.').strip())
         room = (re.fullmatch(r'(.{1,120}?)\s+өрөө\s+хаана(?:\s+байдаг)?\s*(?:вэ)?', cleaned, re.I)
                 or re.fullmatch(r'өрөө\s+(.{1,120}?)\s+хаана(?:\s+байдаг)?\s*(?:вэ)?', cleaned, re.I)
                 or re.fullmatch(r'where\s+is\s+room\s+(.{1,120})', cleaned, re.I))
-        teacher = (re.fullmatch(r'(.{1,120}?)\s+багш\s+хаана(?:\s+байна)?\s*(?:вэ)?'
+        teacher = (re.fullmatch(r'(.{1,120}?)\s+багш\s+хаана(?:\s+(?:байна|байдаг))?\s*(?:вэ)?'
                     r'(?:\s*[,;]?\s*(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням|mon|tue|wed|thu|fri|sat|sun)'
                     r'\s+(\d{2}:\d{2}))?', cleaned, re.I)
                    or re.fullmatch(r'where\s+is\s+teacher\s+(.{1,120}?)(?:\s+on\s+'
@@ -587,7 +599,8 @@ class ReceptionAnswerPath:
             # «КУ-2 ангийн» as a person's name.
             ('class_teacher_email', r'(.{1,120}?) ангийн багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?'
                                     r'(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
-            ('class_day', r'(.{1,120}?) анги(?:йн)? (даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт хэдэн цагт хичээлтэй вэ'),
+            ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
+                          r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
             ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
             # 11/17 (5): the school day's lesson times, read from the whole timetable.
             ('bell_schedule', r'хичээл(?:үүд)? хэдэн цаг(?:т|аас) (эхэл\w*|эхл\w*|дуус\w*|тар\w*)(?: вэ)?'),
@@ -609,22 +622,37 @@ class ReceptionAnswerPath:
             ('role_meet', r'(.{1,120}?)(?:тай|тэй|той) (?:одоо )?уулз(?:аж|ах) (?:болох|болно) уу'),
             # Plain "X хаана вэ?" is claimed only when X is a recorded office or group.
             ('place_where', r'(.{1,120}?) хаана (?:байдаг|байна|байрладаг)? ?вэ'),
+            # Round 8: «Эмч байдаг уу?» — a recorded service or room purpose exists (claimed only
+            # then). Not «байгаа/байна уу?»: that asks whether someone is there now, never confirmed.
+            ('place_exists', r'(.{1,60}?) (?:байдаг|бий) (?:уу|юу|үү)'),
         )
-        if text.casefold() == 'ангийн багш хэн бэ':
+        # Round 8: spoken and typed wordings; a question typed without its particle is also tried
+        # with «вэ» and «бэ» («бэ» first after «хэн», so «КУ-2 ангийн багш хэн» is the class teacher).
+        text = normalize_wording(text)
+        candidates = [text]
+        if not re.search(r'(?<!\w)(?:вэ|бэ|уу|үү|юу)$', text, re.I):
+            candidates += ([text + ' бэ', text + ' вэ'] if re.search(r'(?<!\w)хэн$', text, re.I)
+                           else [text + ' вэ', text + ' бэ'])
+        if any(candidate.casefold() == 'ангийн багш хэн бэ' for candidate in candidates):
             return 'group_required', ''
-        for intent, pattern in patterns:
-            match = re.fullmatch(pattern, text, re.I)
-            if match:
-                if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
-                    return None
-                # A weekday question carries its group and its day.
-                return intent, (match[1], match[2]) if intent in ('class_day', 'teacher_day') else match[1]
+        for candidate in candidates:
+            for intent, pattern in patterns:
+                match = re.fullmatch(pattern, candidate, re.I)
+                if match:
+                    if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
+                        return None
+                    # A day question carries its group or teacher and its day.
+                    if intent in ('class_day', 'teacher_day'):
+                        return intent, (match[1], next(group for group in match.groups()[1:] if group))
+                    return intent, match[1]
         return None
 
     def recognizes(self, query):
         if not self.enabled:
             return False
         extra = self._extra_match(query)
+        if extra is not None and extra[0] == 'place_exists':
+            return self._service(extra[1]) is not None or bool(self._purpose_rooms(extra[1]))
         if extra is not None and extra[0] == 'place_where':
             return (any(self._match(query)) or self._place(extra[1]) is not None
                     or bool(self._purpose_rooms(extra[1])))
@@ -739,19 +767,28 @@ class ReceptionAnswerPath:
         group = next((group for group in self.tables.classes if _key(group.group) == name), None)
         return ('class', group, None) if group is not None else None
 
-    def _calendar_reason(self, now):
+    def _calendar_reason(self, now, day=None):
+        """Why the timetable does not apply on ``day`` (default: today), or None."""
         if not self.tables.calendar_bound:
             return None
         if not isinstance(now, datetime):
             return 'reception_date_required'
+        day = now.date() if day is None else day
         if (self.tables.term_start is None or self.tables.term_end is None
                 or not self.tables.holidays_reviewed):
             return 'reception_calendar_unknown'
-        if not self.tables.term_start <= now.date() <= self.tables.term_end:
+        if not self.tables.term_start <= day <= self.tables.term_end:
             return 'reception_outside_term'
-        if now.date() in self.tables.holidays:
+        if day in self.tables.holidays:
             return 'reception_holiday'
         return None
+
+    def _relative_day(self, word, now):
+        """«өнөөдөр»/«маргааш» -> (that date or None, the calendar reason or None)."""
+        if not isinstance(now, datetime):
+            return None, 'reception_date_required'
+        day = now.date() + timedelta(days=1 if _key(word) == 'маргааш' else 0)
+        return day, self._calendar_reason(now, day)
 
     def answer(self, query, *, now=None):
         if not self.enabled:
@@ -815,21 +852,17 @@ class ReceptionAnswerPath:
             person = next((person for person in self.tables.staff if _key(person.name) == _key(name)), None)
             if person is None:
                 return missing('reception_teacher_not_found')
-            if _key(day) in ('өнөөдөр', 'маргааш'):
-                if not isinstance(now, datetime):
-                    return missing('reception_date_required')
-                target = now.date() + timedelta(days=1 if _key(day) == 'маргааш' else 0)
+            if _key(day) in _RELATIVE_DAYS:
+                target, reason = self._relative_day(day, now)
+                if target is None:
+                    return missing(reason)
                 weekday = target.weekday()
                 when = _key(day) + ' (' + _MN_DAYS[weekday] + ')'
-                if self.tables.calendar_bound:
-                    if (self.tables.term_start is None or self.tables.term_end is None
-                            or not self.tables.holidays_reviewed):
-                        return missing('reception_calendar_unknown')
-                    if not self.tables.term_start <= target <= self.tables.term_end:
-                        return missing('reception_outside_term')
-                    if target in self.tables.holidays:
-                        return reply(person.name + ' — ' + when + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.',
-                                     'timetable', 'reception_holiday')
+                if reason == 'reception_holiday':
+                    return reply(person.name + ' — ' + when + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.',
+                                 'timetable', 'reception_holiday')
+                if reason:
+                    return missing(reason)
             else:
                 weekday = _DAY_LOOKUP[_key(day)]
                 when = _MN_DAYS[weekday] + ' гарагт'
@@ -842,6 +875,16 @@ class ReceptionAnswerPath:
             status = ('хуваариар хичээлтэй: ' + ', '.join(times)) if times else 'хуваарьт хичээл бүртгэгдээгүй (сул)'
             return reply(person.name + ' — ' + when + ' ' + status
                          + '. Хуваарь өөрчлөгдсөн байж болно; өрөөндөө байгааг батлахгүй.', 'timetable', 'reception_teacher_day')
+        if intent == 'place_exists':
+            found = self._service(value)
+            if found is not None:
+                room, service = found
+                return reply('Тийм. ' + service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар.',
+                             'rooms', 'reception_service_exists')
+            rooms = self._purpose_rooms(value)
+            if rooms:
+                return reply('Тийм. ' + self._purpose_reply(rooms), 'rooms', 'reception_purpose_exists')
+            return None  # not a recorded service or room: the main path answers
         if intent == 'place_where':
             place = self._place(value)
             if place is None:
@@ -936,6 +979,20 @@ class ReceptionAnswerPath:
             group = next((group for group in self.tables.classes if _key(group.group) == _key(name)), None)
             if group is None:
                 return missing()
+            label = None
+            if _key(day) in _RELATIVE_DAYS:
+                # «КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ?» (round 8): the date decides the weekday;
+                # a date outside the term or on a recorded holiday has no timetable.
+                target, reason = self._relative_day(day, now)
+                if target is None:
+                    return missing(reason)
+                if reason == 'reception_holiday':
+                    return reply(group.group + ' — ' + _key(day) + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.',
+                                 'timetable', 'reception_holiday')
+                if reason:
+                    return missing(reason)
+                label = _RELATIVE_DAYS[_key(day)] + ' (' + _MN_DAYS[target.weekday()] + ' гараг)'
+                day = _MN_DAYS[target.weekday()]
             weekday = _DAY_LOOKUP[_key(day)]
             lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.group) == _key(group.group)
                               and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
@@ -945,7 +1002,7 @@ class ReceptionAnswerPath:
             slots = list(dict.fromkeys(lesson.time + ' (' + lesson.room + ' тоот)' for lesson in lessons))
             period = (' Хуваарийн хугацаа: ' + self.tables.term_start.isoformat() + ' – '
                       + self.tables.term_end.isoformat() + '.') if self.tables.term_start and self.tables.term_end else ''
-            return reply(group.group + ' — ' + _MN_DAYS[weekday] + ' гарагийн бүртгэсэн хуваарь: '
+            return reply(group.group + ' — ' + (label or _MN_DAYS[weekday] + ' гарагийн') + ' бүртгэсэн хуваарь: '
                          + ('; '.join(slots) if slots else 'хичээл бүртгэгдээгүй') + '.' + period
                          + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
         if intent == 'bell_schedule':

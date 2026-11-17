@@ -154,13 +154,15 @@ def personal_identifier_request(query):
 
 
 CREDENTIAL_VALUE = re.compile(
-    r'(?:нууц\s*үг|password|пин\s*код|pin\s*код)(?:ийг|ийн|ээ|\s+нь)?\s+'
-    r'(?:(?:юу|хэд|ямар)\s*(?:вэ|бэ)?\s*[?.!]*$|хэлнэ\s+үү|хэлээч|хэлж\s+өгөөч|хэлж\s+өгнө|өгнө\s+үү|өгөөч)', re.I)
+    r'(?:нууц\s*үг|password|пин\s*код|pin\s*код)(?:ийг|ийн|ээ|\s+нь)?'
+    r'(?:\s+(?:(?:юу|хэд|ямар)\s*(?:вэ|бэ)?\s*[?.!]*$|хэлнэ\s+үү|хэлээч|хэлж\s+өгөөч|хэлж\s+өгнө|өгнө\s+үү|өгөөч)'
+    r'|\s*[?.!]*$)', re.I)
 
 
 def credential_value_request(query):
-    """«Wi-Fi-ийн нууц үг юу вэ?»: a password or PIN itself is never given (round 5). Help with a
-    forgotten password («Нууц үгээ мартсан бол яах вэ?») stays an ordinary question."""
+    """«Wi-Fi-ийн нууц үг юу вэ?»: a password or PIN itself is never given (round 5); so is a
+    question that ends with it («wifi нууц үг», round 8). Help with a forgotten password («Нууц
+    үгээ мартсан бол яах вэ?») stays an ordinary question."""
     return isinstance(query, str) and bool(CREDENTIAL_VALUE.search(query.casefold()))
 
 

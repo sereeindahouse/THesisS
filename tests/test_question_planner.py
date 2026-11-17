@@ -39,6 +39,27 @@ class QuestionPlannerTests(unittest.TestCase):
     def queries(self, plan):
         return [part['query'] for part in plan['parts']]
 
+    def test_round8_spoken_names_codes_and_bare_followups(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'сэлмаа': 'Б.Сэлмаа'}, offices=['Номын сан', 'Захирал'],
+                               topic_keywords=['төлбөр', 'имэйл', 'өрөө', 'давхар', 'анги', 'багш'],
+                               staff=['Б.Сэлмаа'], class_names=['КУ-2', 'БИ-2'])
+
+        def asked(query, previous=None):
+            return plan.plan(query, previous=previous)['parts'][0]['query']
+
+        # A given name in lower case is the same teacher; a class code without its dash or case too.
+        self.assertEqual(asked('сэлмаа багшийн имэйл'), 'Б.Сэлмаа багшийн имэйл')
+        self.assertEqual(asked('ку 2 ангийн багш хэн бэ'), 'КУ-2 ангийн багш хэн бэ')
+        self.assertEqual(asked('КУ2 анги хаана хичээллэдэг вэ'), 'КУ-2 анги хаана хичээллэдэг вэ')
+        self.assertEqual(asked('ба 2 удаа'), 'ба 2 удаа')   # not a class in the table
+        self.assertEqual(asked('Би 2 давхарт хаана очих вэ?'), 'Би 2 давхарт хаана очих вэ?')   # a pronoun
+        self.assertEqual(asked('давхар нь', 'сэлмаа багш хаана байна'), 'Б.Сэлмаа багшийн өрөө хаана вэ?')
+        # «… нь?» alone follows the previous question; a bare «өрөө/давхар» becomes the location question.
+        self.assertEqual(asked('имэйл нь', 'сэлмаа багш хаана байна'), 'Б.Сэлмаа багшийн имэйл')
+        self.assertEqual(asked('өрөө нь?', 'Захирал хэн бэ?'), 'Захирал хаана вэ?')
+        self.assertEqual(asked('давхар нь', 'Номын сан хаана вэ?'), 'Номын сан хэддүгээр давхарт вэ?')
+
     def test_elliptical_followup_borrows_only_the_previous_named_thing(self):
         # Round 4 (11/17): «Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» answered the school's
         # hours. Only the named thing is carried (research: whole history hurts); a new topic is not.

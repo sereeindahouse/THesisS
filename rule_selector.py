@@ -59,9 +59,17 @@ def _words(text):
     return frozenset(re.findall(r'\w+', text)) | frozenset(search_terms(text))
 
 
-def _has_term(term, words):
-    # Shared prefixes stand in for Mongolian suffixes.
-    return any(word.startswith(term[:max(3, len(term) - 3)]) for word in words)
+_CONVERB = re.compile(r'\w{3,}[жч]')
+
+
+def _has_term(term, words, verb_stem=False):
+    # Shared prefixes stand in for Mongolian suffixes. With ``verb_stem`` (accepting a topic,
+    # round 8) a converb needs its whole stem: with three letters «хувааж» (dividing) covered
+    # «Хувийн» (personal), and «Төлбөрөө хувааж төлж болох уу?» was answered by a registration step.
+    size = max(3, len(term) - 3)
+    if verb_stem and _CONVERB.fullmatch(term):
+        size = max(size, len(term) - 1)
+    return any(word.startswith(term[:size]) for word in words)
 
 
 # Mongolian drops a stem's last short vowel before a vowel suffix (ажил → ажлаа, өдөр → өдрийн).
@@ -271,7 +279,7 @@ def topic_covered(query, text, titles='', typed=False):
         terms = without(VALUE_WORDS.get(kind, ()), terms) or terms
         terms = without(stems, terms) or terms
     words = _words(text + ('\n' + titles if kind else ''))
-    if terms and sum(_has_term(term, words) for term in terms) / len(terms) < required:
+    if terms and sum(_has_term(term, words, verb_stem=True) for term in terms) / len(terms) < required:
         return False
     # «Сургалтын төлбөрөө хэрхэн төлөх вэ?»: the asked verb shares its root with a topic noun
     # («төлөх» / «төлбөр»), so a prefix match cannot tell paying from a fee; the verb must stand

@@ -162,6 +162,13 @@ class AnchorBindingTests(unittest.TestCase):
                                                      'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
         self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
 
+    def test_a_converb_needs_its_stem(self):
+        # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
+        self.assertFalse(rule_selector.topic_covered(
+            'Төлбөрөө хувааж төлж болох уу?',
+            '3. Хувийн хэсэг\nТөлбөр баталгаажмагц нэвтэрч, бүртгэлийн мэдээллээ харна.'))
+        self.assertTrue(rule_selector.topic_covered('Хаана сурч болох вэ?', 'Суралцах хөтөлбөр'))
+
     def test_round6_light_verbs_dates_near_the_anchor_and_other_departments(self):
         # «шилжиж орж» = transfer in: «орж» only finishes the verb.
         self.assertEqual(rule_selector.key_terms('2-р курст шилжиж орж болох уу?'), ('2', 'курст', 'шилжиж'))
@@ -403,6 +410,28 @@ class ReceptionWordingTests(unittest.TestCase):
         # A near spelling or a room code is not a purpose (review, round 6).
         self.assertFalse(path.recognizes('Цахим лаборатори хаана вэ?'))
         self.assertEqual(path._purpose_rooms('809 өрөө'), [])
+
+    def test_spoken_wordings_and_existence(self):
+        # Round 8: questions typed or spoken without «вэ», «хэд давхарт», «лаб», «хаана суудаг»,
+        # «… байдаг уу?» about a recorded service, and a class's timetable for «маргааш».
+        tables = ReceptionTables(
+            rooms=(Room(10, '1006', services=(Service('Номын сан', '', ''),)), Room(6, '607', services=(Service('Эмч', '', ''),)),
+                   Room(8, '809', purpose='Хурлын заал'), Room(4, '410', purpose='Компьютерын лаборатори'), Room(6, '612')),
+            staff=(), classes=(ClassGroup(group='КУ-2', room='612', course='2', department='Компьютерын ухааны тэнхим'),),
+            timetable=(Lesson('thu', '08:00-09:30', 'КУ-2', '612', 'А.Багш'),),
+            timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+            holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual(path.answer('номын сан хаана байдаг')['answer'], 'Номын сан: 1006 өрөө, 10-р давхар.')
+        self.assertEqual(path.answer('хурлын заал хэд давхарт')['answer'], 'Хурлын заал: 809 өрөө, 8-р давхар.')
+        self.assertEqual(path.answer('компьютерын лаб хаана')['answer'], 'Компьютерын лаборатори: 410 өрөө, 4-р давхар.')
+        self.assertEqual(path.answer('эмч байдаг уу')['answer'], 'Тийм. Эмч: 607 өрөө, 6-р давхар.')
+        self.assertFalse(path.recognizes('Дотуур байр байдаг уу?'))
+        self.assertFalse(path.recognizes('Эмч байгаа юу?'))   # whether someone is there now
+        tomorrow = path.answer('КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ', now=datetime(2026, 11, 18, 10, 0))
+        self.assertEqual(tomorrow['reason_code'], 'reception_class_day')
+        self.assertIn('маргаашийн (пүрэв гараг)', tomorrow['answer'])
+        self.assertIn('08:00-09:30', tomorrow['answer'])
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

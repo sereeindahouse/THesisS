@@ -33,6 +33,8 @@ import json
 from pathlib import Path
 import re
 
+from reception_tables import normalize_wording
+
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
 # «юм» alone ends a statement («Багштай уулзах гэсэн юм, имэйл нь юу вэ?» is one request); only
@@ -280,8 +282,19 @@ class QuestionPlanner:
         replaced = short[:1].upper() + short[1:] + ' ' + match.group(2) + match.group(3)
         return replaced, dict(rule='office_name', text=name, value=short)
 
+    def _class_code(self, text):
+        """«ку-2», «КУ2», «ку 2 анги» -> «КУ-2» when that class is in the table (round 8); a spaced
+        code only right before «анги», so «Би 2 давхарт …» keeps its pronoun."""
+        def code(match):
+            value = match.group(1).upper() + '-' + (match.group(2) or match.group(3))
+            return value if value in self.class_names else match.group(0)
+        fixed = re.sub(r'(?<![\w-])([А-ЯӨҮЁа-яөүё]{2})(?:-?(\d)(?![\w-])|\s+(\d)(?=\s+анги))', code, text)
+        return (fixed, dict(rule='class_code', text=text, value=fixed)) if fixed != text else (text, None)
+
     def _staff_name(self, text):
-        for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁ][а-яөүё-]{2,})(?=\s+багш)', text):
+        # A given name typed in lower case («сэлмаа багш») is the same teacher (round 8); only names in
+        # the staff table are read, so ordinary words before «багш» are not.
+        for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?=\s+багш)', text):
             full = self.given_names.get(match.group(1).casefold())
             if full:
                 return text[:match.start()] + full + text[match.end():], dict(rule='staff_name',
@@ -374,11 +387,12 @@ class QuestionPlanner:
         text = query.strip()
         lowered = text.casefold()
         if (not isinstance(previous, str) or not previous.strip() or len(_words(text)) > 6
-                or not QUESTION_WORD.search(text) or GREETING.fullmatch(lowered.strip(' ?!.'))
-                or GROUP.search(text) or self._named(text) is not None
+                or not (QUESTION_WORD.search(text) or re.search(r'(?<!\w)нь\s*\?*$', lowered))
+                or GREETING.fullmatch(lowered.strip(' ?!.'))
+                or GROUP.search(self._class_code(text)[0]) or self._named(text) is not None
                 or any(keyword in lowered for keyword in self.topic_keywords if keyword not in FOLLOWUP_ATTRIBUTES)):
             return None
-        previous = previous.strip()
+        previous = self._class_code(previous.strip())[0]
         entity = self._named(previous)
         if entity is None:
             subject = self._subject(previous)
@@ -388,6 +402,17 @@ class QuestionPlanner:
         rest = re.sub(r'(?<!\w)нь(?!\w)\s*', '', text).strip()
         rest = rest[:1].lower() + rest[1:]
         head = entity.split()
+        # «Өрөө нь?», «Давхар нь?» alone (round 8): the whole location question about the thing.
+        bare = re.fullmatch(r'(өрөө|байршил|давхар)\s*\??', rest.casefold())
+        if bare:
+            if head[-1] == 'багш':
+                # A teacher's room and floor are both in the recorded office.
+                rewritten = ' '.join(head[:-1] + ['багшийн']) + ' өрөө хаана вэ?'
+            elif bare.group(1) == 'давхар':
+                rewritten = entity + ' хэддүгээр давхарт вэ?'
+            else:
+                rewritten = entity + ' хаана вэ?'
+            return dict(rule='followup_context', previous=previous, entity=entity, rewritten=rewritten)
         first = rest.split()[0].casefold() if rest.split() else ''
         if len(head) > 1 and first[:4] == head[-1].casefold()[:4]:
             head = head[:-1]      # «КУ-2 анги» + «ангийн багш хэн бэ» -> «КУ-2 ангийн багш хэн бэ»
@@ -409,8 +434,12 @@ class QuestionPlanner:
         parts = []
         for original, text in zip(originals, routed):
             rewrites = []
+            normalized = normalize_wording(text)
+            if normalized != text:
+                rewrites.append(dict(rule='wording', text=text, value=normalized))
+                text = normalized
             if self.class_groups:
-                for rule in (self._class_group, self._class_contact, self._class_day, self._class_intent,
+                for rule in (self._class_code, self._class_group, self._class_contact, self._class_day, self._class_intent,
                              self._office):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []

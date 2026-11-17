@@ -182,12 +182,14 @@ class CredentialAndParentRequestTests(unittest.TestCase):
 
     def test_password_value_requests_only(self):
         from question_router import credential_value_request
-        for query in ('Wi-Fi-ийн нууц үг юу вэ?', 'Нууц үг хэд вэ?', 'Нууц үгээ хэлээч'):
+        for query in ('Wi-Fi-ийн нууц үг юу вэ?', 'Нууц үг хэд вэ?', 'Нууц үгээ хэлээч',
+                      'wifi нууц үг', 'Интернэтийн нууц үг?'):
             with self.subTest(query=query):
                 self.assertTrue(credential_value_request(query))
         # Help with a forgotten password, a policy, or whether one exists stays an ordinary question.
         for query in ('Нууц үгээ мартсан бол яах вэ?', 'Wi-Fi нууц үгээ мартсан бол яах вэ?',
-                      'Wifi нууц үгтэй юу?', 'Нууц үгийг хэд хоногт солих вэ?'):
+                      'Wifi нууц үгтэй юу?', 'Нууц үгийг хэд хоногт солих вэ?', 'Нууц үг гэж юу вэ?',
+                      'Нууц үгийн шаардлага юу вэ?'):
             with self.subTest(query=query):
                 self.assertFalse(credential_value_request(query))
 
