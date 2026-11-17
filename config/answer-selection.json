@@ -1,5 +1,6 @@
 {
   "selector": "bm25_bounded_complete_subset",
   "local_llm_enabled": false,
-  "single_unit_coverage": false
+  "single_unit_coverage": false,
+  "typed_value_check": true
 }

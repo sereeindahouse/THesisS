@@ -570,6 +570,16 @@ class ReceptionAnswerPath:
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
             ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
             ('department', r'(.{1,120}?) тэнхим хаана вэ'),
+            # 11/17 (4): a phone question about a recorded teacher or class teacher. Staff phones
+            # are never shown; as at the reception desk, the school e-mail is offered instead.
+            ('class_teacher_phone', r'(.{1,120}?) ангийн багшийн утас(?:ны дугаар)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
+            ('teacher_phone', r'(.{1,120}?) багшийн утас(?:ны дугаар)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
+            # 11/17: a class teacher's school e-mail; before teacher_email, which would read
+            # «КУ-2 ангийн» as a person's name.
+            ('class_teacher_email', r'(.{1,120}?) ангийн багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?'
+                                    r'(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
+            ('class_day', r'(.{1,120}?) анги(?:йн)? (даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт хэдэн цагт хичээлтэй вэ'),
+            ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
@@ -585,10 +595,10 @@ class ReceptionAnswerPath:
         for intent, pattern in patterns:
             match = re.fullmatch(pattern, text, re.I)
             if match:
-                value = match[1]
-                if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', value, re.I):
+                if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
                     return None
-                return intent, value
+                # A weekday question carries its group and its day.
+                return intent, (match[1], match[2]) if intent == 'class_day' else match[1]
         return None
 
     def recognizes(self, query):
@@ -597,7 +607,24 @@ class ReceptionAnswerPath:
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'place_where':
             return any(self._match(query)) or self._place(extra[1]) is not None
+        if extra is not None and extra[0] in ('teacher_phone', 'class_teacher_phone'):
+            # An unrecorded name stays with the staff path, which says phones are not shown.
+            return any(self._match(query)) or self._phone_owner(*extra) is not None
         return any(self._match(query)) or extra is not None
+
+    def _phone_owner(self, intent, value):
+        """(person, class group or None) for a phone question about a recorded teacher."""
+        if self.tables is None:
+            return None
+        group = None
+        name = value
+        if intent == 'class_teacher_phone':
+            group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
+            if group is None or not group.teacher:
+                return None
+            name = group.teacher
+        person = next((person for person in self.tables.staff if _key(person.name) == _key(name)), None)
+        return (person, group) if person is not None else None
 
     def _service(self, value):
         """(room, service) by exact name, or by a unique shorter name such as
@@ -653,6 +680,22 @@ class ReceptionAnswerPath:
             return self._result(query, prefix + text, reason, source_table=table)
         if intent == 'group_required':
             return missing('reception_group_required')
+        if intent in ('teacher_phone', 'class_teacher_phone'):
+            owner = self._phone_owner(intent, value)
+            if owner is None:
+                return self._answer_legacy(query, now=now)
+            person, group = owner
+            text = 'Багшийн утасны дугаарыг энд харуулахгүй; ресепшнээс асууна уу.'
+            if person.email:
+                where = ''
+                if person.room:
+                    room = next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
+                    where = (' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.') if room else ''
+                who = (group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; сургуулийн имэйл: '
+                       if group is not None else person.name + ' — сургуулийн имэйл: ')
+                text += ' ' + who + person.email + '.' + where
+            return reply(text, 'classes' if group is not None else 'staff',
+                         'reception_class_teacher_phone' if group is not None else 'reception_teacher_phone')
         if intent == 'place_where':
             place = self._place(value)
             if place is None:
@@ -730,6 +773,43 @@ class ReceptionAnswerPath:
             room = next(room for room in self.tables.rooms if _key(room.name) == _key(person.room))
             return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
                          + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
+        if intent == 'class_teacher_email':
+            group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
+            if group is None or not group.teacher:
+                return missing()
+            person = next((person for person in self.tables.staff if _key(person.name) == _key(group.teacher)), None)
+            if person is None or not person.email:
+                return missing('reception_email_unknown')
+            where = ''
+            if person.room:
+                room = next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
+                where = (' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.') if room else ''
+            return reply(group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; сургуулийн имэйл: '
+                         + person.email + '.' + where, 'classes', 'reception_class_teacher_email')
+        if intent == 'class_day':
+            name, day = value
+            group = next((group for group in self.tables.classes if _key(group.group) == _key(name)), None)
+            if group is None:
+                return missing()
+            weekday = _DAY_LOOKUP[_key(day)]
+            lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.group) == _key(group.group)
+                              and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
+            if not lessons and not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            # A joint lesson is stored once per teacher/room; list each time once.
+            slots = list(dict.fromkeys(lesson.time + ' (' + lesson.room + ' тоот)' for lesson in lessons))
+            period = (' Хуваарийн хугацаа: ' + self.tables.term_start.isoformat() + ' – '
+                      + self.tables.term_end.isoformat() + '.') if self.tables.term_start and self.tables.term_end else ''
+            return reply(group.group + ' — ' + _MN_DAYS[weekday] + ' гарагийн бүртгэсэн хуваарь: '
+                         + ('; '.join(slots) if slots else 'хичээл бүртгэгдээгүй') + '.' + period
+                         + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
+        if intent == 'term_dates':
+            if not (self.tables.calendar_bound and self.tables.term_start and self.tables.term_end):
+                return missing('reception_calendar_unknown')
+            return reply('Ресепшний хуваарийн хүснэгтэд бүртгэсэн энэ улирлын хугацаа: '
+                         + self.tables.term_start.isoformat() + '-оос ' + self.tables.term_end.isoformat()
+                         + ' хүртэл. Шалгалт, амралтын өдрийг сургалтын албанаас тодруулна уу.',
+                         'timetable', 'reception_term_dates')
         if intent in {'class_room', 'class_teacher'}:
             group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
             if group is None or intent == 'class_teacher' and not group.teacher:

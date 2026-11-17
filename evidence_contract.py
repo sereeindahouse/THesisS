@@ -278,6 +278,25 @@ def _explicit_conditional(text):
                 or (len(text) <= 250 and re.search(r'зөвхөн.+тохиолдолд', text, re.I)))
 
 
+_PAGE_CHROME_LINES = frozenset(('бүх мэдээ', 'мэдээ, мэдээлэл', 'мэдээ мэдээлэл', 'нүүр', 'тэнхимүүд', 'зарлал',
+                                'тэмцээн, уралдаан', 'тэмцээн, уралдаанг'))
+
+
+def _without_page_chrome(text, start, end):
+    """Trim site navigation lines («Бүх мэдээ», «Мэдээ, мэдээлэл») before a unit and a view
+    counter («70 үзсэн») after it. The rest stays one exact contiguous source span (11/17)."""
+    lines = _lines(text[start:end])
+    trimmed = 0
+    while trimmed + 1 < len(lines) and re.sub(r'\s+', ' ', lines[trimmed][2]).strip().casefold() in _PAGE_CHROME_LINES:
+        trimmed += 1
+    if trimmed:
+        start += lines[trimmed][0]
+    counter = re.search(r'\s+\d+\s+үзсэн\s*$', text[start:end])
+    if counter and counter.start() > 0:
+        end = start + counter.start()
+    return start, end
+
+
 def _after_template_counters(text, start, end):
     """Trim only an adjacent zero programme/teacher counter pair in a prefix.
 
@@ -324,14 +343,15 @@ def evidence_units(sources, max_characters=900):
             continue
         seen.add(sid)
         previous_physical = None
-        for physical_start, end in _source_spans(source):
-            start = _after_template_counters(text, physical_start, end)
+        for physical_start, physical_end in _source_spans(source):
+            start = _after_template_counters(text, physical_start, physical_end)
+            start, end = _without_page_chrome(text, start, physical_end)
             span = text[start:end]
             previous = previous_physical
             # Record every physical paragraph before filtering. An omitted
             # paragraph remains a boundary; it is never replaced by the last
             # older selectable unit of the source.
-            previous_physical = dict(start=physical_start, end=end,
+            previous_physical = dict(start=physical_start, end=physical_end,
                                      conditional=_explicit_conditional(span), unit=None)
             if not 12 <= len(span) <= max_characters:
                 continue
@@ -415,7 +435,8 @@ def exact_field_units(parts):
 
 
 _ROLE_PATTERNS = {
-    'total': r'нийт',
+    # A whole word: «нийтлэг» (common) and «нийтийн» (public) are not a total.
+    'total': r'(?<!\w)нийт(?:дээ)?(?!\w)',
     'per_group': r'тус\s+бүр|бүрээс|бүрийн',
     'primary': r'үндсэн',
     'part_time': r'цагийн\s+(?:багш\w*|орон\s+тоо\w*|ажилтан\w*)',
@@ -511,7 +532,10 @@ def _publication_years(unit):
     years = set()
     for line_start, line_end, line in _lines(quote):
         match = _PUBLICATION_DATE.fullmatch(line)
-        if not match or not start <= line_start < line_end <= end:
+        # A unit may end before the line's view counter («70 үзсэн»), trimmed as page chrome.
+        inside = start <= line_start < line_end <= end or (
+            start <= line_start < end and re.fullmatch(r'\s+\d+\s+үзсэн\s*', quote[end:line_end]))
+        if not match or not inside:
             continue
         prefix = _lines(quote[:line_start])
         if any(_prose(item[2]) and not item[2].isupper() for item in prefix):

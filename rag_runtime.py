@@ -362,7 +362,30 @@ COMMON_QUESTION_ALIASES = (
     (re.compile(r'(?:(?:1|нэг)-р\s+курс(?:ээс|т)\s+элсвэл\s+|хөтөлбөр\s+)?хэдэн\s+жил\s+'
                 r'(?:суралцах|суралцдаг|сурах|сурдаг|үргэлжлэх|үргэлжилдэг)(?:\s+вэ)?'),
      '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?'),
+    # 11/17: plain wordings of the stored admission-programme and department lists.
+    (re.compile(r'(?:сургууль\s+)?ямар(?:\s+ямар)?\s+(?:мэргэж(?:ил|л)\w*|хөтөлбөр\w*)\s+'
+                r'(?:элсүүлдэг|элсүүлэх|элсүүлж\s+байна|элсэлт\s+авдаг|элсэлт\s+авна|элсэлт\s+авч\s+байна|'
+                r'сурдаг|суралцдаг|сурч\s+болох|суралцаж\s+болох|байдаг|бий|заадаг|сургадаг)(?:\s+(?:вэ|бэ|уу))?'),
+     '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?'),
+    (re.compile(r'(?:сургууль(?:д)?\s+)?ямар(?:\s+ямар)?\s+тэнхим(?:үүд|үүдтэй|тэй)?(?:\s+(?:байдаг|бий))?(?:\s+вэ)?'),
+     'Сургууль ямар тэнхимүүдтэй вэ?'),
 )
+# The school's own mission, vision and values are not a department's; see school_scope_sources.
+SCHOOL_IDENTITY = re.compile(r'эрхэм\s+зорилго|алсын\s+хараа|үнэт\s+зүйл')
+
+
+def school_scope_sources(query, sources):
+    """«Сургуулийн эрхэм зорилго» names the school: drop department pages while others remain.
+
+    A department, programme or speciality named in the question keeps its own pages
+    (department_evidence_sources handles a named department).
+    """
+    q = query.casefold()
+    if re.search(r'тэнхим|хөтөлбөр|мэргэжил|мэргэжл', q) or not SCHOOL_IDENTITY.search(q):
+        return sources
+    kept = [source for source in sources if not urlsplit(source.get('url') or '').path.startswith(
+        ('/departments', '/programs'))]
+    return kept or sources
 
 
 def common_question_alias(query):
@@ -1602,8 +1625,8 @@ class ChatRAG:
                       message=("Холбоотой албан эхүүдийг оллоо. Доорх хэсгүүдээс мэдээллээ шалгаж болно. "
                                "Аль хөтөлбөр эсвэл оныг сонирхож байгаагаа нэмбэл илүү тодорхой хариулна."
                                if candidates else
-                               "Энэ асуултад хариулах тодорхой мэдээлэл хадгалсан эхээс олдсонгүй. "
-                               "Мэргэжил, хөтөлбөрийн нэр эсвэл оноо нэмж асуугаарай. Доорх сэдвүүдээс мөн сонгож болно."))
+                               "Энэ асуултад хариулах тодорхой мэдээлэл хадгалсан эх сурвалжид олдсонгүй. "
+                               "Доорх сэдвүүдээс мөн сонгож болно."))
         # Dates in a historical snapshot cannot establish current registration.
         live_query=query.casefold()
         if (re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)',live_query)
@@ -1680,12 +1703,12 @@ class ChatRAG:
                         year_scope_filter=dict(requested_years=sorted(years),
                             unsupported_years=missing_years, stage='retrieved_candidates'))
                     return self._remember(result, allow_draft)
-                result.update(route='D' if staff['stop']=='clarify_staff_scope' else 'E',
+                result.update(route='D' if staff['stop'] in {'clarify_staff_scope', 'clarify_staff_contact'} else 'E',
                     answer=None, citations=[], reason_code=staff['stop'], message=staff['message'],
-                    suggestions=['Химийн тэнхимийн багш хэд вэ?',
+                    suggestions=staff.get('suggestions') or (['Химийн тэнхимийн багш хэд вэ?',
                                  'Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?',
                                  'Батчулуун багшийн зурагтай танилцуулгыг үзье.']
-                        if staff['stop']=='clarify_staff_scope' else [])
+                        if staff['stop']=='clarify_staff_scope' else []))
                 result['rag']['reason'] = staff['stop']
                 # Suggested sources must follow the same identity boundary as
                 # the answer, rather than showing another person's news first.
@@ -1693,24 +1716,30 @@ class ChatRAG:
                     ('title','url','excerpt','chunk_id','version','retrieved_at')}
                     for source in evidence[:3]]
                 return self._remember(result, allow_draft)
-        if (staff and staff['kind'] == 'names' and len(evidence) == 1
+        if (staff and staff['kind'] in {'names', 'contact'} and len(evidence) == 1
                 and evidence[0].get('content_scope') == 'department_teacher_roster'):
-            # The named department's published roster answers a names question
-            # whole and verbatim (client-tab v2, 11/2026); no unit selection.
+            # The named department's published roster (names) or school e-mail list
+            # (contact) answers whole and verbatim (client-tab v2, 11/2026); no unit selection.
             source = evidence[0]
+            contact = staff['kind'] == 'contact'
             result.update(route='C', answer=source['text'], generated=False, answer_kind='official_website_extract',
-                reason_code='department_roster_extract', suggestions=[], related_sources=[], clarification=None,
-                message='Тэнхимийн хуудсанд нийтэлсэн багш, ажилтны жагсаалтыг үг өөрчлөхгүй үзүүлэв. '
+                reason_code='department_email_extract' if contact else 'department_roster_extract',
+                suggestions=[], related_sources=[], clarification=None,
+                message=('Тэнхимийн хуудсанд нийтэлсэн багш нарын сургуулийн имэйлийг үг өөрчлөхгүй үзүүлэв. '
+                         + ('Багшийн утасны дугаарыг энд харуулахгүй; ресепшнээс асууна уу. '
+                            if 'phone' in staff.get('contact_fields', []) else '')
+                         + 'Сайтын огноог нягтлаарай.') if contact else
+                        'Тэнхимийн хуудсанд нийтэлсэн багш, ажилтны жагсаалтыг үг өөрчлөхгүй үзүүлэв. '
                         'Сайтын огноог нягтлаарай; сургуулийн албан бүрэлдэхүүнтэй зөрж болно.',
                 citations=[{"document_id": source["source_id"], "version": source["version"], "title": source["title"],
                             "source_url_or_filename": source["url"], "locator": source.get("source_locator"),
                             "extraction_method": source.get("extraction_method"), "reviewer_kind": source.get("reviewer_kind"),
                             "retrieved_at": source["retrieved_at"], "source_accepted_for_project": True,
                             "approval_status": "draft", "school_staff_approval": False}])
-            result['rag']['reason'] = 'department_roster_extract'
+            result['rag']['reason'] = result['reason_code']
             return self._remember(result, allow_draft)
         before_department = [source['source_id'] for source in evidence]
-        evidence = department_evidence_sources(query, evidence, all_attributes=True)
+        evidence = school_scope_sources(query, department_evidence_sources(query, evidence, all_attributes=True))
         if [source['source_id'] for source in evidence] != before_department:
             result['rag']['department_scope_filter'] = dict(before=before_department,
                 after=[source['source_id'] for source in evidence], mechanism='literal_named_department_title')
@@ -1927,14 +1956,21 @@ class ChatRAG:
                 fields=[f for f in field_evidence_requirements(query) if not missing or f['name'] in missing]
                 labels='; '.join(f['label'] for f in fields)
                 result.update(reason_code='requested_information_not_verified',suggestions=[],
-                    message=('Асуусан мэдээллийг энэ хайлтын эхээс бүрэн баталж чадсангүй. '
+                    message=('Асуусан мэдээллийг энэ хайлтын эх сурвалжаас бүрэн баталж чадсангүй. '
                         +('Баталгаажуулаагүй зүйл: '+labels+'. ' if labels else '')
                         +'Өөр үйл явдал, он эсвэл ойролцоо мэдээллээр орлуулахгүй. '
                         +'Товчилсон нэр хэрэглэсэн бол бүтэн нэрийг нь бичиж, асуусан оноо хамт тодруулна уу.'))
             if generated['reason'] == 'selection_not_relevant':
                 result.update(reason_code='selection_not_relevant',suggestions=[],
-                    message='Энэ асуултад хариулах мэдээлэл хадгалсан эхээс олдсонгүй. '
+                    message='Энэ асуултад хариулах мэдээлэл хадгалсан эх сурвалжаас олдсонгүй. '
                             'Ойролцоо үгтэй хамааралгүй хэсгийг хариулт болгож харуулахгүй.')
+            if generated['reason'] == 'requested_value_not_in_selection':
+                # The topic was found, the asked value was not: show the sources, not as the answer.
+                from answer_types import VALUE_LABELS
+                label = VALUE_LABELS.get(generated.get('expected_value'), 'утга')
+                result.update(reason_code='requested_value_not_found',suggestions=[],
+                    message='Асуусан ' + label + ' хадгалсан эх сурвалжид олдсонгүй. Холбоотой хэсгийг доор '
+                            'харуулав; өөр тоо, огноогоор орлуулж хариулахгүй.')
             if generated["generated"]:
                 sources = {s["source_id"]: s for s in evidence}
                 answer, cited = render_claims(generated['claims'])

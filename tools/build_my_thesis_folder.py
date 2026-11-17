@@ -82,6 +82,7 @@ def planned_copies(root: Path):
     add('06_Систем', _newest(root.glob('CORE/eval-review/*хянах*.mn.md')))
     add('06_Систем', _newest(root.glob('papers/*system-upgrade*.mn.md')), 'Системийн_сайжруулалтын_тайлан.mn.md')
     add('06_Систем', _newest(root.glob('papers/*mongolian-morphology-retrieval*.mn.md')), 'Монгол_үгийн_хэлбэр_ба_хайлт.mn.md')
+    add('06_Систем', _newest(root.glob('papers/*answer-type-guard*.mn.md')), 'Хариугүй_асуулт_ба_багштай_холбогдох.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 

@@ -91,6 +91,65 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertFalse(p.plan('Номын сан хаана вэ?')['changed'])          # already a table name
         self.assertFalse(p.plan('Сургууль хаана байрладаг вэ?')['changed'])  # not an office
 
+    def test_office_room_question_asks_where_the_office_is(self):
+        p = planner()
+        p.offices = ('Сургалтын алба', 'Сэтгэл зүйч', 'Номын сан')
+        self.assertEqual(self.queries(p.plan('Сургалтын албаны өрөө хаана вэ?')), ['Сургалтын алба хаана вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэтгэл зүйчийн өрөө хаана байдаг вэ?')), ['Сэтгэл зүйч хаана байдаг вэ?'])
+
+    def test_class_teacher_contact_and_weekday_timetable(self):
+        p = planner()
+        self.assertEqual(self.queries(p.plan('КУ-2 ангийн багштай яаж холбогдох вэ?')), ['КУ-2 ангийн багшийн имэйл?'])
+        self.assertEqual(self.queries(p.plan('КУ-2 ангийн даваа гарагийн эхний хичээл хэдэн цагт эхлэх вэ?')),
+                         ['КУ-2 анги даваа гарагт хэдэн цагт хичээлтэй вэ?'])
+        self.assertFalse(p.plan('ЗЗ-9 ангийн багштай яаж холбогдох вэ?')['changed'])   # not a recorded group
+
+    def test_named_teacher_contact_room_and_meeting(self):
+        p = planner()
+        self.assertEqual(self.queries(p.plan('Сэлмаа багштай холбогдмоор байна')), ['Б.Сэлмаа багшийн имэйл?'])
+        self.assertEqual(self.queries(p.plan('Б.Сэлмаа багшийн өрөө хэдэн тоот вэ?')), ['Б.Сэлмаа багшийн өрөө хаана вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багштай одоо уулзаж болох уу?')), ['Б.Сэлмаа багш одоо хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багштай хэзээ уулзаж болох вэ?')),
+                         ['Б.Сэлмаа багш хэзээ оюутантай уулздаг вэ?'])
+        # A full name not in the staff table stays for the website path.
+        self.assertFalse(p.plan('Х.Хүрэлбаатар багштай холбогдох уу?')['changed'])
+        # The timetable-status wording keeps its own (schedule-only) answer.
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хаана байна вэ?')), ['Б.Сэлмаа багш хаана байна вэ?'])
+        # Review 11/17: another day is not «now», and a phone question is not an e-mail question.
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш маргааш хичээлтэй юу?')), ['Б.Сэлмаа багш маргааш хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багшийн утасны дугаар хэд вэ?')),
+                         ['Б.Сэлмаа багшийн утасны дугаар хэд вэ?'])
+        # Review 11/17 (4): «холбоо барих утас» stays a phone question (its reply says phones are
+        # not shown, then offers the school e-mail); «хэзээ хичээлтэй» is the timetable, not office
+        # hours; a weekday «хаана байна» is where the teacher is then, not the office room.
+        self.assertEqual(self.queries(p.plan('Сэлмаа багштай холбоо барих утас хэд вэ?')), ['Б.Сэлмаа багшийн утас?'])
+        self.assertEqual(self.queries(p.plan('КУ-2 ангийн багштай холбоо барих утас хэд вэ?')),
+                         ['КУ-2 ангийн багшийн утас?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэзээ хичээлтэй вэ?')), ['Б.Сэлмаа багш хэзээ хичээлтэй вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш даваа гарагт хаана байна вэ?')),
+                         ['Б.Сэлмаа багш даваа гарагт хаана байна вэ?'])
+
+    def test_teacher_rewrite_uses_the_table_spelling(self):
+        reception = FakeReception()
+        reception.tables = ReceptionTables(rooms=(), timetable=(), classes=(),
+                                           staff=(Staff(name='Б. Сэлмаа', department='Ерөнхий эрдмийн тэнхим'),))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'config').mkdir()
+            (root / 'config/question-planner.json').write_text(json.dumps(dict(
+                schema_version=1, enabled=True, split_compound=True, class_groups=True, staff_names=True)),
+                encoding='utf-8')
+            p = QuestionPlanner.from_config(root, reception)
+        self.assertEqual(self.queries(p.plan('Б.Сэлмаа багштай холбогдмоор байна')), ['Б. Сэлмаа багшийн имэйл?'])
+
+    def test_review_findings_for_class_and_office_rules(self):
+        p = planner()
+        p.offices = ('Сургалтын алба',)
+        # A class teacher's weekday is about the teacher, not the class timetable.
+        self.assertFalse(p.plan('КУ-2 ангийн багш даваа гарагт хичээлтэй юу?')['changed'])
+        # Any form of «сургууль» names the school, not part of the office name.
+        self.assertEqual(self.queries(p.plan('Сургуульд сургалтын албаны өрөө хаана вэ?')), ['Сургалтын алба хаана вэ?'])
+
     def test_switches_off_leave_the_question_unchanged(self):
         p = planner(enabled=False)
         self.assertFalse(p.enabled)

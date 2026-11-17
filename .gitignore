@@ -606,3 +606,9 @@ __pycache__/
 !/tests/test_mongolian_morphology.py
 !/tools/evaluate_morphology.py
 !/papers/39-mongolian-morphology-retrieval-20261117.mn.md
+# 11/17 (3): expected answer type guard, teacher-contact and reception wordings, config comparison.
+!/answer_types.py
+!/tests/test_answer_types.py
+!/tests/test_staff_contact.py
+!/tools/run_config_comparison.py
+!/papers/40-answer-type-guard-20261117.mn.md

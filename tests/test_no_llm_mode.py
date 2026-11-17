@@ -43,9 +43,16 @@ class ConfigurationTests(unittest.TestCase):
 
     def test_project_configuration_disables_every_local_llm(self):
         self.assertEqual(answer_selection(ROOT), dict(selector=RULE_SELECTOR, local_llm_enabled=False,
-                                                      single_unit_coverage=False))
+                                                      single_unit_coverage=False, typed_value_check=True))
         self.assertIsInstance(default_generator(ROOT), RuleSelectionGenerator)
         self.assertFalse(default_generator(ROOT).single_unit_coverage)
+        self.assertTrue(default_generator(ROOT).typed_value_check)
+
+    def test_typed_value_check_is_a_boolean_switch(self):
+        self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False, typed_value_check=False)))
+        self.assertFalse(default_generator(self.root).typed_value_check)
+        self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False, typed_value_check='no')))
+        self.assertEqual(answer_selection(self.root), SAFE_DEFAULT)
 
     def test_single_unit_stage_is_off_unless_configured_as_a_boolean(self):
         self.write(json.dumps(dict(selector=RULE_SELECTOR, local_llm_enabled=False)))

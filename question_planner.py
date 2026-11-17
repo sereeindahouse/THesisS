@@ -19,6 +19,12 @@ config/question-planner.json so the thesis can report the planner off and on:
                       wording ("ХИ-3 анги хэдэн тоот вэ" -> "ХИ-3 анги хаана хичээллэдэг вэ"), and
                       a short office name is replaced by the unique table name it abbreviates
                       ("карьерын төв" -> "Карьер хөгжлийн төв"). Part of class_groups.
+                      11/17: also a class teacher's contact ("КУ-2 ангийн багштай яаж холбогдох вэ"
+                      -> "КУ-2 ангийн багшийн имэйл"), a class's weekday timetable, and an office's
+                      room ("Сургалтын албаны өрөө хаана вэ" -> "Сургалтын алба хаана вэ").
+5. teacher_intent   — a named teacher (in the staff table) with a contact, room or meeting
+                      question goes to that wording ("Соронзонболд багштай одоо уулзаж болох уу"
+                      -> "Н.Соронзонболд багш одоо хичээлтэй юу"). Part of staff_names.
 
 No model, no network; a rule that does not match leaves the text unchanged.
 """
@@ -39,6 +45,16 @@ GROUP = re.compile(r'(?<![\w-])([А-ЯӨҮЁ]{2}-\d)(?!\d)')
 LOCATION = re.compile(r'хаана|тоот|өрөө|давхар|хичээллэ', re.I)
 TIME_WORDS = re.compile(r'өнөөдөр|маргааш|одоо|цаг|гараг|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням', re.I)
 OFFICE_QUESTION = re.compile(r'(.{2,60}?)\s+(хаана|хэддүгээр\s+давхарт)(?!\w)(.*)', re.I | re.S)
+# A phone question is not rewritten to e-mail: staff phones are never shown, so it goes to the
+# phone wording, whose reply says so before offering the school e-mail (no silent field swap).
+CONTACT = re.compile(r'холбо(?:о\s+бар|гд)|имэйл|имейл|мэйл|цахим\s+шуудан', re.I)
+PHONE = re.compile(r'утас|утс[аы]|phone', re.I)
+OTHER_TIME = re.compile(r'маргааш|өчигдөр|нөгөөдөр|(?<!\w)(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)|'
+                        r'\d{1,2}:\d{2}|цагт', re.I)
+MEETING = re.compile(r'уулз|одоо|чөлөөтэй|(?<!\w)сул(?!\w)|хичээлтэй', re.I)
+ROOM_ASK = re.compile(r'өрөө|тоот|хаана\s+(?:суудаг|байдаг|ажилладаг|байна)', re.I)
+WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
+TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
 COURSE = re.compile(r'(?<!\d)([1-5])\s*(?:-?\s*(?:р|дугаар|дүгээр|дахь|дэх)\b)?\s*курс\w*', re.I)
 
 
@@ -50,9 +66,15 @@ def _stem(word):
     return word.casefold()[:5]
 
 
+def _office_stem(word):
+    # «албаны» and «алба» meet at «алба»; a five-letter cut would not (11/17).
+    from mongolian_morphology import light_stem
+    return light_stem(word.casefold())
+
+
 class QuestionPlanner:
     def __init__(self, *, enabled=False, split_compound=False, class_groups=False, staff_names=False,
-                 groups=None, given_names=None, topic_keywords=(), offices=()):
+                 groups=None, given_names=None, topic_keywords=(), offices=(), staff=(), class_names=()):
         self.enabled = enabled is True
         self.split_compound = self.enabled and split_compound is True
         self.class_groups = self.enabled and class_groups is True
@@ -61,6 +83,9 @@ class QuestionPlanner:
         self.given_names = dict(given_names or {})  # given name (casefold) -> full "Б.Сэлмаа"
         self.topic_keywords = tuple(keyword.casefold() for keyword in topic_keywords)
         self.offices = tuple(offices)                # service names in the reception rooms table
+        # "б.сэлмаа" -> the table's own spelling, so the rewrite matches the reception lookup.
+        self.staff = {re.sub(r'\s+', '', name.casefold()): name.strip() for name in staff}
+        self.class_names = frozenset(class_names)    # every class group code in the table
 
     @classmethod
     def from_config(cls, root, reception=None):
@@ -72,7 +97,7 @@ class QuestionPlanner:
         if config.get('schema_version') != 1 or config.get('enabled') is not True:
             return cls()
         tables = getattr(reception, 'tables', None) if getattr(reception, 'enabled', False) else None
-        groups, names, offices = {}, {}, []
+        groups, names, offices, staff, class_names = {}, {}, [], [], []
         if tables is not None:
             seen = {}
             for group in tables.classes:
@@ -89,6 +114,8 @@ class QuestionPlanner:
                     owners.setdefault(match[2].casefold(), set()).add(match[1] + '.' + match[2])
             names = {given: next(iter(fulls)) for given, fulls in owners.items() if len(fulls) == 1}
             offices = [service.name for room in tables.rooms for service in room.services]
+            staff = [person.name for person in tables.staff]
+            class_names = [group.group for group in tables.classes]
         keywords = []
         try:
             domains = json.loads((root / 'config/knowledge-domains.json').read_text(encoding='utf-8'))['domains']
@@ -97,7 +124,7 @@ class QuestionPlanner:
             pass
         return cls(enabled=True, split_compound=config.get('split_compound'), class_groups=config.get('class_groups'),
                    staff_names=config.get('staff_names'), groups=groups, given_names=names, topic_keywords=keywords,
-                   offices=offices)
+                   offices=offices, staff=staff, class_names=class_names)
 
     # -- rules ---------------------------------------------------------------
     def _split(self, query):
@@ -160,11 +187,34 @@ class QuestionPlanner:
                                                                value=group)
         return text, None
 
-    def _class_intent(self, text):
+    def _known_group(self, text):
         match = GROUP.search(text)
-        if not match or match.group(1) not in set(self.groups.values()) or TIME_WORDS.search(text):
+        known = self.class_names or set(self.groups.values())
+        return match.group(1) if match and match.group(1) in known else None
+
+    def _class_contact(self, text):
+        group = self._known_group(text)
+        if not group or not re.search(r'багш', text, re.I) or not (CONTACT.search(text) or PHONE.search(text)):
             return text, None
-        group = match.group(1)
+        # A phone question keeps its own wording: the reply says phones are not shown, then gives
+        # the school e-mail, as the reception desk does.
+        canonical = group + (' ангийн багшийн утас?' if PHONE.search(text) else ' ангийн багшийн имэйл?')
+        return canonical, dict(rule='closed_wording', text=text, value=canonical)
+
+    def _class_day(self, text):
+        group, day = self._known_group(text), WEEKDAY.search(text)
+        # «КУ-2 ангийн багш даваа гарагт хичээлтэй юу?» asks about the teacher, not the class.
+        if not group or not day or not re.search(r'хичээл|цаг', text, re.I) or re.search(r'багш', text, re.I):
+            return text, None
+        canonical = group + ' анги ' + day.group(1).casefold() + ' гарагт хэдэн цагт хичээлтэй вэ?'
+        if canonical.rstrip('?') == text.strip().rstrip('?'):
+            return text, None
+        return canonical, dict(rule='closed_wording', text=text, value=canonical)
+
+    def _class_intent(self, text):
+        group = self._known_group(text)
+        if not group or TIME_WORDS.search(text):
+            return text, None
         if re.search(r'багш', text, re.I) and re.search(r'(?<!\w)хэн(?!\w)', text, re.I):
             canonical = group + ' ангийн багш хэн бэ?'
         elif LOCATION.search(text):
@@ -179,15 +229,18 @@ class QuestionPlanner:
         match = OFFICE_QUESTION.fullmatch(text.strip())
         if not match or not self.offices:
             return text, None
-        name = match.group(1).strip(' ,')
+        # «Сургалтын албаны өрөө хаана вэ» asks where the office is: drop the room word.
+        name = re.sub(r'\s+өрөө(?:нд|ний)?$', '', match.group(1).strip(' ,'), flags=re.I)
         lowered = name.casefold()
         if any(lowered in office.casefold() for office in self.offices):
             return text, None
-        stems = {_stem(word) for word in re.findall(r'[А-ЯӨҮЁа-яөүё]{3,}', name) if _stem(word) != 'сургу'}
+        # Any form of «сургууль» names the school, not the office.
+        stems = {stem for stem in (_office_stem(word) for word in re.findall(r'[А-ЯӨҮЁа-яөүё]{3,}', name))
+                 if not stem.startswith('сургуул')}
         if not stems:
             return text, None
         hits = [office for office in self.offices
-                if stems <= {_stem(word) for word in re.findall(r'[А-ЯӨҮЁа-яөүё]{3,}', office)}]
+                if stems <= {_office_stem(word) for word in re.findall(r'[А-ЯӨҮЁа-яөүё]{3,}', office)}]
         if len(hits) != 1:
             return text, None
         short = hits[0].rsplit(',', 1)[-1].strip()
@@ -204,6 +257,48 @@ class QuestionPlanner:
                     text=match.group(1), value=full)
         return text, None
 
+    def _teacher_intent(self, text):
+        match = TEACHER.search(text)
+        key = match and (match.group(1) + '.' + match.group(2)).casefold()
+        if not match or key not in self.staff:
+            return text, None
+        full = self.staff[key]
+        # Already the closed wording (e.g. «…багшийн имэйл юу вэ?»): leave it as asked.
+        # «…багш хаана (байна) вэ?» is the timetable-status wording; it must not become an office room.
+        if re.search(r'багшийн\s+(?:и-?мэйл|имэйл|мэйл|цахим\s+шуудан|утас)|багшийн\s+өрөө\s+хаана\s+вэ|'
+                     r'багш\s+одоо\s+хичээлтэй\s+юу|багш\s+хэзээ\s+оюутантай\s+уулздаг|'
+                     r'багш\s+(?:одоо\s+)?хаана(?:\s+байна)?\s*(?:вэ)?\s*\??$', text, re.I):
+            return text, None
+        if PHONE.search(text):
+            # «холбоо барих утас»: phones are never shown; the phone wording says so and gives
+            # the school e-mail instead (not a silent e-mail answer).
+            canonical = full + ' багшийн утас?'
+        elif CONTACT.search(text):
+            canonical = full + ' багшийн имэйл?'
+        elif ROOM_ASK.search(text):
+            # «…багш даваа гарагт хаана байна вэ?» asks where the teacher is then (the timetable),
+            # not for the office room.
+            if OTHER_TIME.search(text) and not re.search(r'өрөө|тоот', text, re.I):
+                return text, None
+            canonical = full + ' багшийн өрөө хаана вэ?'
+        elif MEETING.search(text):
+            if re.search(r'(?<!\w)хэзээ(?!\w)', text, re.I):
+                # «хэзээ уулзах» asks for office hours; «хэзээ хичээлтэй» asks for the teacher's
+                # timetable, which has no closed wording here, so it stays as asked.
+                if not re.search(r'уулз|чөлөөтэй|(?<!\w)сул(?!\w)', text, re.I):
+                    return text, None
+                canonical = full + ' багш хэзээ оюутантай уулздаг вэ?'
+            elif OTHER_TIME.search(text):
+                # «маргааш», a weekday or a clock time is not «now»: leave the question as asked.
+                return text, None
+            else:
+                canonical = full + ' багш одоо хичээлтэй юу?'
+        else:
+            return text, None
+        if canonical.rstrip('?') == text.strip().rstrip('?'):
+            return text, None
+        return canonical, dict(rule='teacher_intent', text=text, value=canonical)
+
     def plan(self, query):
         """Return parts to route; each keeps the visitor's original wording for the reply."""
         originals = self._split(query) if self.split_compound else [query.strip()]
@@ -212,12 +307,14 @@ class QuestionPlanner:
         for original, text in zip(originals, routed):
             rewrites = []
             if self.class_groups:
-                for rule in (self._class_group, self._class_intent, self._office):
+                for rule in (self._class_group, self._class_contact, self._class_day, self._class_intent,
+                             self._office):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             if self.staff_names:
-                text, rewrite = self._staff_name(text)
-                rewrites += [rewrite] if rewrite else []
+                for rule in (self._staff_name, self._teacher_intent):
+                    text, rewrite = rule(text)
+                    rewrites += [rewrite] if rewrite else []
             parts.append(dict(original=original, query=text, rewrites=rewrites))
         return dict(enabled=self.enabled, compound=len(parts) > 1, parts=parts,
                     changed=len(parts) > 1 or any(p['query'] != query.strip() for p in parts))

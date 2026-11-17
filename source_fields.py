@@ -166,7 +166,9 @@ def staff_query_scope(query, sources, *, catalog=None):
     overview = bool(re.search(r'мэдээлэл|танилцуул|тухай|талаар|хэн\s+бэ|хэн\s+байдаг|хэн\s+юм|зураг|зургийг|хөрөг', q)
         or re.fullmatch(r'\s*багш(?:ийн|нар(?:ын)?)?(?:\s+нар(?:ын)?)?\s*[?!.]*', q))
     head = bool(re.search(r'эрхлэгч', q))
-    if not (count or names or overview or head):
+    # «Багштай яаж холбогдох вэ?»: a contact request, answered with published school e-mail.
+    contact = bool(staff_contact_fields(query) or re.search(r'холбо(?:о\s+бар|гд)', q))
+    if not (count or names or overview or head or contact):
         # A named teacher's requested subject/qualification still needs identity.
         if not re.search(r'\b[А-ЯӨҮЁ][а-яөүё-]+\s+багш', query, re.I):
             return None
@@ -201,6 +203,9 @@ def staff_query_scope(query, sources, *, catalog=None):
             continue
         if candidate.casefold().endswith(('ийн', 'ын', 'гийн')) or _scope_words(candidate) & set(owners):
             continue
+        # «Хүүхдийнхээ багш» (my child's teacher) is a possessive, not a person's name.
+        if candidate.casefold().endswith(('нхээ', 'нхаа', 'нхоо', 'нхөө')):
+            continue
         # A calendar/request/role word immediately before "багш" is not a
         # person. Use the shared function-word grammar rather than a single
         # date-word exception; an explicit initial still supplies an identity.
@@ -210,7 +215,8 @@ def staff_query_scope(query, sources, *, catalog=None):
             if preceding and not (_scope_words(preceding[1]) & set(owners)) and preceding[1].casefold() not in _SCOPE_GENERIC:
                 candidate=preceding[1]+' '+candidate
             person = candidate
-    result = dict(kind='head' if head else 'names' if names else 'count' if count else 'overview',
+    result = dict(kind='head' if head else 'names' if names else 'count' if count
+                  else 'contact' if contact else 'overview',
                   department_titles=selected, department_urls=sorted(x for x in selected_urls if x),
                   sources=scoped if selected else sources, person=person)
     contact_fields=staff_contact_fields(query)
@@ -240,9 +246,12 @@ def staff_query_scope(query, sources, *, catalog=None):
                 and all(field in card['fields'] for field in contact_fields)
                 for card in staff_contact_cards(source['text']))]
             if not result['sources']:
-                result.update(stop='staff_contact_not_supported',message='Нэрлэсэн багшийн асуусан холбоо барих талбарыг '
+                result.update(stop='staff_contact_not_supported',message=(
+                    'Багшийн утасны дугаарыг энд харуулахгүй. Сургуулийн имэйлийг нь асууж болно, эсвэл '
+                    'ресепшнээс асууна уу.' if contact_fields == ['phone'] else
+                    'Нэрлэсэн багшийн асуусан холбоо барих талбарыг '
                     'өөрийн нэртэй нь нэг хэсэгт баталсан эх олдсонгүй. Тэнхимийн ерөнхий толгой, өөр хүний эсвэл '
-                    'сургуулийн ерөнхий холбоог орлуулахгүй.')
+                    'сургуулийн ерөнхий холбоог орлуулахгүй.'))
                 return result
         if not bound:
             result.update(stop='unsupported_person', message='Нэрлэсэн багшийн тухай энэ хайлтаар батлах эх олдсонгүй. '
@@ -255,6 +264,33 @@ def staff_query_scope(query, sources, *, catalog=None):
         result.update(stop='staff_attribute_not_supported',sources=[],message='Багшийн асуусан хувийн эсвэл ажлын '
             'нарийвчилсан мэдээллийг батлах эх энэ хайлтаар олдсонгүй. Багшийн тоо, өөр хүний танилцуулгаар орлуулахгүй.')
         return result
+    if result['kind'] == 'contact':
+        email_lists = _published_email_lists(catalog)
+        if not selected:
+            # No name, class or department: ask which, and offer each department's published list.
+            titles = [source.get('title', '').split(' — ', 1)[0] for source in email_lists]
+            # A class code reaching this point was not resolved (no reception tables): do not
+            # ask for it again.
+            unresolved_class = re.search(r'(?<![\w-])[А-ЯӨҮЁ]{2}-\d', query)
+            result.update(stop='clarify_staff_contact', sources=[],
+                message=('Ангийн багшийн бүртгэл энд бэлэн биш байна. Багшийн нэр эсвэл тэнхимийг хэлбэл '
+                         if unresolved_class else
+                         'Аль багштай холбогдох вэ? Багшийн нэр, тэнхим эсвэл ангийн кодыг (жишээ нь КУ-2) хэлбэл ')
+                        + 'сургуулийн имэйлийг нь харуулна. Тэнхимийн багш нарын имэйлийн жагсаалтаас сонгож болно.'
+                        + (' Багшийн утасны дугаарыг энд харуулахгүй; ресепшнээс асууна уу.'
+                           if 'phone' in contact_fields else ''),
+                suggestions=[title + ('ийн' if title.endswith('тэнхим') else '') + ' багш нарын имэйл'
+                             for title in dict.fromkeys(titles)][:6])
+            return result
+        if len(selected) == 1:
+            own = [source for source in email_lists if source.get('url') in selected_urls]
+            if own:
+                result['sources'] = own
+            else:
+                result.update(stop='staff_contact_not_supported', sources=[],
+                    message='Энэ тэнхимийн багш нарын сургуулийн имэйлийг сайтад нийтэлсэн жагсаалт олдсонгүй. '
+                            'Өөр тэнхимийн эсвэл сургуулийн ерөнхий холбоог орлуулахгүй.')
+            return result
     if not selected and result['kind'] in {'overview', 'head'}:
         result.update(stop='clarify_staff_scope', message='Аль тэнхимийн эсвэл ямар багшийн мэдээлэл хэрэгтэй вэ? '
             'Багшийн нэр, тэнхимийг хэлэх эсвэл багшийн тоо, эрхлэгчийн нэр, зурагтай танилцуулгын аль нь хэрэгтэйг тодруулна уу.')
@@ -288,6 +324,12 @@ def _published_rosters(sources):
     """Name/position rosters extracted from a department page (not its e-mail list)."""
     return [source for source in sources if source.get('content_scope') == 'department_teacher_roster'
             and str(source.get('source_locator', '')).endswith('/roster')]
+
+
+def _published_email_lists(sources):
+    """A department page's published school e-mail list (client-tab v2 «/emails» passage)."""
+    return [source for source in sources if source.get('content_scope') == 'department_teacher_roster'
+            and str(source.get('source_locator', '')).endswith('/emails')]
 
 
 def _staff_person_key(value):
