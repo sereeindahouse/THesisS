@@ -38,6 +38,19 @@ QUESTION_TERMS = frozenset('хэддүг хэдий хэдийд хэдийн ш
 # «өнөөдрийг / одоог хүртэл» (to date) frames a cumulative figure; removed as a phrase, since
 # «одоогийн» (current: «одоогийн дарга») cuts to the same «одоог» and must stay a topic word.
 TO_DATE = re.compile(r'(?<!\w)(?:өнөөдрийг|өнөөг|одоог)\s+хүртэл(?!\w)', re.I)
+# «хаанаас», «хаашаа», «хаагуур» (from/to/through where) are question words; the index cuts
+# «хаанаас» to «хаан», which matched «Хаан банк» (round 9: «Тодорхойлолт хаанаас авах вэ?» was
+# answered with the registration fee). Their cut forms leave the terms only when the question has
+# one, and after the final verb is dropped, so «… үнэмлэх хаанаас авах вэ?» keeps «үнэмлэх».
+WHERE_WORD = re.compile(r'(?<!\w)хаа(?:наас|шаа|гуур|нахын|наа)(?!\w)', re.I)
+WHERE_TERMS = frozenset(('хаан', 'хаашаа', 'хаагуур', 'хаанах', 'хаанаа'))
+# «Тодорхойлолт хаанаас авах вэ?», «Хичээлийн хуваарь хаанаас харах вэ?» ask where a paper is issued
+# or a list is shown (round 9): a text that only names it («Сургуулийн тодорхойлолтоор … элссэн», an
+# exam page's «хичээл … харагдана» beside a «Хугацааны хуваарь» heading) does not answer.
+OBTAIN_QUESTION = re.compile(r'(?<!\w)хаа(?:наас|на)\s+(?:\w+\s+)?(?:ав(?:ах|на|дуулах|ч\s+болох)|гаргуул\w*|'
+                             r'хар(?:ах|ж\s+болох)|үз(?:эх|ж\s+болох)|ол(?:ох|ж\s+болох))(?!\w)')
+ISSUE_VERB = re.compile(r'(?<!\w)(?:олго\w*|ав(?:на|ах|даг|ч\s+болно|ч\s+болох)|гаргаж\s+өг\w*|гаргуул\w*|'
+                        r'захиал\w*|хар(?:на|ах|ж\s+болно|агдана)|үз(?:нэ|эх|ж\s+болно)|ол(?:но|ох|ж\s+болно))(?!\w)')
 # Pages about the school as a whole (not a department, programme, event or news item).
 SCHOOL_WIDE_PATH = re.compile(r'^/(?:about(?:/.*)?|contact|elselt|elseltiin-juram/.*|student)?/?$')
 SCHOOL_NAME = re.compile(r'(?<!\w)шинэ\s+монгол\s+технологийн\s+коллеж\w*', re.I)
@@ -89,7 +102,8 @@ def key_terms(query):
     # Cached and immutable: every candidate subset of one answer asks for the same query's terms.
     terms = _all_terms(query)
     # Mongolian ends a sentence with its verb; that word names no topic.
-    return terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
+    terms = terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
+    return tuple(term for term in terms if term not in WHERE_TERMS) if WHERE_WORD.search(query) else terms
 
 
 @lru_cache(maxsize=1024)
@@ -238,6 +252,15 @@ _VERB_FORM = (r'(?:[аэоөиу]?х|н[аэоө]|с[аэоө]н|[жч]|[аэо�
               r'[аэоө]{2}р[аэ]й|[аэоө]р[аэ]й)')
 
 
+def _issued_together(query, text):
+    """One sentence names the asked paper (the question's last topic word: «… гэрээ хаанаас авах
+    вэ?» -> «гэрээ») and says it is issued: two joined windows, one naming «тодорхойлолт» and
+    another with «авна», do not answer (round 9)."""
+    terms = key_terms(query)
+    return bool(terms) and any(ISSUE_VERB.search(sentence) and _has_term(terms[-1], _words(sentence))
+                               for sentence in re.split(r'[.!?\n]+', text.casefold()))
+
+
 @lru_cache(maxsize=1024)
 def _how_verb_root(query):
     """The root of a «how» question's verb when a topic noun of the question shares it
@@ -279,7 +302,11 @@ def topic_covered(query, text, titles='', typed=False):
         terms = without(VALUE_WORDS.get(kind, ()), terms) or terms
         terms = without(stems, terms) or terms
     words = _words(text + ('\n' + titles if kind else ''))
-    if terms and sum(_has_term(term, words, verb_stem=True) for term in terms) / len(terms) < required:
+    # A question without a topic word («Та хэн бэ?») is not about any paragraph (round 9: it was
+    # answered with an internship text).
+    if not terms or sum(_has_term(term, words, verb_stem=True) for term in terms) / len(terms) < required:
+        return False
+    if OBTAIN_QUESTION.search(query.casefold()) and not _issued_together(query, text):
         return False
     # «Сургалтын төлбөрөө хэрхэн төлөх вэ?»: the asked verb shares its root with a topic noun
     # («төлөх» / «төлбөр»), so a prefix match cannot tell paying from a fee; the verb must stand

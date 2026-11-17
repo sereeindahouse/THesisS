@@ -93,5 +93,24 @@ class ReferralTest(unittest.TestCase):
         self.assertIsNone(load_referral(ROOT / 'missing'))
 
 
+class ConversationTests(unittest.TestCase):
+    def test_thanks_and_who_are_you(self):
+        # Round 9: «Баярлалаа» was greeted again; «Та хэн бэ?» got an internship page.
+        from rag_runtime import ChatRAG
+
+        def reply(text):
+            return next((message for pattern, message in ChatRAG.CONVERSATION if pattern.fullmatch(text)), None)
+        self.assertTrue(reply('баярлалаа').startswith('Зүгээр ээ!'))
+        self.assertTrue(reply('их баярлалаа').startswith('Зүгээр ээ!'))
+        self.assertTrue(reply('сайн байна уу').startswith('Сайн байна уу!'))
+        for text in ('та хэн бэ', 'чи юу хийж чадах вэ', 'юу асууж болох вэ'):
+            with self.subTest(text=text):
+                self.assertTrue(reply(text).startswith('Би Шинэ Монгол технологийн коллежийн ресепшний туслах.'))
+        self.assertIsNone(reply('захирал хэн бэ'))
+        # A greeting gets no «where to ask» line.
+        result = dict(route='D', reason_code='conversation_help', message='Зүгээр ээ!', query='Баярлалаа')
+        self.assertEqual(attach_referral(dict(result), load_referral(ROOT)), result)
+
+
 if __name__ == '__main__':
     unittest.main()

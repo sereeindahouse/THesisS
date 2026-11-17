@@ -46,7 +46,8 @@ FUNCTION_WORDS = frozenset('''вэ бэ уу үү юу юм хэн хэнд хэ
     нь бол болох байдаг байна байх вэ? бас мөн тэгээд мөн ба болон эсвэл гэж гэх юм бэ уу? одоо
     хийж хийх авах өгөх очих төлж төлөх сурч сурах үргэлжлүүлэн хэсэгчлэн'''.split())
 GROUP = re.compile(r'(?<![\w-])([А-ЯӨҮЁ]{2}-\d)(?!\d)')
-LOCATION = re.compile(r'хаана|тоот|өрөө|давхар|хичээллэ', re.I)
+# «хаана» as a word: «хаанаас авах» (where to get a paper) is not where a class meets (review, round 9).
+LOCATION = re.compile(r'(?<!\w)хаана(?!\w)|тоот|өрөө|давхар|хичээллэ', re.I)
 TIME_WORDS = re.compile(r'өнөөдөр|маргааш|одоо|цаг|гараг|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням', re.I)
 OFFICE_QUESTION = re.compile(r'(.{2,60}?)\s+(хаана|хэддүгээр\s+давхарт)(?!\w)(.*)', re.I | re.S)
 # A phone question is not rewritten to e-mail: staff phones are never shown, so it goes to the
@@ -71,6 +72,11 @@ VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|са�
 FOLLOWUP_ATTRIBUTES = frozenset(('утас', 'имэйл', 'цахим шуудан', 'хаяг', 'өрөө', 'давхар', 'тоот', 'байрлах',
                                  'байрладаг', 'багш', 'анги', 'бүлэг', 'хуваарь', 'уулзах', 'эрхлэгч', 'холбоо барих'))
 GREETING = re.compile(r'(?:сайн\s+(?:байна\s+|байцгаана\s+)?уу|баярлалаа|hello|hi)', re.I)
+# A wish to get a paper (round 9); only papers, so «Шалгалт авах …» (an exam) and «Мэдээлэл авмаар байна»
+# (broad information, which has its own clarification) stay as asked (review).
+REQUEST = re.compile(r'(.{0,60}?(?:тодорхойлолт|хуудас|үнэмлэх|карт|гэрчилгээ|диплом|лавлагаа|маягт|анкет|'
+                     r'гэрээ|өргөдөл|хуулбар)\w*)\s+ав(?:ах\s+гэсэн(?:\s+юм)?|маар\s+байна|ъя|ах\s+хэрэгтэй\s+байна)'
+                     r'\s*[.!?]*', re.I)
 COURSE = re.compile(r'(?<!\d)([1-5])\s*(?:-?\s*(?:р|дугаар|дүгээр|дахь|дэх)\b)?\s*курс\w*', re.I)
 
 
@@ -250,6 +256,10 @@ class QuestionPlanner:
             return text, None
         if re.search(r'багш', text, re.I) and re.search(r'(?<!\w)хэн(?!\w)', text, re.I):
             canonical = group + ' ангийн багш хэн бэ?'
+        elif re.search(r'ангийн\s+багш', text, re.I) and LOCATION.search(text) and not re.search(r'хичээллэ', text, re.I):
+            # «КУ-2 ангийн багшийн өрөө хаана вэ?» asks where the class teacher sits, not where the
+            # class meets (round 9).
+            canonical = group + ' ангийн багшийн өрөө хаана вэ?'
         elif LOCATION.search(text):
             canonical = group + ' анги хаана хичээллэдэг вэ?'
         else:
@@ -401,9 +411,16 @@ class QuestionPlanner:
             entity = subject
         rest = re.sub(r'(?<!\w)нь(?!\w)\s*', '', text).strip()
         rest = rest[:1].lower() + rest[1:]
+        group = GROUP.search(previous)
+        if (group and entity == group.group(1) + ' анги' and re.match(r'\s+ангийн\s+багш', previous[group.end():])
+                and re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан|байршил|давхар)', rest.casefold())):
+            # «КУ-2 ангийн багш хэн бэ?» then «Өрөө нь хаана вэ?» / «Имэйл нь?» (round 9): the class
+            # teacher's room or e-mail, not the class's own room.
+            entity = group.group(1) + ' ангийн багш'
         head = entity.split()
         # «Өрөө нь?», «Давхар нь?» alone (round 8): the whole location question about the thing.
-        bare = re.fullmatch(r'(өрөө|байршил|давхар)\s*\??', rest.casefold())
+        bare = re.fullmatch(r'(өрөө|байршил|давхар)(?:\s+(?:хаана|хэд|хэдэн|хэддүгээр|юу)(?:\s+(?:вэ|бэ))?)?\s*\??',
+                            rest.casefold())
         if bare:
             if head[-1] == 'багш':
                 # A teacher's room and floor are both in the recorded office.
@@ -438,6 +455,12 @@ class QuestionPlanner:
             if normalized != text:
                 rewrites.append(dict(rule='wording', text=text, value=normalized))
                 text = normalized
+            # «Сургуулийн тодорхойлолт авах гэсэн юм» (round 9): at the desk, a wish to get a paper
+            # asks where it is issued.
+            wish = REQUEST.fullmatch(text.strip())
+            if wish and not QUESTION_WORD.search(wish.group(1)):
+                rewrites.append(dict(rule='request', text=text, value=wish.group(1) + ' хаанаас авах вэ?'))
+                text = wish.group(1) + ' хаанаас авах вэ?'
             if self.class_groups:
                 for rule in (self._class_code, self._class_group, self._class_contact, self._class_day, self._class_intent,
                              self._office):

@@ -31,9 +31,11 @@ _RANK_VALUE = re.compile(r'\d{1,3}\s*-?\s*(?:р|дугаар|дүгээр)\s+б�
 _FLOOR = (r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*давхар|'
           r'(?:' + _ORDINAL_WORDS + r'|арван\s*нэг|арван\s*хоёр)(?:дугаар|дүгээр)\s+давхар')
 # A place inside the campus: a room, a floor, a building or block («2-р байрны А корпус»),
-# or a street address (review 11/17 (5)).
+# or a street address (review 11/17 (5)). «4-р байр … эзэллээ» is a contest ranking, not
+# building 4 (round 9: «Хүний нөөц хаана вэ?» was answered with a speech-contest result).
 _PLACE_VALUE = re.compile(r'(?<!\d)\d{2,4}\s*(?:тоот|-?р\s+өрөө|өрөө)|(?:өрөө|тоот)\s*[:№#]?\s*\d{2,4}(?!\d)|'
-                          r'(?<!\w)(?:корпус|блок)\w*|\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)\s+байр(?:ны|анд|нд)?(?!\w)|'
+                          r'(?<!\w)(?:корпус|блок)\w*|\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)\s+байр(?:ны|анд|нд)?(?!\w)'
+                          r'(?!(?:\s+\w+){0,3}\s+эзэл(?:сэн|лээ|жээ|ж|в|сний)(?!\w))|'
                           r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*хороо|гудамж\w*|' + _FLOOR, re.I)
 _FLOOR_VALUE = re.compile(_FLOOR, re.I)
 _TIME_VALUE = re.compile(r'(?<!\d)\d{1,2}[:.]\d{2}(?!\d)|(?<!\d)\d{1,2}\s*(?:-\s*\d{1,2}\s*)?цаг', re.I)
@@ -98,8 +100,10 @@ def expected_value(query):
     if re.search(r'хэддүгээр\s+давхар|хэдэн\s+давхар', q):
         return 'floor', ()
     # «Хүний нөөцийн алба хаана байдаг вэ?»: where an office or room is, inside the building
-    # (a room number or a floor), not «Японд хаана дадлага хийдэг» (11/17 (5)).
-    if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан)\w*\s+хаана(?!\w)', q):
+    # (a room number or a floor), not «Японд хаана дадлага хийдэг» (11/17 (5)). «Хүний нөөц хаана
+    # вэ?» names the office without «алба» (round 9: a Japanese speech-contest page was shown).
+    if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан|нөөц|нягтлан(?:\s+бодогч)?|оффис)\w*'
+                 r'\s+хаана(?!\w)', q):
         return 'place', ()
     # «хэдий хугацаанд» (over what period), «хэдийд» (when), «хэдийнээс» (since when) ask for a date.
     if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)|'

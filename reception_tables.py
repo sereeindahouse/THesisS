@@ -51,6 +51,8 @@ def normalize_wording(text):
     both reception matchers read the result."""
     text = re.sub(r'(?<!\w)хэд(?:эн)?\s+давхарт', 'хэддүгээр давхарт', text, flags=re.I)
     text = re.sub(r'(?<!\w)лаб(?!\w)', 'лаборатори', text, flags=re.I)
+    # «нягтлан» alone is the post «нягтлан бодогч» (round 9).
+    text = re.sub(r'(?<!\w)(нягтлан)(?!\w)(?!\s+бодогч)', r'\1 бодогч', text, flags=re.I)
     return re.sub(r'(?<!\w)хаана\s+суудаг', 'хаана байдаг', text, flags=re.I)
 
 
@@ -599,11 +601,16 @@ class ReceptionAnswerPath:
             # «КУ-2 ангийн» as a person's name.
             ('class_teacher_email', r'(.{1,120}?) ангийн багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?'
                                     r'(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
+            # Round 9: the class teacher's recorded office; before teacher_room and the legacy
+            # teacher lookup, which read «КУ-2 ангийн» as a person's name («багш олдсонгүй»).
+            ('class_teacher_room', r'(.{1,120}?) ангийн багш(?:ийн (?:ажлын )?өрөө)? хаана (?:байдаг |байна )?вэ'),
             ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
                           r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
             ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
             # 11/17 (5): the school day's lesson times, read from the whole timetable.
             ('bell_schedule', r'хичээл(?:үүд)? хэдэн цаг(?:т|аас) (эхэл\w*|эхл\w*|дуус\w*|тар\w*)(?: вэ)?'),
+            # Round 9: «Хичээлийн хуваарь хаанаас харах вэ?» — the class timetable is shown here, by class.
+            ('timetable_where', r'(?:хичээлийн |ангийн )?хуваар\w* (?:хаанаас|хаана) (харах|үзэх|олох|харж болох)(?: вэ)?'),
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
@@ -635,6 +642,11 @@ class ReceptionAnswerPath:
                            else [text + ' вэ', text + ' бэ'])
         if any(candidate.casefold() == 'ангийн багш хэн бэ' for candidate in candidates):
             return 'group_required', ''
+        # «Хүүхдийнхээ ангийн багштай уулзмаар байна» (round 9): the class teacher without a class;
+        # the class is asked for, not a department.
+        if re.fullmatch(r'(?:(?:миний|манай)\s+)?(?:хүүхд\w*\s+)?ангийн\s+багш(?:тай|ийг)\s+'
+                        r'(?:уулз|холбогд|ол)\w*(?:\s+\w+){0,2}', text.casefold()):
+            return 'group_required', ''
         for candidate in candidates:
             for intent, pattern in patterns:
                 match = re.fullmatch(pattern, candidate, re.I)
@@ -655,12 +667,14 @@ class ReceptionAnswerPath:
             return self._service(extra[1]) is not None or bool(self._purpose_rooms(extra[1]))
         if extra is not None and extra[0] == 'place_where':
             return (any(self._match(query)) or self._place(extra[1]) is not None
-                    or bool(self._purpose_rooms(extra[1])))
+                    or bool(self._purpose_rooms(extra[1])) or self._post_holder(extra[1]) is not None)
         if extra is not None and extra[0].startswith('department_'):
             return any(self._match(query)) or len(self._role_holders(extra[1] + ' тэнхимийн эрхлэгч', True)) == 1
         if extra is not None and extra[0] in ('role_holder', 'role_name', 'role_meet'):
             holders = self._role_holders(extra[1], extra[0] == 'role_meet')
             return any(self._match(query)) or (len(holders) == 1 if extra[0] == 'role_meet' else bool(holders))
+        if extra is not None and extra[0] == 'timetable_where':
+            return bool(self.tables and self.tables.timetable)
         if extra is not None and extra[0] in ('teacher_phone', 'class_teacher_phone'):
             # An unrecorded name stays with the staff path, which says phones are not shown.
             return any(self._match(query)) or self._phone_owner(*extra) is not None
@@ -676,6 +690,34 @@ class ReceptionAnswerPath:
         """« Ажлын өрөө: 508, 5-р давхар.» from the rooms table, or nothing."""
         room = self._room_of(person)
         return (' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.') if room else ''
+
+    def _post_room(self, person):
+        """«Захирал (Т.Оюунжаргал): 508 өрөө, 5-р давхар.» for a post holder with a recorded room."""
+        room = self._room_of(person)
+        return (person.role + ' (' + person.name + '): ' + room.name + ' өрөө, ' + str(room.floor)
+                + '-р давхар. Одоо тэнд байгааг батлахгүй.')
+
+    def _class_teacher_of(self, value):
+        """(class, its teacher's staff row or None, reason or None). «Хүүхдийн ангийн багш …» names no
+        class code and asks which class (review, round 9)."""
+        if not re.search(r'[А-ЯӨҮЁа-яөүё]{2}-\d', value):
+            return None, None, 'reception_group_required'
+        group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
+        if group is None or not group.teacher:
+            return None, None, 'reception_lookup_missing'
+        return group, next((person for person in self.tables.staff if _key(person.name) == _key(group.teacher)), None), None
+
+    def _post_holder(self, value):
+        """The one person holding the asked post, with a recorded room, when the asked head noun is
+        the post's own («захирлын» / «Захирал»), not a facility a post mentions («… лабораторийн
+        эрхлэгч»), review round 5; else None."""
+        holders = self._role_holders(value)
+        person = holders[0] if len(holders) == 1 else None
+        asked = re.findall(r'[а-яөүё]+', _key(value))[-1:]
+        post = re.findall(r'[а-яөүё]+', _key(person.role))[-1:] if person else []
+        if not (asked and post and asked[0][:4] == post[0][:4]):
+            return None
+        return person if self._room_of(person) is not None else None
 
     def _role_holders(self, value, departments=False):
         """Staff whose recorded post, read with its office or department, holds every word of the
@@ -892,6 +934,10 @@ class ReceptionAnswerPath:
                 if rooms:
                     # «Хурлын заал хаана вэ?»: a room the school's table names by its purpose (round 6).
                     return reply(self._purpose_reply(rooms), 'rooms', 'reception_purpose_lookup')
+                # «Нягтлан бодогч хаана байдаг вэ?» (round 9): a post one person holds, its holder's room.
+                person = self._post_holder(value)
+                if person is not None:
+                    return reply(self._post_room(person), 'staff', 'reception_role_room')
                 # Not a recorded office/group: a room/teacher lookup or the main RAG path.
                 return self._answer_legacy(query, now=now)
             kind, first, second = place
@@ -965,11 +1011,20 @@ class ReceptionAnswerPath:
                 return missing('reception_room_unknown')
             return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
                          + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
+        if intent == 'class_teacher_room':
+            group, person, reason = self._class_teacher_of(value)
+            if reason:
+                return missing(reason)
+            room = self._room_of(person)
+            if room is None:
+                return missing('reception_room_unknown')
+            return reply(group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; ажлын өрөө: ' + room.name
+                         + ', ' + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'classes',
+                         'reception_class_teacher_room')
         if intent == 'class_teacher_email':
-            group = next((group for group in self.tables.classes if _key(group.group) == _key(value)), None)
-            if group is None or not group.teacher:
-                return missing()
-            person = next((person for person in self.tables.staff if _key(person.name) == _key(group.teacher)), None)
+            group, person, reason = self._class_teacher_of(value)
+            if reason:
+                return missing(reason)
             if person is None or not person.email:
                 return missing('reception_email_unknown')
             return reply(group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; сургуулийн имэйл: '
@@ -1005,6 +1060,13 @@ class ReceptionAnswerPath:
             return reply(group.group + ' — ' + (label or _MN_DAYS[weekday] + ' гарагийн') + ' бүртгэсэн хуваарь: '
                          + ('; '.join(slots) if slots else 'хичээл бүртгэгдээгүй') + '.' + period
                          + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
+        if intent == 'timetable_where':
+            if not self.tables.timetable:
+                return missing('reception_timetable_incomplete')
+            example = sorted(group.group for group in self.tables.classes)[:1]
+            return reply('Ангийн хичээлийн хуваарийг энд харуулна: ангийн кодоо хэлнэ үү'
+                         + (', жишээ нь «' + example[0] + ' анги маргааш хэдэн цагт хичээлтэй вэ?»' if example else '')
+                         + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_timetable_where')
         if intent == 'bell_schedule':
             lessons = list(self.tables.timetable)
             if not lessons or not self.tables.timetable_complete:
@@ -1071,19 +1133,11 @@ class ReceptionAnswerPath:
             matches = [row for row in self.tables.rooms if _key(row.name) == _key(room[1])]
             if len(matches) != 1:
                 # «Захирлын өрөө хаана вэ?» names a post, not a room: its holder's recorded room (round 5).
-                # Only when the asked head noun is the post's own head noun («захирлын» / «Захирал»),
-                # not a facility a post mentions («… лабораторийн эрхлэгч»), review round 5.
-                holders = self._role_holders(room[1])
-                person = holders[0] if len(holders) == 1 else None
-                asked = re.findall(r'[а-яөүё]+', _key(room[1]))[-1:]
-                post = re.findall(r'[а-яөүё]+', _key(person.role))[-1:] if person else []
-                if not (asked and post and asked[0][:4] == post[0][:4]):
-                    person = None
+                person = self._post_holder(room[1])
                 place = self._room_of(person)
                 if place is None:
                     return self._result(query, None, 'reception_room_not_found')
-                return self._result(query, prefix + person.role + ' (' + person.name + '): ' + place.name + ' өрөө, '
-                                    + str(place.floor) + '-р давхар.', 'reception_role_room', source_table='staff')
+                return self._result(query, prefix + self._post_room(person), 'reception_role_room', source_table='staff')
             row = matches[0]
             return self._result(query, prefix + row.name + ' өрөө: ' + str(row.floor) + '-р давхар.',
                 'reception_room_lookup', source_table='rooms')

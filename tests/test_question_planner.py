@@ -60,6 +60,32 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(asked('өрөө нь?', 'Захирал хэн бэ?'), 'Захирал хаана вэ?')
         self.assertEqual(asked('давхар нь', 'Номын сан хаана вэ?'), 'Номын сан хэддүгээр давхарт вэ?')
 
+    def test_round9_wishes_and_class_teacher_followups(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],
+                               staff=[], class_names=['КУ-2'])
+
+        def asked(query, previous=None):
+            return plan.plan(query, previous=previous)['parts'][0]['query']
+
+        # A wish to get a paper asks where it is issued.
+        self.assertEqual(asked('Сургуулийн тодорхойлолт авах гэсэн юм'), 'Сургуулийн тодорхойлолт хаанаас авах вэ?')
+        self.assertEqual(asked('Дүнгийн хуудас авмаар байна'), 'Дүнгийн хуудас хаанаас авах вэ?')
+        # Only papers: an exam, broad information or a class timetable stay as asked (review).
+        for query in ('Шалгалт авах гэж байна', 'Мэдээлэл авмаар байна', 'КУ-2 ангийн хуваарь авмаар байна'):
+            with self.subTest(query=query):
+                self.assertEqual(asked(query), query)
+        self.assertEqual(asked('КУ-2 ангийн дүнгийн хуудас авах гэсэн юм'), 'КУ-2 ангийн дүнгийн хуудас хаанаас авах вэ?')
+        # The class teacher's room, not the class's room; the class's own schedule stays the class's.
+        self.assertEqual(asked('КУ-2 ангийн багшийн өрөө хаана вэ?'), 'КУ-2 ангийн багшийн өрөө хаана вэ?')
+        self.assertEqual(asked('Өрөө нь хаана вэ?', 'КУ-2 ангийн багш хэн бэ?'), 'КУ-2 ангийн багшийн өрөө хаана вэ?')
+        self.assertEqual(asked('Имэйл нь?', 'КУ-2 ангийн багш хэн бэ?'), 'КУ-2 ангийн багшийн имэйл?')
+        self.assertEqual(asked('Давхар нь хэд вэ?', 'КУ-2 ангийн багш хэн бэ?'), 'КУ-2 ангийн багшийн өрөө хаана вэ?')
+        self.assertEqual(asked('Давхар нь хэд вэ?', 'Номын сан хаана вэ?'), 'Номын сан хэддүгээр давхарт вэ?')
+        self.assertEqual(asked('Маргааш хэдэн цагт хичээлтэй вэ?', 'КУ-2 ангийн багш хэн бэ?'),
+                         'КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ?')
+        self.assertEqual(asked('КУ-2 анги хаана байдаг вэ?'), 'КУ-2 анги хаана хичээллэдэг вэ?')
+
     def test_elliptical_followup_borrows_only_the_previous_named_thing(self):
         # Round 4 (11/17): «Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» answered the school's
         # hours. Only the named thing is carried (research: whole history hurts); a new topic is not.

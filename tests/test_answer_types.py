@@ -162,6 +162,34 @@ class AnchorBindingTests(unittest.TestCase):
                                                      'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
         self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
 
+    def test_round9_where_words_empty_topics_and_issued_papers(self):
+        # «хаанаас» is a question word, cut to «хаан» it matched «Хаан банк»; the bank stays a topic.
+        self.assertEqual(rule_selector.key_terms('Тодорхойлолт хаанаас авах вэ?'), ('тодорхойлолт',))
+        self.assertIn('хаан', rule_selector.key_terms('Хаан банкаар төлж болох уу?'))
+        # The final verb is dropped before the question word, so the paper stays a topic (review).
+        self.assertEqual(rule_selector.key_terms('Оюутны үнэмлэх хаанаас авах вэ?'), ('оюутан', 'үнэмлэх'))
+        # A question with no topic word is not about any paragraph.
+        self.assertFalse(rule_selector.topic_covered('Та хэн бэ?', 'Дадлага хөтөлбөрт хэн хамрагдах вэ?'))
+        # «… хаанаас авах вэ?»: one sentence names the paper and says it is issued.
+        query = 'Сургуулийн тодорхойлолт хаанаас авах вэ?'
+        self.assertFalse(rule_selector.topic_covered(
+            query, 'Сургуулийн тодорхойлолтоор 7 төгсөгч элсэв.\nБүртгэлийн хуудсыг цахимаар авна.'))
+        self.assertTrue(rule_selector.topic_covered(query, 'Сургуулийн тодорхойлолтыг Сургалтын албанаас авна.'))
+        # The sentence with the issuing verb must name the asked paper itself (review).
+        self.assertFalse(rule_selector.topic_covered('Дотуур байрны гэрээ хаанаас авах вэ?',
+                                                     'Дотуур байрны гэрээг 2 хувь хийнэ.\nДотуур байранд хоол авна.'))
+        # «… хаанаас харах вэ?» likewise: an exam page's «харагдана» beside a «хуваарь» heading is no answer.
+        timetable = 'Хичээлийн хуваарь хаанаас харах вэ?'
+        self.assertFalse(rule_selector.topic_covered(timetable, 'Шалгалтын дараа хичээл бүрийн оноо харагдана.\nХугацааны хуваарь'))
+        self.assertTrue(rule_selector.topic_covered(timetable, 'Хичээлийн хуваарийг оюутны цахим системээс харна.'))
+        # «4-р байр … эзэллээ» is a ranking, not building 4; «Хүний нөөц хаана вэ?» asks for a place.
+        from answer_types import _PLACE_VALUE
+        self.assertEqual(expected_value('Хүний нөөц хаана вэ?'), ('place', ()))
+        self.assertFalse(_PLACE_VALUE.search('илтгэлээ тавьж, 4-р байр буюу дэд байр эзэллээ'))
+        self.assertTrue(_PLACE_VALUE.search('2-р байрны А корпус'))
+        self.assertTrue(_PLACE_VALUE.search('Номын сан 2-р байрны 1 давхрыг эзэлдэг'))   # occupies, not won
+        self.assertEqual(expected_value('Нягтлан бодогч хаана вэ?'), ('place', ()))
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -433,6 +461,29 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertIn('маргаашийн (пүрэв гараг)', tomorrow['answer'])
         self.assertIn('08:00-09:30', tomorrow['answer'])
 
+    def test_round9_class_teacher_room_post_rooms_and_parents(self):
+        tables = ReceptionTables(
+            rooms=(Room(6, '604'), Room(8, '804', services=(Service('Санхүүгийн алба', '', ''),))),
+            staff=(Staff(name='А.Номин-Эрдэнэ', department='КУ', room='604'),
+                   Staff(name='С.Зохиомол', department='Санхүү', room='804', role='Нягтлан бодогч')),
+            classes=(ClassGroup(group='КУ-2', room='612', teacher='А.Номин-Эрдэнэ'),), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # «КУ-2 ангийн» was read as a teacher's name («багш олдсонгүй»).
+        for query in ('КУ-2 ангийн багшийн өрөө хаана вэ?', 'КУ-2 ангийн багш хаана байна вэ?'):
+            with self.subTest(query=query):
+                room = path.answer(query)
+                self.assertEqual(room['reason_code'], 'reception_class_teacher_room')
+                self.assertIn('ажлын өрөө: 604, 6-р давхар. Одоо тэнд байгааг батлахгүй.', room['answer'])
+        # «нягтлан» is the post «Нягтлан бодогч»: its one holder's room.
+        post = path.answer('Нягтлан хаана байдаг вэ?')
+        self.assertEqual(post['answer'], 'Нягтлан бодогч (С.Зохиомол): 804 өрөө, 8-р давхар. Одоо тэнд байгааг батлахгүй.')
+        # A parent who wants the class teacher is asked which class.
+        self.assertEqual(path.answer('Хүүхдийнхээ ангийн багштай уулзмаар байна')['reason_code'], 'reception_group_required')
+        self.assertFalse(path.recognizes('Хичээлийн хуваарь хаанаас харах вэ?'))   # no timetable loaded here
+        for query in ('Хүүхдийн ангийн багш хаана вэ?', 'Хүүхдийн ангийн багшийн имэйл'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['reason_code'], 'reception_group_required')
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
@@ -441,7 +492,7 @@ class ReceptionWordingTests(unittest.TestCase):
             classes=(), timetable=())
         result = ReceptionAnswerPath(tables, enabled=True).answer('Захирлын өрөө хаана вэ?')
         self.assertEqual(result['reason_code'], 'reception_role_room')
-        self.assertEqual(result['answer'], 'Захирал (Т.Зохиомол): 508 өрөө, 5-р давхар.')
+        self.assertEqual(result['answer'], 'Захирал (Т.Зохиомол): 508 өрөө, 5-р давхар. Одоо тэнд байгааг батлахгүй.')
 
     def test_department_contact_is_its_head_never_a_phone(self):
         # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact block.

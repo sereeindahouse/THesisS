@@ -1441,6 +1441,19 @@ class ChatRAG:
     EXTEND = {"no_supported_question_match", "select_supported_question", "unmatched_named_entity", "requested_year_value_lookup"}
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
+    # Round 9: a thank-you is not greeted again, and «Та хэн бэ?», «Юу хийж чадах вэ?» (what a
+    # visitor first asks a desk screen) get what this assistant does instead of a web excerpt.
+    CONVERSATION = (
+        (re.compile(r'(?:за\s+)?(?:их\s+)?баярла(?:лаа|аа)(?:\s+\w+)?|thanks?(?:\s+you)?'),
+         'Зүгээр ээ! Өөр асуух зүйл байвал асуугаарай.'),
+        (re.compile(r'сайн\s+(?:байна\s+|байцгаана\s+)?уу|hello|hi'),
+         'Сайн байна уу! Сургуулийн мэргэжил, элсэлт, холбоо барих мэдээллээс асуугаарай.'),
+        (re.compile(r'(?:та|чи)\s+(?:хэн|юу)\s+(?:бэ|вэ)|(?:(?:та|чи)\s+)?юу(?:г)?\s+(?:хийж\s+чадах|хийдэг|мэдэх|мэддэг)'
+                    r'(?:\s+(?:вэ|бэ))?|(?:би\s+)?юу\s+асууж\s+болох(?:\s+(?:вэ|бэ))?'),
+         'Би Шинэ Монгол технологийн коллежийн ресепшний туслах. Сургуулийн вэб сайт болон сургуулиас өгсөн '
+         'мэдээллээс (өрөө, давхар, анги, хичээлийн хуваарь, багшийн сургуулийн имэйл, элсэлт, төлбөр) эх '
+         'сурвалжтай хариулна. Хариулт олдохгүй бол хаана, хэнд хандахыг хэлнэ. Дуугаар эсвэл бичгээр асууж болно.'),
+    )
 
     def __init__(self, root, policy, retriever=None, generator=None, *, reception=None,
                  normalizer=None, reception_clock=None):
@@ -1663,9 +1676,10 @@ class ChatRAG:
             if 'supported_years' in result:
                 # These years describe the FAQ scope, not the later web answer.
                 result['faq_scope_handoff']['supported_years'] = result.pop('supported_years')
-        simple = re.sub(r"[^\w\s]", "", query.casefold()).strip()
-        if simple in {"сайн байна уу", "сайн уу", "hello", "hi", "баярлалаа", "thanks"}:
-            result.update(route="D", message="Сайн байна уу! Сургуулийн мэргэжил, элсэлт, холбоо барих мэдээллээс асуугаарай.",
+        simple = re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", query.casefold())).strip()
+        message = next((text for pattern, text in self.CONVERSATION if pattern.fullmatch(simple)), None)
+        if message:
+            result.update(route="D", message=message,
                           suggestions=self.SUGGESTIONS, reason_code="conversation_help", clarification=None)
             return self._remember(result, allow_draft)
         from website_retrieval import search_terms
