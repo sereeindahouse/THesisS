@@ -45,6 +45,14 @@ _DAY_LOOKUP = {**{day: i for i, day in enumerate(_DAYS)},
 _RELATIVE_DAYS = {'өнөөдөр': 'өнөөдрийн', 'маргааш': 'маргаашийн'}
 
 
+def floor_text(floor):
+    """«5-р давхар»; below ground «хонгилын давхар» (round 11: the table's В3, В6, В7, В6Б read
+    «-1-р давхар»). No minus sign, which the speech output would not read (review)."""
+    if isinstance(floor, int) and floor < 0:
+        return 'хонгилын давхар' if floor == -1 else 'газар доорх ' + str(-floor) + '-р давхар'
+    return str(floor) + '-р давхар'
+
+
 def normalize_wording(text):
     """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
     давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
@@ -689,13 +697,13 @@ class ReceptionAnswerPath:
     def _workplace(self, person):
         """« Ажлын өрөө: 508, 5-р давхар.» from the rooms table, or nothing."""
         room = self._room_of(person)
-        return (' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.') if room else ''
+        return (' Ажлын өрөө: ' + room.name + ', ' + floor_text(room.floor) + '.') if room else ''
 
     def _post_room(self, person):
         """«Захирал (Т.Оюунжаргал): 508 өрөө, 5-р давхар.» for a post holder with a recorded room."""
         room = self._room_of(person)
-        return (person.role + ' (' + person.name + '): ' + room.name + ' өрөө, ' + str(room.floor)
-                + '-р давхар. Одоо тэнд байгааг батлахгүй.')
+        return (person.role + ' (' + person.name + '): ' + room.name + ' өрөө, ' + floor_text(room.floor)
+                + '. Одоо тэнд байгааг батлахгүй.')
 
     def _class_teacher_of(self, value):
         """(class, its teacher's staff row or None, reason or None). «Хүүхдийн ангийн багш …» names no
@@ -795,7 +803,7 @@ class ReceptionAnswerPath:
         # Rooms grouped under their own recorded purpose («Гадаад хэлний кабинет», «Хэлний кабинет»).
         groups = {}
         for room in rooms:
-            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + str(room.floor) + '-р давхар')
+            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + floor_text(room.floor))
         return '; '.join(purpose + ': ' + '; '.join(places) for purpose, places in groups.items()) + '.'
 
     def _place(self, value):
@@ -921,7 +929,7 @@ class ReceptionAnswerPath:
             found = self._service(value)
             if found is not None:
                 room, service = found
-                return reply('Тийм. ' + service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар.',
+                return reply('Тийм. ' + service.name + ': ' + room.name + ' өрөө, ' + floor_text(room.floor) + '.',
                              'rooms', 'reception_service_exists')
             rooms = self._purpose_rooms(value)
             if rooms:
@@ -942,7 +950,7 @@ class ReceptionAnswerPath:
                 return self._answer_legacy(query, now=now)
             kind, first, second = place
             if kind == 'office':
-                return reply(second.name + ': ' + first.name + ' өрөө, ' + str(first.floor) + '-р давхар.',
+                return reply(second.name + ': ' + first.name + ' өрөө, ' + floor_text(first.floor) + '.',
                              'rooms', 'reception_service_lookup')
             return reply(first.group + ' — бүртгэсэн үндсэн өрөө: ' + first.room
                          + '. Тухайн хичээлийн өрөө хуваариар өөр байж болно.', 'classes', 'reception_class_room')
@@ -958,9 +966,9 @@ class ReceptionAnswerPath:
                 return None  # not a recorded office ("Сургууль хэдэн цагт…"): main RAG path
             room, service = found
             if intent == 'office_floor':
-                text = service.name + ': ' + str(room.floor) + '-р давхар.'
+                text = service.name + ': ' + floor_text(room.floor) + '.'
             elif intent == 'office_full':
-                text = (service.name + ': ' + room.name + ' өрөө, ' + str(room.floor) + '-р давхар. '
+                text = (service.name + ': ' + room.name + ' өрөө, ' + floor_text(room.floor) + '. '
                         + ('Ажлын цаг: ' + service.office_hours + '.' if _recorded(service.office_hours)
                            else 'Ажлын цаг хүснэгтэд бүртгэгдээгүй.'))
             elif intent == 'office_hours':
@@ -983,7 +991,7 @@ class ReceptionAnswerPath:
             if not matches:
                 return missing()
             return reply('Тэнхимд хамаарах бүртгэлтэй өрөө: ' + '; '.join(
-                room.name + ' (' + str(room.floor) + '-р давхар; ' + (room.purpose or 'зориулалт дутуу') + ')'
+                room.name + ' (' + floor_text(room.floor) + '; ' + (room.purpose or 'зориулалт дутуу') + ')'
                 for room in matches) + '. Тэнхимийн ганц төв байр гэж батлахгүй.', 'rooms', 'reception_department_rooms')
         if intent.startswith('teacher_'):
             person = next((person for person in self.tables.staff if _key(person.name) == _key(value)), None)
@@ -1010,7 +1018,7 @@ class ReceptionAnswerPath:
             if not person.room or room is None:
                 return missing('reception_room_unknown')
             return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
-                         + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
+                         + floor_text(room.floor) + '. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
         if intent == 'class_teacher_room':
             group, person, reason = self._class_teacher_of(value)
             if reason:
@@ -1019,7 +1027,7 @@ class ReceptionAnswerPath:
             if room is None:
                 return missing('reception_room_unknown')
             return reply(group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; ажлын өрөө: ' + room.name
-                         + ', ' + str(room.floor) + '-р давхар. Одоо тэнд байгааг батлахгүй.', 'classes',
+                         + ', ' + floor_text(room.floor) + '. Одоо тэнд байгааг батлахгүй.', 'classes',
                          'reception_class_teacher_room')
         if intent == 'class_teacher_email':
             group, person, reason = self._class_teacher_of(value)
@@ -1139,7 +1147,7 @@ class ReceptionAnswerPath:
                     return self._result(query, None, 'reception_room_not_found')
                 return self._result(query, prefix + self._post_room(person), 'reception_role_room', source_table='staff')
             row = matches[0]
-            return self._result(query, prefix + row.name + ' өрөө: ' + str(row.floor) + '-р давхар.',
+            return self._result(query, prefix + row.name + ' өрөө: ' + floor_text(row.floor) + '.',
                 'reception_room_lookup', source_table='rooms')
         person = next((row for row in self.tables.staff if _key(row.name) == _key(teacher[1])), None)
         if person is None:

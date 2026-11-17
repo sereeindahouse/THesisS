@@ -225,6 +225,29 @@ class AnchorBindingTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertIsNone(rule_selector.quantity_pair(query))
 
+    def test_round11_another_departments_page_does_not_answer(self):
+        # «Барилгын тэнхим ямар лабораторитой вэ?» joined the Механик page's labs with the department
+        # list's «Барилга»; a named department is answered from its own pages only.
+        self.assertEqual(rule_selector._department_stem('Барилгын тэнхим ямар лабораторитой вэ?'), 'civil')
+        self.assertEqual(rule_selector._department_stem('Барилгын дэд бүтцийн инженерийн тэнхим'), 'civil')
+        # Whole word beginnings: «компани», «цахим» are no departments; two departments name none (review).
+        for text in ('Компанитай хамтран ажилладаг тэнхим аль вэ?', 'Цахим хичээл заадаг тэнхим',
+                     'Барилгын тэнхим механик тэнхимээс юугаараа ялгаатай вэ?'):
+            with self.subTest(text=text):
+                self.assertIsNone(rule_selector._department_stem(text))
+        self.assertEqual(rule_selector._page_department('https://nmct.edu.mn/departments/general-department'), 'general')
+        self.assertIsNone(rule_selector._page_department('https://nmct.edu.mn/departments'))
+        self.assertEqual(rule_selector._department_stem('Цахилгааны тэнхим хаана вэ?'), 'electrical')
+        for text in ('Тэнхимүүд', 'Сургууль хэдэн тэнхимтэй вэ?', 'Хамгийн олон оюутантай тэнхим аль вэ?'):
+            with self.subTest(text=text):
+                self.assertIsNone(rule_selector._department_stem(text))
+        units = [dict(unit_id='m1', source_id='mech', text='Тэнхим нь механик боловсруулалтын лаборатори, гагнуурын лаборатори гэсэн лабораторитой.'),
+                 dict(unit_id='d1', source_id='list', text='Барилгын дэд бүтцийн инженерийн тэнхим')]
+        sources = [dict(source_id='mech', title='Механик инженерийн тэнхим', url='https://nmct.edu.mn/departments/mechanical'),
+                   dict(source_id='list', title='Тэнхимүүд', url='https://nmct.edu.mn/departments')]
+        result = rule_selector.bounded_lexical_selection('Барилгын тэнхим ямар лабораторитой вэ?', units, sources=sources)
+        self.assertTrue(result['abstained'])
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -518,6 +541,12 @@ class ReceptionWordingTests(unittest.TestCase):
         for query in ('Хүүхдийн ангийн багш хаана вэ?', 'Хүүхдийн ангийн багшийн имэйл'):
             with self.subTest(query=query):
                 self.assertEqual(path.answer(query)['reason_code'], 'reception_group_required')
+
+    def test_round11_basement_floor(self):
+        tables = ReceptionTables(rooms=(Room(-1, 'В3', purpose='Робокон клуб'),), staff=(), classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual(path.answer('В3 тоот хэддүгээр давхарт вэ?')['answer'], 'В3 өрөө: хонгилын давхар.')
+        self.assertEqual(path.answer('Робокон клуб хаана вэ?')['answer'], 'Робокон клуб: В3 өрөө, хонгилын давхар.')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

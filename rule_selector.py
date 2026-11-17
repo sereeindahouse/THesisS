@@ -382,6 +382,31 @@ def answer_selection(root):
                 typed_value_check=typed)
 
 
+# The school's six departments (nmct.edu.mn/departments/<slug>, 11/17 copy) by the words of their
+# names; whole word beginnings, so «компани» or «цахим» name none of them (review, round 11).
+_DEPARTMENT_WORDS = (('хими', 'chemical'), ('барилг', 'civil'), ('бүтц', 'civil'), ('компьютер', 'computer-science'),
+                     ('цахилгаа', 'electrical'), ('электрон', 'electrical'), ('эрдм', 'general'), ('эрдэм', 'general'),
+                     ('механик', 'mechanical'))
+_DEPARTMENT_PAGE = re.compile(r'/departments/(chemical|civil|computer-science|electrical|general-department|mechanical)(?![\w-])')
+
+
+def _department_stem(text):
+    """The one department a question names by the words right before «тэнхим» («Барилгын тэнхим» ->
+    civil, «Цахилгааны тэнхим» -> electrical); None for the school, «Хамгийн олон оюутантай тэнхим»
+    or a question naming two departments (review)."""
+    found = set()
+    for match in re.finditer(r'((?:[а-яөүё]+[ \t]+){1,4})тэнхим', (text or '').casefold()):
+        found |= {name for word in match.group(1).split() for prefix, name in _DEPARTMENT_WORDS
+                  if word.startswith(prefix)}
+    return found.pop() if len(found) == 1 else None
+
+
+def _page_department(url):
+    """The department whose own page an address is (its URL, not its title), or None."""
+    match = _DEPARTMENT_PAGE.search(url or '')
+    return None if match is None else 'general' if match.group(1) == 'general-department' else match.group(1)
+
+
 def bounded_lexical_selection(query, units, sources=None, requirements=(), single_unit=False, typed=True):
     """First complete and relevant BM25 subset, with no references or answer values.
 
@@ -413,6 +438,8 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
     titles = {source.get('source_id'): source.get('title', '') + '\n'
               + (source.get('page_header') or '').split('\n', 1)[0] for source in sources or []}
     source_of = {unit['unit_id']: unit.get('source_id') for unit in units}
+    asked_department = _department_stem(query)
+    page_department = {source.get('source_id'): _page_department(source.get('url')) for source in sources or []}
     if typed and not requirements:
         from answer_types import expected_value, value_supported
         if expected_value(query) is not None:
@@ -448,7 +475,12 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
             named = '\n'.join(dict.fromkeys(titles.get(claim.get('source_id'), '')
                                             for claim in candidate['claims'])) if claims and typed else ''
             shown = '\n'.join(claims)
-            if (candidate['accepted'] and not requirements
+            if candidate['accepted'] and not requirements and asked_department and any(
+                    page_department.get(source_of.get(unit_id)) not in (None, asked_department) for unit_id in ids):
+                # «Барилгын тэнхим ямар лабораторитой вэ?» was answered with the Механик department
+                # page's labs, its «Барилга» found on the department list (round 11).
+                candidate = dict(accepted=False, reason='other_department')
+            elif (candidate['accepted'] and not requirements
                     and not relevant_to_question(query, shown, typed, claims=claims, focus=focus, contexts=contexts,
                                                  titles=named)):
                 # Name the cause: topic words present but no value of the asked type. With the

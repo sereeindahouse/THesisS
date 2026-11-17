@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from reception_tables import ReceptionAnswerPath
+from reception_tables import ReceptionAnswerPath, floor_text
 from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
@@ -1490,7 +1490,7 @@ class ChatRAG:
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
         for room in getattr(tables, 'rooms', ()):
             if any(service.name == name for service in room.services):
-                return room.name + ' өрөө, ' + str(room.floor) + '-р давхар'
+                return room.name + ' өрөө, ' + floor_text(room.floor)
         return None
 
     def _school_topic_questions(self, database, package_id, *, allow_draft=False):
