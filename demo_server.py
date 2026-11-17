@@ -27,6 +27,7 @@ from data_explorer import SourceExplorer
 from clarification_context import ClarificationContext, ClarificationConflict
 from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
 from release_runtime import LiveContentRuntime
+from question_planner import QuestionPlanner, compose as compose_parts
 from website_retrieval import WebsiteRetriever
 from teacher_media import TeacherMedia, TeacherMediaError
 import code_map
@@ -658,25 +659,46 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                 token, raw_query, allow_draft=allow_draft,
                                 package_id=package_id, corpus_id=corpus_id)
                         context_elapsed = time.perf_counter() - context_started
-                        # A configured reception lookup must precede historical
-                        # teacher profiles; it never claims physical presence.
-                        reception = getattr(rag, 'reception', None)
-                        reception_query = bool(reception is not None and
-                            reception.recognizes(conversation['resolved_query']))
-                        result = (None if reception_query else
-                            self.teacher_answer(conversation['resolved_query'], allow_draft, database, rag))
-                        if result is None:
-                            stt_options = ({'stt_text': True} if
-                                input_lineage['kind'] in {'raw_stt', 'edited_stt'} and
-                                getattr(getattr(rag, 'normalizer', None), 'enabled', False) else {})
-                            result = rag.route(database, conversation["resolved_query"],
-                                allow_draft=allow_draft, **stt_options)
-                            cards = ([] if result.get('answer_kind') == 'reception_table_lookup' else
-                                teachers.attach(conversation['resolved_query'], result))
-                            if cards:
-                                result['teacher_cards'] = cards
-                                result['teacher_media_bundle_id'] = cards[0]['bundle_id']
-                                result = rag._remember(result, allow_draft)
+
+                        def answer_one(text):
+                            # A configured reception lookup must precede historical
+                            # teacher profiles; it never claims physical presence.
+                            reception = getattr(rag, 'reception', None)
+                            reception_query = bool(reception is not None and reception.recognizes(text))
+                            one = (None if reception_query else
+                                self.teacher_answer(text, allow_draft, database, rag))
+                            if one is None:
+                                stt_options = ({'stt_text': True} if
+                                    input_lineage['kind'] in {'raw_stt', 'edited_stt'} and
+                                    getattr(getattr(rag, 'normalizer', None), 'enabled', False) else {})
+                                one = rag.route(database, text, allow_draft=allow_draft, **stt_options)
+                                cards = ([] if one.get('answer_kind') == 'reception_table_lookup' else
+                                    teachers.attach(text, one))
+                                if cards:
+                                    one['teacher_cards'] = cards
+                                    one['teacher_media_bundle_id'] = cards[0]['bundle_id']
+                                    one = rag._remember(one, allow_draft)
+                            return one
+
+                        # Question understanding (11/17): split a compound question and
+                        # resolve plain class/staff names; every part keeps all guards.
+                        planner = getattr(rag, 'question_planner', None)
+                        if planner is None:
+                            planner = QuestionPlanner.from_config(root, getattr(rag, 'reception', None))
+                            rag.question_planner = planner
+                        plan = (planner.plan(conversation['resolved_query'])
+                                if planner.enabled and "clarification_id" not in body else None)
+                        if plan is None or not plan['changed']:
+                            result = answer_one(conversation['resolved_query'])
+                        elif not plan['compound']:
+                            result = answer_one(plan['parts'][0]['query'])
+                            result['query'] = conversation['resolved_query']
+                        else:
+                            result = compose_parts(conversation['resolved_query'], plan,
+                                                   [answer_one(part['query']) for part in plan['parts']])
+                            result = rag._remember(result, allow_draft)
+                        if plan is not None and plan['changed']:
+                            result['question_plan'] = plan
                         context_started = time.perf_counter()
                         if "clarification_id" in body:
                             result_corpus = (result.get("rag") or {}).get("corpus_id")

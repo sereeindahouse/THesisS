@@ -355,9 +355,12 @@ COMMON_QUESTION_ALIASES = (
                 r'(?:ерөнхий\s+)?ажлын\s+цаг\s+(?:хэд|хэдэн|ямар))(?:\s+вэ)?'), 'Сургуулийн ерөнхий ажлын цаг хэд вэ?'),
     # A first-year ("1-р курс") qualifier is the default intake on the
     # admission page; it must not block the stored annual tuition / duration.
+    # 11/17: "жилийн төлбөр" alone (the second half of a split compound question) is the same fee.
     (re.compile(r'(?:(?:1|нэг)(?:-р|-?рүү)?\s+курс(?:ийн|ын)?\s+)?(?:нэг\s+)?(?:жилийн\s+)?сургалтын\s+төлбөр\s+'
-                r'(?:хэд|хэдэн\s+төгрөг|ямар)(?:\s+вэ)?'), '2026 оны элсэлтийн хуудсанд жилийн сургалтын төлбөр хэд гэж нийтэлсэн бэ?'),
-    (re.compile(r'(?:(?:1|нэг)-р\s+курс(?:ээс|т)\s+элсвэл\s+|хөтөлбөр\s+)?хэдэн\s+жил\s+(?:суралцах|сурах|үргэлжлэх)(?:\s+вэ)?'),
+                r'(?:хэд|хэдэн\s+төгрөг|ямар)(?:\s+вэ)?|(?:нэг\s+)?жилийн\s+төлбөр\s+(?:хэд|хэдэн\s+төгрөг)(?:\s+вэ)?'),
+     '2026 оны элсэлтийн хуудсанд жилийн сургалтын төлбөр хэд гэж нийтэлсэн бэ?'),
+    (re.compile(r'(?:(?:1|нэг)-р\s+курс(?:ээс|т)\s+элсвэл\s+|хөтөлбөр\s+)?хэдэн\s+жил\s+'
+                r'(?:суралцах|суралцдаг|сурах|сурдаг|үргэлжлэх|үргэлжилдэг)(?:\s+вэ)?'),
      '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?'),
 )
 
@@ -1690,6 +1693,22 @@ class ChatRAG:
                     ('title','url','excerpt','chunk_id','version','retrieved_at')}
                     for source in evidence[:3]]
                 return self._remember(result, allow_draft)
+        if (staff and staff['kind'] == 'names' and len(evidence) == 1
+                and evidence[0].get('content_scope') == 'department_teacher_roster'):
+            # The named department's published roster answers a names question
+            # whole and verbatim (client-tab v2, 11/2026); no unit selection.
+            source = evidence[0]
+            result.update(route='C', answer=source['text'], generated=False, answer_kind='official_website_extract',
+                reason_code='department_roster_extract', suggestions=[], related_sources=[], clarification=None,
+                message='Тэнхимийн хуудсанд нийтэлсэн багш, ажилтны жагсаалтыг үг өөрчлөхгүй үзүүлэв. '
+                        'Сайтын огноог нягтлаарай; сургуулийн албан бүрэлдэхүүнтэй зөрж болно.',
+                citations=[{"document_id": source["source_id"], "version": source["version"], "title": source["title"],
+                            "source_url_or_filename": source["url"], "locator": source.get("source_locator"),
+                            "extraction_method": source.get("extraction_method"), "reviewer_kind": source.get("reviewer_kind"),
+                            "retrieved_at": source["retrieved_at"], "source_accepted_for_project": True,
+                            "approval_status": "draft", "school_staff_approval": False}])
+            result['rag']['reason'] = 'department_roster_extract'
+            return self._remember(result, allow_draft)
         before_department = [source['source_id'] for source in evidence]
         evidence = department_evidence_sources(query, evidence, all_attributes=True)
         if [source['source_id'] for source in evidence] != before_department:

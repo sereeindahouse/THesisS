@@ -16,6 +16,18 @@ from CORE.website_corpus import PageParser, canonical_url, readonly, split_chunk
 
 METHOD = 'next_flight_whitelist_v1'
 FIELDS = ('goalsJson', 'achievementsJson')
+# v2 (2026-11-17): the department props object also carries the published
+# teacher roster, partner organisations, mission and description (supervisor:
+# the department pages hold most school information). Only fields of the one
+# object that has ``departmentSlug`` are read; v1 documents keep v1 output.
+METHOD_V2 = 'next_flight_whitelist_v2'
+DEPARTMENT_FIELDS = ('teachers', 'partners', 'mission', 'description')
+LIST_FIELDS = frozenset({'teachers', 'partners'})
+METHOD_FIELDS = {METHOD: FIELDS, METHOD_V2: FIELDS + DEPARTMENT_FIELDS}
+SCHOOL_EMAIL = re.compile(r'[a-z0-9._-]{1,64}@nmct\.edu\.mn', re.I)
+SCOPES = {'achievementsJson': 'historical_achievements', 'goalsJson': 'department_objectives',
+          'teachers': 'department_teacher_roster', 'partners': 'department_partners',
+          'mission': 'department_mission', 'description': 'department_description'}
 DDL = '''CREATE TABLE IF NOT EXISTS client_tab_extractions(
  run_id TEXT NOT NULL, url TEXT NOT NULL, version INTEGER NOT NULL,
  page_version INTEGER NOT NULL, html_sha256 TEXT NOT NULL,
@@ -105,7 +117,7 @@ def _pointer(parts):
     return '/' + '/'.join(str(p).replace('~', '~0').replace('/', '~1') for p in parts)
 
 
-def captured_fields(html):
+def captured_fields(html, fields=FIELDS):
     records = flight_records(html)
     found = []
     for identifier, value in records.items():
@@ -115,15 +127,23 @@ def captured_fields(html):
         while pending:
             value, path = pending.pop()
             if isinstance(value, dict):
-                for key in FIELDS:
+                for key in fields:
                     if key not in value:
+                        continue
+                    # Generic keys (description, mission) count only on the
+                    # department props object, never on unrelated components.
+                    if key in DEPARTMENT_FIELDS and 'departmentSlug' not in value:
                         continue
                     raw = value[key]
                     reference = None
                     if isinstance(raw, str) and re.fullmatch(r'\$[0-9a-f]+', raw):
                         reference = raw[1:]
                         raw = records.get(reference)
-                    if not isinstance(raw, str):
+                    if key in LIST_FIELDS:
+                        if not isinstance(raw, list):
+                            raise ValueError('Unresolved or non-list client field.')
+                        raw = json.dumps(raw, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+                    elif not isinstance(raw, str):
                         raise ValueError('Unresolved or non-text client field.')
                     found.append(dict(field=key, record=identifier,
                         pointer=_pointer(path + [key]), reference=reference,
@@ -134,7 +154,7 @@ def captured_fields(html):
                 pending.extend((child, path + [index]) for index, child in enumerate(value)
                                if isinstance(child, (dict, list)))
     # Multiple matching props are ambiguous; never choose a convenient value.
-    for field in FIELDS:
+    for field in fields:
         if sum(item['field'] == field for item in found) > 1:
             raise ValueError('Repeated whitelisted client property.')
     return sorted(found, key=lambda item: item['field'])
@@ -162,22 +182,74 @@ def _placeholder(text):
     return bool(re.fullmatch(r'(?:үндсэн )?зорилго|зорилт\s*\d+|амжилт(?:ын мэдээ)?|test|placeholder|lorem ipsum', text.casefold().strip()))
 
 
-def build_extraction(html_bytes, *, url, title, page_version=1, version=1, charset='utf-8'):
+def _roster_sources(title, raw):
+    """Published names/positions, and school e-mails separately; no photos, bios or phones."""
+    people = json.loads(raw)
+    if not isinstance(people, list):
+        raise ValueError('Unsupported teachers schema.')
+    roster, emails = [], []
+    for person in people:
+        if not isinstance(person, dict) or not isinstance(person.get('name'), str):
+            raise ValueError('Unsupported teacher entry.')
+        name = PageParser.clean([person['name']])
+        position = PageParser.clean([person.get('position') or ''])
+        if not name:
+            continue
+        roster.append(name + (' (' + position + ')' if position else ''))
+        email = (person.get('email') or '').strip()
+        if SCHOOL_EMAIL.fullmatch(email):
+            # One "role: name" line and one "Имэйл: address" line per person, the
+            # contact-card form the staff guard binds (source_fields.staff_contact_cards).
+            role = 'Тэнхимийн эрхлэгч' if 'эрхлэгч' in position.casefold() else 'Багш'
+            emails.append(f'{role}: {name}\nИмэйл: {email}')
+    if not roster:
+        return [('/roster', '')]
+    head = f'{title} — сайтад нийтэлсэн багш, ажилтан ({len(roster)} нэр): '
+    sources = [('/roster', head + '; '.join(roster) + '.')]
+    if emails:
+        sources.append(('/emails', f'{title} — багш, ажилтны сургуулийн имэйл (сайтад нийтэлсэн)\n'
+                        + '\n'.join(emails)))
+    return sources
+
+
+def _partner_sources(title, raw):
+    partners = json.loads(raw)
+    if not isinstance(partners, list):
+        raise ValueError('Unsupported partners schema.')
+    names = []
+    for partner in partners:
+        if not isinstance(partner, dict) or not isinstance(partner.get('name'), str):
+            raise ValueError('Unsupported partner entry.')
+        name = PageParser.clean([partner['name']])
+        site = partner.get('website') if isinstance(partner.get('website'), str) else ''
+        if name:
+            names.append(name + (' (' + site.strip() + ')' if site.strip().startswith('https://') else ''))
+    return [('', f'{title} — хамтран ажилладаг байгууллагууд (сайтад нийтэлсэн): ' + '; '.join(names) + '.'
+             if names else '')]
+
+
+def build_extraction(html_bytes, *, url, title, page_version=1, version=1, charset='utf-8', method=METHOD):
     """Deterministic selected-field extraction, with an explicit omission audit."""
     if canonical_url(url) != url or not url.startswith('https://nmct.edu.mn/departments/'):
         raise ValueError('Client-tab extraction is limited to public department pages.')
     if type(version) is not int or version < 1 or type(page_version) is not int or page_version < 1:
         raise ValueError('Invalid extraction/page version.')
+    if method not in METHOD_FIELDS:
+        raise ValueError('Unsupported client-tab extraction method.')
     html = html_bytes.decode(charset)
     main_parser = PageParser()
     main_parser.feed(html)
     main = main_parser.result()['text']
     result = dict(url=url, title=title, version=version, page_version=page_version,
-        html_sha256=digest(html_bytes), method=METHOD, coverage='selected_client_fields',
+        html_sha256=digest(html_bytes), method=method, coverage='selected_client_fields',
         reviewer_kind='deterministic_parser', charset=charset, passages=[], omissions=[])
-    for field in captured_fields(html):
+    for field in captured_fields(html, METHOD_FIELDS[method]):
         sources = []
-        if field['field'] == 'goalsJson':
+        if field['field'] == 'teachers':
+            sources = _roster_sources(title, field['raw'])
+        elif field['field'] == 'partners':
+            sources = _partner_sources(title, field['raw'])
+        elif field['field'] == 'goalsJson':
             goals = json.loads(field['raw'])
             if not isinstance(goals, dict) or not isinstance(goals.get('goal'), str) or not isinstance(goals.get('objectives'), list):
                 raise ValueError('Unsupported goals schema.')
@@ -207,13 +279,14 @@ def build_extraction(html_bytes, *, url, title, page_version=1, version=1, chars
                 result['omissions'].append(dict(locator=locator, field=field['field'],
                     reason=reason, raw_sha256=field['raw_sha256'], normalized_text_sha256=digest(text.encode())))
                 continue
-            for chunk in split_chunks(text):
+            # A roster or partner list stays one passage so a names answer is never a partial list.
+            for chunk in split_chunks(text, size=2400 if field['field'] in LIST_FIELDS else 900):
                 result['passages'].append(dict(locator=locator, field=field['field'],
                     record=field['record'], pointer=field['pointer'], reference=field['reference'],
                     subpointer=subpointer, raw_sha256=field['raw_sha256'],
                     normalized_text_sha256=digest(text.encode('utf-8')), normalized_length=len(text),
                     start_offset=chunk['start'], end_offset=chunk['end'], text=chunk['text'],
-                    scope='historical_achievements' if field['field'] == 'achievementsJson' else 'department_objectives'))
+                    scope=SCOPES[field['field']]))
     return result
 
 
@@ -238,7 +311,7 @@ def _checked_page(db, run, doc):
         raise ValueError('Captured HTML has changed.')
     charset = json.loads(capture['http_metadata'])['charset']
     expected = build_extraction(body, url=capture['url'], title=capture['title'],
-        page_version=capture['version'], version=doc['version'], charset=charset)
+        page_version=capture['version'], version=doc['version'], charset=charset, method=doc['method'])
     if doc != expected:
         raise ValueError('Client-tab payload differs from exact captured-field extraction.')
     return dict(capture, retrieved_at=manifest_pages[0]['retrieved_at'])
@@ -247,8 +320,10 @@ def _checked_page(db, run, doc):
 def import_excerpts(database, bundle_path):
     """Validate every byte/locator before a transactional immutable import."""
     bundle = json.loads(Path(bundle_path).read_text(encoding='utf-8-sig'))
-    if bundle['schema_version'] != 1 or bundle.get('method') != METHOD:
+    if bundle['schema_version'] != 1 or bundle.get('method') not in METHOD_FIELDS:
         raise ValueError('Unsupported client-tab bundle schema/method.')
+    if any(doc.get('method') != bundle['method'] for doc in bundle['pages']):
+        raise ValueError('Every page must use the bundle extraction method.')
     pending, identities = [], set()
     with closing(readonly(database)) as db:
         run = db.execute('SELECT * FROM crawl_runs WHERE run_id=?', (bundle['run_id'],)).fetchone()
@@ -280,7 +355,7 @@ def import_excerpts(database, bundle_path):
         school_staff_approval=False, training_performed=False)
 
 
-def prepare_bundle(database, snapshot):
+def prepare_bundle(database, snapshot, method=METHOD_V2):
     """Prepare locators against a capture without importing or changing the DB.
 
     Semantic page versions are reused when text is unchanged. Import the snapshot
@@ -288,7 +363,9 @@ def prepare_bundle(database, snapshot):
     """
     snapshot = Path(snapshot).resolve()
     manifest = json.loads((snapshot / 'manifest.json').read_text(encoding='utf-8-sig'))
-    result = dict(schema_version=1, method=METHOD, run_id=manifest['run_id'], pages=[])
+    if method not in METHOD_FIELDS:
+        raise ValueError('Unsupported client-tab extraction method.')
+    result = dict(schema_version=1, method=method, run_id=manifest['run_id'], pages=[])
     with closing(readonly(database)) as db:
         for page in manifest['pages']:
             if not page['url'].startswith('https://nmct.edu.mn/departments/'):
@@ -313,7 +390,7 @@ def prepare_bundle(database, snapshot):
                 (manifest['run_id'], page['url'])).fetchone()[0] if existing else 1
             result['pages'].append(build_extraction(body, url=page['url'],
                 title=old['title'] if old else extracted['title'], page_version=page_version,
-                version=latest, charset=page['http']['charset']))
+                version=latest, charset=page['http']['charset'], method=method))
     return result
 
 
@@ -346,7 +423,7 @@ def read_client_tab_rows(db, run):
                     start_offset=passage['start_offset'], end_offset=passage['end_offset'],
                     text=text, excerpt=text, page_years=sorted(set(re.findall(r'\b20\d{2}\b', text))),
                     page_header=doc['title'], snapshot_only=True, validity_unknown=True,
-                    source_locator=passage['locator'], extraction_method=METHOD,
+                    source_locator=passage['locator'], extraction_method=doc['method'],
                     reviewer_kind=doc['reviewer_kind'], html_sha256=doc['html_sha256'],
                     field_sha256=passage['raw_sha256'], excerpt_coverage=doc['coverage'],
                     client_field=passage['field'], content_scope=passage['scope']))

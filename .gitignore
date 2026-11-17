@@ -590,3 +590,12 @@ __pycache__/
 !/tests/test_thesis_to_markdown.py
 !/tools/build_thesis_pdfs.py
 !/tools/export_thesis_figure.py
+# 11/17: question understanding before routing (split compound questions, class/staff names),
+# system evaluation tools. The question set itself holds school-given data and stays private.
+!/question_planner.py
+!/config/question-planner.json
+!/tests/test_question_planner.py
+!/tools/evaluate_system.py
+!/tools/run_planner_comparison.py
+!/tools/carry_document_extractions.py
+!/tools/build_eval_review_sheet.py

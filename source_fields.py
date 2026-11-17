@@ -258,6 +258,13 @@ def staff_query_scope(query, sources, *, catalog=None):
     if not selected and result['kind'] in {'overview', 'head'}:
         result.update(stop='clarify_staff_scope', message='Аль тэнхимийн эсвэл ямар багшийн мэдээлэл хэрэгтэй вэ? '
             'Багшийн нэр, тэнхимийг хэлэх эсвэл багшийн тоо, эрхлэгчийн нэр, зурагтай танилцуулгын аль нь хэрэгтэйг тодруулна уу.')
+    elif names and len(selected) == 1 and _published_rosters(
+            [source for source in catalog if source.get('url') in selected_urls]):
+        # The named department's own published roster (client-tab v2, 11/2026)
+        # is the only evidence that lists every name; it is taken from the
+        # catalogue because a ranked top-5 need not contain it. Nothing else is kept.
+        result['sources'] = _published_rosters(
+            [source for source in catalog if source.get('url') in selected_urls])
     elif names:
         # A number, department head or student award list does not establish a
         # complete list of teachers. Structured portraits have a separate path.
@@ -275,6 +282,12 @@ def staff_query_scope(query, sources, *, catalog=None):
             result.update(stop='clarify_staff_scope', message='Аль тэнхимийн багшийн тоо хэрэгтэй вэ, эсвэл сургуулийн нийт тоог асууж байна уу? '
                 'Хайлтаар олдсон тэнхимийн тоог сургуулийн нийт тоо гэж орлуулахгүй. Тэнхимийн нэр эсвэл огноотой албан эхийг нэмж өгнө үү.')
     return result
+
+
+def _published_rosters(sources):
+    """Name/position rosters extracted from a department page (not its e-mail list)."""
+    return [source for source in sources if source.get('content_scope') == 'department_teacher_roster'
+            and str(source.get('source_locator', '')).endswith('/roster')]
 
 
 def _staff_person_key(value):

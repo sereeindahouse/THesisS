@@ -6,7 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from CORE.client_tab_corpus import METHOD, build_extraction, captured_fields, flight_records, import_excerpts, prepare_bundle, read_client_tab_rows
+from CORE.client_tab_corpus import METHOD, METHOD_V2, build_extraction, captured_fields, flight_records, import_excerpts, prepare_bundle, read_client_tab_rows
 from CORE.website_corpus import PageParser, import_snapshot, readonly
 
 
@@ -22,6 +22,64 @@ def captured_html(goals=None, achievements=None, text_record=False, visible='Т�
     stream += 'b:' + json.dumps(['$', '$L2', None, props], ensure_ascii=False) + '\n'
     push = 'self.__next_f.push(' + json.dumps([1, stream], ensure_ascii=False) + ')'
     return ('<main><h1>Барилгын тэнхим</h1><p>' + visible + '</p></main><script>' + push + '</script>').encode('utf-8')
+
+
+def department_html(teachers, partners=(), mission='', description='', visible='Тэнхимийн танилцуулга.'):
+    """Department props as on nmct.edu.mn/departments/* (11/2026): one object with departmentSlug."""
+    props = dict(departmentSlug='civil', description=description, mission=mission,
+                 goalsJson=json.dumps({'goal': 'үндсэн зорилго', 'objectives': []}, ensure_ascii=False),
+                 achievementsJson='<p>амжилт</p>', teachers=list(teachers), partners=list(partners), programs=[])
+    stream = 'b:' + json.dumps(['$', '$L2', None, props], ensure_ascii=False) + '\n'
+    # A generic "description" on an unrelated component must not become evidence.
+    stream += 'c:' + json.dumps({'description': 'Өөр бүрэлдэхүүний тайлбар энд бий.'}, ensure_ascii=False) + '\n'
+    push = 'self.__next_f.push(' + json.dumps([1, stream], ensure_ascii=False) + ')'
+    return ('<main><h1>Барилгын тэнхим</h1><p>' + visible + '</p></main><script>' + push + '</script>').encode('utf-8')
+
+
+class DepartmentFieldTests(unittest.TestCase):
+    TEACHERS = [dict(id=1, name='Болорцэцэг', nameEn='', position='Тэнхимийн эрхлэгч', bio='', image='/uploads/a.jpg',
+                     email='head.fake@nmct.edu.mn'),
+                dict(id=2, name='Ганбаяр', nameEn='', position='Багш', bio='', image='', email='teacher.fake@nmct.mn'),
+                dict(id=3, name='Оргил', nameEn='', position='Туслах багш', bio='', image='', email='')]
+
+    def doc(self, body, method=METHOD_V2):
+        return build_extraction(body, url='https://nmct.edu.mn/departments/civil', title='Барилгын тэнхим', method=method)
+
+    def test_v2_roster_names_positions_and_only_school_emails(self):
+        doc = self.doc(department_html(self.TEACHERS))
+        roster = [p for p in doc['passages'] if p['scope'] == 'department_teacher_roster']
+        self.assertEqual([p['text'] for p in roster], [
+            'Барилгын тэнхим — сайтад нийтэлсэн багш, ажилтан (3 нэр): Болорцэцэг (Тэнхимийн эрхлэгч); '
+            'Ганбаяр (Багш); Оргил (Туслах багш).',
+            'Барилгын тэнхим — багш, ажилтны сургуулийн имэйл (сайтад нийтэлсэн)' + chr(10)
+            + 'Тэнхимийн эрхлэгч: Болорцэцэг' + chr(10) + 'Имэйл: head.fake@nmct.edu.mn'])
+        text = ' '.join(p['text'] for p in doc['passages'])
+        self.assertNotIn('/uploads/', text)          # no photos
+        self.assertNotIn('teacher.fake@nmct.mn', text)   # only @nmct.edu.mn addresses
+        # The e-mail passage is in the contact-card form the staff guard binds.
+        from source_fields import staff_contact_cards
+        cards = staff_contact_cards(roster[1]['text'])
+        self.assertEqual([(c['person'], c['fields']['email']) for c in cards], [('Болорцэцэг', 'head.fake@nmct.edu.mn')])
+
+    def test_v2_partners_and_generic_description_bound_to_department_object(self):
+        doc = self.doc(department_html([], partners=[dict(id=6, name='Nasha Tech', logo='/x.png', website='https://nashatech.com')],
+                                       description='<p>Барилгын тэнхим нь дэд бүтцийн инженер бэлтгэдэг.</p>'))
+        fields = {p['field']: p['text'] for p in doc['passages']}
+        self.assertEqual(fields['partners'], 'Барилгын тэнхим — хамтран ажилладаг байгууллагууд (сайтад нийтэлсэн): '
+                                             'Nasha Tech (https://nashatech.com).')
+        self.assertEqual(fields['description'], 'Барилгын тэнхим нь дэд бүтцийн инженер бэлтгэдэг.')
+        self.assertNotIn('Өөр бүрэлдэхүүний', ' '.join(fields.values()))
+
+    def test_v2_placeholder_mission_and_visible_text_are_omitted(self):
+        doc = self.doc(department_html([], mission='зорилго', description='<p>Тэнхимийн танилцуулга.</p>'))
+        reasons = {o['field']: o['reason'] for o in doc['omissions']}
+        self.assertEqual(reasons['mission'], 'empty_or_placeholder')
+        self.assertIn(reasons['description'], {'already_in_visible_main', 'insufficient_context'})
+
+    def test_v1_output_is_unchanged_by_department_fields(self):
+        doc = self.doc(department_html(self.TEACHERS), method=METHOD)
+        self.assertEqual(doc['method'], METHOD)
+        self.assertFalse({p['field'] for p in doc['passages']} & {'teachers', 'partners', 'mission', 'description'})
 
 
 class FlightExtractionTests(unittest.TestCase):
@@ -179,8 +237,11 @@ class ClientTabImportTests(unittest.TestCase):
 
     def test_prepare_is_readonly_reuses_page_version_and_rejects_capture_tampering(self):
         before = self.database.read_bytes()
-        bundle = prepare_bundle(self.database, self.snapshot)
+        bundle = prepare_bundle(self.database, self.snapshot, method=METHOD)
         self.assertEqual(bundle['pages'], [self.doc])
+        # The default (v2) adds department fields only; this fixture has none.
+        self.assertEqual(prepare_bundle(self.database, self.snapshot)['pages'],
+                         [dict(self.doc, method=METHOD_V2)])
         self.assertEqual(self.database.read_bytes(), before)
         (self.snapshot/'page.html').write_bytes(self.body+b'changed')
         with self.assertRaises(ValueError):
