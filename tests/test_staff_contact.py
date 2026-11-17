@@ -66,6 +66,16 @@ class StaffContactTests(unittest.TestCase):
         self.assertEqual(common_question_alias('Химийн инженер индекс код ямар вэ?'),
                          '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?')
 
+    def test_round12_tuition_and_directions(self):
+        tuition = '2026 оны элсэлтийн хуудсанд жилийн сургалтын төлбөр хэд гэж нийтэлсэн бэ?'
+        for query in ('Төлбөр хэд вэ?', 'Сургуулийн төлбөр хэд вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(common_question_alias(query), tuition)
+        self.assertIsNone(common_question_alias('Бүртгэлийн төлбөр хэд вэ?'))
+        # «Төлбөр нь хэд вэ?» may follow another topic (a dormitory's fee): no tuition (review).
+        self.assertIsNone(common_question_alias('Төлбөр нь хэд вэ?'))
+        self.assertEqual(common_question_alias('Сургуульд хэрхэн очих вэ?'), 'Сургуулийн хаяг хаана вэ?')
+
     def test_event_participant_count_is_not_a_staff_question(self):
         # 11/17 (5): «намрын ажилд хэдэн багш оролцсон» is a news item's figure, not a roster.
         self.assertIsNone(staff_query_scope('2026 оны намрын ажилд хэдэн багш оролцсон бэ?', [PAGE],

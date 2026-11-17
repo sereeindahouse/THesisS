@@ -435,8 +435,10 @@ class QuestionPlanner:
         first = rest.split()[0].casefold() if rest.split() else ''
         if len(head) > 1 and first[:4] == head[-1].casefold()[:4]:
             head = head[:-1]      # «КУ-2 анги» + «ангийн багш хэн бэ» -> «КУ-2 ангийн багш хэн бэ»
-        elif head[-1] == 'багш' and re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан)', first):
+        elif head[-1].casefold() == 'багш' and re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан)', first):
             head = head[:-1] + ['багшийн']   # -> «Б.Сэлмаа багшийн имэйл юу вэ»
+        elif head[-1].casefold() == 'тэнхим' and re.match(r'(?:эрхлэгч|багш|и-?мэйл|имэйл|утас)', first):
+            head = head[:-1] + ['тэнхимийн']   # round 12: -> «Механик тэнхимийн эрхлэгч хэн бэ»
         return dict(rule='followup_context', previous=previous, entity=entity, rewritten=' '.join(head + [rest]))
 
     def plan(self, query, previous=None):

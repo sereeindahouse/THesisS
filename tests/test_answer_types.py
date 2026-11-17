@@ -548,6 +548,45 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertEqual(path.answer('В3 тоот хэддүгээр давхарт вэ?')['answer'], 'В3 өрөө: хонгилын давхар.')
         self.assertEqual(path.answer('Робокон клуб хаана вэ?')['answer'], 'Робокон клуб: В3 өрөө, хонгилын давхар.')
 
+    def test_round12_posts_classes_teachers_and_the_calendar(self):
+        tables = ReceptionTables(
+            rooms=(Room(5, '508'), Room(6, '612'), Room(5, '509')),
+            staff=(Staff(name='Т.Зохиомол', department='Захиргаа', room='508', role='Захирал', email='fake.director@nmct.edu.mn'),
+                   Staff(name='Б.Багш', department='Ерөнхий эрдэм', room='509')),
+            classes=(ClassGroup(group='КУ-2', room='612', course='2', department='Компьютерын ухааны тэнхим'),),
+            timetable=(Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Математик'),
+                       Lesson('mon', '12:45-14:15', 'КУ-2', '612', 'Б.Багш', 'Физик'),
+                       Lesson('thu', '09:35-11:05', 'КУ-2', '612', 'Б.Багш', 'Математик')),
+            timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+            holidays=(date(2026, 11, 26),), holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # «Сургуулийн захирлын нэр хэн бэ?» was read as the post «… захирлын нэр»; «Захирлыг хэн гэдэг вэ?» too.
+        for query in ('Сургуулийн захирлын нэр хэн бэ?', 'Захирлыг хэн гэдэг вэ?'):
+            with self.subTest(query=query):
+                self.assertIn('Т.Зохиомол — Захирал', path.answer(query)['answer'])
+        # A wish to meet the post holder; a post holder's e-mail (the follow-up «Захирал имэйл»).
+        self.assertEqual(path.answer('Захиралтай уулзах гэсэн юм')['reason_code'], 'reception_role_meet')
+        self.assertIn('fake.director@nmct.edu.mn', path.answer('Захирал имэйл')['answer'])
+        self.assertFalse(path.recognizes('Сургуулийн имэйл хаяг юу вэ?'))
+        # A class's lesson hours by weekday; a teacher's subjects from the timetable.
+        self.assertEqual(path.answer('КУ-2 ангийн хичээл хэдэн цагт дуусдаг вэ?')['answer'],
+                         'КУ-2 — бүртгэсэн хуваарийн хичээлийн цаг: даваа 08:00–14:15; пүрэв 09:35–11:05. Хуваарь өөрчлөгдсөн байж болно.')
+        self.assertIn('Математик (КУ-2); Физик (КУ-2)', path.answer('Б.Багш багш ямар хичээл заадаг вэ?')['answer'])
+        # The school calendar: a school day, a recorded holiday, a day without lessons.
+        wednesday = datetime(2026, 11, 18, 10, 0)
+        self.assertTrue(path.answer('Маргааш амралтын өдөр үү?', now=wednesday)['answer'].startswith('Үгүй. Маргааш (пүрэв гараг, 11/19) хичээлийн өдөр'))
+        self.assertTrue(path.answer('Маргааш амралтын өдөр үү?', now=datetime(2026, 11, 25, 9, 0))['answer'].startswith('Тийм.'))
+        self.assertIn('хуваарьт хичээл бүртгэгдээгүй', path.answer('Өнөөдөр хичээлтэй юу?', now=datetime(2026, 11, 22, 9, 0))['answer'])
+        # Only what the tables can answer is claimed (review): an unknown teacher or class, a term start.
+        for query in ('Англи хэлний багш ямар хичээл заадаг вэ?', 'Оройн ангийн хичээл хэдэн цагт эхэлдэг вэ?',
+                      'КУ-2 ангийн хичээл хэзээ эхлэх вэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(path.recognizes(query))
+        # Without a reviewed calendar a day's status is not told.
+        unknown = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=tables.timetable,
+                                                      timetable_complete=True), enabled=True)
+        self.assertFalse(unknown.recognizes('Маргааш амралтын өдөр үү?'))
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),

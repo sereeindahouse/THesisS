@@ -72,6 +72,12 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(plan.plan('Механик инженерийн 2-р курсийн ангийн багш хэн бэ?')['parts'][0]['query'],
                          'МИ-2 ангийн багш хэн бэ?')
 
+    def test_round12_department_followup(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True, given_names={},
+                               offices=[], topic_keywords=['эрхлэгч', 'анги', 'багш'], staff=[], class_names=[])
+        self.assertEqual(plan.plan('Эрхлэгч нь хэн бэ?', previous='Механик тэнхим хаана вэ?')['parts'][0]['query'],
+                         'Механик тэнхимийн эрхлэгч хэн бэ?')
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],

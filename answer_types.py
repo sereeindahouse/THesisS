@@ -309,7 +309,8 @@ def value_supported(query, text, strict=False):
     if kind == 'count':
         return _count_supported(stems, shown, strict=strict, stative=_stative_count(query),
                                 per_year=_asks_per_year(query))
-    return bool(re.search(r'\d', shown))
+    # A list number at a line start («3. Хувийн хэсэг») is no asked value (round 12).
+    return bool(re.search(r'\d', re.sub(r'(?m)^\s*\d{1,2}[.)](?=\s)', ' ', shown)))
 
 
 _NAME_TOKENS = re.compile(r'«[^»\n]{2,40}»|"[^"\n]{2,40}"|“[^”\n]{2,40}”|[\w-]+')
