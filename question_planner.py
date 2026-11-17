@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import normalize_wording
+from reception_tables import NUMBER_UNITS, normalize_wording
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
@@ -71,6 +71,7 @@ VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|са�
 # давхарт байдаг вэ?»), not a new topic, when a follow-up borrows the previous question's thing.
 FOLLOWUP_ATTRIBUTES = frozenset(('утас', 'имэйл', 'цахим шуудан', 'хаяг', 'өрөө', 'давхар', 'тоот', 'байрлах',
                                  'байрладаг', 'багш', 'анги', 'бүлэг', 'хуваарь', 'уулзах', 'эрхлэгч', 'холбоо барих'))
+SPOKEN_DIGITS = NUMBER_UNITS
 GREETING = re.compile(r'(?:сайн\s+(?:байна\s+|байцгаана\s+)?уу|баярлалаа|hello|hi)', re.I)
 # A wish to get a paper (round 9); only papers, so «Шалгалт авах …» (an exam) and «Мэдээлэл авмаар байна»
 # (broad information, which has its own clarification) stay as asked (review).
@@ -298,9 +299,12 @@ class QuestionPlanner:
         """«ку-2», «КУ2», «ку 2 анги» -> «КУ-2» when that class is in the table (round 8); a spaced
         code only right before «анги», so «Би 2 давхарт …» keeps its pronoun."""
         def code(match):
-            value = match.group(1).upper() + '-' + (match.group(2) or match.group(3))
-            return value if value in self.class_names else match.group(0)
-        fixed = re.sub(r'(?<![\w-])([А-ЯӨҮЁа-яөүё]{2})(?:-?(\d)(?![\w-])|\s+(\d)(?=\s+анги))', code, text)
+            digit = match.group(2) or match.group(3) or str(SPOKEN_DIGITS.get((match.group(4) or '').casefold(), ''))
+            value = match.group(1).upper() + '-' + digit
+            return value if digit and value in self.class_names else match.group(0)
+        # «КУ хоёр анги» (speech writes the number as a word), round 13.
+        fixed = re.sub(r'(?<![\w-])([А-ЯӨҮЁа-яөүё]{2})(?:-?(\d)(?![\w-])|\s+(\d)(?=\s+анги)|\s+(' + '|'.join(SPOKEN_DIGITS)
+                       + r')(?=\s+анги))', code, text, flags=re.I)
         return (fixed, dict(rule='class_code', text=text, value=fixed)) if fixed != text else (text, None)
 
     def _staff_name(self, text):
@@ -311,6 +315,13 @@ class QuestionPlanner:
             if full:
                 return text[:match.start()] + full + text[match.end():], dict(rule='staff_name',
                     text=match.group(1), value=full)
+        # «Сэлмаагийн өрөө хаана вэ?» (a given name in the genitive, round 13) is that teacher's office.
+        for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,}?)(?:гийн|ийн|ын)(?=\s+(?:өрөө|ажлын\s+өрөө|имэйл))',
+                                 text):
+            full = self.given_names.get(match.group(1).casefold())
+            if full:
+                return (text[:match.start()] + full + ' багшийн' + text[match.end():],
+                        dict(rule='staff_name', text=match.group(0), value=full))
         return text, None
 
     @staticmethod
@@ -411,7 +422,11 @@ class QuestionPlanner:
             if not subject or len(subject.split()) > 4 or QUESTION_WORD.search(subject):
                 return None
             entity = subject
-        rest = re.sub(r'(?<!\w)нь(?!\w)\s*', '', text).strip()
+        # «тэнд» (there) points at the previous thing, which takes its place (round 13); «энд» (here) is
+        # the school itself and starts a new question (review).
+        if re.search(r'(?<!\w)энд(?!\w)', text, re.I):
+            return None
+        rest = re.sub(r'(?<!\w)(?:нь|тэнд)(?!\w)\s*', '', text, flags=re.I).strip()
         rest = rest[:1].lower() + rest[1:]
         group = GROUP.search(previous)
         if (group and entity == group.group(1) + ' анги' and re.match(r'\s+ангийн\s+багш', previous[group.end():])

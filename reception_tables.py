@@ -45,6 +45,19 @@ _DAY_LOOKUP = {**{day: i for i, day in enumerate(_DAYS)},
 _RELATIVE_DAYS = {'өнөөдөр': 'өнөөдрийн', 'маргааш': 'маргаашийн'}
 
 
+def _floor_number(word):
+    """«2», «2-р», «хоёр», «хоёрдугаар», «аравдугаар» -> the floor number; «хонгил» -> -1 (every level
+    below ground, see floor_rooms); None otherwise."""
+    word = ((word or '').casefold().split() or [''])[0]   # the floor word before «давхарт»
+    if word.startswith('хонгил'):
+        return -1
+    digits = re.match(r'(\d{1,2})', word)
+    if digits:
+        return int(digits.group(1))
+    stem = re.sub(r'(?:дугаар|дүгээр)$', '', word)
+    return 10 if stem in ('арав', 'арван') else NUMBER_UNITS.get(stem)
+
+
 def floor_text(floor):
     """«5-р давхар»; below ground «хонгилын давхар» (round 11: the table's В3, В6, В7, В6Б read
     «-1-р давхар»). No minus sign, which the speech output would not read (review)."""
@@ -57,11 +70,57 @@ def _clock(minutes):
     return '%02d:%02d' % divmod(minutes, 60)
 
 
+from answer_types import _UNITS as NUMBER_UNITS  # noqa: E402  (unit words shared with answer_types; «нэгэн» too)
+
+_NUMBER_UNITS = NUMBER_UNITS
+_NUMBER_TENS = {'арав': 10, 'арван': 10, 'хорь': 20, 'хорин': 20, 'гуч': 30, 'гучин': 30, 'дөч': 40, 'дөчин': 40,
+                'тавь': 50, 'тавин': 50, 'жар': 60, 'жаран': 60, 'дал': 70, 'далан': 70, 'ная': 80, 'наян': 80,
+                'ер': 90, 'ерэн': 90}
+_NUMBER_WORD = '|'.join(sorted(list(_NUMBER_UNITS) + list(_NUMBER_TENS) + ['зуу', 'зуун', 'мянга', 'мянган'],
+                               key=len, reverse=True))
+_SPOKEN_ROOM = re.compile(r'(?<!\w)((?:(?:' + _NUMBER_WORD + r')\s+)+)(?=(?:тоот|өрөө)(?!\w))', re.I)
+
+
+def _spoken_number(words):
+    """«таван зуун найм» -> 508, «мянга зургаа» -> 1006; None when the words are no number."""
+    total, unit = 0, None
+    for word in words:
+        if word in ('мянга', 'мянган'):
+            total, unit = total + (unit or 1) * 1000, None
+        elif word in ('зуу', 'зуун'):
+            total, unit = total + (unit or 1) * 100, None
+        elif word in _NUMBER_TENS:
+            if unit is not None:
+                return None
+            total += _NUMBER_TENS[word]
+        elif word in _NUMBER_UNITS:
+            if unit is not None:
+                return None
+            unit = _NUMBER_UNITS[word]
+        else:
+            return None
+    return total + (unit or 0) or None
+
+
+def _spoken_room(match):
+    words = match.group(1).casefold().split()
+    if not any(word in ('зуу', 'зуун', 'мянга', 'мянган') for word in words):
+        return match.group(0)
+    number = _spoken_number(words)
+    return str(number) + ' ' if number is not None else match.group(0)
+
+
 def normalize_wording(text):
     """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
     давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
-    both reception matchers read the result."""
-    text = re.sub(r'(?<!\w)хэд(?:эн)?\s+давхарт', 'хэддүгээр давхарт', text, flags=re.I)
+    both reception matchers read the result. Round 13: a room number said in words («таван зуун
+    найм тоот» -> «508 тоот»), «хэд давхар вэ» (no «-т»), the typo «хана вэ»."""
+    text = _SPOKEN_ROOM.sub(_spoken_room, text)
+    text = re.sub(r'(?<!\w)хэддүгээр\s+давхар(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', 'хэддүгээр давхарт', text, flags=re.I)
+    text = re.sub(r'(?<!\w)((?:өрөө|алба|сан|төв|танхим|кабинет|лаборатори)\w*\s+)хэд(?:эн)?\s+давхар'
+                  r'(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', r'\1хэддүгээр давхарт', text, flags=re.I)
+    text = re.sub(r'(?<!\w)хана(?=\s+(?:вэ|бэ|байдаг|байна|байрладаг)(?!\w)|\s*[?!.]*$)', 'хаана', text, flags=re.I)
+    text = re.sub(r'(?<!\w)хэд(?:эн)?\s+давхарт(?!\w)', 'хэддүгээр давхарт', text, flags=re.I)
     text = re.sub(r'(?<!\w)лаб(?!\w)', 'лаборатори', text, flags=re.I)
     # «нягтлан» alone is the post «нягтлан бодогч» (round 9).
     text = re.sub(r'(?<!\w)(нягтлан)(?!\w)(?!\s+бодогч)', r'\1 бодогч', text, flags=re.I)
@@ -559,6 +618,7 @@ class ReceptionAnswerPath:
             'reception_email_unknown': 'Энэ багш, ажилтны сургуулийн имэйл хүснэгтэд бүртгэгдээгүй байна.',
             'reception_room_unknown': 'Энэ хүний ажлын өрөө хүснэгтэд бүртгэгдээгүй байна.',
             'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
+            'reception_floor_unknown': 'Энэ давхрын өрөө ресепшний хүснэгтэд бүртгэгдээгүй байна.',
         }
         return dict(query=query, answer=answer, reason_code=reason, message=messages.get(reason, ''),
             reception=dict(dataset_label=self.tables.dataset_label if self.tables else None,
@@ -593,6 +653,8 @@ class ReceptionAnswerPath:
         patterns = (
             ('office_full', r'(.{1,120}?) хаана байдаг вэ\?\s*Хэдэн цагт ажилладаг вэ'),
             ('room_floor', r'([^\s?!,;/]{1,120}) тоот хэддүгээр давхарт (?:байдаг |байна )?вэ'),
+            # Round 13: «508 тоот хаана вэ?» (also said in words: «таван зуун найм тоот»).
+            ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
             ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
@@ -653,6 +715,9 @@ class ReceptionAnswerPath:
                             r'(?: (?:вэ|бэ))?'),
             # Round 12: «Маргааш амралтын өдөр үү?», «Өнөөдөр хичээлтэй юу?» — the school calendar.
             ('calendar_day', r'(өнөөдөр|маргааш) (?:амралтын өдөр|амралт|хичээлтэй|хичээл орох|хичээл орно)(?: (?:үү|уу|юу))?'),
+            # Round 13: «2 давхарт юу байдаг вэ?», «Хоёрдугаар давхарт ямар өрөөнүүд байдаг вэ?» — the rooms table.
+            ('floor_rooms', r'((?:\d{1,2}(?:-?(?:р|дугаар|дүгээр))?|[а-яөүё]+(?:дугаар|дүгээр)|[а-яөүё]+|хонгил(?:ын)?)\s+давхарт|хонгилд)\s+'
+                            r'(?:юу|ямар(?:\s+ямар)?\s+(?:өрөө\w*|алба\w*|юм))\s+(?:байдаг|байна|бий)(?:\s+(?:вэ|бэ))?'),
             # Plain "X хаана вэ?" is claimed only when X is a recorded office or group.
             ('place_where', r'(.{1,120}?) хаана (?:байдаг|байна|байрладаг)? ?вэ'),
             # Round 8: «Эмч байдаг уу?» — a recorded service or room purpose exists (claimed only
@@ -699,6 +764,8 @@ class ReceptionAnswerPath:
         if extra is not None and extra[0] in ('role_holder', 'role_name', 'role_meet'):
             holders = self._role_holders(extra[1], extra[0] == 'role_meet')
             return any(self._match(query)) or (len(holders) == 1 if extra[0] == 'role_meet' else bool(holders))
+        if extra is not None and extra[0] == 'floor_rooms':
+            return _floor_number(extra[1]) is not None and bool(self.tables and self.tables.rooms)
         if extra is not None and extra[0] == 'role_email':
             holders = self._role_holders(extra[1])
             return any(self._match(query)) or len(holders) == 1
@@ -922,6 +989,24 @@ class ReceptionAnswerPath:
             text += 'Тэнхимийн эрхлэгч ' + head.name + ' (' + head.department + ').' + self._workplace(head)
             text += (' Сургуулийн имэйл: ' + head.email + '.') if head.email else ''
             return reply(text, 'staff', 'reception_' + intent)
+        if intent == 'floor_rooms':
+            floor = _floor_number(value)
+            # «хонгил» is every level below ground (the table allows down to -5).
+            rooms = sorted((room for room in self.tables.rooms
+                            if (room.floor < 0 if floor == -1 else room.floor == floor)), key=lambda room: room.name)
+            if not rooms:
+                return missing('reception_floor_unknown')
+            # Offices and named rooms first; plain classrooms by number (they crowded out the offices).
+            named = [room for room in rooms if room.purpose and _key(room.purpose) != 'анги']
+            plain = [room.name for room in rooms if room not in named]
+            parts = []
+            if named:
+                parts.append(', '.join(room.name + ' (' + room.purpose + ')' for room in named[:8])
+                             + (' гэх мэт ' + str(len(named)) + ' өрөө' if len(named) > 8 else ''))
+            if plain:
+                parts.append('анги, бусад өрөө: ' + ', '.join(plain[:8]) + (', …' if len(plain) > 8 else ''))
+            return reply(floor_text(floor)[:1].upper() + floor_text(floor)[1:] + 'т бүртгэлтэй: ' + '; '.join(parts) + '.',
+                         'rooms', 'reception_floor_rooms')
         if intent == 'role_email':
             people = self._role_holders(value)
             if len(people) != 1:

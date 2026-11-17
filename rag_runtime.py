@@ -1457,6 +1457,19 @@ class ChatRAG:
                    "Сургуультай яаж холбоо барих вэ?"]
     # Round 9: a thank-you is not greeted again, and «Та хэн бэ?», «Юу хийж чадах вэ?» (what a
     # visitor first asks a desk screen) get what this assistant does instead of a web excerpt.
+    SCOPE_MESSAGE = ('Энэ туслах зөвхөн Шинэ Монгол технологийн коллежийн мэдээлэлд хариулна: өрөө, давхар, анги, '
+                     'хуваарь, багш, элсэлт, төлбөр. Сургуулийн талаар асуугаарай.')
+    # Round 13: the clock, the weather, arithmetic and general knowledge were answered with a school
+    # page («Одоо хэдэн цаг болж байна?» -> the admission timeline, «Цаг агаар ямар байна?» -> an
+    # aviation news item, «2+2 хэд вэ?» -> exam points).
+    OUT_OF_SCOPE = re.compile(
+        r'(?:одоо\s+)?(?:хэдэн\s+цаг\s+болж\s+(?:байна|байгаа)|цаг\s+хэд\s+болж\s+(?:байна|байгаа)|хэдэн\s+цаг\s+болсон)'
+        r'(?:\s+(?:вэ|бэ|уу))?|одоо\s+хэдэн\s+цаг(?:\s+вэ)?|'
+        r'(?:өнөөдөр\s+|маргааш\s+|одоо\s+|гадаа\s+)?(?:цаг\s+агаар(?:\s+(?:ямар|хэд|хэдэн\s+хэм))?(?:\s+(?:байна|байх|болох))?|'
+        r'(?:хэдэн\s+хэм|агаарын\s+температур\s+хэд)(?:\s+(?:байна|дулаан|хүйтэн))?)(?:\s+(?:вэ|бэ|уу))?|'
+        r'\d+(?:\s*[+*×÷=]\s*|\s+[-/x]\s+)\d+(?:\s*(?:[+*×÷]|\s[-/x]\s)\s*\d+)*\s*(?:=|(?:хэд|хэдэн|юу)(?:\s+(?:вэ|бэ))?)|'
+        r'(?:монгол\s+улсын|улаанбаатар\s+хотын|дэлхийн)\s+(?:ерөнхийлөгч|ерөнхий\s+сайд|хүн\s+ам|нийслэл|засаг\s+дарга)'
+        r'\s+(?:хэн|хэд|хэдэн|юу)(?:\s+(?:бэ|вэ))?|(?:ерөнхийлөгч|ерөнхий\s+сайд)\s+хэн(?:\s+(?:бэ|вэ))?')
     CONVERSATION = (
         (re.compile(r'(?:за\s+)?(?:их\s+)?баярла(?:лаа|аа)(?:\s+\w+)?|thanks?(?:\s+you)?'),
          'Зүгээр ээ! Өөр асуух зүйл байвал асуугаарай.'),
@@ -1692,6 +1705,10 @@ class ChatRAG:
                 result['faq_scope_handoff']['supported_years'] = result.pop('supported_years')
         simple = re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", query.casefold())).strip()
         message = next((text for pattern, text in self.CONVERSATION if pattern.fullmatch(simple)), None)
+        if message is None and self.OUT_OF_SCOPE.fullmatch(re.sub(r'\s+', ' ', query.casefold()).strip(' ?!.')):
+            result.update(route='D', message=self.SCOPE_MESSAGE, suggestions=self.SUGGESTIONS,
+                          reason_code='out_of_scope', clarification=None)
+            return self._remember(result, allow_draft)
         if message:
             result.update(route="D", message=message,
                           suggestions=self.SUGGESTIONS, reason_code="conversation_help", clarification=None)

@@ -87,7 +87,7 @@ def attach_referral(result, referral, *, rules=(), locate=None):
     """Add "where to ask" to a result that has no answer; answered results are unchanged, and so
     is a greeting, a thank-you or «Та хэн бэ?» (round 9: «Баярлалаа» got «ресепшний ажилтнаас асууна уу»)."""
     if (not referral or result.get('answer') or result.get('clarification')
-            or result.get('reason_code') == 'conversation_help'):
+            or result.get('reason_code') in ('conversation_help', 'out_of_scope')):
         return result
     office = _question_office(result.get('query'), referral, locate)
     source = 'question' if office else None

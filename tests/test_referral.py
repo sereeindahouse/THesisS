@@ -112,5 +112,25 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(attach_referral(dict(result), load_referral(ROOT)), result)
 
 
+class OutOfScopeTests(unittest.TestCase):
+    def test_clock_weather_arithmetic_and_general_knowledge(self):
+        # Round 13: these were answered with a school page (an admission timeline, an aviation news item).
+        from rag_runtime import ChatRAG
+
+        def outside(text):
+            return bool(ChatRAG.OUT_OF_SCOPE.fullmatch(' '.join(text.casefold().split()).strip(' ?!.')))
+        for text in ('Одоо хэдэн цаг болж байна?', 'Цаг агаар ямар байна?', '2+2 хэд вэ?',
+                     'Улаанбаатар хотын хүн ам хэд вэ?', 'Монгол улсын ерөнхийлөгч хэн бэ?'):
+            with self.subTest(text=text):
+                self.assertTrue(outside(text))
+        for text in ('Хичээл хэдэн цагт эхэлдэг вэ?', 'Номын сан хэдэн цагт ажилладаг вэ?', '2-р курс хэдэн цагт хичээлтэй вэ?',
+                     'Захирал хэн бэ?', 'Цаг агаарын улмаас хичээл цуцлагдах уу?', 'Дотуур байрны өрөө хэдэн хэмжээтэй вэ?',
+                     'Монгол улсын Ерөнхийлөгчийн тэтгэлэгт хамрагдах боломжтой юу?', '2026-2027', '11/20'):
+            with self.subTest(text=text):
+                self.assertFalse(outside(text))
+        result = dict(route='D', reason_code='out_of_scope', message=ChatRAG.SCOPE_MESSAGE, query='Цаг агаар ямар байна?')
+        self.assertEqual(attach_referral(dict(result), load_referral(ROOT)), result)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -78,6 +78,20 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(plan.plan('Эрхлэгч нь хэн бэ?', previous='Механик тэнхим хаана вэ?')['parts'][0]['query'],
                          'Механик тэнхимийн эрхлэгч хэн бэ?')
 
+    def test_round13_spoken_class_genitive_names_and_there(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'сэлмаа': 'Б.Сэлмаа'}, offices=['Номын сан'], topic_keywords=['анги', 'багш'],
+                               staff=['Б.Сэлмаа'], class_names=['КУ-2'])
+
+        def asked(query, previous=None):
+            return plan.plan(query, previous=previous)['parts'][0]['query']
+
+        self.assertEqual(asked('КУ хоёр анги хаана хичээллэдэг вэ'), 'КУ-2 анги хаана хичээллэдэг вэ')
+        self.assertEqual(asked('Сэлмаагийн өрөө хаана вэ'), 'Б.Сэлмаа багшийн өрөө хаана вэ')
+        self.assertEqual(asked('Тэнд ном зээлж болох уу?', 'Номын сан хаана вэ?'), 'Номын сан ном зээлж болох уу?')
+        # «энд» (here) is the school: a new question (review).
+        self.assertEqual(asked('Энд кафе байдаг уу?', 'Номын сан хаана вэ?'), 'Энд кафе байдаг уу?')
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],

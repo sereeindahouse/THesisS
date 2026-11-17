@@ -587,6 +587,34 @@ class ReceptionWordingTests(unittest.TestCase):
                                                       timetable_complete=True), enabled=True)
         self.assertFalse(unknown.recognizes('Маргааш амралтын өдөр үү?'))
 
+    def test_round13_spoken_rooms_floors_and_typos(self):
+        from reception_tables import _spoken_number, normalize_wording
+        self.assertEqual(_spoken_number('таван зуун найм'.split()), 508)
+        self.assertEqual(_spoken_number('мянга зургаа'.split()), 1006)
+        self.assertEqual(_spoken_number('зургаан зуун арван хоёр'.split()), 612)
+        self.assertIsNone(_spoken_number('хоёр гурав'.split()))
+        self.assertEqual(normalize_wording('таван зуун найм тоот хаана вэ'), '508 тоот хаана вэ')
+        self.assertEqual(normalize_wording('номын сан хана вэ'), 'номын сан хаана вэ')
+        self.assertEqual(normalize_wording('захирлын өрөө хэд давхар вэ'), 'захирлын өрөө хэддүгээр давхарт вэ')
+        # «хэдэн давхартай» (how many floors) stays as asked.
+        self.assertEqual(normalize_wording('Сургууль хэдэн давхартай вэ?'), 'Сургууль хэдэн давхартай вэ?')
+        # Review: «Сургууль хэдэн давхар вэ?» asks how many floors; «нэг өрөөнд» is no room number.
+        self.assertEqual(normalize_wording('Сургууль хэдэн давхар вэ?'), 'Сургууль хэдэн давхар вэ?')
+        self.assertEqual(normalize_wording('Дотуур байрны нэг өрөөнд хэдэн хүн амьдардаг вэ?'),
+                         'Дотуур байрны нэг өрөөнд хэдэн хүн амьдардаг вэ?')
+        self.assertEqual(normalize_wording('зуун нэгэн тоот хаана вэ'), '101 тоот хаана вэ')
+        tables = ReceptionTables(
+            rooms=(Room(4, '401', purpose='Анги'), Room(4, '406', purpose='Сургалтын алба'), Room(5, '508'),
+                   Room(-1, 'В3', purpose='Робокон клуб')), staff=(), classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual(path.answer('508 тоот хаана вэ?')['answer'], '508 өрөө: 5-р давхар.')
+        self.assertEqual(path.answer('Дөрөвдүгээр давхарт юу байдаг вэ?')['answer'],
+                         '4-р давхарт бүртгэлтэй: 406 (Сургалтын алба); анги, бусад өрөө: 401.')
+        self.assertEqual(path.answer('Хонгилд юу байдаг вэ?')['answer'], 'Хонгилын давхарт бүртгэлтэй: В3 (Робокон клуб).')
+        self.assertEqual(path.answer('2 давхарт юу байдаг вэ?')['reason_code'], 'reception_floor_unknown')
+        self.assertEqual(path.answer('Хоёр давхарт юу байдаг вэ?')['reason_code'], 'reception_floor_unknown')
+        self.assertFalse(path.recognizes('Энэ тоот хаана вэ?'))
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
