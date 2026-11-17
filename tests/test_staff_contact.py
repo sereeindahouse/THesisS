@@ -54,6 +54,18 @@ class StaffContactTests(unittest.TestCase):
                       'Хоёр мэргэжил сонгож болох уу?', 'Элсэлтийн шалгалт хэзээ болох вэ?'):
             self.assertIsNone(common_question_alias(query))
 
+    def test_round10_programme_code_and_transfer_length(self):
+        self.assertEqual(common_question_alias('Химийн инженер мэргэжлийн индекс код хэд вэ?'),
+                         '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?')
+        self.assertEqual(common_question_alias('Механик инженерт 2-р курст шилжин орвол хэдэн жил суралцах вэ?'),
+                         '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?')
+        # The admission page lists the transfer for Механик and Хими only.
+        self.assertIsNone(common_question_alias('Компьютерын ухаанд 2-р курст шилжин орвол хэдэн жил суралцах вэ?'))
+        # A postal code is not a programme code (review); «ямар» reads like «хэд».
+        self.assertIsNone(common_question_alias('Сургуулийн шуудангийн индекс код хэд вэ?'))
+        self.assertEqual(common_question_alias('Химийн инженер индекс код ямар вэ?'),
+                         '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?')
+
     def test_event_participant_count_is_not_a_staff_question(self):
         # 11/17 (5): «намрын ажилд хэдэн багш оролцсон» is a news item's figure, not a roster.
         self.assertIsNone(staff_query_scope('2026 оны намрын ажилд хэдэн багш оролцсон бэ?', [PAGE],

@@ -47,10 +47,13 @@ WHERE_TERMS = frozenset(('хаан', 'хаашаа', 'хаагуур', 'хаан
 # «Тодорхойлолт хаанаас авах вэ?», «Хичээлийн хуваарь хаанаас харах вэ?» ask where a paper is issued
 # or a list is shown (round 9): a text that only names it («Сургуулийн тодорхойлолтоор … элссэн», an
 # exam page's «хичээл … харагдана» beside a «Хугацааны хуваарь» heading) does not answer.
-OBTAIN_QUESTION = re.compile(r'(?<!\w)хаа(?:наас|на)\s+(?:\w+\s+)?(?:ав(?:ах|на|дуулах|ч\s+болох)|гаргуул\w*|'
-                             r'хар(?:ах|ж\s+болох)|үз(?:эх|ж\s+болох)|ол(?:ох|ж\s+болох))(?!\w)')
+# Group 1: a paper to get; group 2: a list to see. Each needs its own verb in the text: «Хуудас 1
+# Томоор үзэх →» (a viewer's button) does not say where a grade sheet is issued (round 10).
+OBTAIN_QUESTION = re.compile(r'(?<!\w)хаа(?:наас|на)\s+(?:\w+\s+)?(?:(ав(?:ах|на|дуулах|ч\s+болох)|гаргуул\w*)|'
+                             r'(хар(?:ах|ж\s+болох)|үз(?:эх|ж\s+болох)|ол(?:ох|ж\s+болох)))(?!\w)')
 ISSUE_VERB = re.compile(r'(?<!\w)(?:олго\w*|ав(?:на|ах|даг|ч\s+болно|ч\s+болох)|гаргаж\s+өг\w*|гаргуул\w*|'
-                        r'захиал\w*|хар(?:на|ах|ж\s+болно|агдана)|үз(?:нэ|эх|ж\s+болно)|ол(?:но|ох|ж\s+болно))(?!\w)')
+                        r'захиал\w*)(?!\w)')
+SEE_VERB = re.compile(r'(?<!\w)(?:хар(?:на|ах|ж\s+болно|агдана)|үз(?:нэ|эх|ж\s+болно)|ол(?:но|ох|ж\s+болно))(?!\w)')
 # Pages about the school as a whole (not a department, programme, event or news item).
 SCHOOL_WIDE_PATH = re.compile(r'^/(?:about(?:/.*)?|contact|elselt|elseltiin-juram/.*|student)?/?$')
 SCHOOL_NAME = re.compile(r'(?<!\w)шинэ\s+монгол\s+технологийн\s+коллеж\w*', re.I)
@@ -240,6 +243,34 @@ def phrase_pair(query):
     return terms if any(j - i == 1 for i in first for j in second) else None
 
 
+@lru_cache(maxsize=1024)
+def quantity_pair(query):
+    """«Хоёр мэргэжил сонгож болох уу?»: a small quantity right before a topic noun, or None. The
+    text must say them together («2 мэргэжил»); a list's «2.» and a far «мэргэжлээ» do not
+    (round 10: a registration form was shown). Ordinals («2-р курс»), years, «нэг» (also «a», «at
+    once»: «нэг удаад») and spans of time («сүүлийн 4 жилд») are not quantities of a topic."""
+    from answer_types import normalise_units
+    terms = key_terms(query)
+    words = re.findall(r'[\w-]+', normalise_units(query, numerals=True))
+    for index, word in enumerate(words[:-1]):
+        following = words[index + 1].casefold()
+        if (re.fullmatch(r'[2-9]|1\d|20', word) and word in terms and re.fullmatch(r'[^\W\d_]+', following)
+                and not re.match(r'(?:жил|сар|өдөр|цаг|удаа|минут|хоног)', following)):
+            noun = next((term for term in terms if term != word and _has_term(term, {words[index + 1]})), None)
+            if noun:
+                return word, noun
+    return None
+
+
+def _quantity_together(text, number, noun):
+    """Some quantity right before the noun: the asked one or another («зөвхөн нэг мэргэжил» answers
+    «Хоёр мэргэжил …?» too, review), a range or a bound («2-3», «2-оос»); not a list number."""
+    from answer_types import normalise_units
+    prefix = re.escape(noun[:max(3, len(noun) - 3)])
+    return bool(re.search(r'(?<![\w.,])\d+(?:[-–]\d+|-?[а-яөүё]+)?(?![\w.,)%])\s+(?:[\w-]+\s+)?' + prefix,
+                          normalise_units(text, numerals=True).casefold()))
+
+
 def _near(text, first, second, distance=2):
     from answer_types import normalise_units
     words = re.findall(r'\w+', normalise_units(text, numerals=True))
@@ -252,12 +283,12 @@ _VERB_FORM = (r'(?:[аэоөиу]?х|н[аэоө]|с[аэоө]н|[жч]|[аэо�
               r'[аэоө]{2}р[аэ]й|[аэоө]р[аэ]й)')
 
 
-def _issued_together(query, text):
+def _issued_together(query, text, verb=ISSUE_VERB):
     """One sentence names the asked paper (the question's last topic word: «… гэрээ хаанаас авах
     вэ?» -> «гэрээ») and says it is issued: two joined windows, one naming «тодорхойлолт» and
     another with «авна», do not answer (round 9)."""
     terms = key_terms(query)
-    return bool(terms) and any(ISSUE_VERB.search(sentence) and _has_term(terms[-1], _words(sentence))
+    return bool(terms) and any(verb.search(sentence) and _has_term(terms[-1], _words(sentence))
                                for sentence in re.split(r'[.!?\n]+', text.casefold()))
 
 
@@ -301,12 +332,20 @@ def topic_covered(query, text, titles='', typed=False):
         # («Лаборатори хэдэн ширхэг байдаг вэ?» keeps «лаборатори», round 5).
         terms = without(VALUE_WORDS.get(kind, ()), terms) or terms
         terms = without(stems, terms) or terms
+    # «Хоёр мэргэжил сонгож болох уу?» is answered by «зөвхөн нэг мэргэжил» too: the quantity check
+    # below stands in for the literal number (review, round 10).
+    quantity = quantity_pair(query)
+    if quantity:
+        terms = tuple(term for term in terms if term != quantity[0]) or terms
     words = _words(text + ('\n' + titles if kind else ''))
     # A question without a topic word («Та хэн бэ?») is not about any paragraph (round 9: it was
     # answered with an internship text).
     if not terms or sum(_has_term(term, words, verb_stem=True) for term in terms) / len(terms) < required:
         return False
-    if OBTAIN_QUESTION.search(query.casefold()) and not _issued_together(query, text):
+    obtain = OBTAIN_QUESTION.search(query.casefold())
+    if obtain and not _issued_together(query, text, ISSUE_VERB if obtain.group(1) else SEE_VERB):
+        return False
+    if quantity and not _quantity_together(text, *quantity):
         return False
     # «Сургалтын төлбөрөө хэрхэн төлөх вэ?»: the asked verb shares its root with a topic noun
     # («төлөх» / «төлбөр»), so a prefix match cannot tell paying from a fee; the verb must stand

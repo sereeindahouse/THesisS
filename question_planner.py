@@ -213,7 +213,9 @@ class QuestionPlanner:
 
     def _class_group(self, text):
         course = COURSE.search(text)
-        if not course:
+        # «Механик инженерт 2-р курст шилжин орвол …» asks about the transfer into the 2nd year, an
+        # admission question, not class МИ-2 (round 10: W04-A06 lost its stored answer).
+        if not course or re.search(r'шилж|элс', text, re.I):
             return text, None
         before = text[:course.start()]
         tokens = list(re.finditer(r'[А-ЯӨҮЁа-яөүё]+', before))

@@ -11,6 +11,7 @@ Closed, transparent patterns only — no model. A question type that is not reco
 the earlier screen (any digit for хэзээ/хэд questions, nothing otherwise). Passing proves
 only that a value of the asked type is present, not that it is the right value.
 """
+from bisect import bisect_right
 from functools import lru_cache
 import re
 
@@ -192,7 +193,20 @@ def _stative_count(query):
                                for word in words[1:])
 
 
-def _count_supported(stems, text, strict=False, stative=False):
+# A yearly rate asked; not «хичээлийн жилд» (in the academic year) or «сүүлийн 4 жилд» (over four years).
+_PER_YEAR = re.compile(r'жил\s+(?:бүр|тутам)\w*|(?<!\w)нэг\s+жилд(?!\w)|(?<!\w)жилдээ(?!\w)|жилийн\s+дундаж|'
+                       r'жилд\s+дунджаар', re.I)
+# A yearly figure in a text also reads «жилд 3 оюутан» or «1 жилд» (review, round 10).
+_PER_YEAR_TEXT = re.compile(_PER_YEAR.pattern + r'|(?<!\w)(?:1|нэг)\s+жилд(?!\w)|(?<!\d\s)(?<!хичээлийн\s)(?<!\w)жилд\s+\d',
+                            re.I)
+
+
+@lru_cache(maxsize=1024)
+def _asks_per_year(query):
+    return bool(_PER_YEAR.search(normalise_units(query)))
+
+
+def _count_supported(stems, text, strict=False, stative=False, per_year=False):
     """A number counting the asked noun. ``strict`` (a question with no anchor of its own,
     «Сургууль хэдэн байртай вэ?») takes only a number right before the noun, not a range
     («1-3 байр»), since nothing else ties the number to the question (11/17 (5)). ``stative``
@@ -219,16 +233,27 @@ def _count_supported(stems, text, strict=False, stative=False):
     def amount(token):
         return bool(re.fullmatch(_NUMBER, token)) and not re.fullmatch(r'(?:19|20)\d{2}', token)
 
-    years_asked = any(stem.startswith('он') for stem in stems)
 
+    years_asked = any(stem.startswith('он') for stem in stems)
+    percent = 'хувь' in stems
+    if per_year:
+        # The lines that say a yearly figure, found once (review: not one scan per number).
+        breaks = [index for index, char in enumerate(text) if char == '\n']
+        yearly = {bisect_right(breaks, match.start()) for match in _PER_YEAR_TEXT.finditer(text)}
     for index, (token, end) in enumerate(tokens):
+        # «Жил бүр хэдэн оюутан сонгогддог вэ?» asks a yearly figure: «Одоогоор 12 оюутан …» (a
+        # current total) does not answer it; the number's line must say «жил бүр / жилд» (round 10).
+        if per_year and bisect_right(breaks, end - 1) not in yearly:
+            continue
         # An ordinal («3-р байр», «6 дахь удаагаа») ranks or orders; it does not count anything.
         ordinal = index + 1 < len(tokens) and tokens[index + 1][0] in _ORDINAL_MARKERS
         # «2025 онд 17 оюутан»: a year before «он…» dates the count; it counts nothing itself,
         # unless the year is what is asked («Koha-г хэдэн оноос ашиглаж байна?» -> «2016 оноос»).
         ordinal = ordinal or bool(not years_asked and re.fullmatch(r'(?:19|20)\d{2}', token)
                                   and index + 1 < len(tokens) and tokens[index + 1][0].startswith('он'))
-        window = tokens[index + 1:index + (3 if strict else 4)]
+        # A share stands right before «хувь» («21.6 хувь», «45 хувьд хүрсэн»); «Тус 2 сургуулийн
+        # хувьд» (as for the two schools) counts schools, not percent (round 10, review).
+        window = tokens[index + 1:index + (2 if percent else 3 if strict else 4)]
         if (re.fullmatch(_NUMBER, token) and not ordinal and not (strict and in_range(index))
                 and any(counted(following) for following, _ in window)
                 and not (stative and any(_PAST_VERB.search(word) for word, _ in tokens[index + 1:index + 5]))):
@@ -282,7 +307,8 @@ def value_supported(query, text, strict=False):
     if kind == 'person':
         return _person_supported(query, stems, text)
     if kind == 'count':
-        return _count_supported(stems, shown, strict=strict, stative=_stative_count(query))
+        return _count_supported(stems, shown, strict=strict, stative=_stative_count(query),
+                                per_year=_asks_per_year(query))
     return bool(re.search(r'\d', shown))
 
 

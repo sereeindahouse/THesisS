@@ -182,6 +182,8 @@ class AnchorBindingTests(unittest.TestCase):
         timetable = 'Хичээлийн хуваарь хаанаас харах вэ?'
         self.assertFalse(rule_selector.topic_covered(timetable, 'Шалгалтын дараа хичээл бүрийн оноо харагдана.\nХугацааны хуваарь'))
         self.assertTrue(rule_selector.topic_covered(timetable, 'Хичээлийн хуваарийг оюутны цахим системээс харна.'))
+        # A viewer's «Томоор үзэх» button is no place to get a grade sheet (round 10).
+        self.assertFalse(rule_selector.topic_covered('Дүнгийн хуудас хаанаас авах вэ?', 'Хуудас 1\nХуудас 1 Томоор үзэх →'))
         # «4-р байр … эзэллээ» is a ranking, not building 4; «Хүний нөөц хаана вэ?» asks for a place.
         from answer_types import _PLACE_VALUE
         self.assertEqual(expected_value('Хүний нөөц хаана вэ?'), ('place', ()))
@@ -189,6 +191,39 @@ class AnchorBindingTests(unittest.TestCase):
         self.assertTrue(_PLACE_VALUE.search('2-р байрны А корпус'))
         self.assertTrue(_PLACE_VALUE.search('Номын сан 2-р байрны 1 давхрыг эзэлдэг'))   # occupies, not won
         self.assertEqual(expected_value('Нягтлан бодогч хаана вэ?'), ('place', ()))
+
+    def test_round10_shares_yearly_counts_and_quantities(self):
+        from answer_types import value_supported
+        share = 'Төгсөгчдийн хэдэн хувь нь Япон улсад ажиллаж байна вэ?'
+        # «Тус 2 сургуулийн хувьд» (as for the two schools) is no percentage; «21.6%» is.
+        self.assertFalse(value_supported(share, 'Тус 2 сургуулийн хувьд 2019 оноос хамтын ажиллагаа эхэлсэн.'))
+        self.assertTrue(value_supported(share, '21.6%\nЯпон улс болон бусад улсад ажиллах'))
+        # The number stands right before «хувь»: «45 хувьд хүрсэн» is a share, «хувьдаа» is not (review).
+        self.assertTrue(value_supported(share, 'Ажилд орсон төгсөгчдийн тоо 45 хувьд хүрсэн.'))
+        self.assertFalse(value_supported(share, 'Тус 2 сургуулийн хувьдаа хамтран ажилладаг.'))
+        # A yearly count needs a yearly figure, not a current total.
+        yearly = 'Монбүшёо тэтгэлэгт жил бүр хэдэн оюутан сонгогддог вэ?'
+        self.assertFalse(value_supported(yearly, 'Одоогоор 12 оюутан тус тэтгэлэгт хамрагдаад байна.'))
+        self.assertTrue(value_supported(yearly, 'Жил бүр 3 оюутан сонгогддог.'))
+        self.assertTrue(value_supported(yearly, 'Тэтгэлэгт жилд 3 оюутан сонгогддог.'))
+        self.assertFalse(value_supported(yearly, '2025–2026 оны хичээлийн жилд 12 оюутан хамрагдсан.'))
+        # «хичээлийн жилд», «сүүлийн 4 жилд» are not yearly rates.
+        self.assertTrue(value_supported('Сакура Сайэнс хөтөлбөрт сүүлийн 4 жилд хэдэн оюутан хамрагдсан бэ?',
+                                        '26 оюутан Сакура Сайэнс хөтөлбөрт хамрагдсан, сүүлийн 4 жилд.'))
+        # «Хоёр мэргэжил …»: the quantity and the noun stand together, not a list's «2.».
+        two = 'Хоёр мэргэжил сонгож болох уу?'
+        self.assertEqual(rule_selector.quantity_pair(two), ('2', 'мэргэжил'))
+        self.assertFalse(rule_selector.topic_covered(two, '1. Бүртгүүлэх\nСонирхож буй мэргэжлээ сонгож форм бөглөнө.\n2. Төлбөр'))
+        self.assertTrue(rule_selector.topic_covered(two, 'Элсэгч 2 мэргэжил сонгож болно.'))
+        # Any quantity right before the noun answers it; a list step «2. Мэргэжил …» does not (review).
+        self.assertTrue(rule_selector.topic_covered(two, 'Элсэгч зөвхөн нэг мэргэжил сонгож бүртгүүлнэ.'))
+        self.assertTrue(rule_selector.topic_covered(two, 'Элсэгч 2-3 мэргэжил сонгож болно.'))
+        self.assertFalse(rule_selector.topic_covered(two, 'Алхам:\n1. Мэдээлэл оруулна\n2. Мэргэжил сонгох\n3. Төлбөр'))
+        self.assertIsNone(rule_selector.quantity_pair('Хоёр долоо хоногт хэдэн удаа хичээл ордог вэ?'))
+        for query in ('2-р курст шилжиж орж болох уу?', 'Номын сангаас нэг удаад хэдэн ном зээлж болох вэ?',
+                      'Сакура Сайэнс хөтөлбөрт сүүлийн 4 жилд хэдэн оюутан хамрагдсан бэ?'):
+            with self.subTest(query=query):
+                self.assertIsNone(rule_selector.quantity_pair(query))
 
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.

@@ -60,6 +60,18 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(asked('өрөө нь?', 'Захирал хэн бэ?'), 'Захирал хаана вэ?')
         self.assertEqual(asked('давхар нь', 'Номын сан хаана вэ?'), 'Номын сан хэддүгээр давхарт вэ?')
 
+    def test_round10_transfer_is_not_a_class_group(self):
+        # W04-A06: «Механик инженерт 2-р курст шилжин орвол …» became «МИ-2 анги …» and lost its
+        # stored answer; a class question with the same words still names the class.
+        import question_planner
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               groups={(question_planner._stem('Механик'), '2'): 'МИ-2'}, given_names={},
+                               topic_keywords=['анги', 'багш'], offices=[], staff=[], class_names=['МИ-2'])
+        transfer = 'Механик инженерт 2-р курст шилжин орвол хэдэн жил суралцах вэ?'
+        self.assertEqual(plan.plan(transfer)['parts'][0]['query'], transfer)
+        self.assertEqual(plan.plan('Механик инженерийн 2-р курсийн ангийн багш хэн бэ?')['parts'][0]['query'],
+                         'МИ-2 ангийн багш хэн бэ?')
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],
