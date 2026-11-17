@@ -217,10 +217,29 @@ def _near(text, first, second, distance=2):
     return any(abs(i - j) <= distance for i in left for j in right)
 
 
-def topic_covered(query, text):
-    required = (SHORT_QUESTION_COVERAGE if len(key_terms(query)) <= SHORT_QUESTION_TERMS
+def topic_covered(query, text, titles='', typed=False):
+    """Key-term coverage of the shown text, read with its pages' titles.
+
+    A paragraph under the page title «ШМТК — Элсэлт 2026» is about admissions 2026, as
+    the anchor check already reads the title (W04-A07: «Цахим бүртгэл 08/03-08/13»). With
+    ``typed`` the asked value's own words («хугацаа», «цаг») need no literal match: the
+    value check has already found a value of that type. Both apply only to a question
+    with an asked value type, whose value-next-to-anchor guard stops two unrelated
+    paragraphs from being joined (W04-A14 «ямар нэртэй» was stitched from two pages
+    when titles counted for it). The threshold still follows the full term count.
+    """
+    terms = key_terms(query)
+    required = (SHORT_QUESTION_COVERAGE if len(terms) <= SHORT_QUESTION_TERMS
                 else LONG_QUESTION_COVERAGE)
-    if key_term_coverage(query, text) < required:
+    kind = None
+    if typed:
+        from answer_types import VALUE_WORDS, expected_value
+        kind, stems = expected_value(query) or (None, ())
+        asked = set(stems) | set(VALUE_WORDS.get(kind, ()))
+        terms = tuple(term for term in terms
+                      if not any(term.startswith(word) or word.startswith(term) for word in asked)) or terms
+    words = _words(text + ('\n' + titles if kind else ''))
+    if terms and sum(_has_term(term, words) for term in terms) / len(terms) < required:
         return False
     # «Цайны газар байдаг уу?» (a cafeteria) is not answered by «цайны цаг … газар»: a two-word
     # topic must stand together in the text too (11/17 (5)).
@@ -228,10 +247,10 @@ def topic_covered(query, text):
     return pair is None or _near(text, *pair)
 
 
-def relevant_to_question(query, text, typed=True, claims=None, focus=(), contexts=None):
+def relevant_to_question(query, text, typed=True, claims=None, focus=(), contexts=None, titles=''):
     if value_missing(query, claims if claims is not None else [text], typed, focus, contexts):
         return False
-    return topic_covered(query, text)
+    return topic_covered(query, text, titles, typed)
 
 
 def answer_selection(root):
@@ -278,6 +297,9 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
     # address tells a department page or a news item from a school-wide page (school_scope).
     headings = {source.get('source_id'): source.get('title', '') + '\n' + source.get('page_header', '')
                 + '\n' + (source.get('url') or '') for source in sources or []}
+    # For key-term coverage only the page's own name: its title and the first header line.
+    titles = {source.get('source_id'): source.get('title', '') + '\n'
+              + (source.get('page_header') or '').split('\n', 1)[0] for source in sources or []}
     source_of = {unit['unit_id']: unit.get('source_id') for unit in units}
     if typed and not requirements:
         from answer_types import expected_value, value_supported
@@ -311,13 +333,16 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
             candidate = common_render(query, ids, units, sources=sources)
             claims = [claim['text'] for claim in candidate['claims']] if candidate['accepted'] else []
             contexts = [headings.get(claim.get('source_id'), '') for claim in candidate['claims']] if claims else []
+            named = '\n'.join(dict.fromkeys(titles.get(claim.get('source_id'), '')
+                                            for claim in candidate['claims'])) if claims and typed else ''
             shown = '\n'.join(claims)
             if (candidate['accepted'] and not requirements
-                    and not relevant_to_question(query, shown, typed, claims=claims, focus=focus, contexts=contexts)):
+                    and not relevant_to_question(query, shown, typed, claims=claims, focus=focus, contexts=contexts,
+                                                 titles=named)):
                 # Name the cause: topic words present but no value of the asked type. With the
                 # switch off the earlier screen keeps its earlier reason.
                 candidate = dict(accepted=False, reason='requested_value_missing'
-                                 if typed and topic_covered(query, shown)
+                                 if typed and topic_covered(query, shown, named, typed)
                                  and value_missing(query, claims, typed, focus, contexts)
                                  else 'selection_not_relevant')
             elif (candidate['accepted'] and not requirements and single_unit

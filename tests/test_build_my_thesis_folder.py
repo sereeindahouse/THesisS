@@ -33,6 +33,8 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         _write(self.root / 'reports/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md', 'register report')
         _write(self.root / 'docs/diagrams/UML.pdf', 'uml')
         _write(self.root / 'papers/40-answer-type-guard-20261117.mn.md', 'guard report')
+        _write(self.root / 'reports/Автомат гогцоо ба дагалдах асуулт.md', 'loop and follow-up report')
+        _write(self.root / 'papers/41-autofix-round4-20261117.mn.md', 'round report')
         self.out = self.root / folder.FOLDER
 
     def tearDown(self):
@@ -52,6 +54,8 @@ class BuildMyThesisFolderTest(unittest.TestCase):
         self.assertTrue((self.out / '04_Унших/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md').is_file())
         self.assertFalse((self.out / '01_Диплом/UML.pdf').exists())   # old standalone diagrams are not copied
         self.assertTrue((self.out / '06_Систем/Хариугүй_асуулт_ба_багштай_холбогдох.mn.md').is_file())
+        self.assertTrue((self.out / '06_Систем/Автомат_гогцоо_ба_дагалдах_асуулт.md').is_file())
+        self.assertTrue((self.out / '06_Систем/Автомат_засварын_тойрог.mn.md').is_file())
         index = (self.out / folder.INDEX).read_text(encoding='utf-8')
         self.assertIn('CORE/THESIS-START.mn.md', index)
         self.assertIn('11_Семинар_v8.pptx', index)

@@ -64,6 +64,11 @@ PARALLEL_TAIL = re.compile(r'^(?P<ask>(?:хэдэн|хэд|хэддүгээр|я
 PARTICLES = frozenset('вэ бэ уу үү юу юм'.split())
 # Finite verb endings («байна», «байдаг», «оролцсон»); a counted noun («удаа», «оюутан») keeps none.
 VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх)$')
+# Words that ask about a property of the thing already named («Имэйл нь юу вэ?», «Хэддүгээр
+# давхарт байдаг вэ?»), not a new topic, when a follow-up borrows the previous question's thing.
+FOLLOWUP_ATTRIBUTES = frozenset(('утас', 'имэйл', 'цахим шуудан', 'хаяг', 'өрөө', 'давхар', 'тоот', 'байрлах',
+                                 'байрладаг', 'багш', 'анги', 'бүлэг', 'хуваарь', 'уулзах', 'эрхлэгч', 'холбоо барих'))
+GREETING = re.compile(r'(?:сайн\s+(?:байна\s+|байцгаана\s+)?уу|баярлалаа|hello|hi)', re.I)
 COURSE = re.compile(r'(?<!\d)([1-5])\s*(?:-?\s*(?:р|дугаар|дүгээр|дахь|дэх)\b)?\s*курс\w*', re.I)
 
 
@@ -340,9 +345,62 @@ class QuestionPlanner:
             return text, None
         return canonical, dict(rule='teacher_intent', text=text, value=canonical)
 
-    def plan(self, query):
-        """Return parts to route; each keeps the visitor's original wording for the reply."""
-        originals = self._split(query) if self.split_compound else [query.strip()]
+    def _named(self, text):
+        """The thing a question names — a teacher («Б.Сэлмаа багш»), a class group («КУ-2 анги»)
+        or a recorded office («Номын сан») — or None."""
+        teacher = TEACHER.search(text)
+        if teacher:
+            return teacher.group(1).upper() + '.' + teacher.group(2) + ' багш'
+        if self.staff_names:
+            _, rewrite = self._staff_name(text)
+            if rewrite:
+                return rewrite['value'] + ' багш'
+        group = GROUP.search(text)
+        if group:
+            return group.group(1) + ' анги'
+        lowered = text.casefold()
+        for office in self.offices:
+            short = office.rsplit(',', 1)[-1].strip()
+            if short and short.casefold() in lowered:
+                return short
+        return None
+
+    def _followup(self, query, previous):
+        """«Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» (round 4, 11/17): an elliptical
+        follow-up takes only the previous question's named thing — a teacher, class, office or
+        its short subject — never the whole history, which hurts retrieval (Lin et al. 2021;
+        Voskarides et al. 2020). A question with a topic or a name of its own is a new question
+        (a topic shift) and is left as asked; so is a greeting."""
+        text = query.strip()
+        lowered = text.casefold()
+        if (not isinstance(previous, str) or not previous.strip() or len(_words(text)) > 6
+                or not QUESTION_WORD.search(text) or GREETING.fullmatch(lowered.strip(' ?!.'))
+                or GROUP.search(text) or self._named(text) is not None
+                or any(keyword in lowered for keyword in self.topic_keywords if keyword not in FOLLOWUP_ATTRIBUTES)):
+            return None
+        previous = previous.strip()
+        entity = self._named(previous)
+        if entity is None:
+            subject = self._subject(previous)
+            if not subject or len(subject.split()) > 4 or QUESTION_WORD.search(subject):
+                return None
+            entity = subject
+        rest = re.sub(r'(?<!\w)нь(?!\w)\s*', '', text).strip()
+        rest = rest[:1].lower() + rest[1:]
+        head = entity.split()
+        first = rest.split()[0].casefold() if rest.split() else ''
+        if len(head) > 1 and first[:4] == head[-1].casefold()[:4]:
+            head = head[:-1]      # «КУ-2 анги» + «ангийн багш хэн бэ» -> «КУ-2 ангийн багш хэн бэ»
+        elif head[-1] == 'багш' and re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан)', first):
+            head = head[:-1] + ['багшийн']   # -> «Б.Сэлмаа багшийн имэйл юу вэ»
+        return dict(rule='followup_context', previous=previous, entity=entity, rewritten=' '.join(head + [rest]))
+
+    def plan(self, query, previous=None):
+        """Return parts to route; each keeps the visitor's original wording for the reply.
+        ``previous``: the visitor's previous question, for an elliptical follow-up."""
+        followup = self._followup(query, previous) if previous else None
+        asked = followup['rewritten'] if followup else query
+        originals = self._split(asked) if self.split_compound else [asked.strip()]
         routed = list(originals)
         if len(originals) > 1:
             # Distributed parallel parts already carry the subject; others may inherit it.
@@ -361,8 +419,11 @@ class QuestionPlanner:
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             parts.append(dict(original=original, query=text, rewrites=rewrites))
-        return dict(enabled=self.enabled, compound=len(parts) > 1, parts=parts,
-                    changed=len(parts) > 1 or any(p['query'] != query.strip() for p in parts))
+        result = dict(enabled=self.enabled, compound=len(parts) > 1, parts=parts,
+                      changed=len(parts) > 1 or any(p['query'] != query.strip() for p in parts))
+        if followup:
+            result['followup'] = followup
+        return result
 
 
 def _source_urls(result):

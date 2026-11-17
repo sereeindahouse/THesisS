@@ -39,6 +39,36 @@ class QuestionPlannerTests(unittest.TestCase):
     def queries(self, plan):
         return [part['query'] for part in plan['parts']]
 
+    def test_elliptical_followup_borrows_only_the_previous_named_thing(self):
+        # Round 4 (11/17): «Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» answered the school's
+        # hours. Only the named thing is carried (research: whole history hurts); a new topic is not.
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'сэлмаа': 'Б.Сэлмаа'}, offices=['Номын сан', 'Сургалтын алба'],
+                               topic_keywords=['төлбөр', 'элсэлт', 'имэйл', 'давхар', 'өрөө', 'анги', 'багш'],
+                               staff=['Б.Сэлмаа'], class_names=['КУ-2'])
+
+        def asked(query, previous):
+            result = plan.plan(query, previous=previous)
+            return result['parts'][0]['query'], (result.get('followup') or {}).get('entity')
+
+        self.assertEqual(asked('Хэдэн цагт ажилладаг вэ?', 'Номын сан хаана вэ?'),
+                         ('Номын сан хэдэн цагт ажилладаг вэ?', 'Номын сан'))
+        self.assertEqual(asked('Хэддүгээр давхарт байдаг вэ?', 'Сургалтын алба хаана байдаг вэ?')[0],
+                         'Сургалтын алба хэддүгээр давхарт байдаг вэ?')
+        self.assertEqual(asked('Маргааш хичээлтэй юу?', 'Сэлмаа багшийн имэйл хаяг юу вэ?')[0],
+                         'Б.Сэлмаа багш маргааш хичээлтэй юу?')
+        self.assertEqual(asked('Имэйл нь юу вэ?', 'Сэлмаа багш хаана байна вэ?')[0], 'Б.Сэлмаа багшийн имэйл юу вэ?')
+        self.assertEqual(asked('Ангийн багш нь хэн бэ?', 'КУ-2 анги хаана хичээллэдэг вэ?')[0], 'КУ-2 ангийн багш хэн бэ?')
+        self.assertEqual(asked('Хэрхэн төлөх вэ?', 'Сургалтын төлбөр хэд вэ?')[0], 'Сургалтын төлбөр хэрхэн төлөх вэ?')
+        # A topic or a name of its own, a greeting, or no previous question: asked as it is.
+        for query, previous in (('Сургалтын төлбөр хэд вэ?', 'Номын сан хаана вэ?'),
+                                ('Сургалтын алба хаана вэ?', 'Номын сан хаана вэ?'),
+                                ('КУ-5 анги хаана вэ?', 'КУ-2 анги хаана хичээллэдэг вэ?'),
+                                ('Сайн байна уу?', 'Номын сан хаана вэ?'),
+                                ('Хэдэн цагт ажилладаг вэ?', None)):
+            with self.subTest(query=query, previous=previous):
+                self.assertEqual(asked(query, previous), (query, None))
+
     def test_compound_split_inherits_subject_for_a_part_without_topic(self):
         plan = planner().plan('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?')
         self.assertTrue(plan['compound'])

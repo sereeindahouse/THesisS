@@ -76,8 +76,13 @@ def normalise_units(text, numerals=False):
 
 @lru_cache(maxsize=1024)
 def expected_value(query):
-    """('time'|'rank'|'floor'|'place'|'date'|'count'|'number', count-noun stems) or None."""
+    """('time'|'rank'|'floor'|'place'|'date'|'name'|'count'|'number', noun stems) or None."""
     q = normalise_units(query)
+    # «Robocon чиглэлийн клуб ямар нэртэй вэ?», «Клубийн нэр юу вэ?» ask for a proper name of
+    # the named thing (W04-A14 «NewRobo клуб»); its stem is where the name must stand.
+    named = re.search(r'([^\W\d_]{2,})\s+(?:ямар\s+нэр(?:тэй|ээр)|нэр(?:\s+нь)?\s+(?:юу|хэн))(?!\w)', q, re.I)
+    if named:
+        return 'name', (light_stem(named.group(1).casefold()),)
     when = re.search(r'(?<!\w)хэзээ(?!\w)(.{0,40})', q)
     # «хэзээ нээгддэг / ажилладаг» asks for opening hours; «хэзээ нээгдсэн», «хэзээ хамтран
     # ажиллаж эхэлсэн» (a past or starting event) asks for a date. «хаана» (where) is not «хаадаг».
@@ -112,10 +117,24 @@ def expected_value(query):
     return None
 
 
-def _count_supported(stems, text, strict=False):
+_PAST_VERB = re.compile(r'\w(?:сан|сэн|сон|сөн|жээ|чээ|лаа|лээ|лоо|лөө)$')
+
+
+def _stative_count(query):
+    """«Механик тэнхим хэдэн оюутантай вэ?», «… хэдэн багш байдаг вэ?»: nothing but particles or
+    «байдаг/байна» after the counted noun, so the question asks how many there are."""
+    match = re.search(r'(?<!\w)хэдэн\s+([^?!.,;]+)', normalise_units(query))
+    words = re.findall(r'\w+', match.group(1)) if match else []
+    return bool(words) and all(word in _STOP_AFTER_COUNT or re.fullmatch(r'бай(?:даг|на|гаа)|бий', word)
+                               for word in words[1:])
+
+
+def _count_supported(stems, text, strict=False, stative=False):
     """A number counting the asked noun. ``strict`` (a question with no anchor of its own,
     «Сургууль хэдэн байртай вэ?») takes only a number right before the noun, not a range
-    («1-3 байр»), since nothing else ties the number to the question (11/17 (5))."""
+    («1-3 байр»), since nothing else ties the number to the question (11/17 (5)). ``stative``
+    (_stative_count): an event's count in the past tense («17 оюутан амжилттай хамгаалсан»)
+    does not say how many there are (round 4, 11/17)."""
     # Trailing punctuation is not part of a number («25,», «1200.»).
     matches = list(re.finditer(r'[\w²+.,]+', text))
     tokens = [(match.group().rstrip('.,'), match.end()) for match in matches]
@@ -137,12 +156,19 @@ def _count_supported(stems, text, strict=False):
     def amount(token):
         return bool(re.fullmatch(_NUMBER, token)) and not re.fullmatch(r'(?:19|20)\d{2}', token)
 
+    years_asked = any(stem.startswith('он') for stem in stems)
+
     for index, (token, end) in enumerate(tokens):
         # An ordinal («3-р байр», «6 дахь удаагаа») ranks or orders; it does not count anything.
         ordinal = index + 1 < len(tokens) and tokens[index + 1][0] in _ORDINAL_MARKERS
+        # «2025 онд 17 оюутан»: a year before «он…» dates the count; it counts nothing itself,
+        # unless the year is what is asked («Koha-г хэдэн оноос ашиглаж байна?» -> «2016 оноос»).
+        ordinal = ordinal or bool(not years_asked and re.fullmatch(r'(?:19|20)\d{2}', token)
+                                  and index + 1 < len(tokens) and tokens[index + 1][0].startswith('он'))
         window = tokens[index + 1:index + (3 if strict else 4)]
         if (re.fullmatch(_NUMBER, token) and not ordinal and not (strict and in_range(index))
-                and any(counted(following) for following, _ in window)):
+                and any(counted(following) for following, _ in window)
+                and not (stative and any(_PAST_VERB.search(word) for word, _ in tokens[index + 1:index + 5]))):
             return True
         # A table or list line names the counted noun first: «Оюутны тоо: 1200», «Оюутан: 1200».
         if counted(token) and index + 1 < len(tokens):
@@ -187,14 +213,46 @@ def value_supported(query, text, strict=False):
                 shown = re.sub(r'(?<!\d)' + year + r'(?!\d)', ' ', shown)
             shown = _SEASON.sub(' ', shown)
         return bool(_DATE_VALUE.search(shown))
+    if kind == 'name':
+        # The capital of a name is the point: read the text as written, not case-folded.
+        return _name_supported(query, stems, text)
     if kind == 'count':
-        return _count_supported(stems, shown, strict=strict)
+        return _count_supported(stems, shown, strict=strict, stative=_stative_count(query))
     return bool(re.search(r'\d', shown))
 
 
+_NAME_TOKENS = re.compile(r'«[^»\n]{2,40}»|"[^"\n]{2,40}"|“[^”\n]{2,40}”|[\w-]+')
+# A Latin name carries a capital or a digit («NewRobo», «IT», «Robo2026»), not «www».
+_LATIN_NAME = re.compile(r'(?=[A-Za-z0-9-]*[A-Z0-9])[A-Za-z][A-Za-z0-9-]{1,}')
+_CAPITAL_NAME = re.compile(r'[А-ЯӨҮЁ][а-яөүё-]{2,}')
+
+
+def _name_supported(query, stems, text):
+    """A proper name the question does not already hold — a Latin word, a quoted phrase, or a
+    capitalised word inside a sentence — within two words of the named thing: «Robocon
+    чиглэлийн NewRobo клуб» names the club, «Үүнд Robocon клуб» only repeats the question."""
+    asked = {word.casefold() for word in re.findall(r'\w+', query)}
+    for line in text.splitlines():
+        tokens = list(_NAME_TOKENS.finditer(line))
+        for index, token in enumerate(tokens):
+            if not any(token.group().casefold().startswith(stem) for stem in stems):
+                continue
+            for other in tokens[max(0, index - 2):index] + tokens[index + 1:index + 3]:
+                word = other.group()
+                if word.strip('«»"“”').casefold() in asked:
+                    continue
+                if word[0] in '«"“' or _LATIN_NAME.fullmatch(word):
+                    return True
+                # A capital after a sentence end, a bullet or a label starts the line, not a name.
+                before = line[:other.start()]
+                if _CAPITAL_NAME.fullmatch(word) and before.strip() and not re.search(r'[.!?•:;]\s*$', before):
+                    return True
+    return False
+
+
 VALUE_LABELS = {'time': 'цаг', 'rank': 'эзэлсэн байр', 'floor': 'давхар', 'place': 'байршил (өрөө, давхар)',
-                'date': 'огноо, хугацаа',
+                'date': 'огноо, хугацаа', 'name': 'нэр',
                 'count': 'тоо', 'number': 'тоон утга'}
 # Words that name the asked value itself, not the topic (excluded from the anchor terms).
 VALUE_WORDS = {'time': ('цаг',), 'rank': ('байр',), 'floor': ('давхар',), 'place': ('өрөө', 'давхар', 'байрла'),
-               'date': ('сар', 'өдөр', 'хугаца', 'огноо')}
+               'date': ('сар', 'өдөр', 'хугаца', 'огноо'), 'name': ('нэр',)}

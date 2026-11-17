@@ -21,6 +21,7 @@ from reception_tables import ReceptionAnswerPath
 from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
+from privacy_filter import hide_mobiles
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -446,7 +447,13 @@ def _sibling_windows(query, found, rows, limit):
                           query_anchor_terms=sorted(anchors), lexical_overlap_count=len(overlap),
                           requested_years=sorted(set(re.findall(r'\b20\d{2}\b', query))),
                           query_answer_support_established=False))
-    return dict(found, candidates=candidates + added,
+    # Each window joins its own page's windows: the generator reads only the first five
+    # sources, and at the end of the list the window was cut off (W04-A14 «NewRobo клуб»).
+    merged = list(candidates)
+    for row in added:
+        last = max(index for index, source in enumerate(merged) if source.get('url') == row['url'])
+        merged.insert(last + 1, row)
+    return dict(found, candidates=merged,
                 sibling_windows=[source['source_id'] for source in added])
 
 
@@ -1528,6 +1535,8 @@ class ChatRAG:
             result['query'] = query
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
+        # Before storing and speaking: no staff mobile is shown or read out (privacy_filter.py).
+        result = hide_mobiles(result)
         result['latency_ms'] = round((time.perf_counter() - started) * 1000, 2)
         result['timings_ms'] = {key: round(value, 2) for key, value in timings.items()}
         result['latency_scope'] = 'chat_route_wall_including_policy_retrieval_generation; excludes_http_stt_tts_user_time'
@@ -1613,9 +1622,12 @@ class ChatRAG:
         year_handoff = (result.get('reason_code') == 'unsupported_year' and not result.get('exact_matches')
                         and (not tuition_label_query(query) or tuition_amount_query(query))
                         and bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query)))
+        # «2-р курст шилжиж орж болох уу?»: a course year is a number the stored FAQs cannot hold
+        # either; the website may (/elselt «2-р курс шилжин»), and its evidence must still show
+        # the asked number (requested_numbers below), round 4 (11/17).
         broader_handoff = (not result.get('exact_matches') and not tuition_label_query(query) and
             ((result.get('reason_code') == 'constrained_wording_not_exact' and
-              bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)', query))) or
+              bool(re.search(r'(?<!\d)(?:19|20)\d{2}(?!\d)|(?<!\d)[1-5]\s*-?\s*(?:р|дугаар|дүгээр)\s+курс', query))) or
              (result.get('reason_code') == 'unmatched_numeric_constraints' and bool(re.search(r'\d',query)))))
         if not self.policy.enabled or (result.get("reason_code") not in self.EXTEND and not tuition_handoff and not year_handoff and not broader_handoff and not field_handoff) or result.get('exact_matches'):
             return result

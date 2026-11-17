@@ -83,6 +83,9 @@ def planned_copies(root: Path):
     add('06_Систем', _newest(root.glob('papers/*system-upgrade*.mn.md')), 'Системийн_сайжруулалтын_тайлан.mn.md')
     add('06_Систем', _newest(root.glob('papers/*mongolian-morphology-retrieval*.mn.md')), 'Монгол_үгийн_хэлбэр_ба_хайлт.mn.md')
     add('06_Систем', _newest(root.glob('papers/*answer-type-guard*.mn.md')), 'Хариугүй_асуулт_ба_багштай_холбогдох.mn.md')
+    # 11/17 (round 4): хэрэглэгчийн «намайг яаж автоматжуулах вэ» асуулт ба дагалдах асуултын судалгаа.
+    add('06_Систем', root / 'reports/Автомат гогцоо ба дагалдах асуулт.md', 'Автомат_гогцоо_ба_дагалдах_асуулт.md')
+    add('06_Систем', _newest(root.glob('papers/*autofix-round*.mn.md')), 'Автомат_засварын_тойрог.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 

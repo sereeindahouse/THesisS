@@ -612,3 +612,12 @@ __pycache__/
 !/tests/test_staff_contact.py
 !/tools/run_config_comparison.py
 !/papers/40-answer-type-guard-20261117.mn.md
+# 11/17 round 4: staff mobiles hidden from every reply, probe-bank runner, the autonomous
+# find-fix-measure skill, and the round's report.
+!/privacy_filter.py
+!/tests/test_privacy_filter.py
+!/tools/probe_questions.py
+!/.claude/skills/thesis-autofix/
+/.claude/skills/thesis-autofix/*
+!/.claude/skills/thesis-autofix/SKILL.md
+!/papers/41-autofix-round4-20261117.mn.md

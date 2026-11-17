@@ -30,6 +30,7 @@ from release_runtime import LiveContentRuntime
 from question_planner import QuestionPlanner, compose as compose_parts
 from website_retrieval import WebsiteRetriever
 from teacher_media import TeacherMedia, TeacherMediaError
+from privacy_filter import hide_mobiles
 import code_map
 import reading_room
 
@@ -126,6 +127,10 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             self.wfile.write(body)
 
         def send_json(self, code, value):
+            # Staff mobiles printed on the website never leave the server (privacy_filter.py). A
+            # visitor's own transcript goes back unchanged: its lineage is checked against it later.
+            if urlsplit(self.path).path not in {"/api/voice/transcribe", "/api/voice/correct"}:
+                value = hide_mobiles(value)
             self.send_data(code, json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8"),
                            "application/json; charset=utf-8")
 
@@ -600,7 +605,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                         teacher_state = teachers.status()
                         if not teacher_state.get('available') or teacher_bundle != teacher_state.get('bundle_id'):
                             return self.error(409, 'Багшийн танилцуулгын эх өөрчлөгдсөн. Асуултаа дахин илгээнэ үү.')
-                    spoken = spoken_text(current)
+                    # A stored or FAQ result is read aloud: no staff mobile is spoken (privacy_filter.py).
+                    spoken = hide_mobiles(spoken_text(current))
                     result = voice.synthesize(spoken, body.get("voice"))
                     if not live_content.is_current(bundle):
                         voice.reset([result['id']])
@@ -620,7 +626,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                   answer_llm_role=answer_rag.get('llm_role','text_generation' if authored else 'none'),
                                   answer_kind=current.get("answer_kind"))
                     return self.send_json(200, result)
-                allowed = ({"query", "allow_draft", "clarification_id", "transcription_id"} if path == "/api/route" else
+                allowed = ({"query", "allow_draft", "clarification_id", "transcription_id", "context_query"}
+                           if path == "/api/route" else
                            {"query", "allow_draft", "limit"} if path in {"/api/search", "/api/website-search"} else
                            {"faq_id", "allow_draft"})
                 if set(body) - allowed:
@@ -637,6 +644,11 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                         raise ValueError("limit нь 1–5 бүхэл тоо байна.")
                     if path == "/api/route":
                         context_started = time.perf_counter()
+                        # The page's previous question, only for an elliptical follow-up (planner).
+                        context_query = body.get("context_query")
+                        if context_query is not None and (not isinstance(context_query, str)
+                                                          or not context_query.strip() or len(context_query) > 300):
+                            raise ValueError("context_query нь 1–300 тэмдэгттэй байна.")
                         raw_query = query.strip()
                         input_lineage = ({'kind': 'typed', 'submitted_text': raw_query,
                                           'manual_verification_claimed': False}
@@ -687,13 +699,16 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                         if planner is None:
                             planner = QuestionPlanner.from_config(root, getattr(rag, 'reception', None))
                             rag.question_planner = planner
-                        plan = (planner.plan(conversation['resolved_query'])
+                        plan = (planner.plan(conversation['resolved_query'], previous=context_query)
                                 if planner.enabled and "clarification_id" not in body else None)
                         if plan is None or not plan['changed']:
                             result = answer_one(conversation['resolved_query'])
                         elif not plan['compound']:
                             result = answer_one(plan['parts'][0]['query'])
                             result['query'] = conversation['resolved_query']
+                            # Stored again under the visitor's own wording, which the page sends
+                            # back to /api/voice/speak (review, round 4).
+                            result = rag._remember(result, allow_draft)
                         else:
                             result = compose_parts(conversation['resolved_query'], plan,
                                                    [answer_one(part['query']) for part in plan['parts']])

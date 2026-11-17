@@ -162,6 +162,42 @@ class AnchorBindingTests(unittest.TestCase):
                                                      'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
         self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
 
+    def test_stative_count_is_not_an_event_count(self):
+        # Round 4 (11/17): «… хэдэн оюутантай вэ?» took «17 оюутан амжилттай хамгаалсан» (theses
+        # defended); a year before «он…» counts nothing either.
+        query = 'Механик инженерийн тэнхим хэдэн оюутантай вэ?'
+        self.assertFalse(value_supported(query, '2024–2025 онд 17 оюутан амжилттай хамгаалсан.'))
+        self.assertTrue(value_supported(query, '2025–2026 оны хичээлийн жилд нийт 128 оюутан суралцаж байна.'))
+        self.assertTrue(value_supported('Хэдэн оюутан хамгаалсан бэ?', '2024–2025 онд 17 оюутан амжилттай хамгаалсан.'))
+        self.assertFalse(value_supported('Хэдэн оюутан суралцдаг вэ?', '2025 онд оюутан элсэв'))
+        # W04-b-B04 (review): when the year itself is asked, «2016 оноос» is the answer.
+        self.assertTrue(value_supported('Номын сан Koha программыг хэдэн оноос ашиглаж байна вэ?',
+                                        'Koha олон улсын программыг 2016 оноос нэвтрүүлэн ашиглаж байна.'))
+
+    def test_name_type_needs_a_new_name_next_to_the_named_thing(self):
+        query = 'Механикийн оюутнуудын Robocon чиглэлийн клуб ямар нэртэй вэ?'
+        self.assertEqual(expected_value(query), ('name', ('клуб',)))
+        self.assertTrue(value_supported(query, '• Robocon чиглэлийн NewRobo клуб'))
+        # Only the question's own words, or a capital that starts a sentence or a bullet: no name.
+        self.assertFalse(value_supported(query, 'Үүнд Robocon клуб, номын өдөрлөг, Сэнпай–Коохай арга хэмжээ'))
+        self.assertFalse(value_supported(query, 'Мэргэжлийн клубийн үйл ажиллагаанд 13 оюутан'))
+        self.assertTrue(value_supported('Клубийн нэр юу вэ?', 'Оюутнууд «Шинэ Робот» клубт хамрагддаг'))
+        # Review (round 4): the text is read as written, so a capitalised name counts; «www» does not.
+        self.assertTrue(value_supported('Клуб ямар нэртэй вэ?', 'Оюутнууд Залуус клубт хамрагддаг'))
+        self.assertFalse(value_supported('Клуб ямар нэртэй вэ?', 'Клубын мэдээллийг www хуудсаас үзнэ үү'))
+
+    def test_page_title_and_asked_value_words_in_coverage(self):
+        # W04-A07: the dated line names neither «элсэлт» nor «2026»; its page title does, and
+        # «хугацаа» is the asked date itself (round 4, 11/17).
+        query = '2026 оны элсэлтийн цахим бүртгэл хэдий хугацаанд явагдсан бэ?'
+        shown = 'Үе шат 1\nБүртгэл хаагдах\n8/13 16:00 цаг\nЦахим бүртгэл 08/03-08/13'
+        titles = 'Шинэ Монгол Технологийн Коллежийн элсэлтийн онлайн бүртгэл\nШМТК — Элсэлт 2026'
+        self.assertTrue(rule_selector.topic_covered(query, shown, titles, typed=True))
+        self.assertFalse(rule_selector.topic_covered(query, shown, typed=True))
+        self.assertFalse(rule_selector.topic_covered(query, shown, titles))   # «хугацаа» counts when untyped
+        # A title does not lift a paragraph about something else.
+        self.assertFalse(rule_selector.topic_covered(query, 'Бүртгэлийн хураамж 20,000 төгрөг', titles, typed=True))
+
     def test_review_findings_round_three(self):
         # A labelled date on its own line is an answer, not a publication heading.
         self.assertTrue(value_supported('Элсэлтийн бүртгэл хэзээ эхлэх вэ?', 'Бүртгэл эхлэх огноо:\n2026 оны 8 сарын 1\n'))
@@ -279,6 +315,56 @@ class ReceptionWordingTests(unittest.TestCase):
                        Lesson('mon', '08:00-09:30', 'КУ-5', '602', 'А.Номин-Эрдэнэ')),
             timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25))
         self.path = ReceptionAnswerPath(tables, enabled=True)
+
+    def test_post_holders_from_the_staff_table(self):
+        # Round 4 (11/17): «Сургуулийн захирал хэн бэ?» showed another university's president.
+        tables = ReceptionTables(
+            rooms=(Room(5, '508', services=(Service('Захирал', '', ''),)), Room(6, '605')),
+            staff=(Staff(name='Т.Зохиомол', department='Захиргаа', room='508', role='Захирал',
+                         email='fake.director@nmct.edu.mn'),
+                   Staff(name='С.Туслах', department='Захиргаа', room='508', role='Захирлын туслах'),
+                   Staff(name='Б.Эрхлэгч', department='Механик инженерийн тэнхим', room='605',
+                         role='Механик инженерийн тэнхимийн эрхлэгч'),
+                   Staff(name='Д.Эрхлэгч', department='Химийн инженерийн тэнхим', role='Химийн инженерийн тэнхимийн эрхлэгч'),
+                   Staff(name='Э.Багш', department='Механик инженерийн тэнхим', role='Механик инженерийн тэнхимийн багш')),
+            classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        director = path.answer('Сургуулийн захирал хэн бэ?')
+        self.assertEqual(director['reason_code'], 'reception_role_holder')
+        self.assertEqual(director['answer'], 'Т.Зохиомол — Захирал. Ажлын өрөө: 508, 5-р давхар. '
+                                             'Сургуулийн имэйл: fake.director@nmct.edu.mn.')
+        # Who heads a department is on its website page (W04-A11): the teacher directory answers
+        # it with its source; a meeting with a head is not on the website, so this path takes it.
+        for query in ('Механик тэнхимийн эрхлэгч хэн бэ?', 'Тэнхимийн эрхлэгч хэн бэ?', 'Механик тэнхимийн багш хэн бэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(path.recognizes(query))
+        self.assertIn('Б.Эрхлэгч — Механик инженерийн тэнхимийн эрхлэгч',
+                      path.answer('Механик тэнхимийн эрхлэгчтэй уулзаж болох уу?')['answer'])
+        meet = path.answer('Захиралтай уулзаж болох уу?')
+        self.assertEqual(meet['reason_code'], 'reception_role_meet')
+        self.assertIn('өрөөндөө байгааг батлахгүй', meet['answer'])
+        # A personal name, a post nobody holds, or the website's own people stay with the other paths.
+        for query in ('Э.Багш хэн бэ?', 'Оюутны зөвлөлийн дарга хэн бэ?', 'Сургуулийг хэн үүсгэн байгуулсан бэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(path.recognizes(query))
+                self.assertIsNone(path.answer(query))
+
+    def test_department_contact_is_its_head_never_a_phone(self):
+        # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact block.
+        tables = ReceptionTables(
+            rooms=(Room(3, '304'),),
+            staff=(Staff(name='Б.Эрхлэгч', department='Барилга, дэд бүтцийн инженерийн тэнхим', room='304',
+                         role='Барилга, дэд бүтцийн инженерийн тэнхимийн эрхлэгч', email='fake.head@nmct.edu.mn'),
+                   Staff(name='А.Багш', department='Барилга, дэд бүтцийн инженерийн тэнхим',
+                         role='Барилга, дэд бүтцийн инженерийн тэнхимийн багш')),
+            classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        phone = path.answer('Барилгын тэнхимийн утас хэд вэ?')
+        self.assertEqual(phone['reason_code'], 'reception_department_phone')
+        self.assertTrue(phone['answer'].startswith('Тэнхимийн утасны дугаарыг энд харуулахгүй. Тэнхимийн эрхлэгч Б.Эрхлэгч'))
+        self.assertIn('fake.head@nmct.edu.mn', phone['answer'])
+        self.assertIn('304, 3-р давхар', path.answer('Барилгын тэнхимтэй яаж холбогдох вэ?')['answer'])
+        self.assertFalse(path.recognizes('Химийн тэнхимийн утас хэд вэ?'))   # no recorded head: website path
 
     def test_class_teacher_email(self):
         result = self.path.answer('КУ-5 ангийн багшийн имэйл?')
