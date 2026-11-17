@@ -637,10 +637,15 @@ class ReceptionAnswerPath:
             return any(self._match(query)) or self._phone_owner(*extra) is not None
         return any(self._match(query)) or extra is not None
 
+    def _room_of(self, person):
+        """The recorded room row of a staff member, or None."""
+        if person is None or not person.room:
+            return None
+        return next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
+
     def _workplace(self, person):
         """« Ажлын өрөө: 508, 5-р давхар.» from the rooms table, or nothing."""
-        room = (next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
-                if person.room else None)
+        room = self._room_of(person)
         return (' Ажлын өрөө: ' + room.name + ', ' + str(room.floor) + '-р давхар.') if room else ''
 
     def _role_holders(self, value, departments=False):
@@ -982,7 +987,20 @@ class ReceptionAnswerPath:
         if room:
             matches = [row for row in self.tables.rooms if _key(row.name) == _key(room[1])]
             if len(matches) != 1:
-                return self._result(query, None, 'reception_room_not_found')
+                # «Захирлын өрөө хаана вэ?» names a post, not a room: its holder's recorded room (round 5).
+                # Only when the asked head noun is the post's own head noun («захирлын» / «Захирал»),
+                # not a facility a post mentions («… лабораторийн эрхлэгч»), review round 5.
+                holders = self._role_holders(room[1])
+                person = holders[0] if len(holders) == 1 else None
+                asked = re.findall(r'[а-яөүё]+', _key(room[1]))[-1:]
+                post = re.findall(r'[а-яөүё]+', _key(person.role))[-1:] if person else []
+                if not (asked and post and asked[0][:4] == post[0][:4]):
+                    person = None
+                place = self._room_of(person)
+                if place is None:
+                    return self._result(query, None, 'reception_room_not_found')
+                return self._result(query, prefix + person.role + ' (' + person.name + '): ' + place.name + ' өрөө, '
+                                    + str(place.floor) + '-р давхар.', 'reception_role_room', source_table='staff')
             row = matches[0]
             return self._result(query, prefix + row.name + ' өрөө: ' + str(row.floor) + '-р давхар.',
                 'reception_room_lookup', source_table='rooms')

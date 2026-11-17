@@ -162,6 +162,38 @@ class AnchorBindingTests(unittest.TestCase):
                                                      'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
         self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
 
+    def test_round5_person_classifier_and_how_questions(self):
+        # «… дарга хэн бэ?» needs a person's name next to the post, not a rule mentioning the post.
+        query = 'Оюутны зөвлөлийн дарга хэн бэ?'
+        self.assertEqual(expected_value(query), ('person', ('дарга',)))
+        self.assertFalse(value_supported(query, 'Цаг баримтлах, оюутны зөвлөлийн даргад урьдчилан мэдэгдэх'))
+        self.assertTrue(value_supported(query, 'Оюутны зөвлөлийн дарга Б.Тэмүүлэн'))
+        # The website prints the name on the line above the post.
+        self.assertTrue(value_supported('Захирал хэн бэ?', 'Т.Зохиомол\nШинэ Монгол технологийн Коллежийн Захирал'))
+        # «хэдэн ширхэг» counts the noun before «хэдэн».
+        self.assertEqual(expected_value('Лаборатори хэдэн ширхэг байдаг вэ?'), ('count', ('лаборатори',)))
+        self.assertTrue(value_supported('Лаборатори хэдэн ширхэг байдаг вэ?', '25 Анги танхим 13 Лаборатори'))
+        self.assertTrue(rule_selector.topic_covered('Лаборатори хэдэн ширхэг байдаг вэ?', '25 Анги танхим 13 Лаборатори',
+                                                    typed=True))
+        # The website's staff list names the head as «Нэр (Тэнхимийн эрхлэгч)».
+        self.assertTrue(value_supported('Механик тэнхимийн эрхлэгч хэн бэ?',
+                                        'Механик инженерийн тэнхим: Бадам (Багш); Билгүүн (Тэнхимийн эрхлэгч)'))
+        # A «how» verb that shares its root with a topic noun («төлөх»/«төлбөр») must stand as a verb;
+        # other how-questions keep their usual key terms (review, round 5).
+        self.assertEqual(rule_selector.key_terms('Номын сангаас ном яаж зээлэх вэ?'), ('ном', 'санг'))
+        self.assertTrue(rule_selector.topic_covered('Сургалтын төлбөрөө хэрхэн төлөх вэ?', 'Сургалтын төлбөрийг QPay-ээр төлнө.'))
+        # Counted noun after the classifier; «нь» is skipped; pronouns and «хүн» are not posts.
+        self.assertEqual(expected_value('Сургуульд хэдэн ширхэг компьютер байдаг вэ?'), ('count', ('компьютер',)))
+        self.assertEqual(expected_value('Лаборатори нь хэдэн ширхэг байдаг вэ?'), ('count', ('лаборатори',)))
+        self.assertIsNone(expected_value('Та хэн бэ?'))
+        self.assertFalse(value_supported('Захирал хэн бэ?', 'Захирал (Director)'))
+        self.assertTrue(value_supported('Оюутны зөвлөлийн дарга хэн бэ?', 'Оюутны зөвлөлийн дарга Б.ТЭМҮҮЛЭН'))
+        founder = 'Сургуулийг хэн үүсгэн байгуулсан бэ?'
+        self.assertTrue(value_supported(founder, 'Коллежийг үүсгэн байгуулагч, Гавъяат багш, доктор Ж.Зохиомол багш'))
+        self.assertFalse(value_supported(founder, 'Энэ нь түүний үүсгэн байгуулсан цэцэрлэгээс их сургууль хүртэл'))
+        self.assertFalse(rule_selector.topic_covered('Сургалтын төлбөрөө хэрхэн төлөх вэ?',
+                                                     'I байр - 1 сурагч, сургалтын төлбөрийн 50%-ийн хөнгөлөлт'))
+
     def test_stative_count_is_not_an_event_count(self):
         # Round 4 (11/17): «… хэдэн оюутантай вэ?» took «17 оюутан амжилттай хамгаалсан» (theses
         # defended); a year before «он…» counts nothing either.
@@ -348,6 +380,16 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertFalse(path.recognizes(query))
                 self.assertIsNone(path.answer(query))
+
+    def test_a_post_named_as_a_room_gives_its_holders_room(self):
+        # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
+        tables = ReceptionTables(rooms=(Room(5, '508'),),
+            staff=(Staff(name='Т.Зохиомол', department='Захиргаа', room='508', role='Захирал'),
+                   Staff(name='С.Туслах', department='Захиргаа', room='508', role='Захирлын туслах')),
+            classes=(), timetable=())
+        result = ReceptionAnswerPath(tables, enabled=True).answer('Захирлын өрөө хаана вэ?')
+        self.assertEqual(result['reason_code'], 'reception_role_room')
+        self.assertEqual(result['answer'], 'Захирал (Т.Зохиомол): 508 өрөө, 5-р давхар.')
 
     def test_department_contact_is_its_head_never_a_phone(self):
         # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact block.

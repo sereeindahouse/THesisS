@@ -105,16 +105,75 @@ def expected_value(query):
     if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)|'
                  r'(?<!\w)хэдий\s+хугаца|(?<!\w)хэдийд(?!\w)|(?<!\w)хэдийнээс(?!\w)', q):
         return 'date', ()
+    # «Оюутны зөвлөлийн дарга хэн бэ?»: a person's name next to the post (round 5); the posts the
+    # staff table holds are answered before this, by the reception lookup.
+    who = re.search(r'([^\W\d_]{2,})\s+(?:нь\s+)?хэн\s+(?:бэ|вэ)[?!. ]*$', q)
+    if who and who.group(1) not in _PRONOUNS:
+        noun = who.group(1)
+        if noun in ('хүн', 'хүмүүс'):
+            # «Сургуулийг үүсгэсэн хүн хэн бэ?»: the deed names the person, not «хүн».
+            before = re.findall(r'[^\W\d_]{2,}', q[:who.start(1)])
+            return ('person', (light_stem(before[-1])[:4],)) if before else None
+        return 'person', (light_stem(noun),)
+    deed = re.search(r'(?<!\w)хэн\s+([^\W\d_]{3,})', q)
+    if deed and not re.fullmatch(r'бэ|вэ|нь', deed.group(1)):
+        # «Сургуулийг хэн үүсгэн байгуулсан бэ?»: a name in the sentence of the deed (review, round 5).
+        return 'person', (light_stem(deed.group(1))[:4],)
     match = re.search(r'(?<!\w)хэдэн\s+([^?!.,;]+)', q)
     if match:
         # Only the counted noun right after «хэдэн»; later verbs («байна») would match anything.
         words = [word for word in re.findall(r'[\w²]+', match.group(1)) if word not in _STOP_AFTER_COUNT][:1]
+        if words and words[0] in _CLASSIFIERS:
+            # «хэдэн ширхэг компьютер» counts the noun after the classifier; «Лаборатори хэдэн ширхэг
+            # байдаг вэ?» the noun before «хэдэн» (round 5; particles such as «нь» are skipped).
+            after = [word for word in re.findall(r'[\w²]+', match.group(1))[1:] if word not in _STOP_AFTER_COUNT]
+            before = [word for word in re.findall(r'[\w²]+', q[:match.start()])
+                      if word not in _STOP_AFTER_COUNT and word != 'нь']
+            noun = after[:1] if after and not _VERB_END.search(after[0]) else before[-1:]
+            words = noun
         stems = tuple(light_stem(word) for word in words if len(word) >= 2)
         if stems:
             return 'count', stems
     if NUMERIC_QUESTION.search(q):
         return 'number', ()
     return None
+
+
+_CLASSIFIERS = frozenset(('ширхэг', 'ш'))
+_PRONOUNS = frozenset('та чи би тэр энэ тэд бид та нар'.split())
+_VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх|ж|ч)$')
+# «Б.Тэмүүлэн», «Б.ТЭМҮҮЛЭН»: an initial and a name.
+_PERSON_NAME = re.compile(r'(?<![\w.])[А-ЯӨҮЁ]\.\s?[А-ЯӨҮЁ][А-ЯӨҮЁа-яөүё-]{2,}')
+# The website's staff list: «Билгүүн (Тэнхимийн эрхлэгч)» — a name followed by its post in brackets.
+_LISTED_NAME = re.compile(r'(?<![\w.])([А-ЯӨҮЁ][а-яөүё-]{2,})\s*\(')
+
+
+def _person_supported(query, stems, text):
+    """A person's name («Б.Батболд») next to the asked post: in the same line within three words,
+    or as the whole line just before or after it («Т.Оюунжаргал» above «…Захирал»)."""
+    def listed(near):
+        # «Захирал (Director)» is the post with a gloss, not a name.
+        return any(not any(name.casefold().startswith(stem) for stem in stems)
+                   for name in _LISTED_NAME.findall(near))
+
+    deed = len(stems) == 1 and len(stems[0]) == 4 and not re.search(r'хэн\s+(?:бэ|вэ)[?!. ]*$', query.casefold())
+    if deed:
+        # «… хэн үүсгэн байгуулсан бэ?»: the name stands in the same sentence as the deed.
+        return any(any(word.casefold().startswith(stems[0]) for word in re.findall(r'\w+', sentence))
+                   and _PERSON_NAME.search(sentence) for sentence in re.split(r'(?<=[.!?])\s+|\n', text))
+    lines = text.splitlines()
+    for number, line in enumerate(lines):
+        tokens = list(re.finditer(r'[\w.-]+', line))
+        for index, token in enumerate(tokens):
+            if not any(token.group().casefold().startswith(stem) for stem in stems):
+                continue
+            near = line[tokens[max(0, index - 3)].start():tokens[min(len(tokens) - 1, index + 3)].end()]
+            if _PERSON_NAME.search(near) or listed(near):
+                return True
+            for other in (lines[number - 1] if number else '', lines[number + 1] if number + 1 < len(lines) else ''):
+                if _PERSON_NAME.fullmatch(other.strip()):
+                    return True
+    return False
 
 
 _PAST_VERB = re.compile(r'\w(?:сан|сэн|сон|сөн|жээ|чээ|лаа|лээ|лоо|лөө)$')
@@ -216,6 +275,8 @@ def value_supported(query, text, strict=False):
     if kind == 'name':
         # The capital of a name is the point: read the text as written, not case-folded.
         return _name_supported(query, stems, text)
+    if kind == 'person':
+        return _person_supported(query, stems, text)
     if kind == 'count':
         return _count_supported(stems, shown, strict=strict, stative=_stative_count(query))
     return bool(re.search(r'\d', shown))
@@ -251,8 +312,9 @@ def _name_supported(query, stems, text):
 
 
 VALUE_LABELS = {'time': 'цаг', 'rank': 'эзэлсэн байр', 'floor': 'давхар', 'place': 'байршил (өрөө, давхар)',
-                'date': 'огноо, хугацаа', 'name': 'нэр',
+                'date': 'огноо, хугацаа', 'name': 'нэр', 'person': 'хүний нэр',
                 'count': 'тоо', 'number': 'тоон утга'}
 # Words that name the asked value itself, not the topic (excluded from the anchor terms).
 VALUE_WORDS = {'time': ('цаг',), 'rank': ('байр',), 'floor': ('давхар',), 'place': ('өрөө', 'давхар', 'байрла'),
-               'date': ('сар', 'өдөр', 'хугаца', 'огноо'), 'name': ('нэр',)}
+               'date': ('сар', 'өдөр', 'хугаца', 'огноо'), 'name': ('нэр',), 'person': ('хэн',),
+               'count': ('ширхэг',)}

@@ -78,15 +78,20 @@ def _anchor_words(text):
 @lru_cache(maxsize=1024)
 def key_terms(query):
     # Cached and immutable: every candidate subset of one answer asks for the same query's terms.
+    terms = _all_terms(query)
+    # Mongolian ends a sentence with its verb; that word names no topic.
+    return terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
+
+
+@lru_cache(maxsize=1024)
+def _all_terms(query):
     from answer_types import normalise_units
     from website_retrieval import search_terms
     # «Шинэ Монгол Технологийн Коллежийн эрхэм зорилго» asks about the school's mission: the
     # full name names the school itself, like «сургууль», and is not a topic word.
     text = TO_DATE.sub(' ', SCHOOL_NAME.sub(' сургууль ', normalise_units(query, numerals=True)))
-    terms = tuple(term for term in dict.fromkeys(search_terms(text))
-                  if term not in REQUEST_WORDS and term not in QUESTION_TERMS)
-    # Mongolian ends a sentence with its verb; that word names no topic.
-    return terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
+    return tuple(term for term in dict.fromkeys(search_terms(text))
+                 if term not in REQUEST_WORDS and term not in QUESTION_TERMS)
 
 
 def key_term_coverage(query, text):
@@ -217,6 +222,24 @@ def _near(text, first, second, distance=2):
     return any(abs(i - j) <= distance for i in left for j in right)
 
 
+_VERB_FORM = (r'(?:[аэоөиу]?х|н[аэоө]|с[аэоө]н|[жч]|[аэоө]{2}д|д[аэоө]г|т[аэоө]й|[аэоө]?гд|л[аэоө]{2}|'
+              r'[аэоө]{2}р[аэ]й|[аэоө]р[аэ]й)')
+
+
+@lru_cache(maxsize=1024)
+def _how_verb_root(query):
+    """The root of a «how» question's verb when a topic noun of the question shares it
+    («хэрхэн төлөх» with «төлбөр» -> «төл»), else None."""
+    if not re.search(r'(?<!\w)(?:хэрхэн|яаж)(?!\w)', query.casefold()):
+        return None
+    terms = _all_terms(query)
+    match = re.fullmatch(r'(\w{2,}?)[аэоөиу]?х', terms[-1]) if terms else None
+    if not match:
+        return None
+    root = match.group(1)
+    return root if any(term != terms[-1] and term.startswith(root) for term in terms[:-1]) else None
+
+
 def topic_covered(query, text, titles='', typed=False):
     """Key-term coverage of the shown text, read with its pages' titles.
 
@@ -235,11 +258,22 @@ def topic_covered(query, text, titles='', typed=False):
     if typed:
         from answer_types import VALUE_WORDS, expected_value
         kind, stems = expected_value(query) or (None, ())
-        asked = set(stems) | set(VALUE_WORDS.get(kind, ()))
-        terms = tuple(term for term in terms
-                      if not any(term.startswith(word) or word.startswith(term) for word in asked)) or terms
+
+        def without(words, among):
+            return tuple(term for term in among if not any(term.startswith(word) or word.startswith(term)
+                                                             for word in words))
+        # The value's own words go first; the counted noun too, unless nothing else is left
+        # («Лаборатори хэдэн ширхэг байдаг вэ?» keeps «лаборатори», round 5).
+        terms = without(VALUE_WORDS.get(kind, ()), terms) or terms
+        terms = without(stems, terms) or terms
     words = _words(text + ('\n' + titles if kind else ''))
     if terms and sum(_has_term(term, words) for term in terms) / len(terms) < required:
+        return False
+    # «Сургалтын төлбөрөө хэрхэн төлөх вэ?»: the asked verb shares its root with a topic noun
+    # («төлөх» / «төлбөр»), so a prefix match cannot tell paying from a fee; the verb must stand
+    # as a verb («төлнө», «төлсөн», «төлж»), round 5.
+    root = _how_verb_root(query)
+    if root and not re.search(r'(?<!\w)' + re.escape(root) + _VERB_FORM, text.casefold()):
         return False
     # «Цайны газар байдаг уу?» (a cafeteria) is not answered by «цайны цаг … газар»: a two-word
     # topic must stand together in the text too (11/17 (5)).

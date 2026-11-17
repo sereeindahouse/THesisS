@@ -176,5 +176,24 @@ class PrivateRecordScopeTests(unittest.TestCase):
                 self.assertEqual(result['related_sources'], [])
 
 
+
+class CredentialAndParentRequestTests(unittest.TestCase):
+    """Round 5: a password itself is never given; a parent's question about a child's record is private."""
+
+    def test_password_value_requests_only(self):
+        from question_router import credential_value_request
+        for query in ('Wi-Fi-ийн нууц үг юу вэ?', 'Нууц үг хэд вэ?', 'Нууц үгээ хэлээч'):
+            with self.subTest(query=query):
+                self.assertTrue(credential_value_request(query))
+        # Help with a forgotten password, a policy, or whether one exists stays an ordinary question.
+        for query in ('Нууц үгээ мартсан бол яах вэ?', 'Wi-Fi нууц үгээ мартсан бол яах вэ?',
+                      'Wifi нууц үгтэй юу?', 'Нууц үгийг хэд хоногт солих вэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(credential_value_request(query))
+
+    def test_parent_asking_for_a_childs_record(self):
+        self.assertTrue(personal_record_service_request('Хүүхдийнхээ дүнг яаж мэдэх вэ?'))
+        self.assertFalse(personal_record_service_request('Дүн хэрхэн тооцдог вэ?'))
+
 if __name__ == '__main__':
     unittest.main()

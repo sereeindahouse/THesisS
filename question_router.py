@@ -153,6 +153,17 @@ def personal_identifier_request(query):
     return False
 
 
+CREDENTIAL_VALUE = re.compile(
+    r'(?:нууц\s*үг|password|пин\s*код|pin\s*код)(?:ийг|ийн|ээ|\s+нь)?\s+'
+    r'(?:(?:юу|хэд|ямар)\s*(?:вэ|бэ)?\s*[?.!]*$|хэлнэ\s+үү|хэлээч|хэлж\s+өгөөч|хэлж\s+өгнө|өгнө\s+үү|өгөөч)', re.I)
+
+
+def credential_value_request(query):
+    """«Wi-Fi-ийн нууц үг юу вэ?»: a password or PIN itself is never given (round 5). Help with a
+    forgotten password («Нууц үгээ мартсан бол яах вэ?») stays an ordinary question."""
+    return isinstance(query, str) and bool(CREDENTIAL_VALUE.search(query.casefold()))
+
+
 def personal_record_request(query):
     """Recognise a private student-record lookup, not public policy or help.
 
@@ -246,14 +257,16 @@ def personal_record_service_request(query):
             continue
         if re.search(r'тооц|шаардлага|шаарддаг|байх\s+ёстой', clause):
             continue
+        # A parent asks for a child's record the same way («Хүүхдийнхээ дүнг яаж мэдэх вэ?»), round 5.
         owner = re.search(r'(?<!\w)(?:миний|өөрийн|надад)(?!\w)|'
-                          r'(?<!\w)(?:голчоо|дүнгээ|ирцээ|төлбөрөө|үлдэгдлээ)(?!\w)', clause)
+                          r'(?<!\w)(?:голчоо|дүнгээ|ирцээ|төлбөрөө|үлдэгдлээ)(?!\w)|'
+                          r'(?<!\w)(?:хүүхдийн(?:хээ)?|охины(?:хоо)?|хүүгийн(?:хээ)?)(?!\w)', clause)
         academic = re.search(r'(?<!\w)(?:голч(?:оо|ийн|ийг)?|дүн(?:г|гээ|гийн)?|'
                              r'ирц(?:ээ|ийн|ийг)?)(?!\w)', clause)
         payment = bool(re.search(r'төлбөр|гүйлгээ|хураамж', clause)
                        and re.search(r'үлдэгд|төлсөн|орсон|түүх|баримт|эсэх', clause))
         access = re.search(r'хар(?:ах|ж|даг|на)|үз(?:эх|эж|дэг|нэ)|шалг(?:ах|аж|адаг|ана)|'
-                           r'нэвтр|ав(?:ах|ч|даг|на)', clause)
+                           r'нэвтр|ав(?:ах|ч|даг|на)|мэд(?:эх|ж|дэг|нэ)', clause)
         if owner and (academic or payment) and access:
             if re.search(r'\d+(?:[.,]\d+)?\s*(?:байвал|бол|болбол|хүрвэл)(?!\w)', clause):
                 continue
@@ -397,6 +410,12 @@ def route_question(db_path, query, *, allow_draft=False, package_id=None, as_of=
         return finish('E',['personal_identifier_outside_scope'],
             'Энэ сургуулийн мэдээллийн систем хүний регистр, паспорт, иргэний үнэмлэхийн дугаар өгөхгүй. '
             'Нийтэлсэн албан утас, имэйлийг асуусан хувийн дугаарын оронд үзүүлэхгүй.')
+
+    if credential_value_request(query):
+        result.update(citations=[], candidates=[], exact_matches=[], binding_faq_id=None)
+        return finish('E', ['credential_not_shared'],
+            'Нууц үг, пин код зэрэг нэвтрэх мэдээллийг энэ туслах өгөхгүй. '
+            'Хэрэгтэй бол тухайн үйлчилгээг хариуцсан ажилтнаас биечлэн асууна уу.')
 
     if personal_record_request(query):
         result.update(citations=[], candidates=[], exact_matches=[], binding_faq_id=None)
