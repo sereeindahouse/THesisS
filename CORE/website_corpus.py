@@ -562,7 +562,22 @@ def search_website(query, database=DATABASE, *, limit=5, allow_draft=False):
             'answer': None, 'generated': False, 'llm_calls': 0, 'score_is_probability': False}
 
 
-def collect(destination=SNAPSHOTS, *, max_pages=300, delay=0.3):
+def known_urls(database):
+    """Official HTML URLs captured by any earlier run, to revisit in the next one.
+
+    A page can stay published while the site's menus stop linking to it (11/2026:
+    /about/environment and /about/history). Link discovery alone then drops it
+    silently; revisiting makes it either captured again or recorded as failed.
+    """
+    try:
+        with closing(readonly(database)) as db:
+            urls = [row[0] for row in db.execute('SELECT DISTINCT url FROM captures ORDER BY url')]
+    except (OSError, sqlite3.Error):
+        return []
+    return [url for url in urls if canonical_url(url) == url]
+
+
+def collect(destination=SNAPSHOTS, *, max_pages=300, delay=0.3, revisit=()):
     """BFS of discoverable public pages; record every omission, do not claim hidden content."""
     run_id = 'nmct-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     destination = Path(destination) / run_id
@@ -597,6 +612,9 @@ def collect(destination=SNAPSHOTS, *, max_pages=300, delay=0.3):
                     queue.append(normalized)
         except (HTTPError, ET.ParseError, ValueError) as error:
             manifest['sitemaps'].append({'url': sitemap_url, 'status': getattr(error, 'code', type(error).__name__)})
+    # Previously captured pages come after everything the site itself links to.
+    manifest['revisited_known_urls'] = sorted(set(revisit))
+    queue.extend(manifest['revisited_known_urls'])
     def save():
         (destination / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     try:
@@ -674,6 +692,7 @@ def main():
     crawl = commands.add_parser('collect')
     crawl.add_argument('--max-pages', type=int, default=300)
     crawl.add_argument('--delay', type=float, default=0.3)
+    crawl.add_argument('--no-revisit', action='store_true', help='Discover by links only; skip earlier captured URLs.')
     commands.add_parser('status')
     imp = commands.add_parser('import')
     imp.add_argument('snapshot', type=Path)
@@ -685,7 +704,8 @@ def main():
     if args.command == 'collect':
         if not 1 <= args.max_pages <= 1000 or not 0.1 <= args.delay <= 10:
             parser.error('Invalid collection bounds.')
-        destination, manifest = collect(max_pages=args.max_pages, delay=args.delay)
+        destination, manifest = collect(max_pages=args.max_pages, delay=args.delay,
+                                        revisit=() if args.no_revisit else known_urls(args.db))
         result = import_snapshot(args.db, destination)
         result.update(website_status(args.db), snapshot=str(destination),
                       html_frontier_exhausted=manifest['html_frontier_exhausted'])

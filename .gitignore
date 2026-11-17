@@ -599,3 +599,10 @@ __pycache__/
 !/tools/run_planner_comparison.py
 !/tools/carry_document_extractions.py
 !/tools/build_eval_review_sheet.py
+# 11/17 (2): Mongolian morphology ranking channel (off by default) with its research note,
+# paired retrieval comparison, and crawler revisit of earlier captured pages.
+!/mongolian_morphology.py
+!/config/retrieval-morphology.json
+!/tests/test_mongolian_morphology.py
+!/tools/evaluate_morphology.py
+!/papers/39-mongolian-morphology-retrieval-20261117.mn.md

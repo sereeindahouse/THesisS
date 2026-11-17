@@ -24,6 +24,7 @@ from CORE.document_corpus import read_document_rows
 from CORE.client_tab_corpus import read_client_tab_rows
 from retrieval_probe import bm25_scores, sha256
 from referral import load_topic_rules, topic_of
+from mongolian_morphology import morph_terms
 
 ROOT = Path(__file__).resolve().parent
 INDEX_VERSION = 'website-hybrid-v5-complete-physical-boundaries'
@@ -69,6 +70,20 @@ RRF_K = 30
 ANCHOR_COVERAGE_WEIGHT = .035
 CATEGORY_WEIGHT = .09
 DOMAINS_PATH = 'config/knowledge-domains.json'
+
+
+MORPHOLOGY_PATH = 'config/retrieval-morphology.json'
+
+
+def load_morphology(root):
+    """The extra conflated-term ranking channel: (method, weight), or None when off."""
+    try:
+        data = json.loads((Path(root) / MORPHOLOGY_PATH).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get('enabled') is not True or not data.get('method'):
+        return None
+    return str(data['method']), float(data.get('weight', 1.0))
 
 
 def load_domains(root):
@@ -397,6 +412,7 @@ class WebsiteRetriever:
         self._context_codes = context_codes
         self._passages = [row['title'] + '\n' + _rank_text(row['text']) for row in rows]
         self._lexical_passages = [' '.join(search_terms(p)) for p in self._passages]
+        self._morph_passages = {}
         self._body_terms = [set(search_terms(_rank_text(row['text']) + '\n' + row.get('source_locator', ''))) for row in rows]
         frequencies = Counter(term for terms in self._body_terms for term in terms)
         self._term_weights = {term: math.log(1 + (len(rows) + 1) / (count + 1)) for term, count in frequencies.items()}
@@ -455,7 +471,18 @@ class WebsiteRetriever:
             self._embeddings = None
             return None
 
-    def search(self, query, limit=5, *, mode='production', domain_boost=None):
+    def _morph_scores(self, query, method, generic):
+        """BM25 over conflated terms; a separate ranking, never an eligibility signal."""
+        passages = self._morph_passages.get(method)
+        if passages is None:
+            passages = self._morph_passages[method] = [' '.join(morph_terms(p, method, STOPWORDS))
+                                                      for p in self._passages]
+        words = [word for word in re.findall(r'\w+', unicodedata.normalize('NFC', query).casefold())
+                 if not set(search_terms(word)) <= generic and not re.fullmatch(r'(?:19|20)\d{2}', word)]
+        terms = morph_terms(' '.join(words), method, STOPWORDS)
+        return bm25_scores(passages, [' '.join(terms)])[0] if terms else [0.0] * len(passages)
+
+    def search(self, query, limit=5, *, mode='production', domain_boost=None, morphology=None):
         if mode not in RANKING_MODES:
             raise ValueError('Unknown ranking mode.')
         if not isinstance(query, str) or not query.strip() or len(query) > 1000 or not re.search(r'\w', query):
@@ -475,7 +502,8 @@ class WebsiteRetriever:
                            for row, text in zip(self._rows, topic_texts)]
             query_code = single_query_code(query, known_codes)
             # Generic school words should not turn every unknown topic into a match.
-            anchors = query_terms - {'сургууль', 'шинэ', 'монгол', 'nmct', 'шмтк', 'оюутан', 'сургалт'}
+            generic = {'сургууль', 'шинэ', 'монгол', 'nmct', 'шмтк', 'оюутан', 'сургалт'}
+            anchors = query_terms - generic
             anchors = {term for term in anchors if not re.fullmatch(r'(?:19|20)\d{2}', term)}
             if 'мэргэжил' in anchors:
                 anchors.add('хөтөлбөр')
@@ -485,10 +513,18 @@ class WebsiteRetriever:
                 raise RuntimeError('Dense ranking experiment requires a working pinned local E5; fallback is not an E5 result.')
             lexical_rank = sorted(range(len(self._rows)), key=lambda i: (-lexical[i], self._rows[i]['source_id']))
             dense_rank = sorted(range(len(self._rows)), key=lambda i: (-dense[i], self._rows[i]['source_id'])) if dense is not None else []
+            # Morphology channel: conflated-term BM25 as one more fused ranking
+            # (word + stem/prefix run fusion), production and rrf_boosted only.
+            morph = load_morphology(self.root) if morphology is None else (morphology or None)
+            morph_scores = (self._morph_scores(query, morph[0], generic)
+                            if morph and self._rows and mode in {'production', 'rrf_boosted'} else None)
+            morph_rank = (sorted(range(len(self._rows)), key=lambda i: (-morph_scores[i], self._rows[i]['source_id']))
+                          if morph_scores is not None else [])
             fused = [0.0] * len(self._rows)
-            for ranking, weight in ((lexical_rank, 1.0), (dense_rank, 1.0)):
+            for ranking, weight, scores in ((lexical_rank, 1.0, lexical), (dense_rank, 1.0, None),
+                                            (morph_rank, morph[1] if morph else 0.0, morph_scores)):
                 for rank, index in enumerate(ranking, 1):
-                    if ranking is lexical_rank and lexical[index] <= 0:
+                    if scores is not None and scores[index] <= 0:
                         continue
                     fused[index] += weight / (RRF_K + rank)
             if mode == 'bm25':
@@ -575,6 +611,7 @@ class WebsiteRetriever:
                 backend=('bm25+e5_rrf' if dense is not None else 'bm25_mongolian') if mode == 'production' else mode,
                 ranking_mode=mode, lexical_topic_gates=(mode == 'production'),
                 domain_boost=boost_on, predicted_domain=predicted_domain,
+                morphology=dict(method=morph[0], weight=morph[1]) if morph_scores is not None else None,
                 rrf_k=RRF_K if mode in {'rrf', 'rrf_boosted', 'production'} else None,
                 candidates=candidates, counts=dict(self._counts), warnings=warnings,
                 query_terms=sorted(query_terms), query_anchor_terms=sorted(anchors),

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "method": "light",
+  "weight": 1.0,
+  "note_mn": "Монгол үгийн нөхцөл дагаврыг хасаж (light) эсвэл эхний N үсгээр (prefixN) хайдаг нэмэлт эрэмбэ. Зөвхөн эрэмбийг нэгтгэнэ; хамгаалалт, эх сурвалжийн текстийг өөрчлөхгүй. Үндэслэл: papers/39-mongolian-morphology-retrieval-20261117.mn.md"
+}

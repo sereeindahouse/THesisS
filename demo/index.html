@@ -15,9 +15,13 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
 .evidence-quote{margin:8px 0 16px;padding:10px 14px;border-left:3px solid #ccd9bf;background:#f8faf5;font-size:13px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}
 .input-lineage{font-size:10px;line-height:1.65;margin-top:9px;color:#708264;white-space:normal}.input-lineage summary{cursor:pointer}.input-lineage-raw{margin:8px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px;color:#687c5b}
   .teacher-cards{display:grid;gap:14px;margin:18px 0;max-width:100%}.teacher-card{display:flex;flex-wrap:wrap;gap:16px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#f7faf6;min-width:0}.teacher-card img{width:180px;max-width:100%;height:236px;object-fit:contain;background:white;border-radius:10px}.teacher-card-info{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}.teacher-card-info h3{font-size:17px;margin-bottom:4px}.teacher-card-info p{font-size:13px;color:var(--muted);margin:6px 0}.teacher-card-info a{font-size:13px}
+  /* Reception screen (/kiosk): large type, topic buttons, no staff tools, idle reset. */
+  .kiosk-only{display:none!important}body.kiosk .kiosk-only{display:flex!important}body.kiosk .default-only,body.kiosk #openTools,body.kiosk #localAdminLink,body.kiosk #localQualityLink,body.kiosk .input-lineage{display:none!important}
+  body.kiosk{font-size:18px}body.kiosk .chat-header{height:92px}body.kiosk .brand strong{font-size:20px}body.kiosk .brand small{font-size:14px}body.kiosk .chat-content{width:min(100%,1100px)}body.kiosk .welcome h1{font-size:44px}body.kiosk .welcome>p{font-size:20px}body.kiosk .suggestions{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}body.kiosk .suggestions button{font-size:19px;min-height:76px;border-radius:16px;padding:14px 18px;color:#2f4a24}body.kiosk .chat-answer{font-size:22px;line-height:1.75}body.kiosk .user-message{font-size:20px}body.kiosk .composer textarea{font-size:20px}body.kiosk .chat-sources,body.kiosk .chat-sources ul{font-size:14px}body.kiosk .chat-options button,body.kiosk .play-message{font-size:16px;padding:10px 14px}body.kiosk #recordStart{width:64px;height:64px;background:#e6eee7}body.kiosk .send-button{width:56px;height:56px}body.kiosk .kiosk-help{justify-content:center;font-size:16px;color:#5b6b55;margin-top:22px}
   </style>
 </head>
 <body>
+<script>if(location.pathname==="/kiosk"||new URLSearchParams(location.search).has("kiosk"))document.body.classList.add("kiosk")</script>
 <a class="skip-link" href="#routeQuery">Асуулт бичих</a>
 <main class="chat-app" id="mainContent">
   <header class="chat-header">
@@ -26,7 +30,7 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
       <span><strong id="routeHeading">ШМТК · Мэдээллийн туслах</strong><small>Сургуулийн талаар асуугаарай</small></span>
     </a>
     <div class="header-actions">
-      <a class="quiet-button" href="/data#tree" title="Мэдлэгийн мод, эх сурвалж ба төслийн явц">Мэдлэгийн мод</a>
+      <a class="quiet-button default-only" href="/data#tree" title="Мэдлэгийн мод, эх сурвалж ба төслийн явц">Мэдлэгийн мод</a>
       <a id="localAdminLink" class="quiet-button" href="/admin" title="Мэдээлэл шинэчлэх" aria-label="Мэдээлэл шинэчлэх" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5"/></svg><span>Шинэчлэх</span></a>
       <button id="voiceReset" class="quiet-button" type="button" title="Чатыг цэвэрлэж, шинээр эхлэх" aria-label="Шинэ чат">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Шинэ чат</span>
@@ -43,12 +47,22 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
         <div class="welcome-symbol" aria-hidden="true">✦</div>
         <h1>Юу мэдэхийг хүсэж байна вэ?</h1>
         <p>Асуултаа бичээрэй, эсвэл микрофоноор хэлээрэй.</p>
-        <div class="suggestions" aria-label="Жишээ асуултууд">
+        <div class="suggestions default-only" aria-label="Жишээ асуултууд">
           <button type="button" data-route-example="Холбоо барих утас хэд вэ?">Холбоо барих</button>
           <button type="button" data-route-example="ШМТК-ийн Sakura хамтын ажиллагааны талаар мэдээлэл өгнө үү.">Sakura хамтын ажиллагаа</button>
           <button type="button" data-route-example="Элсэлтийн бүртгэлийн хураамж хэд вэ?">Бүртгэлийн хураамж</button>
           <button type="button" data-route-example="Багшийн зурагтай танилцуулга үзье.">Багшийн зурагтай танилцуулга</button>
         </div>
+        <div class="suggestions kiosk-only" aria-label="Түгээмэл асуултууд">
+          <button type="button" data-route-example="Сургалтын төлбөр хэд вэ?">Сургалтын төлбөр</button>
+          <button type="button" data-route-example="Элсэлтийн бүртгэлийн хураамж хэд вэ?">Бүртгэлийн хураамж</button>
+          <button type="button" data-route-example="Хэдэн жил суралцдаг вэ?">Хэдэн жил суралцах вэ</button>
+          <button type="button" data-route-example="Карьер хөгжлийн төв хаана байдаг вэ?">Карьер хөгжлийн төв хаана вэ</button>
+          <button type="button" data-route-example="Номын сан хаана байдаг вэ?">Номын сан хаана вэ</button>
+          <button type="button" data-route-example="Компьютерын ухааны 2-р курс хаана хичээллэдэг вэ?">Анги хаана хичээллэдэг вэ (жишээ: КУ-2)</button>
+          <button type="button" data-route-example="Сургуулийн утасны дугаар хэд вэ?">Сургуулийн утас, имэйл</button>
+        </div>
+        <p class="kiosk-only kiosk-help">Микрофоны товчийг дараад Монголоор асуугаарай. Хариулт олдохгүй бол ресепшний ажилтнаас асуугаарай.</p>
         <p><a id="localQualityLink" class="quiet-button" href="http://127.0.0.1:8790/" target="_blank" rel="noopener noreferrer" hidden>Хүний үнэлгээний туршилтад оролцох ↗</a></p>
       </section>
       <div id="routeResult" class="message-list" role="log" aria-label="Чатын яриа" aria-live="polite" aria-relevant="additions text"></div>
@@ -536,6 +550,11 @@ $("routingSetupStatus").textContent=s.routing?.c_enabled?"A/B: эхтэй шуу
 $("llmSetupStatus").textContent="Эхийн хэсэг сонгох: "+(s.rag?.provider?.selection_method?"дүрмээр, LLM дуудлагагүй":s.rag?.provider?.available?("LLM "+s.rag.provider.model+" · локал, бэлэн"):("LLM бэлэн биш; эхийн шууд мэдээлэл ба хайлт ажиллана"))+". STT текст засах нэмэлт LLM: "+(llmState.available?"бэлэн":"идэвхгүй; таньсан текстээ гараар засаж болно")+".";refreshVoiceControls();$("voiceStatus").textContent=voiceState.stt_ready?"":"Дуугаар асуух боломж одоогоор бэлэн биш. Бичгээр асууж болно.";const w=s.website;$("websiteCount").textContent=w?.available?w.pages+" хуудас · "+w.chunks+" текстийн хэсэг · "+w.documents+" эх баримт · албан сайтаас хадгалсан":(w?.message||"Вебийн сан бэлэн биш");const c=s.content;$("counts").textContent=c.available?c.counts.sources+" эх · "+c.counts.facts+" fact":"SQLite бэлэн биш";$("contentState").textContent=c.available?c.counts.faqs+" FAQ · draft "+(c.approval_counts.faqs.draft||0)+" · approved "+(c.approval_counts.faqs.approved||0):c.message;const target=$("samples");for(const sample of s.audio_samples){const box=node("div",undefined,"sample");box.append(node("h3",sample.id));if(sample.available){box.append(node("p","Хадгалсан оролтын WAV"));const player=document.createElement("audio");player.controls=true;player.preload="metadata";player.src=sample.url;player.setAttribute("aria-label",sample.id+" дууны бичлэг");box.append(player);if(sample.reference)box.append(node("p","Хэлсэн: "+sample.reference));if(sample.stt_text)box.append(node("p","STT: "+sample.stt_text));if(typeof sample.wer==="number")box.append(node("p","Өмнөх WER "+(sample.wer*100).toFixed(1)+"% · CER "+(sample.cer*100).toFixed(1)+"%"))}else box.append(node("p","Нийтлэх жишээ файл хараахан байрлаагүй."));target.append(box)}}catch(e){$("counts").textContent="Холболт алга";$("contentState").textContent=e.message}})();
 
 loadGeminiSession().catch(error=>{$('sttProviderStatus').textContent=error.message});
+// Reception screen: clear the conversation after two idle minutes so the next visitor starts fresh.
+if(document.body.classList.contains("kiosk")){let idleTimer=null;const KIOSK_IDLE_MS=120000;
+ const idleReset=()=>{if(routeBusy||voiceBusy||micStarting||micRecorder){armIdle();return}if(chatTurns.length||$("routeQuery").value.trim()||selectedAudio){$("voiceReset").click();$("chatWelcome").scrollIntoView()}};
+ const armIdle=()=>{clearTimeout(idleTimer);idleTimer=setTimeout(idleReset,KIOSK_IDLE_MS)};
+ for(const type of ["pointerdown","keydown","input","touchstart"])document.addEventListener(type,armIdle,{passive:true});armIdle()}
 </script>
 </body>
 </html>

@@ -273,7 +273,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
             path = unquote(urlsplit(self.path).path)
             # A top-level link may come from another site. Only these static
             # HTML shells may open; API/admin/assets/media keep their guards.
-            public_navigation = (path in {'/', '/index.html', '/data', '/data.html'}
+            public_navigation = (path in {'/', '/index.html', '/kiosk', '/data', '/data.html'}
                 and self.headers.get('Sec-Fetch-Mode') == 'navigate'
                 and self.headers.get('Sec-Fetch-Dest') == 'document')
             if self.headers.get("Sec-Fetch-Site") == "cross-site" and not public_navigation:
@@ -386,7 +386,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.error(404, "Энэ дууны ID олдсонгүй эсвэл зөвшөөрөгдөөгүй.")
                 except OSError:
                     return self.error(503, "Дууг уншиж чадсангүй.")
-            if path in {"/", "/index.html"}:
+            # /kiosk is the same page in reception-screen mode (the page reads its own path).
+            if path in {"/", "/index.html", "/kiosk"}:
                 file = (root / "demo" / "index.html").resolve()
                 if file.parent != root / "demo" or not file.is_file():
                     return self.error(404, "Demo хуудас олдсонгүй.")

@@ -18,6 +18,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 PLANNER = ROOT / 'config/question-planner.json'
 DOMAINS = ROOT / 'config/knowledge-domains.json'
+MORPHOLOGY = ROOT / 'config/retrieval-morphology.json'
 QUESTIONS = ROOT / 'data/eval/system-questions-draft-20261117.json'
 
 
@@ -80,9 +81,22 @@ def main():
     parser.add_argument('--label', required=True)
     parser.add_argument('--port', type=int, default=8767)
     parser.add_argument('--boost', type=float)
+    parser.add_argument('--morphology', help='Planner on, then the morphology channel off vs this method.')
     args = parser.parse_args()
     planner_before, domains_before = PLANNER.read_text(encoding='utf-8'), DOMAINS.read_text(encoding='utf-8')
+    morphology_before = MORPHOLOGY.read_text(encoding='utf-8')
     try:
+        if args.morphology:
+            set_json(PLANNER, enabled=True)
+
+            def morphology_runs():
+                set_json(MORPHOLOGY, enabled=False)
+                run(f'morphology-off-{args.label}', args.port)
+                # The retriever reads this file per search; no restart is needed.
+                set_json(MORPHOLOGY, enabled=True, method=args.morphology)
+                run(f'morphology-{args.morphology}-{args.label}', args.port)
+            with_server(args.port, morphology_runs)
+            return
         set_json(PLANNER, enabled=False)
         with_server(args.port, lambda: run(f'planner-off-{args.label}', args.port))
         set_json(PLANNER, enabled=True)
@@ -97,6 +111,7 @@ def main():
     finally:
         PLANNER.write_text(planner_before, encoding='utf-8')
         DOMAINS.write_text(domains_before, encoding='utf-8')
+        MORPHOLOGY.write_text(morphology_before, encoding='utf-8')
         print('configs restored', flush=True)
 
 
