@@ -626,7 +626,8 @@ class ReceptionAnswerPath:
             return False
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'place_where':
-            return any(self._match(query)) or self._place(extra[1]) is not None
+            return (any(self._match(query)) or self._place(extra[1]) is not None
+                    or bool(self._purpose_rooms(extra[1])))
         if extra is not None and extra[0].startswith('department_'):
             return any(self._match(query)) or len(self._role_holders(extra[1] + ' тэнхимийн эрхлэгч', True)) == 1
         if extra is not None and extra[0] in ('role_holder', 'role_name', 'role_meet'):
@@ -708,6 +709,24 @@ class ReceptionAnswerPath:
             return exact[0]
         partial = [pair for pair in pairs if len(name) >= 6 and name in _key(pair[1].name)]
         return partial[0] if len(partial) == 1 else None
+
+    def _purpose_rooms(self, value):
+        """Rooms whose recorded purpose ends with the asked place word for word, at most three:
+        «Хурлын заал» -> 809, «Лекцийн танхим» -> «Бага лекцийн танхим» 602. A purpose as common as
+        «Анги», a room code («809 өрөө») or a near spelling («Цахим» / «Цахилгааны») names none."""
+        if self.tables is None or re.search(r'\d', value):
+            return []
+        words = re.findall(r'[а-яөүё]+', _key(value))
+        found = [room for room in self.tables.rooms
+                 if words and re.findall(r'[а-яөүё]+', _key(room.purpose or ''))[-len(words):] == words]
+        return found if 1 <= len(found) <= 3 else []
+
+    def _purpose_reply(self, rooms):
+        # Rooms grouped under their own recorded purpose («Гадаад хэлний кабинет», «Хэлний кабинет»).
+        groups = {}
+        for room in rooms:
+            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + str(room.floor) + '-р давхар')
+        return '; '.join(purpose + ': ' + '; '.join(places) for purpose, places in groups.items()) + '.'
 
     def _place(self, value):
         """A recorded office or class group named in a plain location question."""
@@ -826,6 +845,10 @@ class ReceptionAnswerPath:
         if intent == 'place_where':
             place = self._place(value)
             if place is None:
+                rooms = self._purpose_rooms(value)
+                if rooms:
+                    # «Хурлын заал хаана вэ?»: a room the school's table names by its purpose (round 6).
+                    return reply(self._purpose_reply(rooms), 'rooms', 'reception_purpose_lookup')
                 # Not a recorded office/group: a room/teacher lookup or the main RAG path.
                 return self._answer_legacy(query, now=now)
             kind, first, second = place
@@ -836,6 +859,9 @@ class ReceptionAnswerPath:
                          + '. Тухайн хичээлийн өрөө хуваариар өөр байж болно.', 'classes', 'reception_class_room')
         if intent.startswith('office_'):
             found = self._service(value)
+            rooms = self._purpose_rooms(value) if found is None and intent == 'office_floor' else []
+            if rooms:
+                return reply(self._purpose_reply(rooms), 'rooms', 'reception_purpose_lookup')
             if found is None:
                 code = re.fullmatch(r'(.{1,40}?)\s+өрөө', value.strip())
                 if intent == 'office_floor' and code:

@@ -379,6 +379,14 @@ COMMON_QUESTION_ALIASES = (
      '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?'),
     (re.compile(r'(?:сургууль(?:д)?\s+)?ямар(?:\s+ямар)?\s+тэнхим(?:үүд|үүдтэй|тэй)?(?:\s+(?:байдаг|бий))?(?:\s+вэ)?'),
      'Сургууль ямар тэнхимүүдтэй вэ?'),
+    # 11/18 (round 6): transfer into the 2nd year, the transfer programmes and «how many» majors.
+    # The search never reached the admission page's «2-р курс шилжин» line; the stored programme
+    # list names both the five first-year and the two transfer programmes.
+    (re.compile(r'(?:(?:2|хоёр)(?:-р|-?дугаар)?\s+курс(?:т|ын|ийн)?\s+)?шилж\w*\s+(?:ор|элс)\w*\s+'
+                r'(?:болох|боломжтой)(?:\s+(?:уу|юу))?|'
+                r'шилжилтийн\s+хөтөлбөр\w*\s+(?:ямар|ямар\s+ямар)\s+мэргэж\w*\s+(?:байдаг|бий)(?:\s+вэ)?|'
+                r'(?:сургууль\s+)?хэдэн\s+(?:мэргэж\w*|хөтөлбөр\w*)\s+(?:элсүүлдэг|элсүүлэх|элсэлт\s+авдаг|байдаг)(?:\s+вэ)?'),
+     '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?'),
 )
 def sibling_windows(query, found, rows, limit=2):
     """Windows of an already retrieved page that the search's two-windows-per-page rule left out.

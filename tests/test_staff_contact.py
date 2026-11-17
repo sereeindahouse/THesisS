@@ -26,6 +26,11 @@ class StaffContactTests(unittest.TestCase):
         self.assertIsNone(common_question_alias('Номын сан хэдэн цагт ажилладаг вэ?'))
         self.assertEqual(common_question_alias('Төгсөхөд ямар зэрэг авах вэ?'),
                          '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?')
+        # Round 6: transfer into the 2nd year and «how many majors» -> the stored programme list.
+        for query in ('2-р курст шилжиж орж болох уу?', 'Шилжилтийн хөтөлбөрт ямар мэргэжил байдаг вэ?',
+                      'Хэдэн мэргэжлээр элсүүлдэг вэ?'):
+            self.assertEqual(common_question_alias(query), '2026 оны элсэлтээр ямар мэргэжлүүдэд элсэлт авах гэж жагсаасан бэ?')
+        self.assertIsNone(common_question_alias('Шилжих хүсэлт хаана өгөх вэ?'))
 
     def test_event_participant_count_is_not_a_staff_question(self):
         # 11/17 (5): «намрын ажилд хэдэн багш оролцсон» is a news item's figure, not a roster.

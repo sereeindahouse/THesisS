@@ -162,6 +162,14 @@ class AnchorBindingTests(unittest.TestCase):
                                                      'Багш нар цайны цаг болон чөлөөт цагаа өнгөрөөх газар'))
         self.assertTrue(rule_selector.topic_covered('Спорт заал байдаг уу?', 'Сургууль 2 спорт заалтай.'))
 
+    def test_round6_light_verbs_dates_near_the_anchor_and_other_departments(self):
+        # «шилжиж орж» = transfer in: «орж» only finishes the verb.
+        self.assertEqual(rule_selector.key_terms('2-р курст шилжиж орж болох уу?'), ('2', 'курст', 'шилжиж'))
+        self.assertEqual(rule_selector.key_terms('Сургуульд орж болох уу?'), ('орж',))
+        # Agent nouns and other verbs keep their meaning: only «орох» after a verb's converb is dropped.
+        self.assertEqual(rule_selector.key_terms('Хэрэглэгч орох эрхтэй юу?')[:1], ('хэрэглэгч',))
+        self.assertIn('авч', rule_selector.key_terms('Багаж авч болох уу?'))
+
     def test_round5_person_classifier_and_how_questions(self):
         # «… дарга хэн бэ?» needs a person's name next to the post, not a rule mentioning the post.
         query = 'Оюутны зөвлөлийн дарга хэн бэ?'
@@ -380,6 +388,21 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertFalse(path.recognizes(query))
                 self.assertIsNone(path.answer(query))
+
+    def test_rooms_by_their_recorded_purpose(self):
+        # Round 6: «Хурлын заал хэддүгээр давхарт байдаг вэ?» was refused though the table names room 809.
+        tables = ReceptionTables(rooms=(Room(8, '809', purpose='Хурлын заал'), Room(4, '410', purpose='Компьютерын лаборатори'),
+                                        Room(6, '613', purpose='Компьютерын лаборатори'), Room(4, '401', purpose='Анги'),
+                                        Room(4, '402', purpose='Анги'), Room(4, '403', purpose='Анги'), Room(4, '404', purpose='Анги')),
+                                 staff=(), classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual(path.answer('Хурлын заал хэддүгээр давхарт байдаг вэ?')['answer'], 'Хурлын заал: 809 өрөө, 8-р давхар.')
+        self.assertEqual(path.answer('Компьютерын лаборатори хаана вэ?')['answer'],
+                         'Компьютерын лаборатори: 410 өрөө, 4-р давхар; 613 өрөө, 6-р давхар.')
+        self.assertFalse(path.recognizes('Анги хаана вэ?'))   # four rooms: too common to name
+        # A near spelling or a room code is not a purpose (review, round 6).
+        self.assertFalse(path.recognizes('Цахим лаборатори хаана вэ?'))
+        self.assertEqual(path._purpose_rooms('809 өрөө'), [])
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

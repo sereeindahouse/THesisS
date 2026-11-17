@@ -41,6 +41,7 @@ TO_DATE = re.compile(r'(?<!\w)(?:өнөөдрийг|өнөөг|одоог)\s+х�
 # Pages about the school as a whole (not a department, programme, event or news item).
 SCHOOL_WIDE_PATH = re.compile(r'^/(?:about(?:/.*)?|contact|elselt|elseltiin-juram/.*|student)?/?$')
 SCHOOL_NAME = re.compile(r'(?<!\w)шинэ\s+монгол\s+технологийн\s+коллеж\w*', re.I)
+LIGHT_VERB = re.compile(r'(?<!\w)(\w{3,}(?:[аэоөиу]ж|[^г\W]ч))\s+ор(?:ж|ох|сон|дог|но)?(?!\w)')
 FINAL_PREDICATE = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|сан|сэн|сон|сөн|ах|эх|ох|өх)$')
 NUMERIC_QUESTION = re.compile(r'(?<!\w)(?:хэзээ|хэдэн|хэд|хэдэд|хэдний|хэддүгээр)(?!\w)')
 SHORT_QUESTION_TERMS = 6
@@ -90,6 +91,9 @@ def _all_terms(query):
     # «Шинэ Монгол Технологийн Коллежийн эрхэм зорилго» asks about the school's mission: the
     # full name names the school itself, like «сургууль», and is not a topic word.
     text = TO_DATE.sub(' ', SCHOOL_NAME.sub(' сургууль ', normalise_units(query, numerals=True)))
+    # «2-р курст шилжиж орж болох уу?»: after a converb («шилжиж») «орох» only finishes the verb
+    # («transfer in»), so the source's «2-р курс шилжин» need not repeat it (round 6).
+    text = LIGHT_VERB.sub(r'\1', text)
     return tuple(term for term in dict.fromkeys(search_terms(text))
                  if term not in REQUEST_WORDS and term not in QUESTION_TERMS)
 
