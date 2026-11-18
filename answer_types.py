@@ -58,8 +58,13 @@ _LIST_NUMBER = re.compile(r'(?m)^\s*(\d{1,2})[.)](?=\s)')
 # (waste); «хуваах» (to divide), «хуваарь» (a timetable) and «хувийн» (personal). A shared prefix
 # stands in for a suffix only within one family (round 16: «Төлбөрөө хэдэн хуваан төлж болох вэ?» was
 # answered with «3. Хувийн хэсэг», «Оюутны цахим хаяг …» with a news item on «хог хаягдал»).
+# Round 17: «байр» (a building, a dormitory) is neither «байна» (is) nor «байрлах» (to be located), and
+# «багш» (a teacher) is not «баг» (a team): «Оюутны байрны үнэ хэд вэ?» was answered with a harvest
+# trip «… голд байрлах талбайд», «Багшаар ажилд орох …» with a project team («багийг»).
+# Also «хүсэлт» (a request) is not «хүслээ» (wished): «… амжилт хүслээ».
 _WORD_FAMILIES = (re.compile('хаягд'), re.compile('хаяг'), re.compile('хуваар'), re.compile('хуваа'),
-                  re.compile('хуви|хувь'))
+                  re.compile('хуви|хувь'), re.compile('байр[лш]'), re.compile('байр'), re.compile('багш'),
+                  re.compile('хүсэлт'))
 
 
 @lru_cache(maxsize=8192)
@@ -70,9 +75,9 @@ def word_family(word):
 
 
 def same_family(term, word):
-    """False when ``term`` belongs to a family and ``word`` is not of the same one."""
-    family = word_family(term)
-    return family is None or word_family(word) == family
+    """False when ``term`` or ``word`` belongs to a family and the other is not of the same one: «баг»
+    (a team) matches no «багш» (a teacher) either (review, round 17)."""
+    return word_family(term) == word_family(word)
 
 
 _NUMERAL_DIGITS = {'нэг': '1', 'хоёр': '2', 'гурав': '3', 'гурван': '3', 'дөрөв': '4', 'дөрвөн': '4',
@@ -125,8 +130,9 @@ def expected_value(query):
     # «Хүний нөөцийн алба хаана байдаг вэ?»: where an office or room is, inside the building
     # (a room number or a floor), not «Японд хаана дадлага хийдэг» (11/17 (5)). «Хүний нөөц хаана
     # вэ?» names the office without «алба» (round 9: a Japanese speech-contest page was shown).
-    if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан|нөөц|нягтлан(?:\s+бодогч)?|оффис)\w*'
-                 r'\s+хаана(?!\w)', q):
+    # Round 17: also a job interview («Ярилцлага хаана болох вэ?» showed the career centre's steps).
+    if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан|нөөц|нягтлан(?:\s+бодогч)?|оффис|'
+                 r'ярилцлага)\w*\s+хаана(?!\w)', q):
         return 'place', ()
     # «хэдий хугацаанд» (over what period), «хэдийд» (when), «хэдийнээс» (since when) ask for a date.
     if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)|'

@@ -110,6 +110,21 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual([_comitative(word) for word in ('зүйч', 'Захирал', 'Болд', 'өрөө', 'багш', 'Зоригт')],
                          ['зүйчтэй', 'Захиралтай', 'Болдтой', 'өрөөтэй', 'багштай', 'Зоригттой'])
 
+    def test_round17_one_noun_with_its_particle_follows_up(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={}, offices=['Номын сан'], topic_keywords=['төлбөр', 'анги', 'багш'],
+                               staff=[], class_names=['КУ-2'])
+
+        def asked(query, previous=None):
+            return plan.plan(query, previous=previous)['parts'][0]['query']
+
+        # «Төлбөр нь хэд вэ?» asks about the dormitory just named; a full question is a new one.
+        self.assertEqual(asked('Төлбөр нь хэд вэ?', 'Дотуур байр байдаг уу?'), 'Дотуур байр төлбөр хэд вэ?')
+        self.assertEqual(asked('Сургалтын төлбөр хэд вэ?', 'Дотуур байр байдаг уу?'), 'Сургалтын төлбөр хэд вэ?')
+        # «Төлбөр нь?» alone, and «нь» with any question word (review).
+        self.assertEqual(asked('Төлбөр нь?', 'Дотуур байр байдаг уу?'), 'Дотуур байр төлбөр?')
+        self.assertEqual(asked('Төлбөр нь яаж төлөх вэ?', 'Дотуур байр байдаг уу?'), 'Дотуур байр төлбөр яаж төлөх вэ?')
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],

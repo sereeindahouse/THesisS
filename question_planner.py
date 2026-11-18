@@ -41,6 +41,10 @@ MAX_PARTS = 3
 # «юм бэ» asks, and «бэ» is here already (11/17 (5)).
 QUESTION_WORD = re.compile(r'(?<!\w)(?:вэ|бэ|уу|үү|юу|хэн|хэнд|хэнээс|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|'
                            r'ямар|яаж|яах|аль|болох\s+уу|байдаг\s+уу)(?!\w)', re.I)
+# «Төлбөр нь хэд вэ?», «Төлбөр нь?»: one noun with «нь» (its) asks about the thing just named, even when
+# the noun is a topic word of its own (round 17: after «Дотуур байр байдаг уу?» it was answered with a
+# scholarship's «100% / Сургалтын төлбөр …»). The question words are QUESTION_WORD's (review).
+OWN_ATTRIBUTE = re.compile(r'\s*[^\W\d_]+\s+нь(?:\s+(?:' + QUESTION_WORD.pattern + r'|хэрхэн)|\s*\?*\s*$)', re.I)
 # Words that carry no topic of their own; a part made only of these needs the previous subject.
 FUNCTION_WORDS = frozenset('''вэ бэ уу үү юу юм хэн хэнд хэд хэдэн хэдэд хаана хаашаа хэзээ ямар яаж аль
     нь бол болох байдаг байна байх вэ? бас мөн тэгээд мөн ба болон эсвэл гэж гэх юм бэ уу? одоо
@@ -421,7 +425,8 @@ class QuestionPlanner:
                 or not (QUESTION_WORD.search(text) or re.search(r'(?<!\w)нь\s*\?*$', lowered))
                 or GREETING.fullmatch(lowered.strip(' ?!.'))
                 or GROUP.search(self._class_code(text)[0]) or self._named(text) is not None
-                or any(keyword in lowered for keyword in self.topic_keywords if keyword not in FOLLOWUP_ATTRIBUTES)):
+                or (any(keyword in lowered for keyword in self.topic_keywords if keyword not in FOLLOWUP_ATTRIBUTES)
+                    and not OWN_ATTRIBUTE.match(lowered))):
             return None
         previous = self._class_code(previous.strip())[0]
         entity = self._named(previous)
@@ -434,7 +439,7 @@ class QuestionPlanner:
         # the school itself and starts a new question (review).
         if re.search(r'(?<!\w)энд(?!\w)', text, re.I):
             return None
-        rest = re.sub(r'(?<!\w)(?:нь|тэнд)(?!\w)\s*', '', text, flags=re.I).strip()
+        rest = re.sub(r'\s+(?=[?!.])', '', re.sub(r'(?<!\w)(?:нь|тэнд)(?!\w)\s*', '', text, flags=re.I)).strip()
         rest = rest[:1].lower() + rest[1:]
         group = GROUP.search(previous)
         if (group and entity == group.group(1) + ' анги' and re.match(r'\s+ангийн\s+багш', previous[group.end():])

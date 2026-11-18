@@ -124,6 +124,11 @@ def normalize_wording(text):
     text = re.sub(r'(?<!\w)лаб(?!\w)', 'лаборатори', text, flags=re.I)
     # «нягтлан» alone is the post «нягтлан бодогч» (round 9).
     text = re.sub(r'(?<!\w)(нягтлан)(?!\w)(?!\s+бодогч)', r'\1 бодогч', text, flags=re.I)
+    # «Хоол хаана идэх вэ?» asks where the canteen is (round 17: a library paragraph under the heading
+    # «Номын сан, спорт, хоол, хөгжил» was shown).
+    text = re.sub(r'(?<!\w)(?:хоол(?:оо)?\s+хаана|хаана\s+хоол(?:оо)?)\s+(?:идэх|иддэг|идэж\s+болох)(?!\w)|'
+                  r'(?<!\w)хоол\s+идэх\s+газар\s+хаана(?:\s+байдаг)?(?!\w)',
+                  lambda match: ('Х' if match.group()[0].isupper() else 'х') + 'оолны газар хаана байдаг', text, flags=re.I)
     return re.sub(r'(?<!\w)хаана\s+суудаг', 'хаана байдаг', text, flags=re.I)
 
 

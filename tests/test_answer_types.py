@@ -319,6 +319,44 @@ class AnchorBindingTests(unittest.TestCase):
                 if not answered:
                     self.assertIn('pair_split', {row['reason'] for row in result['checked_subsets']})
 
+    def test_round17_building_teacher_words_last_word_predicate_how_to_get_and_interviews(self):
+        from reception_tables import normalize_wording
+        # «байр» (a building, a dormitory) is not «байна» (is) or «байрлах» (to be located); «багш» is not «баг».
+        for word in ('байна', 'байрлах', 'байршил'):
+            with self.subTest(word=word):
+                self.assertFalse(rule_selector._has_term('байрны', {word}))
+        self.assertTrue(rule_selector._has_term('байрны', {'байранд'}))
+        self.assertFalse(rule_selector._has_term('багш', {'багийг'}))
+        self.assertTrue(rule_selector._has_term('багш', {'багшийн'}))
+        self.assertFalse(rule_selector._has_term('баг', {'багш'}))   # both ways (review)
+        # Only the question's own last word is its verb: «үнэ» (a price) and «сан» stay topics.
+        self.assertEqual(rule_selector.key_terms('Оюутны байрны үнэ хэд вэ?'), ('оюутан', 'байрны', 'үнэ'))
+        self.assertEqual(rule_selector.key_terms('Номын сан хаана вэ?'), ('ном', 'сан'))
+        self.assertEqual(rule_selector.key_terms('Хэдэн оюутан суралцдаг вэ?'), ('оюутан',))
+        # A colloquial ending is no verb either (review).
+        self.assertEqual(rule_selector.key_terms('Элсэлт хэзээ эхлэх бол?'), rule_selector.key_terms('Элсэлт хэзээ эхлэх вэ?'))
+        self.assertFalse(rule_selector.topic_covered('Оюутны байрны үнэ хэд вэ?',
+                                                     'Энэ жил 78 оюутан голд байрлах талбайд ажиллаж, хөдөлмөрийн үнэ цэнийг мэдэрлээ.'))
+        # «яаж/хэрхэн авах» needs the paper and a verb of issuing in one sentence, as «хаанаас авах» does.
+        self.assertFalse(rule_selector.topic_covered('Тодорхойлолт яаж авах вэ?',
+                                                     'Гадаадад өгсөн шалгалтыг гэрчилсэн тодорхойлолтын хамт бүрдүүлэн ирүүлнэ.'))
+        self.assertTrue(rule_selector.topic_covered('Тодорхойлолт яаж авах вэ?', 'Тодорхойлолтыг сургалтын албанаас авна.'))
+        # Only a paper or an account: a scholarship's conditions say how to get it (review).
+        self.assertTrue(rule_selector.topic_covered('Тэтгэлэг яаж авах вэ?', 'Тэтгэлэгт голч дүн 3.5-аас дээш оюутан хамрагдана.'))
+        # Where a paper is handed in: the paper and a verb of handing in, in one sentence.
+        self.assertFalse(rule_selector.topic_covered('Багшаар ажилд орох хүсэлт хаана өгөх вэ?',
+                                                     'Тус тэнхимийн багш нар оролцож, төслийн ажилд амжилт хүслээ.'))
+        self.assertTrue(rule_selector.topic_covered('Багшаар ажилд орох хүсэлт хаана өгөх вэ?',
+                                                    'Багшаар ажилд орох хүсэлтээ хүний нөөцийн албанд өгнө.'))
+        # A story's «багийг хүлээн авч … амжилт хүслээ» neither receives nor names a request (round 17 probe).
+        self.assertFalse(rule_selector.topic_covered('Багшаар ажилд орох хүсэлт хаана өгөх вэ?',
+                                                     'Тэнхимийн багш нар оролцов. Захирал төслийн багийг хүлээн авч, ажилд амжилт хүслээ.'))
+        # Where an interview is asks for a place; «хоол хаана идэх» asks where the canteen is.
+        self.assertEqual(expected_value('Ярилцлага хаана болох вэ?'), ('place', ()))
+        for query in ('Хоол хаана идэх вэ?', 'Хоолоо хаана идэх вэ?', 'Хаана хоол идэх вэ?', 'Хоол идэх газар хаана вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(normalize_wording(query), 'Хоолны газар хаана байдаг вэ?')
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(

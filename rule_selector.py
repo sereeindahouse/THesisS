@@ -50,12 +50,23 @@ WHERE_TERMS = frozenset(('хаан', 'хаашаа', 'хаагуур', 'хаан
 # «Тодорхойлолт хаанаас авах вэ?», «Хичээлийн хуваарь хаанаас харах вэ?» ask where a paper is issued
 # or a list is shown (round 9): a text that only names it («Сургуулийн тодорхойлолтоор … элссэн», an
 # exam page's «хичээл … харагдана» beside a «Хугацааны хуваарь» heading) does not answer.
-# Group 1: a paper to get; group 2: a list to see. Each needs its own verb in the text: «Хуудас 1
-# Томоор үзэх →» (a viewer's button) does not say where a grade sheet is issued (round 10).
+# Group 1: a paper to get; group 2: a list to see; group 3 (round 17): a paper to hand in («Багшаар ажилд
+# орох хүсэлт хаана өгөх вэ?» was answered with a project visit's «амжилт хүслээ»). Each needs its own
+# verb in the text: «Хуудас 1 Томоор үзэх →» (a viewer's button) does not say where a grade sheet is
+# issued (round 10).
 OBTAIN_QUESTION = re.compile(r'(?<!\w)хаа(?:наас|на)\s+(?:\w+\s+)?(?:(ав(?:ах|на|дуулах|ч\s+болох)|гаргуул\w*)|'
-                             r'(хар(?:ах|ж\s+болох)|үз(?:эх|ж\s+болох)|ол(?:ох|ж\s+болох)))(?!\w)')
+                             r'(хар(?:ах|ж\s+болох)|үз(?:эх|ж\s+болох)|ол(?:ох|ж\s+болох))|'
+                             r'(өг(?:өх|ч\s+болох)|гарга(?:х|ж\s+болох)|илгээ(?:х|ж\s+болох)|бөглө(?:х|ж\s+болох)))(?!\w)')
+# Round 17: «хэрхэн/яаж авах» a paper or an account asks the same («Тодорхойлолт яаж авах вэ?» showed an
+# admission rule naming a foreign school's certificate; «Оюутны цахим хаяг хэрхэн авах вэ?» the school's
+# postal address). Not a scholarship or a discount, whose conditions answer how to get it (review).
+PAPER_HOW = re.compile(r'(?<!\w)(?:тодорхойлолт|хуудас|үнэмлэх|карт|гэрчилгээ|диплом|лавлагаа|маягт|анкет|гэрээ|'
+                       r'өргөдөл|хуулбар|хаяг)\w*\s+(?:хэрхэн|яаж)\s+(?:ав(?:ах|на|ч\s+болох)|гаргуул\w*)(?!\w)')
 ISSUE_VERB = re.compile(r'(?<!\w)(?:олго\w*|ав(?:на|ах|даг|ч\s+болно|ч\s+болох)|гаргаж\s+өг\w*|гаргуул\w*|'
                         r'захиал\w*)(?!\w)')
+# «хүлээн авна» (an office accepts), not a story's «багийг хүлээн авч» (welcomed a team).
+SUBMIT_VERB = re.compile(r'(?<!\w)(?:өг(?:нө|өх|дөг|ч\s+болно)|гарга(?:на|х|даг|ж\s+болно)|илгээ\w*|ирүүл\w*|бөглө\w*|'
+                         r'хүлээн\s+ав(?:на|даг|ах))(?!\w)')
 SEE_VERB = re.compile(r'(?<!\w)(?:хар(?:на|ах|ж\s+болно|агдана)|үз(?:нэ|эх|ж\s+болно)|ол(?:но|ох|ж\s+болно))(?!\w)')
 # Pages about the school as a whole (not a department, programme, event or news item).
 SCHOOL_WIDE_PATH = re.compile(r'^/(?:about(?:/.*)?|contact|elselt|elseltiin-juram/.*|student)?/?$')
@@ -115,8 +126,12 @@ def _anchor_words(text):
 def key_terms(query):
     # Cached and immutable: every candidate subset of one answer asks for the same query's terms.
     terms = _all_terms(query)
-    # Mongolian ends a sentence with its verb; that word names no topic.
-    terms = terms[:-1] if len(terms) > 1 and FINAL_PREDICATE.search(terms[-1]) else terms
+    # Mongolian ends a sentence with its verb; that word names no topic. Only the question's own last
+    # word: «Оюутны байрны үнэ хэд вэ?» ends with «хэд», so «үнэ» (a price, ending like «-нэ») and the
+    # «сан» of «Номын сан хаана вэ?» stay topics (round 17).
+    predicate = question_predicate(query)
+    if len(terms) > 1 and predicate and FINAL_PREDICATE.search(terms[-1]) and terms[-1] in _stems(predicate):
+        terms = terms[:-1]
     return tuple(term for term in terms if term not in WHERE_TERMS) if WHERE_WORD.search(query) else terms
 
 
@@ -232,7 +247,7 @@ def value_missing(query, claims, typed=True, focus=(), contexts=None):
 def question_predicate(query):
     """The question's own verb («… хэдэн оюутан суралцдаг вэ?» → «суралцдаг»), or None."""
     words = [word for word in re.findall(r'\w+', query.casefold())
-             if word not in ('вэ', 'бэ', 'уу', 'үү', 'юу', 'юм')]
+             if word not in ('вэ', 'бэ', 'уу', 'үү', 'юу', 'юм', 'бол', 'ве', 'бе', 'гэж')]
     return words[-1] if words and FINAL_PREDICATE.search(words[-1]) else None
 
 
@@ -398,7 +413,10 @@ def topic_covered(query, text, titles='', typed=False):
     if not terms or sum(_has_term(term, words, verb_stem=True) for term in terms) / len(terms) < required:
         return False
     obtain = OBTAIN_QUESTION.search(query.casefold())
-    if obtain and not _issued_together(query, text, ISSUE_VERB if obtain.group(1) else SEE_VERB):
+    if obtain and not _issued_together(query, text, ISSUE_VERB if obtain.group(1)
+                                       else SEE_VERB if obtain.group(2) else SUBMIT_VERB):
+        return False
+    if PAPER_HOW.search(query.casefold()) and not _issued_together(query, text):
         return False
     if quantity and not _quantity_together(text, *quantity):
         return False
