@@ -10,7 +10,7 @@ The user gave standing permission on 2026-11-17 (CLAUDE.md «Автомат за
 ## One round
 
 1. **State.** `git status`, HEAD, `http://127.0.0.1:8765/` returns 200 (else `.venv/Scripts/python.exe open_demo.py --no-browser`). Read the newest «not fixed» list (latest `papers/4*-*.mn.md` §5 and the top PROJECT-NOTE entry) and the last measurement files in `runtime/eval/` — they are the baseline for HEAD.
-2. **Find issues** (stop at 5–10 per round), in this order:
+2. **Find issues** (stop at 5 per round), in this order:
    - the «not fixed» list;
    - failures in W04 / W04-b / the 80-question set's **tune** split (never tune on `split=test`; read test failures only to report them);
    - new realistic probes: `tools/probe_questions.py` with a question bank in `runtime/eval/` (reception topics in `data/reception/reception-topics-user-20261112.mn.md`, staff/teacher/timetable/room wording, two-turn follow-ups, paraphrases of answered questions);
@@ -20,10 +20,10 @@ The user gave standing permission on 2026-11-17 (CLAUDE.md «Автомат за
 4. **Fix** the smallest justified change with a regression test. Sealed `content_release.CODE_FILES`: edit a scratch copy, then `tools/manage_content_release.py stage-code-upgrade → validate → publish` (CLAUDE.md «Битүүмжилсэн код»). Never edit code while a measurement is running.
 5. **Measure** on the same code, data and `.venv-modeltools`, LLM off:
    `.venv/Scripts/python.exe tools/run_config_comparison.py --label <name> --file config/answer-selection.json --key typed_value_check --values true`
-   plus the probe bank before/after. Rules: wrong answers stay 0; any regression is fixed or the change reverted; a gain only on the set it was tuned on is reported as such.
-6. **Self-review** the diff: `/code-review high`, then `/engineering:code-review`. Fix confirmed findings, rerun focused tests (`.venv/Scripts/python.exe -m unittest tests.test_answer_types tests.test_question_planner tests.test_staff_contact` and whatever the change touches).
+   plus the new probe bank and the three most recent banks before/after (all banks only every fifth round); one measurement after the review fixes, not one before and one after. Rules: wrong answers stay 0; any regression is fixed or the change reverted; a gain only on the set it was tuned on is reported as such.
+6. **Self-review** the diff inline (read `git diff` once). Run `/code-review medium` only when the diff changes shared selection or typed-check code (`rule_selector.py`, `answer_types.py`) or is over ~80 lines; never a second reviewer (11/18: the user's /usage showed this skill at 40%). Fix confirmed findings, rerun focused tests (`.venv/Scripts/python.exe -m unittest tests.test_answer_types tests.test_question_planner tests.test_staff_contact` and whatever the change touches).
 7. **Ship**: scan the diff for phones, e-mails other than @nmct.edu.mn, keys; never add PPTX/PDF/`МИНИЙ-ДИПЛОМ/`/runtime/DB/school data; commit, push, record the remote SHA; short PROJECT-NOTE entry (≤6 lines) + details in `papers/`; `python tools/sync_project_note.py` then `--check`.
-8. **Next round** immediately, unless a stop condition holds.
+8. **Next round** only under `/loop`, at most one round per hour (ScheduleWakeup 3600 s), unless a stop condition holds.
 
 ## Stop and ask only when
 
@@ -31,7 +31,7 @@ The user gave standing permission on 2026-11-17 (CLAUDE.md «Автомат за
 - an outward action: Facebook bot, publishing, e-mail;
 - thesis text, title or an approved PPT slide;
 - a safety limit: staff mobiles, keys, the test split, the sealed-code procedure;
-- three rounds in a row with no measured gain — then report and propose a different source of issues.
+- two rounds in a row with no gain on W04 / W04-b / the 80-question set (probe-bank gains do not count) — then stop the loop, report and propose a different source of issues.
 
 ## Report
 
