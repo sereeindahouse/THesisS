@@ -76,6 +76,14 @@ class StaffContactTests(unittest.TestCase):
         self.assertIsNone(common_question_alias('Төлбөр нь хэд вэ?'))
         self.assertEqual(common_question_alias('Сургуульд хэрхэн очих вэ?'), 'Сургуулийн хаяг хаана вэ?')
 
+    def test_round14_programme_length(self):
+        self.assertEqual(common_question_alias('Компьютерын ухааны хөтөлбөр хэдэн жил вэ?'),
+                         '2026 оны элсэлтийн хөтөлбөр хэдэн жил үргэлжлэх вэ?')
+        # Only the listed programmes (review): no other programme gets the 1st-year length.
+        for query in ('Барилгын шилжих хөтөлбөр хэдэн жил вэ?', 'Магистрын хөтөлбөр хэдэн жил вэ?'):
+            with self.subTest(query=query):
+                self.assertIsNone(common_question_alias(query))
+
     def test_event_participant_count_is_not_a_staff_question(self):
         # 11/17 (5): «намрын ажилд хэдэн багш оролцсон» is a news item's figure, not a roster.
         self.assertIsNone(staff_query_scope('2026 оны намрын ажилд хэдэн багш оролцсон бэ?', [PAGE],

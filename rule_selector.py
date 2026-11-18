@@ -233,8 +233,13 @@ def phrase_pair(query):
     бий юу?»), or None. Other questions («Элсэлтийн шалгалт хэзээ болох вэ?», «Сургуулийн имэйл
     хаяг юу вэ?») keep their words apart in a correct text (review 11/17 (5))."""
     terms = key_terms(query)
-    if len(terms) != 2 or not re.search(r'(?:байдаг|бий|байгаа|байна)\s+(?:уу|үү|юу)\s*[?？]?\s*$',
-                                        query.casefold().strip()):
+    # Round 14: also «Оюутны байр хаана байдаг вэ?» (a dormitory, answered with a contest's «1-р байр: …
+    # оюутан» ranking): a where-question only for «… байр», whose other sense is a place in a contest
+    # («Захирлын өрөө хаана вэ?» keeps «Захирал … Ажлын өрөө: 508», review).
+    asked = query.casefold().strip()
+    where = len(terms) == 2 and terms[1].startswith('байр') and re.search(
+        r'хаана(?:\s+(?:байдаг|байрладаг|байна))?\s+(?:вэ|бэ)\s*[?？]?\s*$', asked)
+    if len(terms) != 2 or not (where or re.search(r'(?:байдаг|бий|байгаа|байна)\s+(?:уу|үү|юу)\s*[?？]?\s*$', asked)):
         return None
     from answer_types import normalise_units
     words = re.findall(r'\w+', normalise_units(query, numerals=True))
@@ -359,7 +364,21 @@ def topic_covered(query, text, titles='', typed=False):
     return pair is None or _near(text, *pair)
 
 
+def _heading_only(text):
+    """Only a heading and a date («ДУГУЙЛАН, КЛУБИЙН ТАНИЛЦУУЛГА / 2026 оны аравдугаар сарын 13»): a news
+    item's title says no more than the question (round 14: «Ямар клубүүд байдаг вэ?»)."""
+    from evidence_contract import _PUBLICATION_DATE
+    lines = [re.sub(r'\s*\[\d+\]', '', line).strip() for line in text.splitlines()]
+    lines = [line for line in lines if line]
+    def heading(line):
+        return (line.upper() == line and len(re.findall(r'[А-ЯӨҮЁ]{2,}', line)) >= 2 and len(line.split()) <= 10
+                and not re.search(r'[\d:]', line))
+    return bool(lines) and all(_PUBLICATION_DATE.fullmatch(line) or heading(line) for line in lines)
+
+
 def relevant_to_question(query, text, typed=True, claims=None, focus=(), contexts=None, titles=''):
+    if _heading_only(text):
+        return False
     if value_missing(query, claims if claims is not None else [text], typed, focus, contexts):
         return False
     return topic_covered(query, text, titles, typed)

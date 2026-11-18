@@ -248,6 +248,27 @@ class AnchorBindingTests(unittest.TestCase):
         result = rule_selector.bounded_lexical_selection('Барилгын тэнхим ямар лабораторитой вэ?', units, sources=sources)
         self.assertTrue(result['abstained'])
 
+    def test_round14_list_numbers_headings_and_two_word_places(self):
+        from answer_types import value_supported
+        # «04 / Оюутан бүрийн эрх ашгийг …» numbers a list item; it counts no students.
+        self.assertFalse(value_supported('Хэдэн оюутантай вэ?', '02\nЦаг баримтлах\n04\nОюутан бүрийн эрх ашгийг дээдэлж'))
+        self.assertTrue(value_supported('Хэдэн оюутантай вэ?', '1200 оюутан суралцдаг.'))
+        # A news item's title and date alone answer nothing.
+        self.assertTrue(rule_selector._heading_only('ДУГУЙЛАН, КЛУБИЙН ТАНИЛЦУУЛГА\n2026 оны аравдугаар сарын 13 [1]'))
+        self.assertFalse(rule_selector._heading_only('Робокон клуб\nРобот бүтээдэг клуб.'))
+        # A code, a phone or a labelled uppercase line is content, not a heading (review).
+        for text in ('IT-101', 'УТАС: 7000-1234', 'ХАЯГ: УЛААНБААТАР ХОТ, СБД, 1-Р ХОРОО'):
+            with self.subTest(text=text):
+                self.assertFalse(rule_selector._heading_only(text))
+        # «Нийт: 05 оюутан» is a count; only a zero-padded number alone on its line numbers a list (review).
+        self.assertTrue(value_supported('Хэдэн оюутантай вэ?', 'Нийт: 05 оюутан'))
+        # The where-question pair is only for «… байр» (review).
+        self.assertTrue(rule_selector.topic_covered('Захирлын өрөө хаана вэ?', 'Захирал Б.Бат. Ажлын өрөө: 508 тоот, 5-р давхар.'))
+        # «Оюутны байр хаана байдаг вэ?» (a dormitory) is not a contest's «1-р байр: … оюутан».
+        self.assertEqual(rule_selector.phrase_pair('Оюутны байр хаана байдаг вэ?'), ('оюутан', 'байр'))
+        self.assertFalse(rule_selector.topic_covered('Оюутны байр хаана байдаг вэ?',
+                                                     '1-р байр: ЦЭИ-2 ангийн оюутан Л.Эрдэмбаяр\n2-р байр: МИ-4 ангийн оюутан'))
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -614,6 +635,24 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertEqual(path.answer('2 давхарт юу байдаг вэ?')['reason_code'], 'reception_floor_unknown')
         self.assertEqual(path.answer('Хоёр давхарт юу байдаг вэ?')['reason_code'], 'reception_floor_unknown')
         self.assertFalse(path.recognizes('Энэ тоот хаана вэ?'))
+
+    def test_round14_room_word_term_break_and_lesson_length(self):
+        timetable = tuple(Lesson('mon', time, 'Г-%d' % index, '30%d' % (index % 9), 'Б.Багш', 'Математик')
+                          for index in range(20) for time in ('08:00-09:30', '09:35-11:05', '13:20-14:50'))
+        tables = ReceptionTables(rooms=(Room(3, '301'),), staff=(), classes=(), timetable=timetable,
+                                 timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7),
+                                 term_end=date(2026, 12, 25), holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # W04-R07: «тоот өрөө» together.
+        self.assertEqual(path.answer('301 тоот өрөө хэддүгээр давхарт вэ?')['answer'], '301 өрөө: 3-р давхар.')
+        # The break's own dates are not recorded: the term's end and where to ask (review).
+        self.assertEqual(path.answer('Улирлын амралт хэзээ эхлэх вэ?')['answer'],
+                         'Ресепшний хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл 2026-12-25-нд дуусна. '
+                         'Амралтын яг хугацааг сургалтын албанаас тодруулна уу.')
+        self.assertFalse(path.recognizes('Зуны амралт хэзээ эхлэх вэ?'))
+        self.assertEqual(path.answer('Хичээл хэдэн минут үргэлжилдэг вэ?')['answer'],
+                         'Ресепшний хуваарийн хүснэгтээр нэг хичээл ихэвчлэн 90 минут, хичээлийн хооронд 5 минутын завсарлагатай; '
+                         '11:05–13:20 хооронд 135 минут (08:00-09:30, 09:35-11:05, 13:20-14:50).')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

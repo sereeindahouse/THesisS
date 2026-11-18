@@ -254,6 +254,13 @@ def _count_supported(stems, text, strict=False, stative=False, per_year=False):
         # A share stands right before «хувь» («21.6 хувь», «45 хувьд хүрсэн»); «Тус 2 сургуулийн
         # хувьд» (as for the two schools) counts schools, not percent (round 10, review).
         window = tokens[index + 1:index + (2 if percent else 3 if strict else 4)]
+        # «04» alone on its line before «Оюутан бүрийн эрх ашгийг …» numbers a list item (round 14:
+        # «Хэдэн оюутантай вэ?»); «Нийт: 05 оюутан» is a count (review).
+        if re.fullmatch(r'0\d', token):
+            start = matches[index].start()
+            stop = text.find('\n', start)
+            line = text[text.rfind('\n', 0, start) + 1:stop if stop >= 0 else len(text)].strip()
+            ordinal = ordinal or bool(re.fullmatch(r'0\d[./)]?', line))
         if (re.fullmatch(_NUMBER, token) and not ordinal and not (strict and in_range(index))
                 and any(counted(following) for following, _ in window)
                 and not (stative and any(_PAST_VERB.search(word) for word, _ in tokens[index + 1:index + 5]))):

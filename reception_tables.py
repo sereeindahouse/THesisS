@@ -652,7 +652,7 @@ class ReceptionAnswerPath:
         text = query.strip().rstrip('?!？.').strip()
         patterns = (
             ('office_full', r'(.{1,120}?) хаана байдаг вэ\?\s*Хэдэн цагт ажилладаг вэ'),
-            ('room_floor', r'([^\s?!,;/]{1,120}) тоот хэддүгээр давхарт (?:байдаг |байна )?вэ'),
+            ('room_floor', r'([^\s?!,;/]{1,120}) тоот (?:өрөө )?хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             # Round 13: «508 тоот хаана вэ?» (also said in words: «таван зуун найм тоот»).
             ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
@@ -681,6 +681,10 @@ class ReceptionAnswerPath:
             ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
                           r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
             ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
+            # Round 14: «Улирлын амралт хэзээ эхлэх вэ?» was answered with the curriculum page: the term's end.
+            ('term_break', r'(?:энэ )?(?:улирлын|өвлийн) амралт хэзээ (эхл\w*|эхэл\w*)(?: вэ)?'),
+            # Round 14: «Хичээл хэдэн минут үргэлжилдэг вэ?» showed the admission timeline.
+            ('lesson_length', r'(?:нэг )?(хичээл|завсарлага)(?: нь)? хэдэн минут(?: (?:үргэлжилдэг|үргэлжлэх|байдаг|байх))?(?: вэ)?'),
             # 11/17 (5): the school day's lesson times, read from the whole timetable.
             ('bell_schedule', r'хичээл(?:үүд)? хэдэн цаг(?:т|аас) (эхэл\w*|эхл\w*|дуус\w*|тар\w*)(?: вэ)?'),
             # Round 9: «Хичээлийн хуваарь хаанаас харах вэ?» — the class timetable is shown here, by class.
@@ -912,6 +916,17 @@ class ReceptionAnswerPath:
             return 'office', found[0], found[1]
         group = next((group for group in self.tables.classes if _key(group.group) == name), None)
         return ('class', group, None) if group is not None else None
+
+    def _common_slots(self):
+        """(usual lesson minutes, {time: interval}, the usual-length times many classes share, in order).
+        The usual length is a double period; half and joined periods are left out."""
+        lessons = self.tables.timetable
+        slots = {lesson.time: lesson.interval for lesson in lessons}
+        counts = Counter(lesson.time for lesson in lessons)
+        usual = Counter(lesson.interval[1] - lesson.interval[0] for lesson in lessons).most_common(1)[0][0]
+        common = sorted((time for time, (start, end) in slots.items() if end - start == usual and counts[time] >= 20),
+                        key=lambda time: slots[time][0])
+        return usual, slots, common
 
     def _group_named(self, value):
         if self.tables is None:
@@ -1272,17 +1287,38 @@ class ReceptionAnswerPath:
             lessons = list(self.tables.timetable)
             if not lessons or not self.tables.timetable_complete:
                 return missing('reception_timetable_incomplete')
-            slots = {lesson.time: lesson.interval for lesson in lessons}
-            counts = Counter(lesson.time for lesson in lessons)
-            # The usual lesson length (a double period); half and joined periods are left out.
-            usual = Counter(lesson.interval[1] - lesson.interval[0] for lesson in lessons).most_common(1)[0][0]
-            common = sorted((time for time, (start, end) in slots.items() if end - start == usual and counts[time] >= 20),
-                            key=lambda time: slots[time][0])
+            _, slots, common = self._common_slots()
             return reply('Ресепшний хуваарийн хүснэгтээр хичээл ' + _clock(min(start for start, _ in slots.values()))
                          + '-д эхэлж, хамгийн оройдоо ' + _clock(max(end for _, end in slots.values())) + '-д дуусна.'
                          + (' Ихэвчлэн: ' + ', '.join(common) + '.' if common else '')
                          + ' Анги, өдөр бүрийн хуваарь өөр; тухайн ангийн өдрийн хуваарийг асууж болно.',
                          'timetable', 'reception_bell_schedule')
+        if intent == 'lesson_length':
+            if not self.tables.timetable or not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            usual, slots, common = self._common_slots()
+            if not common:
+                return missing('reception_lookup_missing')
+            # Only slots that follow each other; two shift patterns may overlap (review).
+            gaps = [(slots[later][0] - slots[earlier][1], earlier, later) for earlier, later in zip(common, common[1:])
+                    if slots[later][0] >= slots[earlier][1]]
+            if _key(value).startswith('завсарлага') and not gaps:
+                return missing('reception_lookup_missing')
+            short = Counter(gap for gap, _, _ in gaps).most_common(1)[0][0] if gaps else None
+            long = [(gap, earlier, later) for gap, earlier, later in gaps if short is not None and gap > short]
+            text = 'Ресепшний хуваарийн хүснэгтээр нэг хичээл ихэвчлэн ' + str(usual) + ' минут'
+            if short is not None:
+                text += ', хичээлийн хооронд ' + str(short) + ' минутын завсарлагатай'
+            for gap, earlier, later in long[:1]:
+                text += '; ' + _clock(slots[earlier][1]) + '–' + _clock(slots[later][0]) + ' хооронд ' + str(gap) + ' минут'
+            return reply(text + ' (' + ', '.join(common) + ').', 'timetable', 'reception_lesson_length')
+        if intent == 'term_break':
+            if not (self.tables.calendar_bound and self.tables.term_start and self.tables.term_end):
+                return missing('reception_calendar_unknown')
+            # The break's own dates are not recorded; only this term's end is (review, round 14).
+            return reply('Ресепшний хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл '
+                         + self.tables.term_end.isoformat() + '-нд дуусна. Амралтын яг хугацааг сургалтын албанаас тодруулна уу.',
+                         'timetable', 'reception_term_break')
         if intent == 'term_dates':
             if not (self.tables.calendar_bound and self.tables.term_start and self.tables.term_end):
                 return missing('reception_calendar_unknown')
