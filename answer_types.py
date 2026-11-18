@@ -29,12 +29,14 @@ _RANK_VALUE = re.compile(r'\d{1,3}\s*-?\s*(?:р|дугаар|дүгээр)\s+б�
                          r'(?:тэргүүн|тусгай|шилдэг)\s+байр|(?:алт|мөнгө|хүрэл)\w*\s+медаль|аварга|'
                          r'(?<!\w)[ivx]+\s+зэрэг\w*\s+(?:диплом|шагнал)', re.I)
 # A floor in digits («3-р давхар») or in words («гуравдугаар давхар»).
-_FLOOR = (r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*давхар|'
+_FLOOR = (r'\d{1,2}[ \t]*-?[ \t]*(?:р|дугаар|дүгээр)?[ \t]*давхар|'
           r'(?:' + _ORDINAL_WORDS + r'|арван\s*нэг|арван\s*хоёр)(?:дугаар|дүгээр)\s+давхар')
 # A place inside the campus: a room, a floor, a building or block («2-р байрны А корпус»),
 # or a street address (review 11/17 (5)). «4-р байр … эзэллээ» is a contest ranking, not
 # building 4 (round 9: «Хүний нөөц хаана вэ?» was answered with a speech-contest result).
-_PLACE_VALUE = re.compile(r'(?<!\d)\d{2,4}\s*(?:тоот|-?р\s+өрөө|өрөө)|(?:өрөө|тоот)\s*[:№#]?\s*\d{2,4}(?!\d)|'
+# Round 19: a room number and its word on one line («өрөө: 508»); the next line's «06» numbers a floor plan's
+# list («05 / Хурлын өрөө / 06 / Уншлагын танхим»), it is no room.
+_PLACE_VALUE = re.compile(r'(?<!\d)\d{2,4}[ \t]*(?:тоот|-?р[ \t]+өрөө|өрөө)|(?:өрөө|тоот)[ \t]*[:№#]?[ \t]*\d{2,4}(?!\d)|'
                           r'(?<!\w)(?:корпус|блок)\w*|\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)\s+байр(?:ны|анд|нд)?(?!\w)'
                           r'(?!(?:\s+\w+){0,3}\s+эзэл(?:сэн|лээ|жээ|ж|в|сний)(?!\w))|'
                           r'\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*хороо|гудамж\w*|' + _FLOOR, re.I)
@@ -135,9 +137,10 @@ def expected_value(query):
     # «Хүний нөөцийн алба хаана байдаг вэ?»: where an office or room is, inside the building
     # (a room number or a floor), not «Японд хаана дадлага хийдэг» (11/17 (5)). «Хүний нөөц хаана
     # вэ?» names the office without «алба» (round 9: a Japanese speech-contest page was shown).
-    # Round 17: also a job interview («Ярилцлага хаана болох вэ?» showed the career centre's steps).
+    # Round 17: also a job interview («Ярилцлага хаана болох вэ?» showed the career centre's steps); round 19:
+    # the student council («Оюутны зөвлөл хаана байдаг вэ?» showed what it does).
     if re.search(r'(?:алба|өрөө|төв|танхим|кабинет|лаборатори|номын\s+сан|нөөц|нягтлан(?:\s+бодогч)?|оффис|'
-                 r'ярилцлага)\w*\s+хаана(?!\w)', q):
+                 r'ярилцлага|зөвлөл)\w*\s+хаана(?!\w)', q):
         return 'place', ()
     # «хэдий хугацаанд» (over what period), «хэдийд» (when), «хэдийнээс» (since when) ask for a date.
     if re.search(r'(?<!\w)хэзээ(?!\w)|хэдний\s+өдөр|хэдэн\s+сарын|ямар\s+өдөр|хэдэн\s+он(?:д|ы)?(?!\w)|'

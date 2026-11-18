@@ -569,6 +569,7 @@ class ReceptionAnswerPath:
     """Exact-name, closed-intent reception lookup. Disabled unless configured."""
     def __init__(self, tables=None, *, enabled=False, error=None):
         self.tables, self.enabled, self.error = tables, enabled is True, error
+        self._subjects = {}   # _subject_teachers by asked value: one timetable scan per question (review)
 
     @classmethod
     def from_config(cls, root):
@@ -711,7 +712,7 @@ class ReceptionAnswerPath:
             # Round 12: «Б.Сэлмаа багш ямар хичээл заадаг вэ?» — the subjects in the published timetable.
             ('teacher_subjects', r'(.{1,120}?) багш (?:(?:ямар(?: ямар)?|юу) хичээл (?:заадаг|ордог|заах|орох)|юу заадаг) (?:вэ|бэ)'),
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
-            ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана вэ'),
+            ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана (?:байдаг |байна )?вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
             # 11/17 (5): a named day («маргааш», «даваа гарагт»); the published timetable only.
             ('teacher_day', r'(.{1,120}?) багш (өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)'
@@ -737,6 +738,11 @@ class ReceptionAnswerPath:
             # Round 15: «Математикийн багш хэн бэ?», «Физикийн хичээл хэн заадаг вэ?» — the published timetable.
             ('subject_teachers', r'(.{2,60}?) хичээл(?:ийг)? хэн (?:заадаг|заах|ордог|орох) (?:вэ|бэ)'),
             ('subject_teachers', r'(.{2,60}?) багш(?: нар)? хэн(?: хэн)? (?:вэ|бэ)'),
+            # Round 19: «Англи хэлний багш нар хаана суудаг вэ?» asked which department; their recorded rooms.
+            ('subject_teacher_rooms', r'(.{2,60}?) багш(?: нар)?(?:ын|ийн)?(?: (?:ажлын )?өрөө)? хаана (?:байдаг |байна |байрладаг )?'
+                                      r'(?:вэ|бэ)'),
+            # Round 19: «Карьер хөгжлийн төв хэн хариуцдаг вэ?» — the staff the table records for an office.
+            ('office_staff', r'(.{2,80}?)(?:ыг|ийг|г)? (?:хэн|ямар ажилтан) (?:хариуцдаг|хариуцах|хариуцаж байна) (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?) нэр (?:нь )?(?:юу|хэн) (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?)(?:ыг|ийг|г) хэн гэдэг (?:вэ|бэ)'),
             # Round 12: a post holder's school e-mail («Захирал хэн бэ?» then «Имэйл нь?» -> «Захирал имэйл»).
@@ -806,8 +812,10 @@ class ReceptionAnswerPath:
         if extra is not None and extra[0] in ('role_holder', 'role_name', 'role_meet'):
             holders = self._role_holders(extra[1], extra[0] == 'role_meet')
             return any(self._match(query)) or (len(holders) == 1 if extra[0] == 'role_meet' else bool(holders))
-        if extra is not None and extra[0] in ('subject_teachers', 'room_now', 'room_day'):
+        if extra is not None and extra[0] in ('subject_teachers', 'subject_teacher_rooms', 'room_now', 'room_day'):
             return any(self._match(query)) or self._claims(extra)
+        if extra is not None and extra[0] == 'office_staff':
+            return any(self._match(query)) or bool(self._office_staff(extra[1]))
         if extra is not None and extra[0] == 'floor_rooms':
             return _floor_number(extra[1]) is not None and bool(self.tables and self.tables.rooms)
         if extra is not None and extra[0] == 'role_email':
@@ -942,13 +950,18 @@ class ReceptionAnswerPath:
         words = re.findall(r'[а-яөүё]+', _key(value))
         found = [room for room in self.tables.rooms
                  if words and re.findall(r'[а-яөүё]+', _key(room.purpose or ''))[-len(words):] == words]
-        return found if 1 <= len(found) <= 3 else []
+        # Round 19: «Багш нарын өрөө хаана вэ?» — seven rooms, most of them a department's; up to eight when
+        # the rooms name at least two departments, which then tell them apart («Анги» names none).
+        return (found if 1 <= len(found) <= 3 or len(found) <= 8 and len({room.department for room in found if room.department}) >= 2
+                and sum(not room.department for room in found) <= 1 else [])
 
     def _purpose_reply(self, rooms):
         # Rooms grouped under their own recorded purpose («Гадаад хэлний кабинет», «Хэлний кабинет»).
         groups = {}
+        labelled = len({room.department for room in rooms}) > 1
         for room in rooms:
-            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + floor_text(room.floor))
+            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + floor_text(room.floor)
+                                                       + (' (' + room.department + ')' if labelled and room.department else ''))
         return '; '.join(purpose + ': ' + '; '.join(places) for purpose, places in groups.items()) + '.'
 
     def _place(self, value):
@@ -983,7 +996,7 @@ class ReceptionAnswerPath:
         intent, value = extra
         if self.tables is None or not self.tables.timetable:
             return False
-        if intent == 'subject_teachers':
+        if intent in ('subject_teachers', 'subject_teacher_rooms'):
             return bool(self._subject_teachers(value))
         if intent in ('room_now', 'room_day'):
             return self._room_named(value if intent == 'room_now' else value[0]) is not None
@@ -1018,9 +1031,13 @@ class ReceptionAnswerPath:
         «Англи хэл», «Техникийн Англи хэл»); none for a department, class or office («Механик тэнхимийн»)."""
         # A department, class or office is no subject; whole words, so «Албан хэрэг хөтлөлт» or
         # «Курсын төсөл» (subjects) stay (review).
-        if self.tables is None or re.search(r'(?<!\w)(?:тэнхим\w*|анги(?:йн)?|алба(?:ны|нд|д)?|\d+\s*-?\s*р\s+курс\w*)(?!\w)',
-                                            value or '', re.I):
+        # A person named with an initial («Д.Мэргэн») is no subject either, though «мэргэ» starts «Мэргэжлийн
+        # англи хэл» (review, round 19).
+        if self.tables is None or re.search(r'(?<!\w)(?:тэнхим\w*|анги(?:йн)?|алба(?:ны|нд|д)?|\d+\s*-?\s*р\s+курс\w*)(?!\w)|'
+                                            r'(?<![\w.])[А-ЯӨҮЁ]\.\s?[А-ЯӨҮЁа-яөүё]', value or '', re.I):
             return {}
+        if value in self._subjects:
+            return self._subjects[value]
         stems = []
         for word in re.findall(r'[а-яөүёa-z]+', _key(value)):
             stem = re.sub(r'(?:ийн|ын|ний|ны|н)$', '', word) if len(word) > 4 else word
@@ -1033,7 +1050,37 @@ class ReceptionAnswerPath:
             words = re.findall(r'[а-яөүёa-z]+', _key(lesson.subject))
             if lesson.subject and lesson.teacher and all(any(word.startswith(stem) for word in words) for stem in stems):
                 found.setdefault(lesson.subject, set()).add(lesson.teacher)
-        return {subject: sorted(teachers) for subject, teachers in found.items()}
+        self._subjects[value] = {subject: sorted(teachers) for subject, teachers in found.items()}
+        return self._subjects[value]
+
+    def _subject_rooms(self, value):
+        """«Англи хэлний багш нар хаана суудаг вэ?» (round 19): the teachers of the subjects holding the asked
+        words, with the rooms the staff table records for them."""
+        found = self._subject_teachers(value)
+        teachers = list(dict.fromkeys(name for names in found.values() for name in names))
+        places = []
+        for name in teachers[:8]:
+            room = self._room_of(self._staff_named(name))
+            places.append(name + ' — ' + (room.name + ' өрөө, ' + floor_text(room.floor) if room else 'өрөө бүртгэгдээгүй'))
+        seen = {}
+        for subject in found:
+            seen.setdefault(_key(subject), subject)
+        subjects = list(seen.values())
+        return ('Бүртгэсэн хуваарьт ' + ', '.join(subjects[:3]) + (' гэх мэт' if len(subjects) > 3 else '')
+                + ' заадаг багш нарын ажлын өрөө: ' + '; '.join(places) + (' гэх мэт' if len(teachers) > 8 else '')
+                + '. Одоо тэнд байгааг батлахгүй.')
+
+    def _office_staff(self, value):
+        """Staff whose recorded unit holds the asked office («Карьер хөгжлийн төв» is in «Гадаад харилцаа, карьер
+        хөгжлийн төв»), all of one unit; none for a short or ambiguous name (round 19)."""
+        key = re.sub(r'\s+', ' ', _key(value))
+        if self.tables is None or len(key) < 5:
+            return []
+        # Whole words («лийн төв» names nothing), review.
+        within = re.compile(r'(?<!\w)' + re.escape(key) + r'(?!\w)')
+        people = [person for person in self.tables.staff
+                  if person.department and within.search(re.sub(r'\s+', ' ', _key(person.department)))]
+        return people if len({_key(person.department) for person in people}) == 1 else []
 
     def _common_slots(self):
         """(usual lesson minutes, {time: interval}, the usual-length times many classes share, in order).
@@ -1225,8 +1272,27 @@ class ReceptionAnswerPath:
             elif person.email:
                 text += ' Сургуулийн имэйл: ' + person.email + '.'
             return reply(text, 'staff', 'reception_role_meet' if intent == 'role_meet' else 'reception_role_holder')
-        if intent in ('subject_teachers', 'room_now', 'room_day') and not self._claims(extra):
+        if intent in ('subject_teachers', 'subject_teacher_rooms', 'room_now', 'room_day') and not self._claims(extra):
             return self._answer_legacy(query, now=now)
+        if intent == 'subject_teacher_rooms':
+            return reply(self._subject_rooms(value), 'staff', 'reception_subject_teacher_rooms')
+        if intent == 'office_staff':
+            people = self._office_staff(value)
+            if not people:
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            # The unit's head answers «who is responsible» for a department of twenty teachers (review).
+            heads = [person for person in people if re.search(r'эрхлэгч|дарга|захирал|менежер', person.role or '', re.I)]
+            shown = (heads or people)[:6]
+            roles = {}
+            for person in shown:
+                roles.setdefault(person.role or 'ажилтан', []).append(person.name)
+            rooms = [room for room in dict.fromkeys(self._room_of(person) for person in shown) if room is not None]
+            more = len(heads or people) - len(shown)
+            return reply(people[0].department + ' — бүртгэлд заасан ' + ('хариуцагч' if heads else 'ажилтан') + ': '
+                         + '; '.join(', '.join(names) + ' (' + role + ')' for role, names in roles.items())
+                         + (' гэх мэт ' + str(len(heads or people)) + ' хүн' if more > 0 else '')
+                         + ('. Ажлын өрөө: ' + ', '.join(room.name + ' (' + floor_text(room.floor) + ')' for room in rooms) if rooms else '')
+                         + '.', 'staff', 'reception_office_staff')
         if intent == 'subject_teachers':
             found = self._subject_teachers(value)
             subjects = sorted(found.items())
@@ -1380,6 +1446,9 @@ class ReceptionAnswerPath:
                          + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_teacher_subjects')
         if intent.startswith('teacher_'):
             person = next((person for person in self.tables.staff if _key(person.name) == _key(value)), None)
+            if person is None and intent == 'teacher_room' and self._subject_teachers(value):
+                # «Англи хэлний багшийн өрөө хаана вэ?» names a subject, not a teacher (round 19).
+                return reply(self._subject_rooms(value), 'staff', 'reception_subject_teacher_rooms')
             if person is None:
                 return missing('reception_teacher_not_found')
             if intent == 'teacher_now':

@@ -382,6 +382,13 @@ class AnchorBindingTests(unittest.TestCase):
         self.assertFalse(value_supported('Элсэлт хэзээ эхэлнэ вэ?', 'ШМТК — Элсэлт 2026'))
         self.assertTrue(value_supported('Сургууль хэзээ байгуулагдсан бэ?', 'Сургууль 2014 онд байгуулагдсан.'))
 
+    def test_round19_a_floor_plans_list_numbers_are_no_rooms(self):
+        # «Хурлын өрөө» and, on the next line, a list number «06» is no room number; «өрөө 809» on one line is.
+        self.assertFalse(value_supported('Хурлын танхим хаана вэ?', '593 м² талбай\n05\nХурлын өрөө\n06\nУншлагын танхим'))
+        self.assertTrue(value_supported('Хурлын танхим хаана вэ?', 'Хурлын танхим: өрөө 809'))
+        # Where the student council is asks for a place, not what it does.
+        self.assertEqual(expected_value('Оюутны зөвлөл хаана байдаг вэ?'), ('place', ()))
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -852,6 +859,48 @@ class ReceptionWordingTests(unittest.TestCase):
         # A class's timetable asked without a question word: the week's lessons with their rooms.
         self.assertEqual(path.answer('КУ-2 ангийн хуваарь')['answer'],
                          'КУ-2 — бүртгэсэн долоо хоногийн хуваарь: даваа 08:00 Хими (612). Хуваарь өөрчлөгдсөн байж болно.')
+
+    def test_round19_teachers_rooms_subject_teachers_and_office_staff(self):
+        tables = ReceptionTables(
+            rooms=(Room(3, '304', 'Багш нарын өрөө', 'Барилга, дэд бүтцийн инженерийн тэнхим'), Room(4, '408', 'Багш нарын өрөө'),
+                   Room(6, '605', 'Багш нарын өрөө', 'Механик инженерийн тэнхим'), Room(10, '1007', 'Карьер хөгжлийн төв')),
+            staff=(Staff(name='А.Багш', department='Ерөнхий эрдмийн тэнхим', room='408'), Staff(name='Б.Багш', department='Ерөнхий эрдмийн тэнхим'),
+                   Staff(name='В.Ажилтан', department='Гадаад харилцаа, карьер хөгжлийн төв', room='1007', role='Карьерын мэргэжилтэн')),
+            classes=(), timetable=(Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'А.Багш', 'Англи хэл'),
+                                   Lesson('tue', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Техникийн англи хэл')),
+            timetable_complete=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # The teachers' rooms of several departments: the departments tell them apart.
+        self.assertEqual(path.answer('Багш нарын өрөө хаана вэ?')['answer'],
+                         'Багш нарын өрөө: 304 өрөө, 3-р давхар (Барилга, дэд бүтцийн инженерийн тэнхим); 408 өрөө, 4-р давхар; '
+                         '605 өрөө, 6-р давхар (Механик инженерийн тэнхим).')
+        # The teachers of a subject with their recorded rooms; a named teacher keeps their own office.
+        expected = ('Бүртгэсэн хуваарьт Англи хэл, Техникийн англи хэл заадаг багш нарын ажлын өрөө: А.Багш — 408 өрөө, '
+                    '4-р давхар; Б.Багш — өрөө бүртгэгдээгүй. Одоо тэнд байгааг батлахгүй.')
+        for query in ('Англи хэлний багш нар хаана байдаг вэ?', 'Англи хэлний багшийн өрөө хаана вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['answer'], expected)
+        self.assertEqual(path.answer('А.Багш багшийн өрөө хаана вэ?')['reason_code'], 'reception_teacher_office')
+        # Who staffs an office; a short or unknown name is left to the website.
+        self.assertEqual(path.answer('Карьер хөгжлийн төв хэн хариуцдаг вэ?')['answer'],
+                         'Гадаад харилцаа, карьер хөгжлийн төв — бүртгэлд заасан ажилтан: В.Ажилтан (Карьерын мэргэжилтэн). '
+                         'Ажлын өрөө: 1007 (10-р давхар).')
+        self.assertFalse(path.recognizes('Номын сан хэн хариуцдаг вэ?'))
+        # Review: «… багшийн өрөө хаана байдаг вэ?» too; a person named with an initial is no subject, though
+        # «мэргэ» starts «Мэргэжлийн англи хэл»; a department's head answers who is responsible.
+        self.assertEqual(path.answer('Англи хэлний багшийн өрөө хаана байдаг вэ?')['answer'], expected)
+        self.assertEqual(path.answer('А.Багш багшийн өрөө хаана байдаг вэ?')['reason_code'], 'reception_teacher_office')
+        named = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(Staff(name='Д.Мэргэн', department='Ерөнхий эрдмийн тэнхим'),),
+                                                    classes=(), timetable=(Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'А.Багш',
+                                                                                   'Мэргэжлийн англи хэл'),)), enabled=True)
+        self.assertEqual(named._subject_teachers('Д.Мэргэн'), {})
+        heads = ReceptionAnswerPath(ReceptionTables(rooms=(Room(6, '605', 'Багш нарын өрөө', 'Механик инженерийн тэнхим'),), classes=(),
+            staff=(Staff(name='Б.Эрхлэгч', department='Механик инженерийн тэнхим', room='605', role='Механик инженерийн тэнхимийн эрхлэгч'),
+                   Staff(name='В.Багш', department='Механик инженерийн тэнхим'), Staff(name='Г.Багш', department='Механик инженерийн тэнхим')),
+            timetable=()), enabled=True)
+        self.assertEqual(heads.answer('Механик инженерийн тэнхим хэн хариуцдаг вэ?')['answer'],
+                         'Механик инженерийн тэнхим — бүртгэлд заасан хариуцагч: Б.Эрхлэгч (Механик инженерийн тэнхимийн эрхлэгч). '
+                         'Ажлын өрөө: 605 (6-р давхар).')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
