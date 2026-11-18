@@ -114,12 +114,60 @@ _TELL_ME = r'(?:хэлж\s+өгөөч|хэлээч|хэлж\s+өгнө\s+үү|х
 _ASKING = re.compile(r'(?<!\w)(?:хэзээ|хаана|хэд\w*|хэн|яаж|хэрхэн|ямар|юу|аль)(?!\w)', re.I)
 
 
+# Round 21: speech recognition writes a filler at the start («аан», «өө», «тэгээд», «нөгөө», «за») and a
+# colloquial ending («… хаана байдаг юм бэ», «… билээ», «… юм бол», «… болох юм уу»); «тэгээд захирал хэн юм
+# бэ» was answered with a news item on a Japanese college's director.
+# A filler stands alone before a space or a comma: an initial («Э.Батаа», «Ө.Болд») is no filler, and «нөгөө»
+# («the other») keeps its meaning (review).
+_FILLERS = re.compile(r'^(?:\s*(?:а+н+|ө{2,}|э{2,}|м{2,}|тэгээд|за)(?=[\s,]),?)+\s*(?=\S)', re.I)
+_SPOKEN_END = re.compile(r'(\S+)\s+(?:юм(?:\s+(бэ|вэ|бол|уу|юу|үү))?|билээ)\s*([?!.]*)\s*$', re.I)
+# «мэдэхгүй юм» (I don't know), «авах гэсэн юм» (a wish), «ямар юм бэ» (what thing) say «юм» as a statement or a noun.
+_STATEMENT_BEFORE_YUM = re.compile(r'(?:гүй|гэсэн|гэж|ямар)$', re.I)
+
+
+def last_vowel(word):
+    """The word's last vowel other than «и» (it does not set the harmony), or ''."""
+    return next((char for char in reversed(word.casefold()) if char in 'аэоөуүяеёюы'), '')
+
+
+def _particle(word, yes_no=False):
+    """The question particle a word takes: «байдаг вэ», «хэн бэ»; «байдаг уу», «бий юу», «тийм үү»."""
+    word = word.casefold()
+    if not yes_no:
+        return 'бэ' if word[-1:] in 'мнв' else 'вэ'
+    if word[-1:] in 'аэиоуөүяеёюй':
+        return 'юу'
+    return 'уу' if last_vowel(word) and last_vowel(word) in 'аоуяёюы' else 'үү'
+
+
+def strip_fillers(text):
+    """«аан номын сан …» -> «номын сан …» (round 21)."""
+    return _FILLERS.sub('', text, count=1) if isinstance(text, str) else text
+
+
+def spoken_form(text):
+    """«аан номын сан хаана байдаг юм бэ» -> «номын сан хаана байдаг вэ», «… болох юм уу» -> «… болох уу»
+    (round 21). An ending changes only in a question — a question word in its own sentence, or a yes/no
+    particle — and not after a statement («… мэдэхгүй юм», «… авах гэсэн юм»), review."""
+    text = strip_fillers(text)
+    # «нөгөө … билээ» (that … again?) recalls a thing: «нөгөө» is a filler there, not «the other» (review).
+    if re.search(r'\sбилээ\s*[?!.]*\s*$', text, re.I):
+        text = re.sub(r'^\s*нөгөө\s+(?=\S)', '', text, flags=re.I)
+    match = _SPOKEN_END.search(text)
+    if match and not _STATEMENT_BEFORE_YUM.search(match.group(1)):
+        yes_no = (match.group(2) or '').casefold() in ('уу', 'юу', 'үү')
+        sentence = re.split(r'[.?!]\s+', text[:match.start(1)] + match.group(1))[-1]
+        if yes_no or _ASKING.search(sentence):
+            text = text[:match.start()] + match.group(1) + ' ' + _particle(match.group(1), yes_no) + match.group(3)
+    return text
+
+
 def normalize_wording(text):
     """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
     давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
     both reception matchers read the result. Round 13: a room number said in words («таван зуун
     найм тоот» -> «508 тоот»), «хэд давхар вэ» (no «-т»), the typo «хана вэ»."""
-    text = _SPOKEN_ROOM.sub(_spoken_room, text)
+    text = spoken_form(_SPOKEN_ROOM.sub(_spoken_room, text))
     # Round 18: the typed «ве»/«бе», a spoken «хэд дүгээр» and a wondering «… хэзээ эхлэх бол?» in their usual
     # forms first, so the rules below see them («жилийн төлбөр хэд ве» found no answer). «бол» only in a
     # question: «Хэрэв элсэх бол» (if) stays (review).

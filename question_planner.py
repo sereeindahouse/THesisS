@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import NUMBER_UNITS, normalize_wording
+from reception_tables import NUMBER_UNITS, last_vowel, normalize_wording, spoken_form, strip_fillers
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
@@ -110,8 +110,7 @@ def _stem(word):
 def _comitative(word):
     """«зүйч» -> «зүйчтэй», «Захирал» -> «Захиралтай», «Болд» -> «Болдтой»: the word's last vowel other
     than «и» chooses the ending (round 16)."""
-    vowels = [char for char in word.casefold() if char in 'аэоөуүяеёюы']
-    last = vowels[-1] if vowels else 'э'
+    last = last_vowel(word) or 'э'
     return word + ('той' if last in 'оё' else 'тай' if last in 'аяуюы' else 'тэй')
 
 
@@ -503,9 +502,11 @@ class QuestionPlanner:
     def plan(self, query, previous=None):
         """Return parts to route; each keeps the visitor's original wording for the reply.
         ``previous``: the visitor's previous question, for an elliptical follow-up."""
-        stripped, _ = _without_courtesy(query)
+        # Round 21: a spoken question's filler and colloquial ending first («тэгээд захирал хэн юм бэ»), so the
+        # follow-up and split rules below read «захирал хэн бэ».
+        stripped = spoken_form(_without_courtesy(strip_fillers(query))[0])
         # The previous question's opening is no subject either («Сайн байна уу, сэтгэл зүйч хаана суудаг вэ?»), review.
-        previous = _without_courtesy(previous)[0] if previous else previous
+        previous = spoken_form(_without_courtesy(strip_fillers(previous))[0]) if previous else previous
         followup = self._followup(stripped, previous) if previous else None
         asked = followup['rewritten'] if followup else stripped
         originals = self._split(asked) if self.split_compound else [asked.strip()]

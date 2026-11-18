@@ -150,6 +150,22 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(parts('Түүнтэй уулзаж болох уу?', 'КУ-2 ангийн багш хэн бэ?'), ['КУ-2 ангийн багштай уулзаж болох уу?'])
         self.assertEqual(parts('Сайн байна уу, уучлаарай, номын сан хаана байдаг вэ?'), ['Номын сан хаана байдаг вэ?'])
 
+    def test_round21_spoken_questions_and_their_followups(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={}, offices=['Номын сан'], topic_keywords=['төлбөр', 'анги', 'багш'],
+                               staff=[], class_names=['КУ-2'])
+
+        def parts(query, previous=None):
+            return [part['query'] for part in plan.plan(query, previous=previous)['parts']]
+
+        # The filler and the colloquial ending go before the follow-up rules read the question.
+        self.assertEqual(parts('хэдэн цагт ажилладаг юм бэ', 'аан номын сан хаана байдаг юм бэ'), ['Номын сан хэдэн цагт ажилладаг вэ'])
+        self.assertEqual(parts('аан ку хоёр ангийн багш хэн юм бэ'), ['КУ-2 ангийн багш хэн бэ'])
+        # Review: a filler before a polite opening; a wish in its own sentence keeps the wish rule.
+        self.assertEqual(parts('Аан сайн байна уу, номын сан хаана байдаг вэ?'), ['Номын сан хаана байдаг вэ?'])
+        self.assertEqual(parts('Номын сан хаана вэ? Тодорхойлолт авах гэсэн юм'),
+                         ['Номын сан хаана вэ?', 'Номын сан Тодорхойлолт хаанаас авах вэ?'])
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],

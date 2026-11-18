@@ -936,6 +936,27 @@ class ReceptionWordingTests(unittest.TestCase):
                 self.assertEqual(path.answer(query)['answer'],
                                  'Номын сан — бүртгэлд заасан ажилтан: Х.Номч (Номын санч). Ажлын өрөө: 1006 (10-р давхар).')
 
+    def test_round21_spoken_fillers_and_colloquial_endings(self):
+        from reception_tables import normalize_wording
+        # A filler at the start and a colloquial ending, as speech recognition writes them; a statement stays.
+        for spoken, plain in (('аан номын сан хаана байдаг юм бэ', 'номын сан хаана байдаг вэ'),
+                              ('тэгээд захирал хэн юм бэ', 'захирал хэн бэ'),
+                              ('нөгөө сургалтын алба хаана байдаг билээ', 'сургалтын алба хаана байдаг вэ'),
+                              ('эмч хаана байдаг юм', 'эмч хаана байдаг вэ'),
+                              ('захиралтай уулзаж болох юм уу', 'захиралтай уулзаж болох уу'),
+                              ('энэ долоо хоногт амралтын өдөр бий юм уу', 'энэ долоо хоногт амралтын өдөр бий юу'),
+                              ('сургуулийн хаяг юу юм бэ', 'сургуулийн хаяг юу вэ'),
+                              ('Тийм юм', 'Тийм юм'), ('Ана хаана байна вэ', 'Ана хаана байна вэ'),
+                              # Review: an initial is no filler; «нөгөө» (the other) stays; «и» sets no harmony;
+                              # a statement or a noun «юм» stays; space after the mark.
+                              ('Э.Батаа багш хаана байдаг вэ', 'Э.Батаа багш хаана байдаг вэ'),
+                              ('нөгөө байр хаана байдаг вэ', 'нөгөө байр хаана байдаг вэ'),
+                              ('Тийм юм уу', 'Тийм үү'),
+                              ('Хаана байгааг нь мэдэхгүй юм', 'Хаана байгааг нь мэдэхгүй юм'),
+                              ('Ямар юм бэ', 'Ямар юм бэ'), ('хэн юм бэ? ', 'хэн бэ?')):
+            with self.subTest(spoken=spoken):
+                self.assertEqual(normalize_wording(spoken), plain)
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
