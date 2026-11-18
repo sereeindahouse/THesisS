@@ -125,6 +125,31 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(asked('Төлбөр нь?', 'Дотуур байр байдаг уу?'), 'Дотуур байр төлбөр?')
         self.assertEqual(asked('Төлбөр нь яаж төлөх вэ?', 'Дотуур байр байдаг уу?'), 'Дотуур байр төлбөр яаж төлөх вэ?')
 
+    def test_round20_courtesy_compound_parts_and_pronouns(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={}, offices=['Номын сан', 'Сургалтын алба'], topic_keywords=['төлбөр', 'анги', 'багш'],
+                               staff=[], class_names=['КУ-2'])
+
+        def parts(query, previous=None):
+            return [part['query'] for part in plan.plan(query, previous=previous)['parts']]
+
+        # A polite opening or a short self-introduction is not part of the question; a greeting alone stays.
+        self.assertEqual(parts('Уучлаарай, номын сан хаана байдаг вэ?'), ['Номын сан хаана байдаг вэ?'])
+        self.assertEqual(parts('Сайн байна уу, захиралтай уулзах гэсэн юм'), ['Захиралтай уулзах гэсэн юм'])
+        self.assertEqual(parts('Би шинэ оюутан, сургалтын алба хаана байдаг вэ?'), ['Сургалтын алба хаана байдаг вэ?'])
+        self.assertEqual(parts('Сайн байна уу'), ['Сайн байна уу'])
+        # The later part of one question reads like a follow-up of the part before it.
+        self.assertEqual(parts('Захирал хэн бэ, өрөө нь хаана вэ?'), ['Захирал хэн бэ?', 'Захирал хаана вэ?'])
+        # «Түүнтэй» (with them) is the thing just named.
+        self.assertEqual(parts('Түүнтэй уулзаж болох уу?', 'Захирал хэн бэ?'), ['Захиралтай уулзаж болох уу?'])
+        # Review: a later part with a topic of its own stays; the previous question's opening is no subject;
+        # «түүнтэй» anywhere, and the class teacher after a class-teacher question; stacked openings.
+        self.assertEqual(parts('Сургалтын алба хаана вэ, багш нар хэн бэ?'), ['Сургалтын алба хаана вэ?', 'багш нар хэн бэ?'])
+        self.assertEqual(parts('Уулзаж болох уу?', 'Сайн байна уу, сэтгэл зүйч хаана суудаг вэ?'), ['Сэтгэл зүйчтэй уулзаж болох уу?'])
+        self.assertEqual(parts('Одоо түүнтэй уулзаж болох уу?', 'Захирал хэн бэ?'), ['Захиралтай одоо уулзаж болох уу?'])
+        self.assertEqual(parts('Түүнтэй уулзаж болох уу?', 'КУ-2 ангийн багш хэн бэ?'), ['КУ-2 ангийн багштай уулзаж болох уу?'])
+        self.assertEqual(parts('Сайн байна уу, уучлаарай, номын сан хаана байдаг вэ?'), ['Номын сан хаана байдаг вэ?'])
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],
@@ -206,8 +231,9 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(plan), ['Номын сан хэддүгээр давхарт байдаг вэ?', 'ажлын цаг хэд вэ?'])
 
     def test_possessive_part_takes_the_previous_subject_without_repeating_its_noun(self):
+        # Round 20: the later part reads as a follow-up of the part before it, which drops «нь».
         plan = planner(class_groups=False).plan('КУ-2 анги хаана хичээллэдэг вэ, ангийн багш нь хэн бэ?')
-        self.assertEqual(self.queries(plan), ['КУ-2 анги хаана хичээллэдэг вэ?', 'КУ-2 ангийн багш нь хэн бэ?'])
+        self.assertEqual(self.queries(plan), ['КУ-2 анги хаана хичээллэдэг вэ?', 'КУ-2 ангийн багш хэн бэ?'])
         # With the class rules on, the inherited part then takes the closed reception wording.
         plan = planner().plan('КУ-2 анги хаана хичээллэдэг вэ, ангийн багш нь хэн бэ?')
         self.assertEqual(self.queries(plan), ['КУ-2 анги хаана хичээллэдэг вэ?', 'КУ-2 ангийн багш хэн бэ?'])

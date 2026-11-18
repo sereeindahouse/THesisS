@@ -76,6 +76,20 @@ VERB_END = re.compile(r'(?:даг|дэг|дог|дөг|на|нэ|но|нө|са�
 FOLLOWUP_ATTRIBUTES = frozenset(('утас', 'имэйл', 'цахим шуудан', 'хаяг', 'өрөө', 'давхар', 'тоот', 'байрлах',
                                  'байрладаг', 'багш', 'анги', 'бүлэг', 'хуваарь', 'уулзах', 'эрхлэгч', 'холбоо барих'))
 SPOKEN_DIGITS = NUMBER_UNITS
+# Round 20: a polite opening («Уучлаарай, …», «Сайн байна уу, …») or a short self-introduction («Би шинэ оюутан,
+# …») before the question; its comma kept the desk's lookups from reading «номын сан хаана байдаг вэ».
+COURTESY = re.compile(r'(?:\s*(?:уучлаарай|өршөөгөөрэй|сайн\s+(?:байна\s+|байцгаана\s+)?уу|байна\s+уу|надад\s+тусална\s+уу|'
+                      r'туслаач|нэг\s+юм\s+асууя|асуух\s+юм\s+байна|би\s+(?:шинэ\s+)?(?:оюутан|элсэгч|эцэг\s+эх|зочин)|'
+                      r'би\s+элсэх\s+гэсэн\s+юм)\s*[,!.]+)+\s*(?=\S)', re.I)
+
+
+def _without_courtesy(text):
+    """The question without its polite opening, and whether one was there."""
+    courtesy = COURTESY.match(text) if isinstance(text, str) else None
+    if not courtesy:
+        return text, False
+    rest = text[courtesy.end():].strip()
+    return rest[:1].upper() + rest[1:], True
 GREETING = re.compile(r'(?:сайн\s+(?:байна\s+|байцгаана\s+)?уу|баярлалаа|hello|hi)', re.I)
 # A wish to get a paper (round 9); only papers, so «Шалгалт авах …» (an exam) and «Мэдээлэл авмаар байна»
 # (broad information, which has its own clarification) stay as asked (review).
@@ -216,6 +230,13 @@ class QuestionPlanner:
             subject = self._subject(result[-1])
             possessive = re.search(r'(?<!\w)нь(?!\w)', part.casefold())
             if subject and (possessive or not self._has_topic(part)):
+                # «Захирал хэн бэ, өрөө нь хаана вэ?» (round 20): the later part as a follow-up of the one before
+                # («Захирал хаана вэ?»), as when it is asked on its own; one with a topic of its own («…, багш
+                # нар хэн бэ?») stays as asked (review).
+                followup = self._followup(part, result[-1])
+                if followup:
+                    result.append(followup['rewritten'])
+                    continue
                 subject_words = subject.split()
                 first = part.split()[0].casefold() if part.split() else ''
                 if subject_words and first[:4] == subject_words[-1].casefold()[:4]:
@@ -440,10 +461,14 @@ class QuestionPlanner:
         if re.search(r'(?<!\w)энд(?!\w)', text, re.I):
             return None
         rest = re.sub(r'\s+(?=[?!.])', '', re.sub(r'(?<!\w)(?:нь|тэнд)(?!\w)\s*', '', text, flags=re.I)).strip()
+        # «Түүнтэй уулзаж болох уу?» (round 20): «түүнтэй» (with them) is the thing just named, which then takes
+        # «-тай» whatever follows («Одоо түүнтэй …», «Түүнтэй утсаар холбогдож болох уу?», review).
+        with_them = bool(re.search(r'(?<!\w)(?:түүнтэй|тэр\s+хүнтэй)(?!\w)', rest, re.I))
+        rest = re.sub(r'\s*(?<!\w)(?:түүнтэй|тэр\s+хүнтэй)(?!\w)\s*', ' ', rest, flags=re.I).strip()
         rest = rest[:1].lower() + rest[1:]
         group = GROUP.search(previous)
         if (group and entity == group.group(1) + ' анги' and re.match(r'\s+ангийн\s+багш', previous[group.end():])
-                and re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан|байршил|давхар)', rest.casefold())):
+                and (with_them or re.match(r'(?:и-?мэйл|имэйл|мэйл|цахим|өрөө|утас|утсан|байршил|давхар)', rest.casefold()))):
             # «КУ-2 ангийн багш хэн бэ?» then «Өрөө нь хаана вэ?» / «Имэйл нь?» (round 9): the class
             # teacher's room or e-mail, not the class's own room.
             entity = group.group(1) + ' ангийн багш'
@@ -467,8 +492,8 @@ class QuestionPlanner:
             head = head[:-1] + ['багшийн']   # -> «Б.Сэлмаа багшийн имэйл юу вэ»
         elif head[-1].casefold() == 'тэнхим' and re.match(r'(?:эрхлэгч|багш|и-?мэйл|имэйл|утас)', first):
             head = head[:-1] + ['тэнхимийн']   # round 12: -> «Механик тэнхимийн эрхлэгч хэн бэ»
-        elif (re.match(r'(?:(?:яаж|хэрхэн|одоо|өнөөдөр|маргааш)\s+)?(?:уулз|холбогд)', rest.casefold())
-                and not re.search(r'утас|утсан|и-?мэйл|имэйл|мэйл|хаяг|дугаар', rest.casefold())
+        elif ((with_them or re.match(r'(?:(?:яаж|хэрхэн|одоо|өнөөдөр|маргааш)\s+)?(?:уулз|холбогд)', rest.casefold())
+                and not re.search(r'утас|утсан|и-?мэйл|имэйл|мэйл|хаяг|дугаар', rest.casefold()))
                 and head[-1].casefold() != 'анги' and not re.search(r'(?:тай|тэй|той)$', head[-1].casefold())):
             # «Сэтгэл зүйч хаана суудаг вэ?» then «Уулзаж болох уу?» (round 16): one meets or contacts
             # someone «-тай»: «Сэтгэл зүйчтэй уулзаж болох уу?», the wording the desk's lookup reads.
@@ -478,8 +503,11 @@ class QuestionPlanner:
     def plan(self, query, previous=None):
         """Return parts to route; each keeps the visitor's original wording for the reply.
         ``previous``: the visitor's previous question, for an elliptical follow-up."""
-        followup = self._followup(query, previous) if previous else None
-        asked = followup['rewritten'] if followup else query
+        stripped, _ = _without_courtesy(query)
+        # The previous question's opening is no subject either («Сайн байна уу, сэтгэл зүйч хаана суудаг вэ?»), review.
+        previous = _without_courtesy(previous)[0] if previous else previous
+        followup = self._followup(stripped, previous) if previous else None
+        asked = followup['rewritten'] if followup else stripped
         originals = self._split(asked) if self.split_compound else [asked.strip()]
         routed = list(originals)
         if len(originals) > 1:

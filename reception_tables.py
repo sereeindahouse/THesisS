@@ -110,6 +110,7 @@ def _spoken_room(match):
     return str(number) + ' ' if number is not None else match.group(0)
 
 
+_TELL_ME = r'(?:хэлж\s+өгөөч|хэлээч|хэлж\s+өгнө\s+үү|хэлнэ\s+үү|мэдэх\s+үү|мэдэх\s+бол\s+хэлээч)(?=\s*[?!.]*$)'
 _ASKING = re.compile(r'(?<!\w)(?:хэзээ|хаана|хэд\w*|хэн|яаж|хэрхэн|ямар|юу|аль)(?!\w)', re.I)
 
 
@@ -125,6 +126,12 @@ def normalize_wording(text):
     text = re.sub(r'(?<!\w)ве(?=\s*[?!.]*$)', 'вэ', text, flags=re.I)
     text = re.sub(r'(?<!\w)бе(?=\s*[?!.]*$)', 'бэ', text, flags=re.I)
     text = re.sub(r'(?<!\w)хэд(?:эн)?\s+дүгээр(?!\w)', 'хэддүгээр', text, flags=re.I)
+    # Round 20: an indirect question asks the plain one: «Номын сан хаана байдгийг хэлж өгөөч» -> «… хаана байдаг
+    # вэ», «Эмчийн өрөө хаана байгааг мэдэх үү?», «Сургалтын албаны өрөөг хэлж өгнө үү» -> «… өрөө хаана вэ».
+    if _ASKING.search(text):
+        text = re.sub(r'(?<!\w)(байд|ажиллад|байрлад)гийг\s+' + _TELL_ME, r'\1аг вэ', text, flags=re.I)
+        text = re.sub(r'(?<!\w)байгааг\s+' + _TELL_ME, 'байдаг вэ', text, flags=re.I)
+    text = re.sub(r'(?<!\w)өрөөг\s+' + _TELL_ME, 'өрөө хаана вэ', text, flags=re.I)
     if _ASKING.search(text):
         text = re.sub(r'(?<!\w)([^\W\d_]+[аэоөиу]х)\s+бол(?=\s*[?!.]*$)', r'\1 вэ', text, flags=re.I)
     text = re.sub(r'(?<!\w)хэддүгээр\s+давхар(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', 'хэддүгээр давхарт', text, flags=re.I)
@@ -674,7 +681,8 @@ class ReceptionAnswerPath:
             ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
-            ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
+            # A department's contact is its head (department_contact below), not an office's.
+            ('office_contact', r'(?!.*тэнхим)(.{1,120}?)(?:тай|тэй|той) (?:яаж|хэрхэн) холбогдох (?:вэ|бэ)'),
             ('department', r'(.{1,120}?) тэнхим(?:ийн (?:байр|өрөө|багш нарын өрөө))? хаана (?:байдаг |байна |байрладаг )?вэ'),
             # 11/17 (4): a phone question about a recorded teacher or class teacher. Staff phones
             # are never shown; as at the reception desk, the school e-mail is offered instead.
@@ -742,7 +750,9 @@ class ReceptionAnswerPath:
             ('subject_teacher_rooms', r'(.{2,60}?) багш(?: нар)?(?:ын|ийн)?(?: (?:ажлын )?өрөө)? хаана (?:байдаг |байна |байрладаг )?'
                                       r'(?:вэ|бэ)'),
             # Round 19: «Карьер хөгжлийн төв хэн хариуцдаг вэ?» — the staff the table records for an office.
-            ('office_staff', r'(.{2,80}?)(?:ыг|ийг|г)? (?:хэн|ямар ажилтан) (?:хариуцдаг|хариуцах|хариуцаж байна) (?:вэ|бэ)'),
+            ('office_staff', r'(.{2,80}?)(?:ыг|ийг|г)? (?:хэн|ямар ажилтан) (?:хариуцдаг|хариуцах|хариуцаж байна|ажилладаг) (?:вэ|бэ)'),
+            # Round 20: «Номын сангийн ажилтан хэн бэ?» — the office's recorded staff.
+            ('office_staff', r'(.{2,80}?)(?:гийн|ийн|ын|ны) ажилтан(?: нар)? хэн(?: хэн)? (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?) нэр (?:нь )?(?:юу|хэн) (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?)(?:ыг|ийг|г) хэн гэдэг (?:вэ|бэ)'),
             # Round 12: a post holder's school e-mail («Захирал хэн бэ?» then «Имэйл нь?» -> «Захирал имэйл»).
@@ -816,6 +826,10 @@ class ReceptionAnswerPath:
             return any(self._match(query)) or self._claims(extra)
         if extra is not None and extra[0] == 'office_staff':
             return any(self._match(query)) or bool(self._office_staff(extra[1]))
+        if extra is not None and extra[0] == 'office_contact':
+            # A post one person holds («Сэтгэл зүйчтэй хэрхэн холбогдох вэ?»): their school e-mail (round 20).
+            return (any(self._match(query)) or self._service(extra[1]) is not None
+                    or len(self._role_holders(extra[1], True)) == 1)
         if extra is not None and extra[0] == 'floor_rooms':
             return _floor_number(extra[1]) is not None and bool(self.tables and self.tables.rooms)
         if extra is not None and extra[0] == 'role_email':
@@ -969,7 +983,7 @@ class ReceptionAnswerPath:
         if self.tables is None:
             return None
         name = _key(re.sub(r'\s+анги(?:йн)?$', '', value.strip(), flags=re.I))
-        found = self._service(value)
+        found = self._service(value) or self._service(re.sub(r'(?:гийн|ийн|ын|ны)\s+өрөө$', '', value.strip(), flags=re.I))
         if found is not None:
             return 'office', found[0], found[1]
         group = next((group for group in self.tables.classes if _key(group.group) == name), None)
@@ -1070,12 +1084,24 @@ class ReceptionAnswerPath:
                 + ' заадаг багш нарын ажлын өрөө: ' + '; '.join(places) + (' гэх мэт' if len(teachers) > 8 else '')
                 + '. Одоо тэнд байгааг батлахгүй.')
 
+    def _email_reply(self, person, missing, reply, reason):
+        """«Н.Нямжаргал — Сэтгэл зүйч. Сургуулийн имэйл: … Ажлын өрөө: …» for a post holder, or why not."""
+        if not person.email:
+            return missing('reception_email_unknown')
+        return reply(person.name + ' — ' + person.role + '. Сургуулийн имэйл: ' + person.email + '.' + self._workplace(person),
+                     'staff', reason)
+
     def _office_staff(self, value):
         """Staff whose recorded unit holds the asked office («Карьер хөгжлийн төв» is in «Гадаад харилцаа, карьер
         хөгжлийн төв»), all of one unit; none for a short or ambiguous name (round 19)."""
         key = re.sub(r'\s+', ' ', _key(value))
         if self.tables is None or len(key) < 5:
             return []
+        # «Номын санд хэн ажилладаг вэ?»: the office without its dative («санд» -> «сан», «албанд» -> «алба»), review.
+        units = [_key(person.department) for person in self.tables.staff if person.department]
+        key = next((candidate for candidate in (key, key[:-1] if key.endswith(('д', 'т')) else '',
+                                                key[:-2] if key.endswith('нд') else '')
+                    if len(candidate) >= 5 and any(candidate in unit for unit in units)), key)
         # Whole words («лийн төв» names nothing), review.
         within = re.compile(r'(?<!\w)' + re.escape(key) + r'(?!\w)')
         people = [person for person in self.tables.staff
@@ -1191,11 +1217,7 @@ class ReceptionAnswerPath:
             people = self._role_holders(value)
             if len(people) != 1:
                 return self._answer_legacy(query, now=now)
-            person = people[0]
-            if not person.email:
-                return missing('reception_email_unknown')
-            return reply(person.name + ' — ' + person.role + '. Сургуулийн имэйл: ' + person.email + '.' + self._workplace(person),
-                         'staff', 'reception_role_email')
+            return self._email_reply(people[0], missing, reply, 'reception_role_email')
         if intent == 'class_hours':
             group = self._group_named(value)
             if group is None:
@@ -1394,6 +1416,13 @@ class ReceptionAnswerPath:
             rooms = self._purpose_rooms(value) if found is None and intent == 'office_floor' else []
             if rooms:
                 return reply(self._purpose_reply(rooms), 'rooms', 'reception_purpose_lookup')
+            if intent == 'office_contact' and (found is None or not found[1].contact or found[1].contact in {'—', '-'}):
+                # Round 20: «Сэтгэл зүйчтэй хэрхэн холбогдох вэ?» — a post one person holds, also when a room carries
+                # its name, by the post itself: one staff member of an office is not its contact (review).
+                holders = [person for person in self._role_holders(value, found is None)
+                           if _key(value) in _key(person.role) or _key(person.role) in _key(value)]
+                if len(holders) == 1:
+                    return self._email_reply(holders[0], missing, reply, 'reception_role_contact')
             if found is None:
                 code = re.fullmatch(r'(.{1,40}?)\s+өрөө', value.strip())
                 if intent == 'office_floor' and code:

@@ -902,6 +902,40 @@ class ReceptionWordingTests(unittest.TestCase):
                          'Механик инженерийн тэнхим — бүртгэлд заасан хариуцагч: Б.Эрхлэгч (Механик инженерийн тэнхимийн эрхлэгч). '
                          'Ажлын өрөө: 605 (6-р давхар).')
 
+    def test_round20_indirect_questions_contacts_and_office_staff(self):
+        from reception_tables import normalize_wording
+        # An indirect question asks the plain one.
+        for asked, plain in (('Номын сан хаана байдгийг хэлж өгөөч', 'Номын сан хаана байдаг вэ'),
+                             ('Эмчийн өрөө хаана байгааг мэдэх үү?', 'Эмчийн өрөө хаана байдаг вэ?'),
+                             ('Сургалтын албаны өрөөг хэлж өгнө үү', 'Сургалтын албаны өрөө хаана вэ'),
+                             ('Захирлын өрөө хэдэн давхарт байдгийг хэлээч', 'Захирлын өрөө хэддүгээр давхарт байдаг вэ')):
+            with self.subTest(asked=asked):
+                self.assertEqual(normalize_wording(asked), plain)
+        tables = ReceptionTables(
+            rooms=(Room(4, '406', services=(Service('Сургалтын алба', '', ''),)), Room(4, '409', services=(Service('Сэтгэл зүйч', '', ''),)),
+                   Room(10, '1006', 'Номын сан')),
+            staff=(Staff(name='Н.Зүйч', department='Оюутны алба', room='409', role='Сэтгэл зүйч', email='zuich@nmct.edu.mn'),
+                   Staff(name='Х.Номч', department='Номын сан', room='1006', role='Номын санч')),
+            classes=(), timetable=())
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # A post one person holds: their school e-mail and room, also when a room carries the post's name.
+        self.assertEqual(path.answer('Сэтгэл зүйчтэй хэрхэн холбогдох вэ?')['answer'],
+                         'Н.Зүйч — Сэтгэл зүйч. Сургуулийн имэйл: zuich@nmct.edu.mn. Ажлын өрөө: 409, 4-р давхар.')
+        self.assertEqual(path.answer('Сургалтын албатай яаж холбогдох вэ?')['reason_code'], 'reception_contact_unknown')
+        # «Сургалтын албаны өрөө» names the office; «Номын сангийн ажилтан хэн бэ?» its recorded staff.
+        self.assertEqual(path.answer('Сургалтын албаны өрөө хаана вэ?')['answer'], 'Сургалтын алба: 406 өрөө, 4-р давхар.')
+        # Review: one staff member of an office is not its contact; a yes/no «… байгааг мэдэх үү?» stays as asked.
+        lone = ReceptionAnswerPath(ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '', ''),)),),
+                                                   staff=(Staff(name='А.Б', department='Сургалтын алба', role='Арга зүйч',
+                                                                email='ab@nmct.edu.mn'),), classes=(), timetable=()), enabled=True)
+        self.assertEqual(lone.answer('Сургалтын албатай яаж холбогдох вэ?')['reason_code'], 'reception_contact_unknown')
+        self.assertEqual(normalize_wording('Номын сан нээлттэй байгааг мэдэх үү?'), 'Номын сан нээлттэй байгааг мэдэх үү?')
+        self.assertEqual(normalize_wording('Номын сан хаана байрладгийг хэлж өгөөч'), 'Номын сан хаана байрладаг вэ')
+        for query in ('Номын сангийн ажилтан хэн бэ?', 'Номын сан хэн ажилладаг вэ?', 'Номын санд хэн ажилладаг вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['answer'],
+                                 'Номын сан — бүртгэлд заасан ажилтан: Х.Номч (Номын санч). Ажлын өрөө: 1006 (10-р давхар).')
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
