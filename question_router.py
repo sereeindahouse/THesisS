@@ -176,6 +176,16 @@ def personal_record_request(query):
     """
     if not isinstance(query, str):
         return False
+    # Round 22: «Оюутны дүнг харж болох уу?», «Оюутан дүнгээ харж болох уу?» — whether a student's grades or
+    # attendance can be seen here at all (it joined a language-level paragraph with an olympiad's «дүнгийн
+    # мэдээлэл»). Published results (an admission exam, an olympiad) are no personal record; «мэдээлэх» (to
+    # announce) is no lookup (review).
+    for clause in re.split(r'[!?;\n]', query.casefold()):
+        if (re.search(r'(?<!\w)(?:оюутн\w*|оюутан|сурагч\w*|хүүхд\w*|ангийн)(?!\w)', clause)
+                and re.search(r'(?<!\w)(?:дүн|ирц)(?:г|гээ|ийг|ээ)?(?!\w)', clause)
+                and re.search(r'(?<!\w)(?:хар(?:ж|ах)|үз(?:эж|эх)|шалг(?:аж|ах)|мэд(?:эж|эх))\s+болох(?:гүй)?\s+(?:уу|юу)(?!\w)', clause)
+                and not re.search(r'элсэлт|шалгалт|олимпиад|тэмцээн', clause)):
+            return True
     owner = (r'(?<!\w)(?:миний|минийх|надад|би|бидний|өөрийн|түүний|'
              r'оюутны|сурагчийн|суралцагчийн)(?!\w)|'
              r'(?<!\w)манай\s+(?:ангийн|бүлгийн|курсын)(?!\w)|'

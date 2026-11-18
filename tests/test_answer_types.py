@@ -389,6 +389,45 @@ class AnchorBindingTests(unittest.TestCase):
         # Where the student council is asks for a place, not what it does.
         self.assertEqual(expected_value('Оюутны зөвлөл хаана байдаг вэ?'), ('place', ()))
 
+    def test_round22_other_institutions_unknown_departments_and_student_records(self):
+        import re
+        from question_router import personal_record_service_request
+        from rag_runtime import ChatRAG
+
+        def out_of_scope(query):
+            return bool(ChatRAG.OUT_OF_SCOPE.fullmatch(re.sub(r'\s+', ' ', query.casefold()).strip(' ?!.')))
+
+        # Another institution's fee or admission is not this school's; a contest held there is a school question.
+        for query in ('Монгол Улсын Их Сургуулийн төлбөр хэд вэ?', 'ШУТИС-ийн элсэлт хэзээ эхлэх вэ?', 'АШУҮИС-ийн төлбөр хэд вэ?',
+                      'ШУТИС-ийн захирлын нэр хэн бэ?', 'муис ийн төлбөр хэд вэ'):
+            with self.subTest(query=query):
+                self.assertTrue(out_of_scope(query))
+        for query in ('ШУТИС-ийн тэмцээнд манай баг ямар байр эзэлсэн бэ?', 'Сургуулийн төлбөр хэд вэ?',
+                      'МУИС-ийн төлбөрөөс манайх хямд уу?', 'ШУТИС-ийн бүртгэлтэй олимпиад хэзээ вэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(out_of_scope(query))
+        # Whether a student's grades can be seen here; published results are no personal record.
+        from question_router import personal_record_request
+        for query in ('Оюутны дүнг харж болох уу?', 'Оюутан дүнгээ харж болох уу?'):
+            with self.subTest(query=query):
+                self.assertTrue(personal_record_request(query))
+        for query in ('Элсэлтийн шалгалтын дүнг харж болох уу?', 'Оюутны дүн мэдээлж болох уу?', 'Оюутны байр харж болох уу?'):
+            with self.subTest(query=query):
+                self.assertFalse(personal_record_request(query) or personal_record_service_request(query))
+        # Only a word takes a hyphenated genitive: «N3-ийн», «20-ны» make no new pair (review).
+        # A hyphenated genitive is a genitive; a department the school does not have must be named as one.
+        self.assertEqual(rule_selector.genitive_pairs('ШУТИС-ийн элсэлт хэзээ эхлэх вэ?'), (('шутис', 'элсэлт'),))
+        self.assertEqual(rule_selector.genitive_pairs('N3-ийн түвшин хэзээ шаардах вэ?'), ())
+        for text, answered in (('ШУТИС-ийн Барилга, Архитектурын Сургуулийн санаачилгаар тэмцээн болсон. Тэнхимийн оюутнууд оролцов.', False),
+                               ('ШУТИС-ийн Архитектурын Сургуулийн тэнхимийн оюутнууд 3-р давхарт, 305 тоотод цугларав.', False),
+                               ('Архитектурын инженерийн тэнхим 305 тоотод байрладаг.', True),
+                               ('Архитектурын тэнхим 3-р давхарт, 305 тоотод байрладаг.', True)):
+            with self.subTest(text=text):
+                sources = [dict(source_id='s1', url='https://nmct.edu.mn/news/x', title='Мэдээ', text=text)]
+                result = rule_selector.bounded_lexical_selection('Архитектурын тэнхим хаана байдаг вэ?', evidence_units(sources),
+                                                                 sources=sources)
+                self.assertEqual(result['abstained'], not answered)
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -956,6 +995,26 @@ class ReceptionWordingTests(unittest.TestCase):
                               ('Ямар юм бэ', 'Ямар юм бэ'), ('хэн юм бэ? ', 'хэн бэ?')):
             with self.subTest(spoken=spoken):
                 self.assertEqual(normalize_wording(spoken), plain)
+
+    def test_round22_lessons_on_a_weekday(self):
+        timetable = (Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Хими'),)
+        path = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable, timetable_complete=True),
+                                   enabled=True)
+        self.assertEqual(path.answer('Ням гарагт хичээл ордог уу?')['answer'], 'Үгүй. Ням гарагт бүртгэсэн хуваарьт хичээл байхгүй.')
+        self.assertEqual(path.answer('Даваа гарагт хичээлтэй юу?')['answer'],
+                         'Тийм. Даваа гарагт бүртгэсэн хуваарьт 1 анги хичээлтэй. Амралт, баярын өдөр өөр байж болно.')
+        # A partial timetable never says a day has no lessons.
+        partial = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable), enabled=True)
+        self.assertEqual(partial.answer('Ням гарагт хичээл ордог уу?')['reason_code'], 'reception_timetable_incomplete')
+        # Review: the other spelling and the dative; outside the term the stored timetable does not apply.
+        for query in ('Ням гаригт хичээл ордог уу?', 'Нямд хичээлтэй юу?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['reason_code'], 'reception_weekday_no_lessons')
+        bound = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable, timetable_complete=True,
+                                                    calendar_bound=True, term_start=date(2026, 9, 1), term_end=date(2026, 12, 31),
+                                                    holidays_reviewed=True), enabled=True)
+        self.assertEqual(bound.answer('Даваа гарагт хичээлтэй юу?', now=datetime(2027, 2, 1, 10, 0))['reason_code'],
+                         'reception_outside_term')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

@@ -817,6 +817,10 @@ class ReceptionAnswerPath:
                            r'хэлнэ үү|хэлээч))?'),
             # Round 12: «Маргааш амралтын өдөр үү?», «Өнөөдөр хичээлтэй юу?» — the school calendar.
             ('calendar_day', r'(өнөөдөр|маргааш) (?:амралтын өдөр|амралт|хичээлтэй|хичээл орох|хичээл орно)(?: (?:үү|уу|юу))?'),
+            # Round 22: «Ням гарагт хичээл ордог уу?» showed the office hours and a contest report; the timetable's
+            # lessons on that weekday.
+            ('weekday_lessons', r'(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?: гар[аи]гт|д) (?:хичээл (?:ордог|байдаг|орох|орно|'
+                                r'байна|байгаа)|хичээлтэй|хичээллэдэг) (?:уу|юу|үү)'),
             # Round 16: «Энэ долоо хоногт амралтын өдөр бий юу?» joined a news date with an internship's
             # «амралтаар». The recorded holidays of this week; before place_exists.
             ('week_holidays', r'энэ (долоо хоног|7 хоног)(?:т|ийн)? (?:амралтын өдөр|амралт|баярын өдөр)'
@@ -896,6 +900,8 @@ class ReceptionAnswerPath:
             return self._calendar_known() and bool(self.tables.timetable)
         if extra is not None and extra[0] == 'week_holidays':
             return self._calendar_known()
+        if extra is not None and extra[0] == 'weekday_lessons':
+            return bool(self.tables and self.tables.timetable)
         if extra is not None and extra[0] == 'timetable_where':
             return bool(self.tables and self.tables.timetable)
         if extra is not None and extra[0] in ('teacher_phone', 'class_teacher_phone'):
@@ -1642,6 +1648,22 @@ class ReceptionAnswerPath:
             return reply('Ресепшний хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл '
                          + self.tables.term_end.isoformat() + '-нд дуусна. Амралтын яг хугацааг сургалтын албанаас тодруулна уу.',
                          'timetable', 'reception_term_break')
+        if intent == 'weekday_lessons':
+            if not self.tables.timetable:
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            weekday = _DAY_LOOKUP[_key(value)]
+            # Outside the term the stored timetable does not apply, as for «Өнөөдөр хичээлтэй юу?» (review).
+            if self._calendar_known() and isinstance(now, datetime) and self._calendar_reason(now) == 'reception_outside_term':
+                return reply('Одоо хичээлийн улирлаас гадуур (' + self.tables.term_start.isoformat() + ' – '
+                             + self.tables.term_end.isoformat() + ').', 'timetable', 'reception_outside_term')
+            groups = {lesson.group for lesson in self.tables.timetable if lesson.day == _DAYS[weekday]}
+            day = _MN_DAYS[weekday].capitalize() + ' гарагт'
+            if not groups:
+                if not self.tables.timetable_complete:
+                    return missing('reception_timetable_incomplete')
+                return reply('Үгүй. ' + day + ' бүртгэсэн хуваарьт хичээл байхгүй.', 'timetable', 'reception_weekday_no_lessons')
+            return reply('Тийм. ' + day + ' бүртгэсэн хуваарьт ' + str(len(groups)) + ' анги хичээлтэй. Амралт, баярын '
+                         'өдөр өөр байж болно.', 'timetable', 'reception_weekday_lessons')
         if intent == 'week_holidays':
             if not self._calendar_known():
                 return self._answer_legacy(query, now=now)   # not claimed (recognizes)

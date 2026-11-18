@@ -286,11 +286,13 @@ def genitive_pairs(query):
     terms = key_terms(query)
     # The asked value's own word («… албаны өрөө хаана вэ?») is bound by the value check instead.
     asked = VALUE_WORDS.get((expected_value(query) or (None, ()))[0], ())
-    words = re.findall(r'\w+', normalise_units(query, numerals=True))
+    # «ШУТИС-ийн элсэлт»: a hyphenated genitive is one word (round 22).
+    words = re.findall(r'(?<![\w-])[^\W\d_]{3,}-(?:ийн|ын|ний|ны)(?!\w)|\w+', normalise_units(query, numerals=True))
     pairs = []
     for first, second in zip(words, words[1:]):
-        if not _GENITIVE.fullmatch(first) or first in _PRONOUN_GENITIVES:
+        if not _GENITIVE.fullmatch(first.replace('-', '')) or first in _PRONOUN_GENITIVES:
             continue
+        first = first.split('-')[0]
         modifier = next((term for term in terms if _has_term(term, {first})), None)
         head = next((term for term in terms if term != modifier and _has_term(term, {second})), None)
         if modifier and head and not any(head.startswith(word) for word in asked):
@@ -534,6 +536,27 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
     asked_department = _department_stem(query)
     page_department = {source.get('source_id'): _page_department(source.get('url')) for source in sources or []}
     pairs = genitive_pairs(query)
+    # «Архитектурын тэнхим хаана байдаг вэ?» (round 22): a department the school's six do not hold must be named
+    # as such in the text or its page's name («архитектурын … тэнхим» together), not «Архитектурын Сургууль» on
+    # another department's page.
+    # The name stands right before «тэнхим» (or with «инженерийн», «ухааны» between); a general modifier
+    # («мэргэжлийн тэнхимүүд») names no department (review).
+    named_department = next((pair for pair in pairs if pair[1].startswith('тэнхим') and not pair[0].startswith(
+        ('мэргэж', 'инженер', 'сургал'))), None) if asked_department is None else None
+    names_department = {}
+
+    def department_named(unit_id):
+        if unit_id not in names_department:
+            from answer_types import normalise_units
+            words = re.findall(r'\w+', normalise_units(texts_by_id[unit_id] + '\n' + titles.get(source_of.get(unit_id), ''),
+                                                       numerals=True))
+            names_department[unit_id] = any(
+                _has_term(named_department[0], {word}) and (
+                    (index + 1 < len(words) and _has_term(named_department[1], {words[index + 1]}))
+                    or (index + 2 < len(words) and words[index + 1].startswith(('инженер', 'ухаан', 'технолог'))
+                        and _has_term(named_department[1], {words[index + 2]})))
+                for index, word in enumerate(words))
+        return names_department[unit_id]
 
     def holds_pair(unit_id, first, second):
         # The unit read with its page's own name, as for coverage, and with fleeting vowels:
@@ -580,6 +603,9 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
                 # «Барилгын тэнхим ямар лабораторитой вэ?» was answered with the Механик department
                 # page's labs, its «Барилга» found on the department list (round 11).
                 candidate = dict(accepted=False, reason='other_department')
+            elif (candidate['accepted'] and not requirements and named_department
+                    and not any(department_named(unit_id) for unit_id in ids)):
+                candidate = dict(accepted=False, reason='unknown_department')
             elif (candidate['accepted'] and not requirements and len(ids) > 1 and pairs
                     and not all(any(holds_pair(unit_id, *pair) for unit_id in ids) for pair in pairs)):
                 # «Эцэг эхийн хурал хэзээ болдог вэ?»: no joined paragraph says «эцэг эхийн … хурал» (round 16).
@@ -668,7 +694,8 @@ class RuleSelectionGenerator:
                 result['expected_value'] = (expected_value(query) or ('number', ()))[0]
                 return finish('requested_value_not_in_selection')
             return finish('selection_not_relevant' if any(row['reason'] in {
-                'selection_not_relevant', 'no_single_unit_covers_question'}
+                'selection_not_relevant', 'no_single_unit_covers_question', 'other_department', 'pair_split',
+                'unknown_department'}   # round 22: these too say «not found», not «could not verify»
                 for row in selection['checked_subsets']) else 'selector_abstained')
         output = selection['output']
         result.update(claims=output['claims'], generated=True, proposed_unit_ids=selection['selected_unit_ids'],
