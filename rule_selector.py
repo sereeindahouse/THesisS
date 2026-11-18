@@ -482,6 +482,7 @@ _DEPARTMENT_WORDS = (('хими', 'chemical'), ('барилг', 'civil'), ('бү
 _DEPARTMENT_PAGE = re.compile(r'/departments/(chemical|civil|computer-science|electrical|general-department|mechanical)(?![\w-])')
 
 
+@lru_cache(maxsize=1024)
 def _department_stem(text):
     """The one department a question names by the words right before «тэнхим» («Барилгын тэнхим» ->
     civil, «Цахилгааны тэнхим» -> electrical); None for the school, «Хамгийн олон оюутантай тэнхим»

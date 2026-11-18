@@ -41,12 +41,17 @@ _PLACE_VALUE = re.compile(r'(?<!\d)\d{2,4}\s*(?:тоот|-?р\s+өрөө|өрө�
 _FLOOR_VALUE = re.compile(_FLOOR, re.I)
 _TIME_VALUE = re.compile(r'(?<!\d)\d{1,2}[:.]\d{2}(?!\d)|(?<!\d)\d{1,2}\s*(?:-\s*\d{1,2}\s*)?цаг', re.I)
 # A month.day pair needs a two-digit day; «2.5 сая» (a decimal) and «2-3 оюутан» (a range) are no dates.
-_DATE_VALUE = re.compile(
-    r'(?<!\d)(?:19|20)\d{2}(?!\d)|'
+_DATE_DAY = (
     r'(?<![\d.,])(?:0?[1-9]|1[0-2])[./](?:0[1-9]|[12]\d|3[01])(?![\d.,])(?!\s*(?:сая|мянга|тэрбум|хувь|төгрөг|м²))|'
     r'(?<!\d)\d{1,2}\s*-?\s*(?:р|дугаар|дүгээр)?\s*сар|(?:' + _ORDINAL_WORDS + r'|арван\s*нэг|арван\s*хоёр)'
     r'(?:дугаар|дүгээр)\s+сар|(?<!\w)(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?:\s+гараг\w*)?(?!\w)|'
-    r'(?<!\w)(?:хавар|намар|өвөл|зун)\w*|\d+\s*(?:хоног|долоо\s+хоног|сар|жил)\w*\s+(?:дотор|дараа|өмнө|хойш)', re.I)
+    r'\d+\s*(?:хоног|долоо\s+хоног|сар|жил)\w*\s+(?:дотор|дараа|өмнө|хойш)')
+_DATE_VALUE = re.compile(r'(?<!\d)(?:19|20)\d{2}(?!\d)|' + _DATE_DAY + r'|(?<!\w)(?:хавар|намар|өвөл|зун)\w*', re.I)
+# Finer than a year or a season: «08/13», «4 дүгээр сар», «2026.08.15», «баасан гараг» (round 18).
+_DATE_FINER = re.compile(r'(?<!\d)(?:19|20)\d{2}[./-]\d{1,2}[./-]\d{1,2}(?!\d)|' + _DATE_DAY, re.I)
+# «Бүртгэл хэзээ дуусах вэ?», «… хэзээ эхэлнэ вэ?» (group 1: an event to come) or «… хэзээ болдог вэ?» (one
+# that recurs).
+_UPCOMING = re.compile(r'(?<!\w)хэзээ\s+(?:\w+\s+){0,2}?\w+(?:([аэоөиу]х|н[аэоө])|д[аэоө]г)(?!\w)', re.I)
 _SEASON = re.compile(r'(?<!\w)(?:хавар|намар|өвөл|зун)\w*', re.I)
 _YEAR = r'(?<!\d)(?:19|20)\d{2}(?!\d)'
 _STOP_AFTER_COUNT = frozenset('вэ бэ уу үү юу юм нийт ба болон эсвэл'.split())
@@ -337,6 +342,12 @@ def value_supported(query, text, strict=False):
             for year in asked_years:
                 shown = re.sub(r'(?<!\d)' + year + r'(?!\d)', ' ', shown)
             shown = _SEASON.sub(' ', shown)
+        # An event to come or one that recurs needs a day or a month: the page title's «Элсэлт 2026» does
+        # not say when registration closes, nor does a season (round 18); one that recurs may be a season
+        # («Шалгалтаа намар авдаг»), a past event («хэзээ байгуулагдсан») a year.
+        upcoming = _UPCOMING.search(normalise_units(query))
+        if upcoming:
+            return bool(_DATE_FINER.search(shown) or (upcoming.group(1) is None and _SEASON.search(shown)))
         return bool(_DATE_VALUE.search(shown))
     if kind == 'name':
         # The capital of a name is the point: read the text as written, not case-folded.

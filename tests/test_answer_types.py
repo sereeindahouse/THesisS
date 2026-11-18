@@ -357,6 +357,31 @@ class AnchorBindingTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertEqual(normalize_wording(query), 'Хоолны газар хаана байдаг вэ?')
 
+    def test_round18_typed_forms_and_dates_of_events_to_come(self):
+        from reception_tables import normalize_wording
+        from rag_runtime import common_question_alias
+        # «ве», «хэд дүгээр», a wondering «… бол?» read as the usual forms; a conditional «бол» stays.
+        self.assertEqual(normalize_wording('жилийн төлбөр хэд ве'), 'жилийн төлбөр хэд вэ')
+        self.assertEqual(normalize_wording('Номын сан хэд дүгээр давхарт вэ?'), 'Номын сан хэддүгээр давхарт вэ?')
+        self.assertEqual(normalize_wording('Элсэлт хэзээ эхлэх бол?'), 'Элсэлт хэзээ эхлэх вэ?')
+        self.assertEqual(normalize_wording('Хэрэв ирэх бол ирээрэй'), 'Хэрэв ирэх бол ирээрэй')
+        # The forms come first, so the rules after them see them; «бол» only in a question (review).
+        self.assertEqual(normalize_wording('Номын сан хэд дүгээр давхар вэ'), 'Номын сан хэддүгээр давхарт вэ')
+        self.assertEqual(normalize_wording('Номын сан хана ве'), 'Номын сан хаана вэ')
+        for text in ('Хэрэв элсэх бол', 'Энэ ах бол'):
+            with self.subTest(text=text):
+                self.assertEqual(normalize_wording(text), text)
+        self.assertEqual(common_question_alias('Нэг жилд хэдэн төгрөг төлөх вэ?'), common_question_alias('Жилийн төлбөр хэд вэ?'))
+        # An event to come needs a day or a month, not the page title's year; a past one may be a year.
+        self.assertFalse(value_supported('Бүртгэл хэзээ дуусах вэ?', 'ШМТК — Элсэлт 2026\nЦахим бүртгэлээ үүсгээд хураамжаа төлнө.'))
+        for text in ('Бүртгэл хаагдах 8/13 16:00 цаг', 'Ярилцлагын шалгалт 2026.08.15 өдөр'):
+            with self.subTest(text=text):
+                self.assertTrue(value_supported('Бүртгэл хэзээ дуусах вэ?', text))
+        # Nor a season; «эхэлнэ» is an event to come too (review).
+        self.assertFalse(value_supported('Бүртгэл хэзээ дуусах вэ?', 'Элсэлт 2026 намар'))
+        self.assertFalse(value_supported('Элсэлт хэзээ эхэлнэ вэ?', 'ШМТК — Элсэлт 2026'))
+        self.assertTrue(value_supported('Сургууль хэзээ байгуулагдсан бэ?', 'Сургууль 2014 онд байгуулагдсан.'))
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -805,6 +830,28 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertEqual(unknown.answer('Хичээл хэзээ эхэлсэн бэ?')['reason_code'], 'reception_calendar_unknown')
         self.assertFalse(unknown.recognizes('Энэ долоо хоногт амралтын өдөр бий юу?'))
         self.assertIsNone(unknown.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 18, 10, 0)))
+
+    def test_round18_department_by_short_name_and_class_timetable(self):
+        tables = ReceptionTables(
+            rooms=(Room(-1, 'В6', 'Туршилтын өрөө', 'Механик инженерийн тэнхим'), Room(6, '605', 'Багш нарын өрөө', 'Механик инженерийн тэнхим'),
+                   Room(3, '304', 'Багш нарын өрөө', 'Барилга, дэд бүтцийн инженерийн тэнхим')),
+            staff=(), classes=(ClassGroup(group='КУ-2', room='612'),),
+            timetable=(Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Хими'),), timetable_complete=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # «Механик тэнхим» is «Механик инженерийн тэнхим»; the teachers' room comes first; «байдаг» too.
+        for query in ('Механик тэнхим хаана вэ?', 'Механик тэнхим хаана байдаг вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['answer'],
+                                 'Тэнхимд хамаарах бүртгэлтэй өрөө: 605 (6-р давхар; Багш нарын өрөө); В6 (хонгилын давхар; '
+                                 'Туршилтын өрөө). Тэнхимийн ганц төв байр гэж батлахгүй.')
+        self.assertIn('304 (3-р давхар', path.answer('Барилгын тэнхимийн өрөө хаана вэ?')['answer'])
+        # The teachers' room when that is asked (W04-R08); an unrecorded department goes on to the website (review).
+        self.assertNotIn('В6', path.answer('Механик инженерийн тэнхимийн багш нарын өрөө хаана вэ?')['answer'])
+        self.assertFalse(path.recognizes('Цахилгааны тэнхим хаана байдаг вэ?'))
+        self.assertIsNone(path.answer('Цахилгааны тэнхим хаана байдаг вэ?'))
+        # A class's timetable asked without a question word: the week's lessons with their rooms.
+        self.assertEqual(path.answer('КУ-2 ангийн хуваарь')['answer'],
+                         'КУ-2 — бүртгэсэн долоо хоногийн хуваарь: даваа 08:00 Хими (612). Хуваарь өөрчлөгдсөн байж болно.')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

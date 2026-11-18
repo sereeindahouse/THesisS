@@ -110,12 +110,23 @@ def _spoken_room(match):
     return str(number) + ' ' if number is not None else match.group(0)
 
 
+_ASKING = re.compile(r'(?<!\w)(?:хэзээ|хаана|хэд\w*|хэн|яаж|хэрхэн|ямар|юу|аль)(?!\w)', re.I)
+
+
 def normalize_wording(text):
     """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
     давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
     both reception matchers read the result. Round 13: a room number said in words («таван зуун
     найм тоот» -> «508 тоот»), «хэд давхар вэ» (no «-т»), the typo «хана вэ»."""
     text = _SPOKEN_ROOM.sub(_spoken_room, text)
+    # Round 18: the typed «ве»/«бе», a spoken «хэд дүгээр» and a wondering «… хэзээ эхлэх бол?» in their usual
+    # forms first, so the rules below see them («жилийн төлбөр хэд ве» found no answer). «бол» only in a
+    # question: «Хэрэв элсэх бол» (if) stays (review).
+    text = re.sub(r'(?<!\w)ве(?=\s*[?!.]*$)', 'вэ', text, flags=re.I)
+    text = re.sub(r'(?<!\w)бе(?=\s*[?!.]*$)', 'бэ', text, flags=re.I)
+    text = re.sub(r'(?<!\w)хэд(?:эн)?\s+дүгээр(?!\w)', 'хэддүгээр', text, flags=re.I)
+    if _ASKING.search(text):
+        text = re.sub(r'(?<!\w)([^\W\d_]+[аэоөиу]х)\s+бол(?=\s*[?!.]*$)', r'\1 вэ', text, flags=re.I)
     text = re.sub(r'(?<!\w)хэддүгээр\s+давхар(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', 'хэддүгээр давхарт', text, flags=re.I)
     text = re.sub(r'(?<!\w)((?:өрөө|алба|сан|төв|танхим|кабинет|лаборатори)\w*\s+)хэд(?:эн)?\s+давхар'
                   r'(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', r'\1хэддүгээр давхарт', text, flags=re.I)
@@ -663,7 +674,7 @@ class ReceptionAnswerPath:
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
             ('office_contact', r'(.{1,120}?)тай яаж холбогдох вэ'),
-            ('department', r'(.{1,120}?) тэнхим хаана вэ'),
+            ('department', r'(.{1,120}?) тэнхим(?:ийн (?:байр|өрөө|багш нарын өрөө))? хаана (?:байдаг |байна |байрладаг )?вэ'),
             # 11/17 (4): a phone question about a recorded teacher or class teacher. Staff phones
             # are never shown; as at the reception desk, the school e-mail is offered instead.
             # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact
@@ -737,6 +748,9 @@ class ReceptionAnswerPath:
             # «хэзээ эхлэх» (when the term begins) is not a lesson hour (review).
             ('class_hours', r'(.{1,120}?) анги(?:йн)? хичээл(?:үүд)? (?:хэдэн цагт|хэдэн цагаас) (?:дуус|тар|эхэл|эхл)\w*'
                             r'(?: (?:вэ|бэ))?'),
+            # Round 18: «КУ-2 ангийн хуваарь» — the timetable asked as at the desk, without a question word.
+            ('class_week', r'(.{1,120}?) анги(?:йн)? (?:хичээлийн )?хуваарь(?: (?:юу|ямар) (?:вэ|бэ)| (?:харуулна уу|харуулаач|'
+                           r'хэлнэ үү|хэлээч))?'),
             # Round 12: «Маргааш амралтын өдөр үү?», «Өнөөдөр хичээлтэй юу?» — the school calendar.
             ('calendar_day', r'(өнөөдөр|маргааш) (?:амралтын өдөр|амралт|хичээлтэй|хичээл орох|хичээл орно)(?: (?:үү|уу|юу))?'),
             # Round 16: «Энэ долоо хоногт амралтын өдөр бий юу?» joined a news date with an internship's
@@ -799,8 +813,11 @@ class ReceptionAnswerPath:
         if extra is not None and extra[0] == 'role_email':
             holders = self._role_holders(extra[1])
             return any(self._match(query)) or len(holders) == 1
-        if extra is not None and extra[0] == 'class_hours':
+        if extra is not None and extra[0] in ('class_hours', 'class_week'):
             return any(self._match(query)) or self._group_named(extra[1]) is not None and bool(self.tables.timetable)
+        if extra is not None and extra[0] == 'department':
+            # Claimed only with a recorded room; another department goes on to the website (review, round 18).
+            return any(self._match(query)) or bool(self._department_rooms(extra[1]))
         if extra is not None and extra[0] == 'teacher_subjects':
             person = self._staff_named(extra[1])
             return any(self._match(query)) or person is not None and any(
@@ -944,6 +961,20 @@ class ReceptionAnswerPath:
             return 'office', found[0], found[1]
         group = next((group for group in self.tables.classes if _key(group.group) == name), None)
         return ('class', group, None) if group is not None else None
+
+    def _department_rooms(self, value):
+        """Rooms recorded for a department, its teachers' room first; also by a short name («Механик тэнхим»
+        is «Механик инженерийн тэнхим», round 18). Affiliated rooms, not proof of a unique department office.
+        The department words are rule_selector's (one table, cached)."""
+        from rule_selector import _department_stem
+
+        def unit(text):
+            return _key(re.sub(r'\s*тэнхим\w*$', '', text.strip(), flags=re.I))
+        asked = _department_stem(value + ' тэнхим')
+        return sorted((room for room in (self.tables.rooms if self.tables else ()) if room.department and (
+            unit(value) in {unit(room.department), unit(room.department) + 'ы'}
+            or asked is not None and _department_stem(room.department) == asked)),
+            key=lambda room: 'багш нарын өрөө' not in (room.purpose or '').casefold())
 
     def _claims(self, extra):
         """Whether the tables can answer a timetable intent (round 15). recognizes() and answer() share it:
@@ -1133,6 +1164,27 @@ class ReceptionAnswerPath:
                 return missing('reception_timetable_incomplete' if not self.tables.timetable_complete else 'reception_lookup_missing')
             return reply(group.group + ' — бүртгэсэн хуваарийн хичээлийн цаг: ' + '; '.join(days)
                          + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_class_hours')
+        if intent == 'class_week':
+            group = self._group_named(value)
+            if group is None or not self.tables.timetable:
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            days = []
+            for weekday, day in enumerate(_DAYS):
+                lessons = sorted((lesson for lesson in self.tables.timetable
+                                  if _key(lesson.group) == _key(group.group) and lesson.day == day),
+                                 key=lambda lesson: lesson.interval)
+                # One slot's subgroups in several rooms once: «09:35 Англи хэл (408, 611, 303)».
+                slots = {}
+                for lesson in lessons:
+                    slots.setdefault((_clock(lesson.interval[0]), lesson.subject or 'хичээл'), []).append(lesson.room)
+                if slots:
+                    days.append(_MN_DAYS[weekday] + ' ' + ', '.join(
+                        time + ' ' + subject + ' (' + ', '.join(dict.fromkeys(rooms)) + ')'
+                        for (time, subject), rooms in slots.items()))
+            if not days:
+                return missing('reception_timetable_incomplete' if not self.tables.timetable_complete else 'reception_lookup_missing')
+            return reply(group.group + ' — бүртгэсэн долоо хоногийн хуваарь: ' + '; '.join(days)
+                         + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_class_week')
         if intent == 'calendar_day':
             if not self._calendar_known():
                 return missing('reception_calendar_unknown')
@@ -1300,13 +1352,12 @@ class ReceptionAnswerPath:
         if intent == 'room_floor':
             return self._answer_legacy(value + ' өрөө хаана вэ?', now=now) | {'query': query}
         if intent == 'department':
-            # These are affiliated rooms, not proof of a unique department office.
-            def unit(text):
-                return _key(re.sub(r'\s*тэнхим\w*$', '', text.strip(), flags=re.I))
-            matches = [room for room in self.tables.rooms if room.department and
-                       unit(value) in {unit(room.department), unit(room.department) + 'ы'}]
+            matches = self._department_rooms(value)
             if not matches:
-                return missing()
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            # «… тэнхимийн багш нарын өрөө хаана вэ?» asks for that room only (W04-R08).
+            if 'багш нарын өрөө' in query.casefold():
+                matches = [room for room in matches if 'багш нарын өрөө' in (room.purpose or '').casefold()] or matches
             return reply('Тэнхимд хамаарах бүртгэлтэй өрөө: ' + '; '.join(
                 room.name + ' (' + floor_text(room.floor) + '; ' + (room.purpose or 'зориулалт дутуу') + ')'
                 for room in matches) + '. Тэнхимийн ганц төв байр гэж батлахгүй.', 'rooms', 'reception_department_rooms')
