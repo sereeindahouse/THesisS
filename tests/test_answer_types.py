@@ -269,6 +269,56 @@ class AnchorBindingTests(unittest.TestCase):
         self.assertFalse(rule_selector.topic_covered('Оюутны байр хаана байдаг вэ?',
                                                      '1-р байр: ЦЭИ-2 ангийн оюутан Л.Эрдэмбаяр\n2-р байр: МИ-4 ангийн оюутан'))
 
+    def test_round16_word_families_list_numbers_how_verbs_and_split_pairs(self):
+        from answer_types import value_supported
+        # «хаяг» (an address) is not «хаягдал» (waste); «хуваан» (dividing) is not «Хувийн» (personal).
+        self.assertFalse(rule_selector._has_term('хаяг', {'хаягдлын'}))
+        self.assertTrue(rule_selector._has_term('хаяг', {'хаягаа'}))
+        self.assertFalse(rule_selector._has_term('хуваан', {'хувийн'}))
+        # The search index's own stem joins «хаягдлын» with «хаяг»: the word keeps its family.
+        self.assertFalse(rule_selector._has_term('хаяг', rule_selector._words('Хог хаягдлын менежментийг дэмжсэн оюутан')))
+        self.assertIn('хаягдлыг', rule_selector.key_terms('Хог хаягдлыг хаана хаях вэ?'))
+        self.assertFalse(value_supported('Төлбөрөө хэдэн хуваан төлж болох вэ?',
+                                         '3. Хувийн хэсэг\nТөлбөр баталгаажмагц нэвтэрч, бүртгэлээ харна.'))
+        # A list number at a line start counts nothing; a labelled count on that line still does.
+        self.assertFalse(value_supported('Хэдэн оюутантай вэ?', '3. Оюутан бүрийн эрх'))
+        self.assertTrue(value_supported('Хэдэн оюутантай вэ?', '3. Оюутны тоо: 1200'))
+        # A how-question's own verb must stand in the text when its root names the act; short roots
+        # («элс», «ав») are left alone.
+        self.assertEqual(rule_selector._how_verb_root('Цахим системд яаж нэвтрэх вэ?'), 'нэвтр')
+        self.assertEqual(rule_selector._how_verb_root('Багш нар оюутантай хэрхэн харьцдаг вэ?'), 'харьц')
+        self.assertIsNone(rule_selector._how_verb_root('Клубт яаж элсэх вэ?'))
+        self.assertFalse(rule_selector.topic_covered('Цахим системд яаж нэвтрэх вэ?', 'Цээж зургаа цахим системд оруулна.'))
+        self.assertTrue(rule_selector.topic_covered('Цахим системд яаж нэвтрэх вэ?', 'Цахим системд нэвтэрч, бүртгэлээ харна.'))
+        # One root whatever the verb's form; the act's noun names a long root's act too, but a root a
+        # topic noun shares («төл» / «төлбөр») must stand as a verb (review).
+        self.assertEqual(rule_selector._how_verb_root('Хэрхэн хичээллэдэг вэ?'), rule_selector._how_verb_root('Хэрхэн хичээллэх вэ?'))
+        self.assertTrue(rule_selector.topic_covered('Төгсөлтийн ажлыг хэрхэн хамгаалдаг вэ?', 'Төгсөлтийн ажлын хамгаалалт 6 сард болно.'))
+        self.assertFalse(rule_selector.topic_covered('Багш нар оюутантай хэрхэн харьцдаг вэ?', 'Багш нар оюутантай уулзаж харьцуулахад'))
+        self.assertFalse(rule_selector.topic_covered('Сургалтын төлбөрөө хэрхэн төлөх вэ?', 'Сургалтын төлбөр 3 сая төгрөг.'))
+        # Two joined paragraphs, one with «эцэг эхийн» and one with «хурал», do not answer; one paragraph does.
+        self.assertEqual(rule_selector.genitive_pairs('Эцэг эхийн хурал хэзээ болдог вэ?'), (('эхийн', 'хурал'),))
+        # A pronoun, or the asked value's own word (the room of «… албаны өрөө хаана вэ?»), makes no pair (review).
+        self.assertEqual(rule_selector.genitive_pairs('Таны нэр хэн бэ?'), ())
+        self.assertEqual(rule_selector.genitive_pairs('Сургалтын албаны өрөө хаана вэ?'), (('сургалт', 'албаны'),))
+        # W04-A09: «Төгсөлтийн судалгааны ажил» holds «төгсөлтийн ажлаа» (a fleeting vowel), in one paragraph.
+        query = '2024–2025 онд механикийн хэдэн оюутан төгсөлтийн ажлаа хамгаалсан бэ?'
+        sources = [dict(source_id='m', url='https://nmct.edu.mn/departments/mechanical', title='Механик инженерийн тэнхим',
+                        text='Төгсөлтийн судалгааны ажил\n2024–2025 онд 17 оюутан амжилттай хамгаалсан.\n\n'
+                             'Үйлдвэрлэлийн дадлагын ажлын байранд оюутнууд ажилласан.')]
+        self.assertFalse(rule_selector.bounded_lexical_selection(query, evidence_units(sources), sources=sources)['abstained'])
+        news = dict(source_id='s2', url='https://nmct.edu.mn/news/x', title='Мэдээ',
+                    text='Оюутны эрдэм шинжилгээний бага хурал 2025 онд болсон.')
+        for text, answered in (('Ярилцлагын шалгалтаар эцэг эхийн хамтын ажиллагааг шалгана.', False),
+                               ('Эцэг эхийн хурал 10 сарын 15-нд болно.', True)):
+            with self.subTest(text=text):
+                sources = [dict(source_id='s1', url='https://nmct.edu.mn/elselt', title='Элсэлт', text=text), news]
+                result = rule_selector.bounded_lexical_selection('Эцэг эхийн хурал хэзээ болдог вэ?', evidence_units(sources),
+                                                                 sources=sources)
+                self.assertEqual(result['abstained'], not answered)
+                if not answered:
+                    self.assertIn('pair_split', {row['reason'] for row in result['checked_subsets']})
+
     def test_a_converb_needs_its_stem(self):
         # Round 8: «хувааж» (dividing) does not cover «Хувийн» (personal); other words keep the short prefix.
         self.assertFalse(rule_selector.topic_covered(
@@ -690,6 +740,33 @@ class ReceptionWordingTests(unittest.TestCase):
                          'reception_timetable_incomplete')
         self.assertIn('09:35-11:05 (612 тоот), 11:10-12:40 (612 тоот)',
                       path.answer('Б.Багш багш өнөөдөр хаана хичээл заах вэ?', now=wednesday)['answer'])
+
+    def test_round16_term_start_and_week_holidays(self):
+        timetable = (Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Хими'),)
+        tables = ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable, timetable_complete=True,
+                                 calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+                                 holidays=(date(2026, 11, 20),), holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual(path.answer('Хичээл хэзээ эхэлсэн бэ?')['reason_code'], 'reception_term_dates')
+        self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 18, 10, 0))['answer'],
+                         'Энэ долоо хоногт (11/16–11/22) бүртгэсэн амралтын өдөр: баасан (11/20).')
+        self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 25, 10, 0))['answer'],
+                         'Энэ долоо хоногт (11/23–11/29) хуанлид бүртгэсэн амралтын өдөр байхгүй.')
+        # Days outside the term are said, and a week wholly outside it is (review).
+        self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 12, 23, 10, 0))['answer'],
+                         'Энэ долоо хоногт (12/21–12/27) хуанлид бүртгэсэн амралтын өдөр байхгүй. '
+                         'Хичээлийн улирлаас гадуур: бямба (12/26), ням (12/27).')
+        self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2027, 1, 13, 10, 0))['reason_code'],
+                         'reception_outside_term')
+        # «Хичээл хэзээ дуусах вэ?» may ask about today's lessons: it is not read as the term.
+        self.assertFalse(path.recognizes('Хичээл хэзээ дуусах вэ?'))
+        # Without reviewed term dates: the term question says so; the week question, like «Маргааш амралтын
+        # өдөр үү?», is left to the website path (review).
+        unknown = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable), enabled=True)
+        self.assertTrue(unknown.recognizes('Хичээл хэзээ эхэлсэн бэ?'))
+        self.assertEqual(unknown.answer('Хичээл хэзээ эхэлсэн бэ?')['reason_code'], 'reception_calendar_unknown')
+        self.assertFalse(unknown.recognizes('Энэ долоо хоногт амралтын өдөр бий юу?'))
+        self.assertIsNone(unknown.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 18, 10, 0)))
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

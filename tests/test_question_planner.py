@@ -92,6 +92,24 @@ class QuestionPlannerTests(unittest.TestCase):
         # «энд» (here) is the school: a new question (review).
         self.assertEqual(asked('Энд кафе байдаг уу?', 'Номын сан хаана вэ?'), 'Энд кафе байдаг уу?')
 
+    def test_round16_meeting_followups_take_the_comitative(self):
+        from question_planner import _comitative
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={}, offices=['Номын сан', 'Сэтгэл зүйч'], topic_keywords=['анги', 'багш'],
+                               staff=[], class_names=['КУ-2'])
+
+        def asked(query, previous=None):
+            return plan.plan(query, previous=previous)['parts'][0]['query']
+
+        self.assertEqual(asked('Уулзаж болох уу?', 'Сэтгэл зүйч хаана суудаг вэ?'), 'Сэтгэл зүйчтэй уулзаж болох уу?')
+        self.assertEqual(asked('Яаж холбогдох вэ?', 'Захирал хэн бэ?'), 'Захиралтай яаж холбогдох вэ?')
+        self.assertEqual(asked('Хэдэн цагт ажилладаг вэ?', 'Эмч хаана байдаг вэ?'), 'Эмч хэдэн цагт ажилладаг вэ?')
+        # A contact number, or a class, takes no «-тай» (review).
+        self.assertNotIn('зүйчтэй', asked('Холбогдох утас нь?', 'Сэтгэл зүйч хаана суудаг вэ?'))
+        self.assertNotIn('ангитай', asked('Уулзаж болох уу?', 'КУ-2 анги хаана вэ?'))
+        self.assertEqual([_comitative(word) for word in ('зүйч', 'Захирал', 'Болд', 'өрөө', 'багш', 'Зоригт')],
+                         ['зүйчтэй', 'Захиралтай', 'Болдтой', 'өрөөтэй', 'багштай', 'Зоригттой'])
+
     def test_round9_wishes_and_class_teacher_followups(self):
         plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
                                given_names={}, offices=['Номын сан'], topic_keywords=['имэйл', 'өрөө', 'анги', 'багш'],

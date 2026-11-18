@@ -680,7 +680,10 @@ class ReceptionAnswerPath:
             ('class_teacher_room', r'(.{1,120}?) ангийн багш(?:ийн (?:ажлын )?өрөө)? хаана (?:байдаг |байна )?вэ'),
             ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
                           r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
-            ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: вэ)?'),
+            ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: (?:вэ|бэ))?'),
+            # Round 16: «Хичээл хэзээ эхэлсэн бэ?» showed a unit's founding in 2014. Only the past: «Хичээл
+            # хэзээ дуусах вэ?» may ask about today's lessons.
+            ('term_dates', r'(?:энэ )?(?:хичээлийн (?:шинэ )?жил|хичээл) хэзээ (эхэлсэн)(?: (?:вэ|бэ))?'),
             # Round 14: «Улирлын амралт хэзээ эхлэх вэ?» was answered with the curriculum page: the term's end.
             ('term_break', r'(?:энэ )?(?:улирлын|өвлийн) амралт хэзээ (эхл\w*|эхэл\w*)(?: вэ)?'),
             # Round 14: «Хичээл хэдэн минут үргэлжилдэг вэ?» showed the admission timeline.
@@ -731,6 +734,10 @@ class ReceptionAnswerPath:
                             r'(?: (?:вэ|бэ))?'),
             # Round 12: «Маргааш амралтын өдөр үү?», «Өнөөдөр хичээлтэй юу?» — the school calendar.
             ('calendar_day', r'(өнөөдөр|маргааш) (?:амралтын өдөр|амралт|хичээлтэй|хичээл орох|хичээл орно)(?: (?:үү|уу|юу))?'),
+            # Round 16: «Энэ долоо хоногт амралтын өдөр бий юу?» joined a news date with an internship's
+            # «амралтаар». The recorded holidays of this week; before place_exists.
+            ('week_holidays', r'энэ (долоо хоног|7 хоног)(?:т|ийн)? (?:амралтын өдөр|амралт|баярын өдөр)'
+                              r'(?: (?:бий|байгаа|байна|байдаг|байх))? (?:юу|уу|үү)'),
             # Round 13: «2 давхарт юу байдаг вэ?», «Хоёрдугаар давхарт ямар өрөөнүүд байдаг вэ?» — the rooms table.
             ('floor_rooms', r'((?:\d{1,2}(?:-?(?:р|дугаар|дүгээр))?|[а-яөүё]+(?:дугаар|дүгээр)|[а-яөүё]+|хонгил(?:ын)?)\s+давхарт|хонгилд)\s+'
                             r'(?:юу|ямар(?:\s+ямар)?\s+(?:өрөө\w*|алба\w*|юм))\s+(?:байдаг|байна|бий)(?:\s+(?:вэ|бэ))?'),
@@ -795,6 +802,8 @@ class ReceptionAnswerPath:
                 _key(lesson.teacher) == _key(person.name) and lesson.subject for lesson in self.tables.timetable)
         if extra is not None and extra[0] == 'calendar_day':
             return self._calendar_known() and bool(self.tables.timetable)
+        if extra is not None and extra[0] == 'week_holidays':
+            return self._calendar_known()
         if extra is not None and extra[0] == 'timetable_where':
             return bool(self.tables and self.tables.timetable)
         if extra is not None and extra[0] in ('teacher_phone', 'class_teacher_phone'):
@@ -1431,6 +1440,27 @@ class ReceptionAnswerPath:
             return reply('Ресепшний хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл '
                          + self.tables.term_end.isoformat() + '-нд дуусна. Амралтын яг хугацааг сургалтын албанаас тодруулна уу.',
                          'timetable', 'reception_term_break')
+        if intent == 'week_holidays':
+            if not self._calendar_known():
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            if not isinstance(now, datetime):
+                return missing('reception_date_required')
+            monday = now.date() - timedelta(days=now.weekday())
+            week = [monday + timedelta(days=offset) for offset in range(7)]
+            span = week[0].strftime('%m/%d') + '–' + week[-1].strftime('%m/%d')
+
+            def named(days):
+                return ', '.join(_MN_DAYS[day.weekday()] + ' (' + day.strftime('%m/%d') + ')' for day in days)
+            outside = [day for day in week if not self.tables.term_start <= day <= self.tables.term_end]
+            if len(outside) == len(week):
+                return reply('Энэ долоо хоног (' + span + ') хичээлийн улирлаас гадуур (' + self.tables.term_start.isoformat()
+                             + ' – ' + self.tables.term_end.isoformat() + ').', 'timetable', 'reception_outside_term')
+            found = [day for day in week if day in self.tables.holidays]
+            text = ('Энэ долоо хоногт (' + span + ') бүртгэсэн амралтын өдөр: ' + named(found) + '.' if found
+                    else 'Энэ долоо хоногт (' + span + ') хуанлид бүртгэсэн амралтын өдөр байхгүй.')
+            if outside:
+                text += ' Хичээлийн улирлаас гадуур: ' + named(outside) + '.'
+            return reply(text, 'timetable', 'reception_week_holidays')
         if intent == 'term_dates':
             if not (self.tables.calendar_bound and self.tables.term_start and self.tables.term_end):
                 return missing('reception_calendar_unknown')

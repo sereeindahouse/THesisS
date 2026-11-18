@@ -89,6 +89,14 @@ def _stem(word):
     return word.casefold()[:5]
 
 
+def _comitative(word):
+    """«зүйч» -> «зүйчтэй», «Захирал» -> «Захиралтай», «Болд» -> «Болдтой»: the word's last vowel other
+    than «и» chooses the ending (round 16)."""
+    vowels = [char for char in word.casefold() if char in 'аэоөуүяеёюы']
+    last = vowels[-1] if vowels else 'э'
+    return word + ('той' if last in 'оё' else 'тай' if last in 'аяуюы' else 'тэй')
+
+
 def _office_stem(word):
     # «албаны» and «алба» meet at «алба»; a five-letter cut would not (11/17).
     from mongolian_morphology import light_stem
@@ -454,6 +462,12 @@ class QuestionPlanner:
             head = head[:-1] + ['багшийн']   # -> «Б.Сэлмаа багшийн имэйл юу вэ»
         elif head[-1].casefold() == 'тэнхим' and re.match(r'(?:эрхлэгч|багш|и-?мэйл|имэйл|утас)', first):
             head = head[:-1] + ['тэнхимийн']   # round 12: -> «Механик тэнхимийн эрхлэгч хэн бэ»
+        elif (re.match(r'(?:(?:яаж|хэрхэн|одоо|өнөөдөр|маргааш)\s+)?(?:уулз|холбогд)', rest.casefold())
+                and not re.search(r'утас|утсан|и-?мэйл|имэйл|мэйл|хаяг|дугаар', rest.casefold())
+                and head[-1].casefold() != 'анги' and not re.search(r'(?:тай|тэй|той)$', head[-1].casefold())):
+            # «Сэтгэл зүйч хаана суудаг вэ?» then «Уулзаж болох уу?» (round 16): one meets or contacts
+            # someone «-тай»: «Сэтгэл зүйчтэй уулзаж болох уу?», the wording the desk's lookup reads.
+            head = head[:-1] + [_comitative(head[-1])]
         return dict(rule='followup_context', previous=previous, entity=entity, rewritten=' '.join(head + [rest]))
 
     def plan(self, query, previous=None):

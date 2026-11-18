@@ -20,7 +20,10 @@ import json
 from pathlib import Path
 import re
 import time
+import unicodedata
 from urllib.parse import urlsplit
+
+from answer_types import same_family, word_family
 
 RULE_SELECTOR = 'bm25_bounded_complete_subset'
 GEMMA_SELECTOR = 'gemma_production_selector'
@@ -65,14 +68,21 @@ SHORT_QUESTION_COVERAGE = 0.85
 LONG_QUESTION_COVERAGE = 0.3
 
 
+def _stems(text):
+    """The index's terms, one word at a time; a word whose index stem belongs to another family keeps
+    its own form: the index joins «хаягдлын» (waste) with «хаяг» (an address), round 16."""
+    from website_retrieval import search_terms
+    return [stem if word_family(stem) in (None, word_family(word)) else word.casefold()
+            for word in re.findall(r'\w+', unicodedata.normalize('NFC', text)) for stem in search_terms(word)]
+
+
 @lru_cache(maxsize=4096)
 def _words(text):
     # One spelling per unit and small number («квадрат метр» = «м²», «хоёр» = «2») before comparing.
     # Cached: the same claims are checked for many candidate subsets of one answer.
     from answer_types import normalise_units
-    from website_retrieval import search_terms
     text = normalise_units(text, numerals=True)
-    return frozenset(re.findall(r'\w+', text)) | frozenset(search_terms(text))
+    return frozenset(re.findall(r'\w+', text)) | frozenset(_stems(text))
 
 
 _CONVERB = re.compile(r'\w{3,}[жч]')
@@ -82,10 +92,11 @@ def _has_term(term, words, verb_stem=False):
     # Shared prefixes stand in for Mongolian suffixes. With ``verb_stem`` (accepting a topic,
     # round 8) a converb needs its whole stem: with three letters «хувааж» (dividing) covered
     # «Хувийн» (personal), and «Төлбөрөө хувааж төлж болох уу?» was answered by a registration step.
+    # Words of another family never match (answer_types.same_family, round 16).
     size = max(3, len(term) - 3)
     if verb_stem and _CONVERB.fullmatch(term):
         size = max(size, len(term) - 1)
-    return any(word.startswith(term[:size]) for word in words)
+    return any(word.startswith(term[:size]) and same_family(term, word) for word in words)
 
 
 # Mongolian drops a stem's last short vowel before a vowel suffix (ажил → ажлаа, өдөр → өдрийн).
@@ -112,14 +123,13 @@ def key_terms(query):
 @lru_cache(maxsize=1024)
 def _all_terms(query):
     from answer_types import normalise_units
-    from website_retrieval import search_terms
     # «Шинэ Монгол Технологийн Коллежийн эрхэм зорилго» asks about the school's mission: the
     # full name names the school itself, like «сургууль», and is not a topic word.
     text = TO_DATE.sub(' ', SCHOOL_NAME.sub(' сургууль ', normalise_units(query, numerals=True)))
     # «2-р курст шилжиж орж болох уу?»: after a converb («шилжиж») «орох» only finishes the verb
     # («transfer in»), so the source's «2-р курс шилжин» need not repeat it (round 6).
     text = LIGHT_VERB.sub(r'\1', text)
-    return tuple(term for term in dict.fromkeys(search_terms(text))
+    return tuple(term for term in dict.fromkeys(_stems(text))
                  if term not in REQUEST_WORDS and term not in QUESTION_TERMS)
 
 
@@ -136,9 +146,8 @@ def heading_match(query, text):
     """A line of text that is exactly the question's key terms, i.e. a section heading
     such as «Эрхэм зорилго» for «Сургуулийн эрхэм зорилго юу вэ?»."""
     from answer_types import normalise_units
-    from website_retrieval import search_terms
     terms = set(key_terms(query))
-    return bool(terms) and any(set(search_terms(normalise_units(line, numerals=True))) == terms
+    return bool(terms) and any(set(_stems(normalise_units(line, numerals=True))) == terms
                                for line in text.splitlines())
 
 
@@ -248,6 +257,32 @@ def phrase_pair(query):
     return terms if any(j - i == 1 for i in first for j in second) else None
 
 
+_GENITIVE = re.compile(r'\w{2,}(?:ийн|ын|ний|ны)')
+_PRONOUN_GENITIVES = frozenset('миний чиний таны түүний бидний тэдний үүний тэрний энэний'.split())
+
+
+@lru_cache(maxsize=1024)
+def genitive_pairs(query):
+    """(modifier, head) key terms of «эцэг эхийн хурал», «амралтын өдөр»: a genitive word and the word
+    right after it. Two joined paragraphs, one with the modifier and one with the head, do not answer
+    such a question (round 16: «Эцэг эхийн хурал хэзээ болдог вэ?» joined an interview paragraph's
+    «эцэг эхийн» with a student conference's «хурал»)."""
+    from answer_types import VALUE_WORDS, expected_value, normalise_units
+    terms = key_terms(query)
+    # The asked value's own word («… албаны өрөө хаана вэ?») is bound by the value check instead.
+    asked = VALUE_WORDS.get((expected_value(query) or (None, ()))[0], ())
+    words = re.findall(r'\w+', normalise_units(query, numerals=True))
+    pairs = []
+    for first, second in zip(words, words[1:]):
+        if not _GENITIVE.fullmatch(first) or first in _PRONOUN_GENITIVES:
+            continue
+        modifier = next((term for term in terms if _has_term(term, {first})), None)
+        head = next((term for term in terms if term != modifier and _has_term(term, {second})), None)
+        if modifier and head and not any(head.startswith(word) for word in asked):
+            pairs.append((modifier, head))
+    return tuple(pairs)
+
+
 @lru_cache(maxsize=1024)
 def quantity_pair(query):
     """«Хоёр мэргэжил сонгож болох уу?»: a small quantity right before a topic noun, or None. The
@@ -284,8 +319,19 @@ def _near(text, first, second, distance=2):
     return any(abs(i - j) <= distance for i in left for j in right)
 
 
-_VERB_FORM = (r'(?:[аэоөиу]?х|н[аэоө]|с[аэоө]н|[жч]|[аэоө]{2}д|д[аэоө]г|т[аэоө]й|[аэоө]?гд|л[аэоө]{2}|'
+_VERB_FORM = (r'(?:[аэоөиу]?х|н[аэоө]|с[аэоө]н|[аэоөиу]?[жч]|[аэоө]{2}д|д[аэоө]г|т[аэоө]й|[аэоө]?гд|л[аэоө]{2}|'
               r'[аэоө]{2}р[аэ]й|[аэоө]р[аэ]й)')
+
+
+_ACT_NOUN = r'(?:[аэоө]?лт|[аэоө]?лга|[аэоө]{2})'
+
+
+def _root_pattern(root):
+    """«нэвтр» -> «нэвт[аэоө]?р»: a stem's last short vowel shows before a consonant ending
+    («нэвтрэх», «нэвтэрч»), round 16."""
+    if re.search(r'[^аэиоуөүяеёюыьъ]{2}$', root):
+        return re.escape(root[:-1]) + '[аэоө]?' + re.escape(root[-1])
+    return re.escape(root)
 
 
 def _issued_together(query, text, verb=ISSUE_VERB):
@@ -300,15 +346,19 @@ def _issued_together(query, text, verb=ISSUE_VERB):
 @lru_cache(maxsize=1024)
 def _how_verb_root(query):
     """The root of a «how» question's verb when a topic noun of the question shares it
-    («хэрхэн төлөх» with «төлбөр» -> «төл»), else None."""
+    («хэрхэн төлөх» with «төлбөр» -> «төл»), or when the root is long enough to name the act on its
+    own («Цахим системд яаж нэвтрэх вэ?» -> «нэвтр», «… хэрхэн харьцдаг вэ?» -> «харьц»; round 16: a
+    photo upload step and a project visit were shown for them), else None. Short roots («ав», «оч»,
+    «элс») would match unrelated words."""
     if not re.search(r'(?<!\w)(?:хэрхэн|яаж)(?!\w)', query.casefold()):
         return None
     terms = _all_terms(query)
-    match = re.fullmatch(r'(\w{2,}?)[аэоөиу]?х', terms[-1]) if terms else None
+    match = re.fullmatch(r'(\w{2,}?)[аэоөиу]?(?:х|д[аэоө]г)', terms[-1]) if terms else None
     if not match:
         return None
     root = match.group(1)
-    return root if any(term != terms[-1] and term.startswith(root) for term in terms[:-1]) else None
+    return (root if len(root) >= 4 or any(term != terms[-1] and term.startswith(root) for term in terms[:-1])
+            else None)
 
 
 def topic_covered(query, text, titles='', typed=False):
@@ -356,8 +406,13 @@ def topic_covered(query, text, titles='', typed=False):
     # («төлөх» / «төлбөр»), so a prefix match cannot tell paying from a fee; the verb must stand
     # as a verb («төлнө», «төлсөн», «төлж»), round 5.
     root = _how_verb_root(query)
-    if root and not re.search(r'(?<!\w)' + re.escape(root) + _VERB_FORM, text.casefold()):
-        return False
+    if root:
+        # A long root may stand as the act's noun too («Төгсөлтийн ажлыг хэрхэн хамгаалдаг вэ?» ->
+        # «хамгаалалт»); a root a topic noun shares must stand as a verb (review, round 16).
+        shared = any(term.startswith(root) for term in _all_terms(query)[:-1])
+        form = _VERB_FORM if shared else '(?:' + _VERB_FORM + '|' + _ACT_NOUN + ')'
+        if not re.search(r'(?<!\w)' + _root_pattern(root) + form, text.casefold()):
+            return False
     # «Цайны газар байдаг уу?» (a cafeteria) is not answered by «цайны цаг … газар»: a two-word
     # topic must stand together in the text too (11/17 (5)).
     pair = phrase_pair(query)
@@ -459,6 +514,13 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
     source_of = {unit['unit_id']: unit.get('source_id') for unit in units}
     asked_department = _department_stem(query)
     page_department = {source.get('source_id'): _page_department(source.get('url')) for source in sources or []}
+    pairs = genitive_pairs(query)
+
+    def holds_pair(unit_id, first, second):
+        # The unit read with its page's own name, as for coverage, and with fleeting vowels:
+        # «Төгсөлтийн судалгааны ажил» holds «төгсөлтийн ажлаа» (W04-A09).
+        words = _anchor_words(texts_by_id[unit_id] + '\n' + titles.get(source_of.get(unit_id), ''))
+        return _has_term(first, words) and _has_term(second, words)
     if typed and not requirements:
         from answer_types import expected_value, value_supported
         if expected_value(query) is not None:
@@ -499,6 +561,10 @@ def bounded_lexical_selection(query, units, sources=None, requirements=(), singl
                 # «Барилгын тэнхим ямар лабораторитой вэ?» was answered with the Механик department
                 # page's labs, its «Барилга» found on the department list (round 11).
                 candidate = dict(accepted=False, reason='other_department')
+            elif (candidate['accepted'] and not requirements and len(ids) > 1 and pairs
+                    and not all(any(holds_pair(unit_id, *pair) for unit_id in ids) for pair in pairs)):
+                # «Эцэг эхийн хурал хэзээ болдог вэ?»: no joined paragraph says «эцэг эхийн … хурал» (round 16).
+                candidate = dict(accepted=False, reason='pair_split')
             elif (candidate['accepted'] and not requirements
                     and not relevant_to_question(query, shown, typed, claims=claims, focus=focus, contexts=contexts,
                                                  titles=named)):

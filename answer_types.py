@@ -51,6 +51,28 @@ _SEASON = re.compile(r'(?<!\w)(?:хавар|намар|өвөл|зун)\w*', re.
 _YEAR = r'(?<!\d)(?:19|20)\d{2}(?!\d)'
 _STOP_AFTER_COUNT = frozenset('вэ бэ уу үү юу юм нийт ба болон эсвэл'.split())
 _ORDINAL_MARKERS = frozenset('р дугаар дүгээр дахь дэх дахи дэхь дэхи'.split())
+# A list number at a line start («3. Хувийн хэсэг») numbers an item; it is no asked value (round 12)
+# and counts nothing (round 16).
+_LIST_NUMBER = re.compile(r'(?m)^\s*(\d{1,2})[.)](?=\s)')
+# Words that share their first letters with an unrelated word: «хаяг» (an address) and «хаягдал»
+# (waste); «хуваах» (to divide), «хуваарь» (a timetable) and «хувийн» (personal). A shared prefix
+# stands in for a suffix only within one family (round 16: «Төлбөрөө хэдэн хуваан төлж болох вэ?» was
+# answered with «3. Хувийн хэсэг», «Оюутны цахим хаяг …» with a news item on «хог хаягдал»).
+_WORD_FAMILIES = (re.compile('хаягд'), re.compile('хаяг'), re.compile('хуваар'), re.compile('хуваа'),
+                  re.compile('хуви|хувь'))
+
+
+@lru_cache(maxsize=8192)
+def word_family(word):
+    """The family a word starts with (an index into _WORD_FAMILIES), or None."""
+    word = word.casefold()
+    return next((index for index, family in enumerate(_WORD_FAMILIES) if family.match(word)), None)
+
+
+def same_family(term, word):
+    """False when ``term`` belongs to a family and ``word`` is not of the same one."""
+    family = word_family(term)
+    return family is None or word_family(word) == family
 
 
 _NUMERAL_DIGITS = {'нэг': '1', 'хоёр': '2', 'гурав': '3', 'гурван': '3', 'дөрөв': '4', 'дөрвөн': '4',
@@ -226,9 +248,9 @@ def _count_supported(stems, text, strict=False, stative=False, per_year=False):
 
     def counted(token):
         stem = light_stem(token.strip('.,+'))
-        return any(stem == wanted or (min(len(stem), len(wanted)) >= 3
-                                      and (stem.startswith(wanted) or wanted.startswith(stem)))
-                   for wanted in stems)
+        return any((stem == wanted or (min(len(stem), len(wanted)) >= 3
+                                       and (stem.startswith(wanted) or wanted.startswith(stem))))
+                   and same_family(wanted, token) for wanted in stems)
 
     def amount(token):
         return bool(re.fullmatch(_NUMBER, token)) and not re.fullmatch(r'(?:19|20)\d{2}', token)
@@ -236,6 +258,7 @@ def _count_supported(stems, text, strict=False, stative=False, per_year=False):
 
     years_asked = any(stem.startswith('он') for stem in stems)
     percent = 'хувь' in stems
+    listed = {match.start(1) for match in _LIST_NUMBER.finditer(text)}
     if per_year:
         # The lines that say a yearly figure, found once (review: not one scan per number).
         breaks = [index for index, char in enumerate(text) if char == '\n']
@@ -261,6 +284,7 @@ def _count_supported(stems, text, strict=False, stative=False, per_year=False):
             stop = text.find('\n', start)
             line = text[text.rfind('\n', 0, start) + 1:stop if stop >= 0 else len(text)].strip()
             ordinal = ordinal or bool(re.fullmatch(r'0\d[./)]?', line))
+        ordinal = ordinal or matches[index].start() in listed
         if (re.fullmatch(_NUMBER, token) and not ordinal and not (strict and in_range(index))
                 and any(counted(following) for following, _ in window)
                 and not (stative and any(_PAST_VERB.search(word) for word, _ in tokens[index + 1:index + 5]))):
@@ -316,8 +340,7 @@ def value_supported(query, text, strict=False):
     if kind == 'count':
         return _count_supported(stems, shown, strict=strict, stative=_stative_count(query),
                                 per_year=_asks_per_year(query))
-    # A list number at a line start («3. Хувийн хэсэг») is no asked value (round 12).
-    return bool(re.search(r'\d', re.sub(r'(?m)^\s*\d{1,2}[.)](?=\s)', ' ', shown)))
+    return bool(re.search(r'\d', _LIST_NUMBER.sub(' ', shown)))
 
 
 _NAME_TOKENS = re.compile(r'«[^»\n]{2,40}»|"[^"\n]{2,40}"|“[^”\n]{2,40}”|[\w-]+')
