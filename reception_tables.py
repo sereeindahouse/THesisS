@@ -697,6 +697,15 @@ class ReceptionAnswerPath:
             # 11/17 (5): a named day («маргааш», «даваа гарагт»); the published timetable only.
             ('teacher_day', r'(.{1,120}?) багш (өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)'
                             r'(?: гарагт)? хичээлтэй юу'),
+            # Round 15: «Б.Сэлмаа багш өнөөдөр хаана хичээл заах вэ?» — the day's lessons with their rooms.
+            ('teacher_day_rooms', r'(.{1,120}?) багш (өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)'
+                                  r'(?: гарагт)? хаана (?:хичээл (?:заах|заадаг|орох|ордог)|хичээллэх|хичээллэдэг) (?:вэ|бэ)'),
+            # Round 15: a room's timetable now or on a day («612 тоотод одоо хичээл орж байна уу?»).
+            ('room_now', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот(?:од| өрөөнд)? одоо (?:хичээл(?: орж)? (?:байна|байгаа)|'
+                         r'хичээлтэй|сул) (?:уу|юу|үү)'),
+            ('room_day', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот(?:од| өрөөнд)? (даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням|'
+                         r'өнөөдөр|маргааш)(?: гарагт)? (?:ямар хичээл (?:ордог|орох|байдаг|байх|орно)(?: (?:вэ|бэ))?|'
+                         r'хичээлтэй юу|хичээл (?:байна|байгаа) юу|хичээл орох уу)'),
             ('teacher_now', r'(.{1,120}?) багш одоо хичээлтэй юу'),
             ('class_room', r'(.{1,120}?) анги хаана хичээллэдэг вэ'),
             ('course_today', r'([1-9]|10)-р курс өнөөдөр хэдэн цагт хичээлтэй вэ'),
@@ -706,6 +715,9 @@ class ReceptionAnswerPath:
             # the post names its holder(s) (_role_holders); otherwise the website path answers.
             # Round 12: «Сургуулийн захирлын нэр хэн бэ?» was read as the post «… захирлын нэр»; the name
             # question comes first. «Захирлыг хэн гэдэг вэ?» asks the same.
+            # Round 15: «Математикийн багш хэн бэ?», «Физикийн хичээл хэн заадаг вэ?» — the published timetable.
+            ('subject_teachers', r'(.{2,60}?) хичээл(?:ийг)? хэн (?:заадаг|заах|ордог|орох) (?:вэ|бэ)'),
+            ('subject_teachers', r'(.{2,60}?) багш(?: нар)? хэн(?: хэн)? (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?) нэр (?:нь )?(?:юу|хэн) (?:вэ|бэ)'),
             ('role_name', r'(.{1,120}?)(?:ыг|ийг|г) хэн гэдэг (?:вэ|бэ)'),
             # Round 12: a post holder's school e-mail («Захирал хэн бэ?» then «Имэйл нь?» -> «Захирал имэйл»).
@@ -749,7 +761,7 @@ class ReceptionAnswerPath:
                     if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
                         return None
                     # A day question carries its group or teacher and its day.
-                    if intent in ('class_day', 'teacher_day'):
+                    if intent in ('class_day', 'teacher_day', 'teacher_day_rooms', 'room_day'):
                         return intent, (match[1], next(group for group in match.groups()[1:] if group))
                     return intent, match[1]
         return None
@@ -768,6 +780,8 @@ class ReceptionAnswerPath:
         if extra is not None and extra[0] in ('role_holder', 'role_name', 'role_meet'):
             holders = self._role_holders(extra[1], extra[0] == 'role_meet')
             return any(self._match(query)) or (len(holders) == 1 if extra[0] == 'role_meet' else bool(holders))
+        if extra is not None and extra[0] in ('subject_teachers', 'room_now', 'room_day'):
+            return any(self._match(query)) or self._claims(extra)
         if extra is not None and extra[0] == 'floor_rooms':
             return _floor_number(extra[1]) is not None and bool(self.tables and self.tables.rooms)
         if extra is not None and extra[0] == 'role_email':
@@ -916,6 +930,65 @@ class ReceptionAnswerPath:
             return 'office', found[0], found[1]
         group = next((group for group in self.tables.classes if _key(group.group) == name), None)
         return ('class', group, None) if group is not None else None
+
+    def _claims(self, extra):
+        """Whether the tables can answer a timetable intent (round 15). recognizes() and answer() share it:
+        rag_runtime.route calls answer() alone, so an unclaimed question must get None there and go on
+        to the website path (review: «Барилгын тэнхимийн багш нар хэн хэн бэ?» lost its roster)."""
+        intent, value = extra
+        if self.tables is None or not self.tables.timetable:
+            return False
+        if intent == 'subject_teachers':
+            return bool(self._subject_teachers(value))
+        if intent in ('room_now', 'room_day'):
+            return self._room_named(value if intent == 'room_now' else value[0]) is not None
+        return True
+
+    def _room_named(self, name):
+        """The recorded name of a room in the rooms table or the timetable, or None."""
+        for room in self.tables.rooms:
+            if _key(room.name) == _key(name):
+                return room.name
+        return next((lesson.room for lesson in self.tables.timetable if _key(lesson.room) == _key(name)), None)
+
+    def _resolve_day(self, day, now, subject):
+        """(weekday, «маргааш (пүрэв)» / «даваа гарагт», None) for a named or relative day, or (None, None,
+        result) when the calendar says the day has no timetable (shared by the day intents, review)."""
+        if _key(day) not in _RELATIVE_DAYS:
+            weekday = _DAY_LOOKUP[_key(day)]
+            return weekday, _MN_DAYS[weekday] + ' гарагт', None
+        target, reason = self._relative_day(day, now)
+        if target is None:
+            return None, None, ('missing', reason)
+        weekday = target.weekday()
+        when = _key(day) + ' (' + _MN_DAYS[weekday] + ')'
+        if reason == 'reception_holiday':
+            return None, None, ('reply', subject + ' — ' + when + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.')
+        if reason:
+            return None, None, ('missing', reason)
+        return weekday, when, None
+
+    def _subject_teachers(self, value):
+        """{subject: [teachers]} for the subjects whose name holds every asked word («Англи хэлний» ->
+        «Англи хэл», «Техникийн Англи хэл»); none for a department, class or office («Механик тэнхимийн»)."""
+        # A department, class or office is no subject; whole words, so «Албан хэрэг хөтлөлт» or
+        # «Курсын төсөл» (subjects) stay (review).
+        if self.tables is None or re.search(r'(?<!\w)(?:тэнхим\w*|анги(?:йн)?|алба(?:ны|нд|д)?|\d+\s*-?\s*р\s+курс\w*)(?!\w)',
+                                            value or '', re.I):
+            return {}
+        stems = []
+        for word in re.findall(r'[а-яөүёa-z]+', _key(value)):
+            stem = re.sub(r'(?:ийн|ын|ний|ны|н)$', '', word) if len(word) > 4 else word
+            if len(stem) >= 3:   # an initial («Б.») or a short word matches nearly every subject (review)
+                stems.append(stem[:max(3, len(stem) - 1)])
+        if not stems or len(stems) > 4:
+            return {}
+        found = {}
+        for lesson in self.tables.timetable:
+            words = re.findall(r'[а-яөүёa-z]+', _key(lesson.subject))
+            if lesson.subject and lesson.teacher and all(any(word.startswith(stem) for word in words) for stem in stems):
+                found.setdefault(lesson.subject, set()).add(lesson.teacher)
+        return {subject: sorted(teachers) for subject, teachers in found.items()}
 
     def _common_slots(self):
         """(usual lesson minutes, {time: interval}, the usual-length times many classes share, in order).
@@ -1086,36 +1159,75 @@ class ReceptionAnswerPath:
             elif person.email:
                 text += ' Сургуулийн имэйл: ' + person.email + '.'
             return reply(text, 'staff', 'reception_role_meet' if intent == 'role_meet' else 'reception_role_holder')
-        if intent == 'teacher_day':
+        if intent in ('subject_teachers', 'room_now', 'room_day') and not self._claims(extra):
+            return self._answer_legacy(query, now=now)
+        if intent == 'subject_teachers':
+            found = self._subject_teachers(value)
+            subjects = sorted(found.items())
+            listed = '; '.join(subject + ' — ' + ', '.join(teachers[:4]) + (', …' if len(teachers) > 4 else '')
+                               for subject, teachers in subjects[:5])
+            more = ' гэх мэт ' + str(len(subjects)) + ' хичээл' if len(subjects) > 5 else ''
+            return reply('Бүртгэсэн хуваарьт: ' + listed + more + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable',
+                         'reception_subject_teachers')
+        if intent in ('room_now', 'room_day'):
+            room = self._room_named(value if intent == 'room_now' else value[0])
+            here = [lesson for lesson in self.tables.timetable if _key(lesson.room) == _key(room)]
+            if intent == 'room_now':
+                if not isinstance(now, datetime):
+                    return missing('reception_date_required')
+                reason = self._calendar_reason(now)
+                if reason == 'reception_holiday':
+                    return reply(room + ' тоот — өнөөдөр бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.', 'timetable',
+                                 'reception_holiday')
+                if reason:
+                    return missing(reason)
+                weekday, minute = now.weekday(), now.hour * 60 + now.minute
+                when = 'одоо (' + _MN_DAYS[weekday] + ' ' + now.strftime('%H:%M') + ')'
+            else:
+                weekday, when, early = self._resolve_day(value[1], now, room + ' тоот')
+                if early:
+                    return missing(early[1]) if early[0] == 'missing' else reply(early[1], 'timetable', 'reception_holiday')
+            today = sorted((lesson for lesson in here if lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
+            if not today and not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            def lesson_text(lesson):
+                return lesson.time + ' ' + lesson.group + (' (' + lesson.subject + ')' if lesson.subject else '')
+            if intent == 'room_now':
+                current = [lesson for lesson in today if lesson.interval[0] <= minute < lesson.interval[1]]
+                if not current and not self.tables.timetable_complete:
+                    return missing('reception_timetable_incomplete')   # never «сул» from a partial timetable
+                upcoming = [lesson for lesson in today if lesson.interval[0] > minute]
+                text = (room + ' тоот — хуваариар ' + when + ': ' + '; '.join(dict.fromkeys(lesson_text(lesson) for lesson in current))
+                        if current else room + ' тоот — хуваариар ' + when + ' хичээл бүртгэгдээгүй (сул)')
+                if upcoming:
+                    first = upcoming[0].interval[0]
+                    text += '. Дараагийн хичээл: ' + '; '.join(dict.fromkeys(
+                        lesson_text(lesson) for lesson in upcoming if lesson.interval[0] == first))
+                return reply(text + '. Бодит байдлыг батлахгүй.', 'timetable', 'reception_room_now')
+            listed = '; '.join(dict.fromkeys(lesson_text(lesson) for lesson in today))
+            return reply(room + ' тоот — ' + when + ' ' + ('бүртгэсэн хичээл: ' + listed if today else 'хуваарьт хичээл бүртгэгдээгүй')
+                         + '. Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_room_day')
+        if intent in ('teacher_day', 'teacher_day_rooms'):
             # «Б.Сэлмаа багш маргааш хичээлтэй юу?»: lessons in the published timetable that day
             # only (busy/free and times); presence in the office is never confirmed.
             name, day = value
             person = next((person for person in self.tables.staff if _key(person.name) == _key(name)), None)
             if person is None:
                 return missing('reception_teacher_not_found')
-            if _key(day) in _RELATIVE_DAYS:
-                target, reason = self._relative_day(day, now)
-                if target is None:
-                    return missing(reason)
-                weekday = target.weekday()
-                when = _key(day) + ' (' + _MN_DAYS[weekday] + ')'
-                if reason == 'reception_holiday':
-                    return reply(person.name + ' — ' + when + ' нь бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.',
-                                 'timetable', 'reception_holiday')
-                if reason:
-                    return missing(reason)
-            else:
-                weekday = _DAY_LOOKUP[_key(day)]
-                when = _MN_DAYS[weekday] + ' гарагт'
+            weekday, when, early = self._resolve_day(day, now, person.name)
+            if early:
+                return missing(early[1]) if early[0] == 'missing' else reply(early[1], 'timetable', 'reception_holiday')
             lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.teacher) == _key(person.name)
                               and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
             if not lessons and not self.tables.timetable_complete:
                 return missing('reception_timetable_incomplete')
-            # A joint lesson is stored once per group; list each time once.
-            times = list(dict.fromkeys(lesson.time for lesson in lessons))
+            # A joint lesson is stored once per group; list each time once (with its room when asked where).
+            times = list(dict.fromkeys(lesson.time + (' (' + lesson.room + ' тоот)' if intent == 'teacher_day_rooms' else '')
+                                       for lesson in lessons))
             status = ('хуваариар хичээлтэй: ' + ', '.join(times)) if times else 'хуваарьт хичээл бүртгэгдээгүй (сул)'
             return reply(person.name + ' — ' + when + ' ' + status
-                         + '. Хуваарь өөрчлөгдсөн байж болно; өрөөндөө байгааг батлахгүй.', 'timetable', 'reception_teacher_day')
+                         + '. Хуваарь өөрчлөгдсөн байж болно; өрөөндөө байгааг батлахгүй.', 'timetable',
+                         'reception_teacher_day_rooms' if intent == 'teacher_day_rooms' else 'reception_teacher_day')
         if intent == 'place_exists':
             found = self._service(value)
             if found is not None:

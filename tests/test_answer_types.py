@@ -654,6 +654,43 @@ class ReceptionWordingTests(unittest.TestCase):
                          'Ресепшний хуваарийн хүснэгтээр нэг хичээл ихэвчлэн 90 минут, хичээлийн хооронд 5 минутын завсарлагатай; '
                          '11:05–13:20 хооронд 135 минут (08:00-09:30, 09:35-11:05, 13:20-14:50).')
 
+    def test_round15_room_timetable_subject_teachers_and_teacher_rooms(self):
+        tables = ReceptionTables(
+            rooms=(Room(6, '612'),), staff=(Staff(name='Б.Багш', department='Ерөнхий эрдэм', room='509'),),
+            classes=(ClassGroup(group='КУ-2', room='612', course='2', department='Компьютерын ухааны тэнхим'),),
+            timetable=(Lesson('wed', '09:35-11:05', 'КУ-2', '612', 'Б.Багш', 'Хими'),
+                       Lesson('wed', '11:10-12:40', 'КУ-2', '612', 'Б.Багш', 'Хэрэглээний математик 1'),
+                       Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'А.Багш', 'Техникийн Англи хэл')),
+            timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+            holidays_reviewed=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        wednesday = datetime(2026, 11, 18, 10, 0)
+        self.assertEqual(path.answer('612 тоотод одоо хичээл орж байна уу?', now=wednesday)['answer'],
+                         '612 тоот — хуваариар одоо (лхагва 10:00): 09:35-11:05 КУ-2 (Хими). '
+                         'Дараагийн хичээл: 11:10-12:40 КУ-2 (Хэрэглээний математик 1). Бодит байдлыг батлахгүй.')
+        self.assertIn('хичээл бүртгэгдээгүй (сул)', path.answer('612 тоот одоо сул уу?', now=datetime(2026, 11, 18, 13, 0))['answer'])
+        self.assertEqual(path.answer('612 тоот өрөөнд даваа гарагт ямар хичээл ордог вэ?')['answer'],
+                         '612 тоот — даваа гарагт бүртгэсэн хичээл: 08:00-09:30 КУ-2 (Техникийн Англи хэл). Хуваарь өөрчлөгдсөн байж болно.')
+        self.assertFalse(path.recognizes('999 тоотод одоо хичээл орж байна уу?'))   # not a recorded room
+        # rag_runtime calls answer() alone: what is not claimed gets None and goes on to the website (review).
+        self.assertIsNone(path.answer('999 тоотод одоо хичээл орж байна уу?', now=wednesday))
+        self.assertIsNone(path.answer('Механик тэнхимийн багш нар хэн хэн бэ?'))
+        self.assertIsNone(path.answer('Б.Сэлмаа багш хэн бэ?'))
+        # Teachers of a subject from the timetable; a department or class is not a subject.
+        self.assertIn('Хэрэглээний математик 1 — Б.Багш', path.answer('Математикийн багш хэн бэ?')['answer'])
+        self.assertIn('Техникийн Англи хэл — А.Багш', path.answer('Англи хэлний хичээл хэн заадаг вэ?')['answer'])
+        for query in ('Механик тэнхимийн багш хэн бэ?', 'Түүхийн багш хэн бэ?'):
+            with self.subTest(query=query):
+                self.assertFalse(path.recognizes(query))
+        # Where a teacher teaches on a day: the lessons with their rooms.
+        partial = ReceptionAnswerPath(ReceptionTables(rooms=tables.rooms, staff=(), classes=(), timetable=tables.timetable[:1],
+                                                      timetable_complete=False), enabled=True)
+        # A partial timetable never calls a room free (review).
+        self.assertEqual(partial.answer('612 тоот одоо сул уу?', now=datetime(2026, 11, 18, 13, 0))['reason_code'],
+                         'reception_timetable_incomplete')
+        self.assertIn('09:35-11:05 (612 тоот), 11:10-12:40 (612 тоот)',
+                      path.answer('Б.Багш багш өнөөдөр хаана хичээл заах вэ?', now=wednesday)['answer'])
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
