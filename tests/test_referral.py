@@ -58,16 +58,17 @@ class ReferralTest(unittest.TestCase):
         self.assertEqual(refer('Дадлагын гэрээг хаана бүртгүүлэх вэ?')['office'],
                          'Гадаад харилцаа, карьер хөгжлийн төв (1007 өрөө, 10-р давхар)')
         self.assertEqual(refer('2-р курст шилжиж орж болох уу?')['office'], 'Сургалтын алба (406 өрөө, 4-р давхар)')
-        # Job applications: no office is guessed, and the related career page is not used either.
+        # Job applications and interviews: the training office (the user's decision of 2026-11-18; no office
+        # was named before), and the related career page is not used.
         job = refer('Ажлын байрны анкетыг хаана өгөх вэ?')
-        self.assertIsNone(job['office'])
-        self.assertIn('ресепшний ажилтнаас', job['text'])
-        # Review (round 4): that stop holds even if page topics are ever switched on.
+        self.assertEqual(job['office'], 'Сургалтын алба (406 өрөө, 4-р давхар)')
+        self.assertEqual(refer('Ажлын ярилцлагад ирсэн, хэдэн давхарт очих вэ?')['office'], 'Сургалтын алба (406 өрөө, 4-р давхар)')
+        # Review (round 4): the question's own office holds even if page topics are ever switched on.
         approved = dict(config, topic_offices=dict(config['topic_offices'], approved=True))
         result = {'answer': None, 'message': '', 'query': 'Ажлын байрны анкетыг хаана өгөх вэ?',
                   'related_sources': [{'url': 'https://nmct.edu.mn/career'}]}
-        self.assertIsNone(attach_referral(result, approved, rules=load_topic_rules(ROOT),
-                                          locate=rooms.get)['referral']['office'])
+        self.assertEqual(attach_referral(result, approved, rules=load_topic_rules(ROOT),
+                                         locate=rooms.get)['referral']['office'], 'Сургалтын алба (406 өрөө, 4-р давхар)')
         # An office missing from the school's room table is never named.
         self.assertIsNone(refer('Төлбөрөө хэсэгчлэн төлж болох уу?', locate=lambda name: None)['office'])
         self.assertIsNone(refer('Сайн байна уу')['office'])

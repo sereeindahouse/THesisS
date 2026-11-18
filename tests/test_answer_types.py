@@ -1016,6 +1016,38 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertEqual(bound.answer('Даваа гарагт хичээлтэй юу?', now=datetime(2027, 2, 1, 10, 0))['reason_code'],
                          'reception_outside_term')
 
+    def test_corrections_confirmed_after_the_import(self):
+        from reception_tables import ReceptionDataError, _corrected
+        tables = ReceptionTables(
+            rooms=(Room(4, '406', services=(Service('Сургалтын алба', '', ''),)), Room(4, '409', services=(Service('Оюутны алба', '09:00–16:00', ''),)),
+                   Room(10, '1001', 'Сэтгэл зүйчийн өрөө', services=(Service('Сэтгэл зүйч', '', ''),))),
+            staff=(Staff(name='Н.Зүйч', department='Оюутны алба', room='409', role='Сэтгэл зүйч'),), classes=(), timetable=())
+        self.assertIs(_corrected(tables, None), tables)
+        fixed = ReceptionAnswerPath(_corrected(tables, {'note_mn': 'тест', 'office_hours': {'name_contains': 'алба', 'hours': '08:00–17:00'},
+                                                        'staff_room_by_role': {'Сэтгэл зүйч': '1001'}}), enabled=True)
+        # The common hours go to offices without their own; a recorded value stays; other services get none.
+        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
+        self.assertEqual(fixed.answer('Оюутны алба хэдэн цагт ажилладаг вэ?')['answer'], 'Оюутны алба — ажлын цаг: 09:00–16:00.')
+        # The other wordings of the same question; an office's own name may hold a comma.
+        for query in ('Сургалтын алба хэдэн цагаас ажилладаг вэ?', 'Сургалтын алба хэдэн цаг хүртэл ажилладаг вэ?',
+                      'Сургалтын албаны ажлын цаг хэд вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(fixed.answer(query)['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
+        comma = ReceptionAnswerPath(_corrected(ReceptionTables(rooms=(Room(4, '405', services=(Service('Дотоод хяналт, чанарын алба', '', ''),)),),
+                                                              staff=(), classes=(), timetable=()),
+                                               {'office_hours': {'name_contains': 'алба', 'hours': '08:00–17:00'}}), enabled=True)
+        self.assertEqual(comma.answer('Дотоод хяналт, чанарын алба хэдэн цагт ажилладаг вэ?')['answer'],
+                         'Дотоод хяналт, чанарын алба — ажлын цаг: 08:00–17:00.')
+        self.assertIsNone(fixed.answer('Сургуулийн ажлын цаг хэд вэ?'))   # the school's own hours: the website answer
+        self.assertEqual(fixed.answer('Сэтгэл зүйч хэдэн цагт ажилладаг вэ?')['reason_code'], 'reception_hours_unknown')
+        # The post's holder sits in the corrected room.
+        self.assertIn('Ажлын өрөө: 1001, 10-р давхар', fixed.answer('Сэтгэл зүйчтэй уулзаж болох уу?')['answer'])
+        # Anything malformed rejects the dataset: an unknown key, a free-text hour, an unrecorded room.
+        for bad in ({'rooms': {}}, {'office_hours': {'name_contains': 'алба', 'hours': 'өглөөнөөс орой'}},
+                    {'staff_room_by_role': {'Сэтгэл зүйч': '9999'}}, ['алба']):
+            with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
+                _corrected(tables, bad)
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),

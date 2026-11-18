@@ -6,7 +6,7 @@ scheduled activity, never a person's observed or confirmed physical location.
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from collections import Counter
 from datetime import date, datetime, timedelta
 import io
@@ -620,6 +620,39 @@ def load_tables(path, *, timetable_complete=None, dataset_label='Reception table
         dataset_label=dataset_label, is_fake=is_fake, metadata=metadata)
 
 
+def _corrected(tables, corrections):
+    """The imported tables with the facts the user confirmed with the school after the import (config
+    ``corrections``, 2026-11-18): they stay when a new timetable is imported. ``office_hours`` gives the common
+    hours to services whose name holds a word and whose own hours are not recorded; ``staff_room_by_role`` moves
+    the holders of a post to a recorded room. Anything malformed rejects the whole dataset."""
+    if corrections is None:
+        return tables
+    if not isinstance(corrections, dict) or set(corrections) - {'note_mn', 'office_hours', 'staff_room_by_role'}:
+        raise ReceptionDataError('Reception corrections have an unknown shape.')
+    rooms, staff = tables.rooms, tables.staff
+    hours = corrections.get('office_hours')
+    if hours is not None:
+        if (not isinstance(hours, dict) or set(hours) != {'name_contains', 'hours'}
+                or not all(isinstance(hours[key], str) and hours[key].strip() for key in hours)
+                or not re.fullmatch(r'\d{2}:\d{2}[–-]\d{2}:\d{2}', hours['hours'])):
+            raise ReceptionDataError('Reception office hours must be a name word and HH:MM–HH:MM.')
+        word = _key(hours['name_contains'])
+        rooms = tuple(replace(room, services=tuple(
+            replace(service, office_hours=hours['hours'])
+            if word in _key(service.name) and not _recorded(service.office_hours) else service
+            for service in room.services)) for room in rooms)
+    moves = corrections.get('staff_room_by_role')
+    if moves is not None:
+        known = {_key(room.name) for room in rooms}
+        if (not isinstance(moves, dict) or not all(isinstance(role, str) and isinstance(room, str) and _key(room) in known
+                                                   for role, room in moves.items())):
+            raise ReceptionDataError('A corrected staff room must be a recorded room.')
+        by_role = {_key(role): room for role, room in moves.items()}
+        staff = tuple(replace(person, room=by_role[_key(person.role)]) if _key(person.role) in by_role else person
+                      for person in staff)
+    return replace(tables, rooms=rooms, staff=staff)
+
+
 class ReceptionAnswerPath:
     """Exact-name, closed-intent reception lookup. Disabled unless configured."""
     def __init__(self, tables=None, *, enabled=False, error=None):
@@ -662,9 +695,9 @@ class ReceptionAnswerPath:
             if (any(part in {'runtime', 'models', 'audio', 'secrets', '.git'} for part in resolved_parts)
                     or path.suffix.casefold() in {'.db', '.sqlite', '.sqlite3', '.dpapi'}):
                 raise ReceptionDataError('Resolved reception source is a private data path.')
-            return cls(load_tables(path, timetable_complete=value.get('timetable_complete', False),
+            return cls(_corrected(load_tables(path, timetable_complete=value.get('timetable_complete', False),
                 dataset_label=value.get('dataset_label', 'Reception tables'),
-                is_fake=value.get('is_fake', False)), enabled=True)
+                is_fake=value.get('is_fake', False)), value.get('corrections')), enabled=True)
         except FileNotFoundError:
             return cls()
         except (OSError, ValueError, TypeError, AttributeError):
@@ -728,7 +761,10 @@ class ReceptionAnswerPath:
             # Round 13: «508 тоот хаана вэ?» (also said in words: «таван зуун найм тоот»).
             ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
-            ('office_hours', r'(.{1,120}?) хэдэн цагт ажилладаг вэ'),
+            # 11/18: with the offices' hours recorded, the other wordings of the same question too.
+            ('office_hours', r'(.{1,120}?) (?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл) '
+                             r'ажилладаг вэ'),
+            ('office_hours', r'(.{1,120}?)(?:гийн|ны|ийн|ын) ажлын цаг (?:хэд|хэдэн|ямар)(?: вэ)?'),
             # A department's contact is its head (department_contact below), not an office's.
             ('office_contact', r'(?!.*тэнхим)(.{1,120}?)(?:тай|тэй|той) (?:яаж|хэрхэн) холбогдох (?:вэ|бэ)'),
             ('department', r'(.{1,120}?) тэнхим(?:ийн (?:байр|өрөө|багш нарын өрөө))? хаана (?:байдаг |байна |байрладаг )?вэ'),
@@ -852,7 +888,10 @@ class ReceptionAnswerPath:
             for intent, pattern in patterns:
                 match = re.fullmatch(pattern, candidate, re.I)
                 if match:
-                    if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[,;?!/]', match[1], re.I):
+                    # An office's own name may hold a comma («Дотоод хяналт, чанарын алба»); an unknown name is
+                    # left to the website path by the office answers themselves.
+                    if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[;?!/]' + ('' if intent.startswith('office_') else '|,'),
+                                 match[1], re.I):
                         return None
                     # A day question carries its group or teacher and its day.
                     if intent in ('class_day', 'teacher_day', 'teacher_day_rooms', 'room_day'):
