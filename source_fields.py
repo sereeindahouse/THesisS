@@ -158,7 +158,10 @@ def staff_query_scope(query, sources, *, catalog=None):
     if not re.search(r'(?<!\w)(?:багш\w*|эрхлэгч\w*)(?!\w)', q):
         return None
     count = bool(re.search(r'хэд(?:эн)?\s+(?:(?:үндсэн|цагийн|туслах)\s+)?багш|'
-        r'багш\w*(?:\s+нар\w*)?\s+(?:нийт\s+)?хэд(?:эн)?\b|багш\w*(?:\s+нар\w*)?\s+тоо', q))
+        # Round 25: «Багш нар хэдэн цагт ирдэг вэ?» asks a time, «… хэд дэх өдөр», «… хэдэн хичээл» something
+        # else again: not how many teachers (review).
+        r'багш\w*(?:\s+нар\w*)?\s+(?:нийт\s+)?хэд(?:эн)?\b(?!\s+(?:цаг|минут|өдөр|давхар|төгрөг|жил|сар|удаа|хичээл|настай|дэх|дахь))|'
+        r'багш\w*(?:\s+нар\w*)?\s+тоо', q))
     # «намрын ажилд хэдэн багш оролцсон бэ» counts an event's participants (a news item),
     # not a department's staff roster (11/17 (5)).
     event = bool(re.search(r'оролц|хамрагд', q))

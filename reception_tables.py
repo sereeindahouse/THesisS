@@ -622,12 +622,15 @@ def load_tables(path, *, timetable_complete=None, dataset_label='Reception table
 
 
 _HOURS_RANGE = re.compile(r'\d{2}:\d{2}[–-]\d{2}:\d{2}')
+# Working, opening and closing ask the same hours. Taking payments or papers («төлбөр авдаг») is not confirmed
+# to follow the working hours and is left out (review, round 25).
+_OPEN_VERB = r'(?:ажилладаг|нээдэг|нээгддэг|онгойдог|хаадаг|хаагддаг|нээлттэй(?: байдаг)?)'
 # The school's own working hours, with or without naming it (at the desk «Хэдэн цагт ажилладаг вэ?» asks about
 # the school): open, close, from, until. A named office, a day («бямба гарагт …») or a lesson time is not this.
 _SCHOOL_HOURS = re.compile(
     r'(?:(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?)|танай|танайх|та нар) )?'
     r'(?:(?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл|хэдээс) '
-    r'(?:ажилладаг|нээдэг|онгойдог|хаадаг)|(?:ерөнхий )?ажлын цаг (?:хэд|хэдэн|ямар))(?: (?:вэ|бэ))?')
+    + _OPEN_VERB + r'|(?:ерөнхий )?ажлын цаг (?:хэд|хэдэн|ямар))(?: (?:вэ|бэ))?')
 
 
 def _corrected(tables, corrections):
@@ -777,8 +780,9 @@ class ReceptionAnswerPath:
             ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
             # 11/18: with the offices' hours recorded, the other wordings of the same question too.
+            # Round 25: opening and closing are the same hours («Сургалтын алба хэдэн цагт хаадаг вэ?»).
             ('office_hours', r'(.{1,120}?) (?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл) '
-                             r'ажилладаг вэ'),
+                             + _OPEN_VERB + r' вэ'),
             ('office_hours', r'(.{1,120}?)(?:гийн|ны|ийн|ын) ажлын цаг (?:хэд|хэдэн|ямар)(?: вэ)?'),
             # A department's contact is its head (department_contact below), not an office's.
             ('office_contact', r'(?!.*тэнхим)(.{1,120}?)(?:тай|тэй|той) (?:яаж|хэрхэн) холбогдох (?:вэ|бэ)'),
@@ -813,7 +817,19 @@ class ReceptionAnswerPath:
             # Round 14: «Хичээл хэдэн минут үргэлжилдэг вэ?» showed the admission timeline.
             ('lesson_length', r'(?:нэг )?(хичээл|завсарлага)(?: нь)? хэдэн минут(?: (?:үргэлжилдэг|үргэлжлэх|байдаг|байх))?(?: вэ)?'),
             # 11/17 (5): the school day's lesson times, read from the whole timetable.
-            ('bell_schedule', r'хичээл(?:үүд)? хэдэн цаг(?:т|аас) (эхэл\w*|эхл\w*|дуус\w*|тар\w*)(?: вэ)?'),
+            # Round 25: «Сургууль хэдэн цагт тардаг вэ?», «Сүүлийн цаг хэдэн цагт дуусдаг вэ?» ask the same. The first
+            # lesson only with its start and the last only with its end: that is what the answer gives (review).
+            ('bell_schedule', r'(?:хичээл(?:үүд)?|сургууль) (?:хэдэн цаг(?:т|аас)|хэдэн цаг хүртэл|хэдээс) '
+                              r'(эхэл\w*|эхл\w*|дуус\w*|тар\w*|ордог)(?: вэ)?'),
+            ('bell_schedule', r'эхний (?:цаг|хичээл|пар) (?:хэдэн цаг(?:т|аас)|хэдээс) (эхэл\w*|эхл\w*)(?: вэ)?'),
+            ('bell_schedule', r'(?:сүүлийн|сүүлчийн) (?:цаг|хичээл|пар) (?:хэдэн цагт|хэдэн цаг хүртэл) (дуус\w*|тар\w*)(?: вэ)?'),
+            # Round 25: the midday break between lessons, read from the timetable. Only when the question says
+            # midday, long or lessons: a bare «цайны цаг» at the desk may ask when the staff are away, which is
+            # not recorded, and a bare «завсарлага» may be the short breaks (review).
+            ('lunch_break', r'((?:өдрийн|үдийн) (?:цайны цаг|цайны завсарлага|завсарлага)|их завсарлага'
+                            r'|(?:хичээлийн|оюутны|оюутнуудын) (?:(?:өдрийн|үдийн) )?(?:цайны цаг|цайны завсарлага)) '
+                            r'(?:хэдээс хэд хүртэл|хэдэн цагаас хэдэн цаг хүртэл|хэдэн цагт|хэдэн цагаас|хэзээ)'
+                            r'(?: (?:байдаг|болдог|эхэлдэг))?(?: вэ)?'),
             # Round 9: «Хичээлийн хуваарь хаанаас харах вэ?» — the class timetable is shown here, by class.
             ('timetable_where', r'(?:хичээлийн |ангийн )?хуваар\w* (?:хаанаас|хаана) (харах|үзэх|олох|харж болох)(?: вэ)?'),
             # Round 12: «Б.Сэлмаа багш ямар хичээл заадаг вэ?» — the subjects in the published timetable.
@@ -934,6 +950,10 @@ class ReceptionAnswerPath:
             return any(self._match(query)) or self._claims(extra)
         if extra is not None and extra[0] == 'office_staff':
             return any(self._match(query)) or bool(self._office_staff(extra[1]))
+        if extra is not None and extra[0] == 'office_hours':
+            # Claimed only when the tables answer it (an office, a post); «Гал тогоо хэдэн цагт нээдэг вэ?» goes
+            # on to the other paths (review, round 25).
+            return any(self._match(query)) or self.answer(query) is not None
         if extra is not None and extra[0] == 'office_contact':
             # A post one person holds («Сэтгэл зүйчтэй хэрхэн холбогдох вэ?»): their school e-mail (round 20).
             return (any(self._match(query)) or self._service(extra[1]) is not None
@@ -1228,6 +1248,13 @@ class ReceptionAnswerPath:
         common = sorted((time for time, (start, end) in slots.items() if end - start == usual and counts[time] >= 20),
                         key=lambda time: slots[time][0])
         return usual, slots, common
+
+    @staticmethod
+    def _slot_gaps(slots, common):
+        """(minutes, earlier, later) between the shared lesson times that follow each other; two shift
+        patterns may overlap (review, round 14)."""
+        return [(slots[later][0] - slots[earlier][1], earlier, later) for earlier, later in zip(common, common[1:])
+                if slots[later][0] >= slots[earlier][1]]
 
     def _group_named(self, value):
         if self.tables is None:
@@ -1690,15 +1717,31 @@ class ReceptionAnswerPath:
                          + (' Ихэвчлэн: ' + ', '.join(common) + '.' if common else '')
                          + ' Анги, өдөр бүрийн хуваарь өөр; тухайн ангийн өдрийн хуваарийг асууж болно.',
                          'timetable', 'reception_bell_schedule')
+        if intent == 'lunch_break':
+            if not self.tables.timetable or not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+            _, slots, common = self._common_slots()
+            gaps = self._slot_gaps(slots, common)
+            longest = max(gaps, default=None)
+            # One break of 20 minutes or more, longer than every other one; a single gap or equal gaps name none.
+            if (longest is None or len(gaps) < 2 or longest[0] < 20
+                    or sum(gap == longest[0] for gap, _, _ in gaps) != 1):
+                return missing('reception_lookup_missing')
+            gap, earlier, later = longest
+            start, end = slots[earlier][1], slots[later][0]
+            # Some classes have a joined lesson through the break: «ихэнх анги», never «бүх анги».
+            through = any(lesson.interval[0] < end and lesson.interval[1] > start for lesson in self.tables.timetable)
+            return reply('Ресепшний хуваарийн хүснэгтээр ' + ('ихэнх анги ' if through else 'хичээлийн өдрийн завсарлага ')
+                         + _clock(start) + '–' + _clock(end)
+                         + (' хооронд хичээлгүй (өдрийн завсарлага, ' if through else ' (') + str(gap)
+                         + ' минут). Албадын цайны цаг хүснэгтэд бүртгэгдээгүй.', 'timetable', 'reception_lunch_break')
         if intent == 'lesson_length':
             if not self.tables.timetable or not self.tables.timetable_complete:
                 return missing('reception_timetable_incomplete')
             usual, slots, common = self._common_slots()
             if not common:
                 return missing('reception_lookup_missing')
-            # Only slots that follow each other; two shift patterns may overlap (review).
-            gaps = [(slots[later][0] - slots[earlier][1], earlier, later) for earlier, later in zip(common, common[1:])
-                    if slots[later][0] >= slots[earlier][1]]
+            gaps = self._slot_gaps(slots, common)
             if _key(value).startswith('завсарлага') and not gaps:
                 return missing('reception_lookup_missing')
             short = Counter(gap for gap, _, _ in gaps).most_common(1)[0][0] if gaps else None

@@ -69,9 +69,11 @@ _LIST_NUMBER = re.compile(r'(?m)^\s*(\d{1,2})[.)](?=\s)')
 # «багш» (a teacher) is not «баг» (a team): «Оюутны байрны үнэ хэд вэ?» was answered with a harvest
 # trip «… голд байрлах талбайд», «Багшаар ажилд орох …» with a project team («багийг»).
 # Also «хүсэлт» (a request) is not «хүслээ» (wished): «… амжилт хүслээ».
+# Round 25: «орой» (the evening) is not «орох» (to enter): «Оройн анги хэдэн цагаас эхэлдэг вэ?» was answered
+# with the interview's time, its «оройн» found in «шалгалтад орох үед». «оройтох» (to be late) is neither (review).
 _WORD_FAMILIES = (re.compile('хаягд'), re.compile('хаяг'), re.compile('хуваар'), re.compile('хуваа'),
                   re.compile('хуви|хувь'), re.compile('байр[лш]'), re.compile('байр'), re.compile('багш'),
-                  re.compile('хүсэлт'))
+                  re.compile('хүсэлт'), re.compile('орой(?!т)'))
 
 
 @lru_cache(maxsize=8192)

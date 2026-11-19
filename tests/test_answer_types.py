@@ -813,6 +813,77 @@ class ReceptionWordingTests(unittest.TestCase):
                          'Ресепшний хуваарийн хүснэгтээр нэг хичээл ихэвчлэн 90 минут, хичээлийн хооронд 5 минутын завсарлагатай; '
                          '11:05–13:20 хооронд 135 минут (08:00-09:30, 09:35-11:05, 13:20-14:50).')
 
+    def test_round25_questions_that_ask_a_clock_time(self):
+        from rule_selector import _has_term
+        from source_fields import staff_query_scope
+        # «орой» (the evening) is not «орох» (to enter): the interview's time answered «Оройн анги хэдэн цагаас эхэлдэг вэ?».
+        self.assertFalse(_has_term('оройн', frozenset({'орох', 'шалгалтад'})))
+        self.assertTrue(_has_term('оройн', frozenset({'орой', 'анги'})))
+        self.assertFalse(_has_term('оройн', frozenset({'оройтсон', 'оюутан'})))
+        # A time, not how many teachers; a count question stays one.
+        self.assertIsNone(staff_query_scope('Багш нар хэдэн цагт ирдэг вэ?', []))
+        self.assertIsNotNone(staff_query_scope('Цахилгааны тэнхимд багш нар хэд вэ?', []))
+        self.assertNotEqual(staff_query_scope('Математикийн багш хэд дэх өдөр ирдэг вэ?', [])['stop'], 'staff_count_not_supported')
+        timetable = tuple(Lesson('mon', time, 'Г-%d' % index, '30%d' % (index % 9), 'Б.Багш', 'Математик')
+                          for index in range(20) for time in ('08:00-09:30', '09:35-11:05', '11:10-12:40', '13:20-14:50'))
+        tables = ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '08:00–17:00', ''),)),
+                                        Room(10, '1006', services=(Service('Номын сан', '', ''),))),
+                                 staff=(), classes=(), timetable=timetable, timetable_complete=True)
+        path = ReceptionAnswerPath(tables, enabled=True)
+        # Opening, closing and serving are the office's hours; an unrecorded place says so, an unknown one goes on.
+        for query in ('Сургалтын алба хэдэн цагт хаадаг вэ?', 'Сургалтын алба хэдэн цаг хүртэл нээлттэй вэ?',
+                      'Сургалтын алба хэдэн цагаас нээдэг вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
+                self.assertTrue(path.recognizes(query))
+        self.assertEqual(path.answer('Номын сан хэдэн цаг хүртэл нээлттэй вэ?')['reason_code'], 'reception_hours_unknown')
+        # Taking payments is not confirmed to follow the working hours; an unknown place is not claimed at all.
+        self.assertIsNone(path.answer('Сургалтын алба хэдэн цаг хүртэл төлбөр авдаг вэ?'))
+        for query in ('Дотуур байр хэдэн цагт хаадаг вэ?', 'Гал тогоо хэдэн цагаас ажилладаг вэ?'):
+            with self.subTest(query=query):
+                self.assertIsNone(path.answer(query))
+                self.assertFalse(path.recognizes(query))
+        # The school's own hours in the same verbs, when the user-confirmed value is set.
+        from reception_tables import _corrected
+        school = ReceptionAnswerPath(_corrected(tables, {'school_hours': '08:00–17:00'}), enabled=True)
+        for query in ('Сургууль хэдэн цагт хаагддаг вэ?', 'Сургууль хэдэн цаг хүртэл нээлттэй вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(school.answer(query)['answer'], 'Сургуулийн ажлын цаг: 08:00–17:00.')
+        # The school day's times in the other wordings.
+        for query in ('Сургууль хэдэн цагт тардаг вэ?', 'Сүүлийн цаг хэдэн цагт дуусдаг вэ?', 'Хичээл хэдэн цаг хүртэл ордог вэ?',
+                      'Эхний цаг хэдэн цагаас эхэлдэг вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['reason_code'], 'reception_bell_schedule')
+        # The day's first start and last end do not answer the first lesson's end or the last one's start.
+        for query in ('Эхний цаг хэдэн цагт дуусдаг вэ?', 'Сүүлийн хичээл хэдэн цагт эхэлдэг вэ?'):
+            with self.subTest(query=query):
+                self.assertNotEqual((path.answer(query) or {}).get('reason_code'), 'reception_bell_schedule')
+        # The midday break is the one longer gap between the shared lesson times; the offices' break is not recorded.
+        for query in ('Өдрийн завсарлага хэдэн цагт вэ?', 'Их завсарлага хэзээ вэ?', 'Хичээлийн цайны цаг хэдээс хэд хүртэл вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(path.answer(query)['answer'], 'Ресепшний хуваарийн хүснэгтээр хичээлийн өдрийн завсарлага '
+                                 '12:40–13:20 (40 минут). Албадын цайны цаг хүснэгтэд бүртгэгдээгүй.')
+        # A bare «цайны цаг» or «завсарлага» may ask something else: not claimed.
+        for query in ('Цайны цаг хэдээс хэд хүртэл вэ?', 'Завсарлага хэзээ вэ?', 'Сургалтын алба цайны цагаар ажилладаг уу?'):
+            with self.subTest(query=query):
+                self.assertNotEqual((path.answer(query) or {}).get('reason_code'), 'reception_lunch_break')
+
+        def path_with(times, extra=()):
+            return ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=tuple(
+                Lesson('mon', time, 'Г-%d' % index, '301', 'Б.Багш', 'Математик')
+                for index in range(20) for time in times) + tuple(extra), timetable_complete=True), enabled=True)
+        # Equal gaps, a single gap and a short pause name no midday break.
+        for times in (('08:00-09:30', '09:35-11:05', '11:10-12:40'), ('08:00-09:30', '09:35-11:05'),
+                      ('08:00-09:30', '09:35-11:05', '11:15-12:45')):
+            with self.subTest(times=times):
+                self.assertEqual(path_with(times).answer('Өдрийн завсарлага хэдэн цагт вэ?')['reason_code'], 'reception_lookup_missing')
+        # A joined lesson through the break: most classes, not all.
+        joined = path_with(('08:00-09:30', '09:35-11:05', '11:10-12:40', '13:20-14:50'),
+                           (Lesson('mon', '11:10-14:50', 'Г-99', '302', 'Б.Багш', 'Дадлага'),))
+        self.assertEqual(joined.answer('Өдрийн завсарлага хэдэн цагт вэ?')['answer'],
+                         'Ресепшний хуваарийн хүснэгтээр ихэнх анги 12:40–13:20 хооронд хичээлгүй (өдрийн завсарлага, 40 минут). '
+                         'Албадын цайны цаг хүснэгтэд бүртгэгдээгүй.')
+
     def test_round15_room_timetable_subject_teachers_and_teacher_rooms(self):
         tables = ReceptionTables(
             rooms=(Room(6, '612'),), staff=(Staff(name='Б.Багш', department='Ерөнхий эрдэм', room='509'),),
