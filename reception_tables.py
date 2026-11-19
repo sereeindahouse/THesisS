@@ -306,6 +306,7 @@ class ReceptionTables:
     holidays: tuple[date, ...] = ()
     calendar_bound: bool = False
     holidays_reviewed: bool = False
+    school_hours: str = ''   # the school's general hours, confirmed by the user (config ``corrections``)
 
 
 _EMAIL = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,4}')
@@ -620,21 +621,35 @@ def load_tables(path, *, timetable_complete=None, dataset_label='Reception table
         dataset_label=dataset_label, is_fake=is_fake, metadata=metadata)
 
 
+_HOURS_RANGE = re.compile(r'\d{2}:\d{2}[–-]\d{2}:\d{2}')
+# The school's own working hours, with or without naming it (at the desk «Хэдэн цагт ажилладаг вэ?» asks about
+# the school): open, close, from, until. A named office, a day («бямба гарагт …») or a lesson time is not this.
+_SCHOOL_HOURS = re.compile(
+    r'(?:(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?)|танай|танайх|та нар) )?'
+    r'(?:(?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл|хэдээс) '
+    r'(?:ажилладаг|нээдэг|онгойдог|хаадаг)|(?:ерөнхий )?ажлын цаг (?:хэд|хэдэн|ямар))(?: (?:вэ|бэ))?')
+
+
 def _corrected(tables, corrections):
     """The imported tables with the facts the user confirmed with the school after the import (config
     ``corrections``, 2026-11-18): they stay when a new timetable is imported. ``office_hours`` gives the common
     hours to services whose name holds a word and whose own hours are not recorded; ``staff_room_by_role`` moves
-    the holders of a post to a recorded room. Anything malformed rejects the whole dataset."""
+    the holders of a post to a recorded room; ``school_hours`` (2026-11-19) is the school's general hours, said
+    in place of the website's contact page. Anything malformed rejects the whole dataset."""
     if corrections is None:
         return tables
-    if not isinstance(corrections, dict) or set(corrections) - {'note_mn', 'office_hours', 'staff_room_by_role'}:
+    if (not isinstance(corrections, dict)
+            or set(corrections) - {'note_mn', 'office_hours', 'staff_room_by_role', 'school_hours'}):
         raise ReceptionDataError('Reception corrections have an unknown shape.')
     rooms, staff = tables.rooms, tables.staff
+    school = corrections.get('school_hours', '')
+    if not isinstance(school, str) or school and not _HOURS_RANGE.fullmatch(school):
+        raise ReceptionDataError('The school hours must be HH:MM–HH:MM.')
     hours = corrections.get('office_hours')
     if hours is not None:
         if (not isinstance(hours, dict) or set(hours) != {'name_contains', 'hours'}
                 or not all(isinstance(hours[key], str) and hours[key].strip() for key in hours)
-                or not re.fullmatch(r'\d{2}:\d{2}[–-]\d{2}:\d{2}', hours['hours'])):
+                or not _HOURS_RANGE.fullmatch(hours['hours'])):
             raise ReceptionDataError('Reception office hours must be a name word and HH:MM–HH:MM.')
         word = _key(hours['name_contains'])
         rooms = tuple(replace(room, services=tuple(
@@ -650,7 +665,7 @@ def _corrected(tables, corrections):
         by_role = {_key(role): room for role, room in moves.items()}
         staff = tuple(replace(person, room=by_role[_key(person.role)]) if _key(person.role) in by_role else person
                       for person in staff)
-    return replace(tables, rooms=rooms, staff=staff)
+    return replace(tables, rooms=rooms, staff=staff, school_hours=school)
 
 
 class ReceptionAnswerPath:
@@ -902,6 +917,8 @@ class ReceptionAnswerPath:
     def recognizes(self, query):
         if not self.enabled:
             return False
+        if self._asks_school_hours(query):
+            return True
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'place_exists':
             return self._service(extra[1]) is not None or bool(self._purpose_rooms(extra[1]))
@@ -1250,9 +1267,21 @@ class ReceptionAnswerPath:
         day = now.date() + timedelta(days=1 if _key(word) == 'маргааш' else 0)
         return day, self._calendar_reason(now, day)
 
+    def _asks_school_hours(self, query):
+        """The school's general hours are asked and the user-confirmed value is set (round 24)."""
+        if self.tables is None or not self.tables.school_hours or not isinstance(query, str) or len(query) > 200:
+            return False
+        text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
+        return _SCHOOL_HOURS.fullmatch(' '.join(text.split())) is not None
+
     def answer(self, query, *, now=None):
         if not self.enabled:
             return None
+        if self._asks_school_hours(query):
+            # Before the office answers: «Сургууль хэдэн цагаас ажилладаг вэ?» showed an entrance-exam time.
+            return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')
+                                + 'Сургуулийн ажлын цаг: ' + self.tables.school_hours + '.',
+                                'reception_school_hours', source_table='corrections')
         extra = self._extra_match(query)
         if extra is None:
             return self._answer_legacy(query, now=now)

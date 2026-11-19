@@ -1048,6 +1048,36 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
                 _corrected(tables, bad)
 
+    def test_the_schools_general_hours_confirmed_by_the_user(self):
+        # Round 24 (11/19): the user confirmed 08:00–17:00; the website's contact page says 09:00–18:00, and
+        # «Сургууль хэдэн цагаас ажилладаг вэ?» showed an entrance-exam time.
+        from reception_tables import ReceptionDataError, _corrected
+        tables = ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '09:00–16:00', ''),)),
+                                        Room(10, '1006', services=(Service('Номын сан', '', ''),))),
+                                 staff=(), classes=(), timetable=())
+        fixed = ReceptionAnswerPath(_corrected(tables, {'school_hours': '08:00–17:00'}), enabled=True)
+        for query in ('Сургууль хэдэн цагт ажилладаг вэ?', 'Сургууль хэдэн цагаас ажилладаг вэ?',
+                      'Сургууль хэдэн цаг хүртэл ажилладаг вэ?', 'Сургуулийн ажлын цаг хэд вэ?', 'Хэдэн цагт ажилладаг вэ?',
+                      'Та нар хэдэн цагт ажилладаг вэ?', 'Танай сургууль хэдээс хэд хүртэл ажилладаг вэ?',
+                      'Сургууль хэдэн цагт нээдэг вэ?', 'ШМТК-ийн ажлын цаг хэд вэ?', 'аан сургууль хэдэн цагт ажилладаг юм бэ'):
+            with self.subTest(query=query):
+                result = fixed.answer(query)
+                self.assertEqual(result['answer'], 'Сургуулийн ажлын цаг: 08:00–17:00.')
+                self.assertEqual(result['reason_code'], 'reception_school_hours')
+                self.assertTrue(fixed.recognizes(query))
+        # A named office keeps its own hours; an unconfirmed day, a lesson time and another place are not the school's hours.
+        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба — ажлын цаг: 09:00–16:00.')
+        self.assertEqual(fixed.answer('Номын сан хэдэн цагт ажилладаг вэ?')['reason_code'], 'reception_hours_unknown')
+        for query in ('Сургууль бямба гарагт ажилладаг уу?', 'Бямба гарагт хэдэн цагт ажилладаг вэ?',
+                      'Сургууль хэдэн цагт тардаг вэ?', 'Сургуулийн номын сан хэдэн цагт ажилладаг вэ?'):
+            with self.subTest(query=query):
+                self.assertNotEqual((fixed.answer(query) or {}).get('reason_code'), 'reception_school_hours')
+        # Without the confirmed value the question stays with the website answer; a free-text value is rejected.
+        self.assertIsNone(ReceptionAnswerPath(_corrected(tables, {}), enabled=True).answer('Сургууль хэдэн цагт ажилладаг вэ?'))
+        for bad in ('өглөөнөөс орой', 8, ['08:00–17:00']):
+            with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
+                _corrected(tables, {'school_hours': bad})
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),
