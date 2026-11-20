@@ -625,8 +625,17 @@ __pycache__/
 # seminar deck v102 script; whole-view audit report.
 !/work_board.py
 !/demo/work.html
-!/CORE/workboard.json
 !/tests/test_work_board.py
 !/thesis/Figures/palette.tex
 !/tools/nmct_slides/update_seminar_v102.py
 !/papers/42-whole-audit-20261120.mn.md
+# 11/20 (2): the board record is local (the user types notes on the page); reading guides for six
+# Mongolian papers; the Word file builder for the question set; seminar v103 script; wording trial sheet.
+!/papers/43-MON01-dohionii-hel-hotoch-20261120.mn.md
+!/papers/43-MON02-urtiin-duu-hotoch-20261120.mn.md
+!/papers/43-MON03-zohiomjiin-sogog-hotoch-20261120.mn.md
+!/papers/43-MON04-huraangui-shinjilgee-hotoch-20261120.mn.md
+!/papers/43-MON05-bichleg-shaardlaga-hotoch-20261120.mn.md
+!/papers/43-MON06-tsahim-tanhim-hotoch-20261120.mn.md
+!/tools/build_question_review_docx.py
+!/tools/nmct_slides/update_seminar_v103.py

@@ -2,9 +2,15 @@
 check-question sets, the system as it is built, and where figures and files live.
 
 `CORE/workboard.json` holds only what has no other home: feedback items, the week's short status,
-audit findings and open decisions. Everything else is read from its real source on every request
+audit findings and open decisions. It is a local file, not in git: the person types notes on the
+page as they think them. Everything else is read from its real source on every request
 (weekly plan, config switches, question-set files, figure files), so the page cannot drift from
 them. The page writes to the board file and to question sets that are not locked; nothing else.
+
+Work has two tracks (the user, 2026-11-20): `report` is what the weekly plan and the last seminar's
+«next week» slide promised, and is what the seminar deck and the supervisor's draft report; `ahead`
+is development done ahead of the plan, reported when its planned week comes. The words shown for
+the two tracks on the page are the person's own, read from the board file (`labels`).
 
 A status of `confirmed` means the person said so on the page. The assistant edits the file up to
 `done` only (rule in CLAUDE.md); `check()` reports a `confirmed` item that has no user log entry.
@@ -28,6 +34,8 @@ MAX_FILE = 1_000_000
 STATUSES = ('open', 'doing', 'done', 'confirmed', 'later')
 KINDS = ('teacher', 'user', 'audit', 'decision')
 ABOUT = ('ppt', 'thesis', 'system', 'plan')
+TRACKS = ('report', 'ahead')
+PROMISE_STATES = ('done', 'doing', 'todo')
 ID_PREFIX = {'teacher': 'T', 'user': 'U', 'audit': 'A', 'decision': 'D'}
 USER = 'user'
 ULAANBAATAR = timezone(timedelta(hours=8))
@@ -47,8 +55,6 @@ ABSTAIN_MN = 'Хариулахгүй; хэнд, хаана хандахыг за
 STATUS_MN = {'open': 'хийгээгүй', 'doing': 'хийж байна', 'done': 'хийсэн', 'confirmed': 'баталсан', 'later': 'хойшилсон'}
 _CONTROL = re.compile(r'[\x00-\x08\x0b-\x1f\x7f]')
 _ISO_DATE = re.compile(r'\d{4}-\d{2}-\d{2}')
-# The board file is in the public repository: what the page stores must not carry a phone or an address.
-_CONTACT = re.compile(r'(?<!\d)\d{8}(?!\d)|[\w.+-]+@[\w-]+\.[\w.-]+')
 _LOCK = threading.Lock()
 
 
@@ -103,24 +109,30 @@ def _iso_date(value):
     return date.fromisoformat(value)
 
 
-def _public_text(value, limit, name, required=True):
-    value = _clean(value, limit, name, required)
-    if _CONTACT.search(value):
-        raise ValueError(f'{name}: утасны дугаар, имэйл хаяг бүү бичээрэй — энэ бүртгэл GitHub-д нийтэд хадгалагдана.')
-    return value
-
-
 def load(root):
-    _, data = _read(Path(root) / BOARD)
+    path = Path(root) / BOARD
+    if path.is_file():
+        _, data = _read(path)
+    else:       # the record is not in git: a new clone starts with an empty board, created on the first save
+        data = dict(schema_version=1, items=[], week=dict(
+            week_id='', updated='', headline_mn='Самбарын бүртгэл энэ компьютерт алга. Эхний зөвлөгөөг нэмэхэд үүснэ.'))
     items = data.get('items')
     if data.get('schema_version') != 1 or not isinstance(items, list) or not isinstance(data.get('week'), dict):
         raise ValueError('Unsupported work board.')
     seen = set()
     for item in items:
         if (not isinstance(item, dict) or item.get('status') not in STATUSES or item.get('kind') not in KINDS
+                or item.setdefault('track', 'report') not in TRACKS
                 or not isinstance(item.get('id'), str) or item['id'] in seen):
             raise ValueError('Invalid work board item.')
         seen.add(item['id'])
+    week = data['week']
+    for track in TRACKS:
+        if not isinstance(week.setdefault(track, {}), dict):
+            raise ValueError('Invalid week block.')
+    for row in week['report'].setdefault('promised', []):
+        if not isinstance(row, dict) or row.get('state') not in PROMISE_STATES or not isinstance(row.get('text_mn'), str):
+            raise ValueError('Invalid promised row.')
     return data
 
 
@@ -383,6 +395,18 @@ def _files(root, data):
                          for label, shown, path in outputs if path is not None and path.is_file()])
 
 
+def _reading(root):
+    """The plan's reading table (the source of /reader), so the board shows what is left to read."""
+    try:
+        import reading_room
+        rows = reading_room.reading_list(root)
+    except (ImportError, OSError, ValueError, KeyError, UnicodeDecodeError):
+        return []
+    return [dict(week=row['week'], paper=re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', row['paper']).replace('*', ''),
+                 how=re.sub(r'\[([^\]]+)\]\([^)]*\)', r'\1', row['how']).replace('*', ''),
+                 status=row['status'], note=row['status_note'], guide=row['guide'] or '') for row in rows]
+
+
 def snapshot(root, today=None, release=None):
     today = _today(today)
     data, plan = load(root), public_plan(root, today=today)
@@ -392,6 +416,7 @@ def snapshot(root, today=None, release=None):
     evaluation = data.get('evaluation') or {}
     return dict(today=today.isoformat(), week=_week(plan), board_week=data['week'], stale_mn=_stale(data, plan, today),
                 dates=_dates(data, plan, today), items=items, counts=counts, rules_mn=data.get('rules_mn', []),
+                reading=_reading(root), labels=data.get('labels') or {},
                 evaluation=dict(problem_mn=evaluation.get('problem_mn', ''), source_mn=evaluation.get('source_mn', '')),
                 question_sets=question_sets(root, evaluation.get('results') or ()),
                 structure=structure(root, release), files=_files(root, data))
@@ -399,13 +424,19 @@ def snapshot(root, today=None, release=None):
 
 def simple_status(root, today=None):
     """The short panel of the atlas «Төслийн явц» tab, from the same board (one source)."""
+    if not (Path(root) / BOARD).is_file():
+        raise FileNotFoundError(BOARD)      # the caller keeps its own fallback when there is no local record
     today = _today(today)
     data, plan = load(root), public_plan(root, today=today)
     week = data['week']
+    report, ahead = week['report'], week['ahead']
     dates = [dict(date=f"{int(row['date'][5:7])}/{row['date'][8:10]}", label=row['label']) for row in _dates(data, plan, today)]
-    return dict(now=week.get('headline_mn', ''), parts=week.get('parts', []), done=week.get('done_mn', []),
-                problems=week.get('problems_mn', []), next=week.get('next_mn', []), dates=dates,
-                months=data.get('months', []))
+    done = [row['text_mn'] for row in report['promised'] if row['state'] == 'done']
+    return dict(now=week.get('headline_mn', ''), parts=week.get('parts', []),
+                done=done + ['Урьдчилсан: ' + text for text in ahead.get('done_mn', [])],
+                problems=ahead.get('problems_mn', []),
+                next=[row['text_mn'] for row in report['promised'] if row['state'] != 'done'] + report.get('next_mn', []),
+                dates=dates, months=data.get('months', []))
 
 
 def brief_lines(root, today=None):
@@ -413,11 +444,17 @@ def brief_lines(root, today=None):
     data = load(root)
     lines = [f'⚠ {problem}' for problem in check(root, today)]
     labels = {'open': 'ХИЙГЭЭГҮЙ', 'doing': 'хийж байна', 'done': 'хийсэн, хэрэглэгч шалгаагүй'}
+    marks = {'done': '✓', 'doing': '◐', 'todo': '☐'}
+    lines.append('Семинарт тайлагнах ажил (төлөвлөгөө ба өмнөх слайдад амласан) — слайд, тайлангийн бичвэрт ЗӨВХӨН энэ орно:')
+    lines += [f"  {marks[row['state']]} {row['text_mn']}" + (f" — {row['note_mn']}" if row.get('note_mn') else '')
+              for row in data['week']['report']['promised']]
+    lines.append('Урьдчилсан хөгжүүлэлт (track=ahead) — долоо хоног нь ирэхэд тайлагнана; одоо слайд, тайлангийн бичвэрт оруулахгүй.')
     for kind, title in (('teacher', 'Багш'), ('user', 'Хэрэглэгч'), ('decision', 'Хэрэглэгчийн шийдэх'), ('audit', 'Асуудал')):
         for item in data['items']:
             if item['kind'] == kind and item['status'] in ('open', 'doing'):
                 said = [entry for entry in item.get('log', []) if entry.get('by') == USER]
-                lines.append(f"{item['id']} · {title} {item.get('date', '')[5:]} · {labels[item['status']]} · "
+                lines.append(f"{item['id']} · {'урьдчилсан' if item['track'] == 'ahead' else 'тайлагнах'} · "
+                             f"{title} {item.get('date', '')[5:]} · {labels[item['status']]} · "
                              f"{item.get('said_mn', '')[:150]}"
                              + (f" ← хэрэглэгч {said[-1].get('date', '')[5:]}: {said[-1].get('text_mn', '')[:120]}" if said else ''))
     waiting = sum(1 for item in data['items'] if item['status'] == 'done')
@@ -442,10 +479,13 @@ def save_item(root, payload, today=None):
             stem = f'{ID_PREFIX[kind]}{day[5:7]}{day[8:10]}-'
             used = [int(item['id'][len(stem):]) for item in data['items']
                     if item['id'].startswith(stem) and item['id'][len(stem):].isdigit()]
-            item = dict(id=f'{stem}{max(used, default=0) + 1}', kind=kind, date=day, about=about,
-                        from_mn=_public_text(payload.get('from_mn', ''), 80, 'Хэн хэлсэн'),
+            track = payload.get('track', 'report')
+            if track not in TRACKS:
+                raise ValueError('Аль ажилд хамаарахыг сонгоно уу.')
+            item = dict(id=f'{stem}{max(used, default=0) + 1}', kind=kind, track=track, date=day, about=about,
+                        from_mn=_clean(payload.get('from_mn', ''), 80, 'Хэн хэлсэн'),
                         source_mn=f'Та {today}-нд самбарт бичсэн',
-                        said_mn=_public_text(payload.get('said_mn', ''), 1200, 'Юу гэж хэлсэн'),
+                        said_mn=_clean(payload.get('said_mn', ''), 1200, 'Юу гэж хэлсэн'),
                         action_mn='', status='open', evidence=[],
                         log=[dict(date=today, by=USER, text_mn='Самбарт нэмсэн.')])
             data['items'].append(item)
@@ -460,10 +500,16 @@ def save_item(root, payload, today=None):
                 if payload['status'] != item['status']:
                     item['status'] = payload['status']
                     changed.append('төлөв: ' + STATUS_MN[payload['status']])
+            if 'track' in payload:
+                if payload['track'] not in TRACKS:
+                    raise ValueError('Аль ажилд хамаарахыг сонгоно уу.')
+                if payload['track'] != item['track']:
+                    item['track'] = payload['track']
+                    changed.append('семинарт тайлагнах ажил болгосон' if item['track'] == 'report' else 'урьдчилсан хөгжүүлэлт болгосон')
             if 'said_mn' in payload:
-                item['said_mn'] = _public_text(payload['said_mn'], 1200, 'Юу гэж хэлсэн')
+                item['said_mn'] = _clean(payload['said_mn'], 1200, 'Юу гэж хэлсэн')
                 changed.append('үгийг зассан')
-            note = _public_text(payload.get('note', ''), 600, 'Тэмдэглэл', required=False)
+            note = _clean(payload.get('note', ''), 1200, 'Тэмдэглэл', required=False)
             if not changed and not note:
                 raise ValueError('Өөрчлөх зүйл алга.')
             item.setdefault('log', []).append(dict(date=today, by=USER, text_mn='; '.join(changed + ([note] if note else []))))

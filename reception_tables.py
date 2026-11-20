@@ -307,6 +307,7 @@ class ReceptionTables:
     calendar_bound: bool = False
     holidays_reviewed: bool = False
     school_hours: str = ''   # the school's general hours, confirmed by the user (config ``corrections``)
+    lunch_break: str = ''    # the school's lunch break, confirmed by the user (2026-11-20)
 
 
 _EMAIL = re.compile(r'[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){1,4}')
@@ -631,6 +632,15 @@ _SCHOOL_HOURS = re.compile(
     r'(?:(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?)|танай|танайх|та нар) )?'
     r'(?:(?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл|хэдээс) '
     + _OPEN_VERB + r'|(?:ерөнхий )?ажлын цаг (?:хэд|хэдэн|ямар))(?: (?:вэ|бэ))?')
+# 2026-11-20: the user confirmed that the school's lunch break is always 12:40–13:20. With that value set a bare
+# «цайны цаг» is answered as well; without it only the timetable's midday gap is (round 25). Whether an office
+# serves through the break was not said, so «… цайны цагаар ажилладаг уу?» is not matched.
+_LUNCH_BREAK = re.compile(
+    r'(?:(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?)|танай|албадын|ажилчдын'
+    r'|ажилтнуудын|багш нарын|оюутны|оюутнуудын|хичээлийн) )?'
+    r'(?:(?:(?:өдрийн|үдийн) )?(?:цайны цаг|цайны завсарлага)|(?:өдрийн|үдийн) завсарлага|их завсарлага)'
+    r'(?: (?:хэдээс хэд хүртэл|хэдэн цагаас хэдэн цаг хүртэл|хэдэн цагт|хэдэн цагаас|хэдээс|хэзээ|хэд))?'
+    r'(?: (?:байдаг|болдог|эхэлдэг))?(?: (?:вэ|бэ))?')
 
 
 def _corrected(tables, corrections):
@@ -642,12 +652,15 @@ def _corrected(tables, corrections):
     if corrections is None:
         return tables
     if (not isinstance(corrections, dict)
-            or set(corrections) - {'note_mn', 'office_hours', 'staff_room_by_role', 'school_hours'}):
+            or set(corrections) - {'note_mn', 'office_hours', 'staff_room_by_role', 'school_hours', 'lunch_break'}):
         raise ReceptionDataError('Reception corrections have an unknown shape.')
     rooms, staff = tables.rooms, tables.staff
     school = corrections.get('school_hours', '')
     if not isinstance(school, str) or school and not _HOURS_RANGE.fullmatch(school):
         raise ReceptionDataError('The school hours must be HH:MM–HH:MM.')
+    lunch = corrections.get('lunch_break', '')
+    if not isinstance(lunch, str) or lunch and not _HOURS_RANGE.fullmatch(lunch):
+        raise ReceptionDataError('The lunch break must be HH:MM–HH:MM.')
     hours = corrections.get('office_hours')
     if hours is not None:
         if (not isinstance(hours, dict) or set(hours) != {'name_contains', 'hours'}
@@ -668,7 +681,7 @@ def _corrected(tables, corrections):
         by_role = {_key(role): room for role, room in moves.items()}
         staff = tuple(replace(person, room=by_role[_key(person.role)]) if _key(person.role) in by_role else person
                       for person in staff)
-    return replace(tables, rooms=rooms, staff=staff, school_hours=school)
+    return replace(tables, rooms=rooms, staff=staff, school_hours=school, lunch_break=lunch)
 
 
 class ReceptionAnswerPath:
@@ -933,6 +946,8 @@ class ReceptionAnswerPath:
     def recognizes(self, query):
         if not self.enabled:
             return False
+        if self._asks_lunch_break(query):
+            return True
         if self._asks_school_hours(query):
             return True
         extra = self._extra_match(query)
@@ -1301,9 +1316,20 @@ class ReceptionAnswerPath:
         text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
         return _SCHOOL_HOURS.fullmatch(' '.join(text.split())) is not None
 
+    def _asks_lunch_break(self, query):
+        """The lunch break is asked and the user-confirmed value is set (2026-11-20)."""
+        if self.tables is None or not self.tables.lunch_break or not isinstance(query, str) or len(query) > 200:
+            return False
+        text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
+        return _LUNCH_BREAK.fullmatch(' '.join(text.split())) is not None
+
     def answer(self, query, *, now=None):
         if not self.enabled:
             return None
+        if self._asks_lunch_break(query):
+            return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')
+                                + 'Сургуулийн цайны цаг: ' + self.tables.lunch_break + '.',
+                                'reception_lunch_break', source_table='corrections')
         if self._asks_school_hours(query):
             # Before the office answers: «Сургууль хэдэн цагаас ажилладаг вэ?» showed an entrance-exam time.
             return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')

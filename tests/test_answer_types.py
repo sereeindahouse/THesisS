@@ -1149,6 +1149,31 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
                 _corrected(tables, {'school_hours': bad})
 
+    def test_the_lunch_break_confirmed_by_the_user(self):
+        # 2026-11-20: the user confirmed with the school that the lunch break is always 12:40–13:20.
+        from reception_tables import ReceptionDataError, _corrected
+        tables = ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '08:00–17:00', ''),)),),
+                                 staff=(), classes=(), timetable=())
+        fixed = ReceptionAnswerPath(_corrected(tables, {'lunch_break': '12:40–13:20'}), enabled=True)
+        for query in ('Цайны цаг хэдээс хэд хүртэл вэ?', 'Цайны цаг хэдэн цагт вэ?', 'Сургуулийн цайны цаг хэзээ вэ?',
+                      'Өдрийн цайны цаг хэдэн цагаас вэ?', 'Их завсарлага хэзээ вэ?', 'Албадын цайны цаг хэдэн цагт вэ?',
+                      'цайны цаг'):
+            with self.subTest(query=query):
+                result = fixed.answer(query)
+                self.assertEqual(result['answer'], 'Сургуулийн цайны цаг: 12:40–13:20.')
+                self.assertEqual(result['reason_code'], 'reception_lunch_break')
+                self.assertTrue(fixed.recognizes(query))
+        # Whether an office serves through the break was not said; other «цаг» questions keep their own answers.
+        for query in ('Сургалтын алба цайны цагаар ажилладаг уу?', 'Сургалтын алба хэдэн цагт ажилладаг вэ?',
+                      'Цайны газар хаана байдаг вэ?', 'Завсарлага хэдэн минут вэ?'):
+            with self.subTest(query=query):
+                self.assertNotEqual((fixed.answer(query) or {}).get('reason_code'), 'reception_lunch_break')
+        # Without the confirmed value a bare «цайны цаг» is still not claimed; a free-text value is rejected.
+        self.assertIsNone(ReceptionAnswerPath(_corrected(tables, {}), enabled=True).answer('Цайны цаг хэдэн цагт вэ?'))
+        for bad in ('үдээс хойш', 1240, ['12:40–13:20']):
+            with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
+                _corrected(tables, {'lunch_break': bad})
+
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».
         tables = ReceptionTables(rooms=(Room(5, '508'),),

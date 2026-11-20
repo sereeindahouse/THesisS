@@ -27,7 +27,9 @@ PLAN = '''# План
 BOARD = {
     'schema_version': 1,
     'week': {'week_id': 'W01', 'updated': '2026-11-20', 'headline_mn': 'Товч', 'parts': [],
-             'done_mn': ['Хийсэн'], 'problems_mn': ['Асуудал'], 'next_mn': ['Дараа']},
+             'report': {'promised': [{'text_mn': 'Шалгах асуулт', 'state': 'done'}, {'text_mn': 'SQuAD унших', 'state': 'todo'}],
+                         'next_mn': ['Үзлэгийн слайд']},
+             'ahead': {'done_mn': ['Алдаа зассан'], 'problems_mn': ['Хариулт богино'], 'next_mn': ['Дэлгэрүүлэх']}},
     'seminar': {'weekday': 1, 'time': '15:00', 'until': '2026-12-25'},
     'milestones': [{'date': '2026-12-01', 'label': 'Үзлэг №1'}, {'date': '2026-11-01', 'label': 'Өнгөрсөн'}],
     'months': [{'month': '2026-11', 'label': '11-р сар', 'goal': 'Зорилт'}],
@@ -107,6 +109,9 @@ class WorkBoardTests(unittest.TestCase):
     def test_simple_status_feeds_the_atlas_panel(self):
         status = work_board.simple_status(self.root, today=TODAY)
         self.assertEqual(status['now'], 'Товч')
+        # reported work first; development ahead of the plan is marked as such
+        self.assertEqual(status['done'], ['Шалгах асуулт', 'Урьдчилсан: Алдаа зассан'])
+        self.assertEqual(status['next'], ['SQuAD унших', 'Үзлэгийн слайд'])
         self.assertEqual(status['dates'][0], {'date': '11/24', 'label': 'Семинар 15:00'})
         self.assertEqual(set(status), {'now', 'parts', 'done', 'problems', 'next', 'dates', 'months'})
 
@@ -119,14 +124,18 @@ class WorkBoardTests(unittest.TestCase):
         self.assertEqual((new['id'], new['status'], new['said_mn']), ('T1124-1', 'open', 'Арга зүйг дэлгэрүүл.'))
         again = work_board.save_item(self.root, {'new': True, 'kind': 'teacher', 'date': '2026-11-24', 'about': 'ppt',
                                                  'from_mn': 'Багш', 'said_mn': 'Хоёр дахь.'}, today=TODAY)
-        self.assertEqual(again['id'], 'T1124-2')
+        self.assertEqual((again['id'], again['track']), ('T1124-2', 'report'))
+        moved = work_board.save_item(self.root, {'id': 'A1120-1', 'track': 'ahead'}, today=TODAY)
+        self.assertEqual((moved['track'], moved['log'][-1]['text_mn']), ('ahead', 'урьдчилсан хөгжүүлэлт болгосон'))
         # The person's own «done» needs no evidence file; only the assistant's `done` does.
         work_board.save_item(self.root, {'id': 'T1124-2', 'status': 'confirmed'}, today=TODAY)
         self.assertEqual(work_board.check(self.root, today=TODAY), [])
         self.assertTrue(list((self.root / work_board.BACKUPS).glob('workboard.*.json')))
         brief = '\n'.join(work_board.brief_lines(self.root, today=TODAY))
         self.assertIn('T1124-1', brief)
-        self.assertIn('A1120-1', brief)
+        self.assertIn('A1120-1 · урьдчилсан', brief)
+        self.assertIn('✓ Шалгах асуулт', brief)       # what the seminar reports comes first
+        self.assertIn('☐ SQuAD унших', brief)
         self.assertNotIn('T1117-1 ·', brief)
 
     def test_item_input_is_validated(self):
@@ -135,10 +144,8 @@ class WorkBoardTests(unittest.TestCase):
                         {'new': True, 'kind': 'teacher', 'date': '24-11-2026', 'about': 'ppt', 'from_mn': 'x', 'said_mn': 'y'},
                         {'new': True, 'kind': 'teacher', 'date': '2026-11-24', 'about': 'ppt', 'from_mn': 'x', 'said_mn': ''},
                         {'new': True, 'kind': 'teacher', 'date': '20261124', 'about': 'ppt', 'from_mn': 'x', 'said_mn': 'y'},
-                        # the record is public: no phone numbers, no addresses
-                        {'new': True, 'kind': 'teacher', 'date': '2026-11-24', 'about': 'ppt', 'from_mn': 'x', 'said_mn': 'Утас 00000000'},
-                        {'id': 'T1117-1', 'note': 'bagsh@example.mn руу бич'},
-                        {'id': 'T1117-1', 'note': 'x' * 601}):
+                        {'id': 'T1117-1', 'track': 'secret'},
+                        {'id': 'T1117-1', 'note': 'x' * 1201}):
             with self.assertRaises(ValueError, msg=payload):
                 work_board.save_item(self.root, payload, today=TODAY)
         self.assertEqual(json.loads((self.root / work_board.BOARD).read_text(encoding='utf-8')), BOARD)
@@ -192,6 +199,19 @@ class WorkBoardTests(unittest.TestCase):
                                          today=TODAY)
         self.assertEqual(json.loads((self.root / 'data/rag-locked-questions-20261102.json').read_text(encoding='utf-8')), LOCKED)
 
+    def test_a_clone_without_the_local_record_opens_an_empty_board(self):
+        (self.root / work_board.BOARD).unlink()
+        view = work_board.snapshot(self.root, today=TODAY)
+        self.assertEqual((view['items'], view['board_week']['report']['promised']), ([], []))
+        self.assertIn('буруу', view['stale_mn'])
+        with self.assertRaises(FileNotFoundError):       # the atlas panel falls back to its own block
+            work_board.simple_status(self.root, today=TODAY)
+        self.assertTrue(any(line.startswith('⚠') for line in work_board.brief_lines(self.root, today=TODAY)))
+        added = work_board.save_item(self.root, {'new': True, 'kind': 'teacher', 'date': '2026-11-24', 'about': 'ppt',
+                                                 'from_mn': 'Удирдагч багш', 'said_mn': 'Эхний зөвлөгөө.'}, today=TODAY)
+        self.assertEqual(added['id'], 'T1124-1')
+        self.assertEqual(len(work_board.load(self.root)['items']), 1)
+
     def test_lock_checks_the_set_shape(self):
         draft = json.loads(json.dumps(DRAFT))
         draft['questions'].append(dict(draft['questions'][0]))             # the same id twice
@@ -214,6 +234,7 @@ class WorkBoardTests(unittest.TestCase):
 
 
 class RealBoardTests(unittest.TestCase):
+    @unittest.skipUnless((REPO / work_board.BOARD).is_file(), 'the board record is a local file, absent on a fresh clone')
     def test_real_board_loads_and_every_done_item_names_its_evidence(self):
         view = work_board.snapshot(REPO, today=TODAY)
         self.assertGreaterEqual(len(view['items']), 10)

@@ -31,7 +31,7 @@ h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 10px}h3{font-si
 .chip b{margin-right:6px}.chip.soon{border-color:#e2b23c;background:#fff8e3}
 .banner{margin:14px 0;padding:10px 14px;border-radius:10px;background:var(--doing-bg);color:#5c3c00;border:1px solid #e9cf8a}
 .headline{background:var(--night);color:#fff;border-radius:12px;padding:16px 20px;font-size:17px;margin:16px 0}
-.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0;align-items:start}.track-report{border-top:5px solid var(--ok)}.track-ahead{border:1px dashed #9a9aa6;border-top:5px solid var(--later);background:#f4f4f7}.two h2{margin:4px 0 6px}.two h3{margin:14px 0 6px}.two ul{margin:0;padding-left:18px}.two li{margin:0 0 6px}.promise{list-style:none;padding-left:0!important}.promise li{padding:8px 0;border-bottom:1px solid var(--line)}.promise li:last-child{border-bottom:0}.promise .mark{display:inline-block;width:22px;font-weight:700}.promise li.done .mark{color:var(--ok)}.promise li.doing .mark{color:var(--doing)}.promise li.todo .mark{color:var(--open)}.pill.track-r{background:var(--ok-bg);color:var(--ok)}.pill.track-a{background:var(--later-bg);color:var(--later)}table.reading td:first-child{width:90px}table.reading td:last-child{width:150px}
 .three ul{margin:0;padding-left:18px}.three li{margin:0 0 6px}
 .state{display:inline-block;font-size:12px;background:#eef2e6;border-radius:999px;padding:2px 10px;margin-bottom:6px}
 .col-done{border-top:4px solid var(--ok)}.col-problem{border-top:4px solid #b9770e}.col-next{border-top:4px solid #5b47b0}
@@ -78,7 +78,7 @@ td.narrow{white-space:nowrap}table.parts{table-layout:fixed}table.parts td:nth-c
 .lockrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
 .msg{position:fixed;right:18px;bottom:18px;max-width:420px;background:var(--night);color:#fff;border-radius:10px;padding:12px 16px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .msg.error{background:#8c1d18}.msg[hidden]{display:none}
-@media(max-width:860px){.three,.tiles,.sets{grid-template-columns:1fr}.form{grid-template-columns:1fr}th:nth-child(4),td:nth-child(4){display:none}}
+@media(max-width:860px){.three,.tiles,.sets,.two{grid-template-columns:1fr}.form{grid-template-columns:1fr}th:nth-child(4),td:nth-child(4){display:none}}
 </style>
 </head>
 <body>
@@ -90,6 +90,7 @@ td.narrow{white-space:nowrap}table.parts{table-layout:fixed}table.parts td:nth-c
   <button role="tab" id="tab-today" data-tab="today" aria-controls="today">Өнөөдөр</button>
   <button role="tab" id="tab-feedback" data-tab="feedback" aria-controls="feedback">Зөвлөгөө ба асуудал <span class="badge" id="badgeOpen" hidden></span></button>
   <button role="tab" id="tab-questions" data-tab="questions" aria-controls="questions">Шалгах асуулт</button>
+  <button role="tab" id="tab-reading" data-tab="reading" aria-controls="reading">Унших</button>
   <button role="tab" id="tab-structure" data-tab="structure" aria-controls="structure">Системийн бүтэц</button>
   <button role="tab" id="tab-files" data-tab="files" aria-controls="files">Зураг, файл</button>
 </div>
@@ -98,18 +99,22 @@ td.narrow{white-space:nowrap}table.parts{table-layout:fixed}table.parts td:nth-c
   <section id="today" role="tabpanel" aria-labelledby="tab-today" hidden></section>
   <section id="feedback" role="tabpanel" aria-labelledby="tab-feedback" hidden></section>
   <section id="questions" role="tabpanel" aria-labelledby="tab-questions" hidden></section>
+  <section id="reading" role="tabpanel" aria-labelledby="tab-reading" hidden></section>
   <section id="structure" role="tabpanel" aria-labelledby="tab-structure" hidden></section>
   <section id="files" role="tabpanel" aria-labelledby="tab-files" hidden></section>
 </main>
 <div id="msg" class="msg" role="status" aria-live="polite" hidden></div>
 <script>
 'use strict';
-const TABS=['today','feedback','questions','structure','files'];
+const TABS=['today','feedback','questions','reading','structure','files'];
+// Default words for the two tracks; the board file's `labels` replaces them with the person's own.
+const TRACK={report:'Семинарт тайлагнах ажил',ahead:'Урьдчилсан хөгжүүлэлт'};
+const WORDS={report_head:'Төлөвлөгөө ба семинарт амласан зүйл',ahead_head:'Төлөвлөгөөнөөс түрүүлж хийсэн ажил',footer:'Слайд, тайлангийн бичвэрт зөвхөн зүүн талын ажил орно.'};
 const STATUS={open:['☐','Хийгээгүй'],doing:['◐','Хийж байна'],done:['✓','Хийсэн · та шалгаагүй'],confirmed:['✔','Та баталсан'],later:['⏸','Хойшилсон']};
 const KIND={teacher:'Багшийн зөвлөгөө',user:'Миний хүсэлт',decision:'Миний шийдэх зүйл',audit:'Олдсон асуудал'};
 const ABOUT={ppt:'PPT',thesis:'Диплом',system:'Систем',plan:'Төлөвлөгөө'};
 const DAYS=['ням','даваа','мягмар','лхагва','пүрэв','баасан','бямба'];
-const state={data:null,token:'',kind:'all',status:'all',set:'system',adding:false,editing:new Set(),lockArmed:false,queue:Promise.resolve()};
+const state={data:null,token:'',kind:'all',track:'all',status:'all',set:'system',adding:false,editing:new Set(),lockArmed:false,queue:Promise.resolve()};
 const $=id=>document.getElementById(id);
 function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined&&text!==null)node.textContent=text;return node;}
 function add(parent,...kids){kids.forEach(kid=>{if(kid)parent.append(kid);});return parent;}
@@ -143,16 +148,24 @@ function show(tab){
 }
 function render(){
   const data=state.data;$('loading').hidden=true;
+  Object.assign(TRACK,(data.labels||{}).tracks||{});Object.assign(WORDS,(data.labels||{}).words||{});
   $('dayLabel').textContent=`${md(data.today)} · ${weekday(data.today)} гараг`;
   const open=data.items.filter(item=>item.status==='open'||item.status==='doing').length;
   $('badgeOpen').textContent=open;$('badgeOpen').hidden=!open;
-  renderToday();renderFeedback();renderQuestions();renderStructure();renderFiles();
+  renderToday();renderFeedback();renderQuestions();renderReading();renderStructure();renderFiles();
   show(location.hash.slice(1)||'today');
 }
 
 function listCard(cls,title,rows){const card=el('div','card '+cls);add(card,el('h3','',title));const list=el('ul');(rows||[]).forEach(row=>list.append(el('li','',row)));return add(card,list);}
+function plainList(parent,title,rows){if(!(rows||[]).length)return;add(parent,el('h3','',title));const list=el('ul');rows.forEach(row=>list.append(el('li','',row)));parent.append(list);}
+function promiseList(rows){
+  const marks={done:['✓','хийсэн'],doing:['◐','хийж байна'],todo:['☐','хийгээгүй']},list=el('ul','promise');
+  (rows||[]).forEach(row=>{const [mark,word]=marks[row.state]||marks.todo,line=el('li',row.state);
+    add(line,el('span','mark',mark),el('b','',row.text_mn),el('span','small muted',` · ${word}`));if(row.note_mn)line.append(el('div','small',row.note_mn));list.append(line);});
+  return list;
+}
 function renderToday(){
-  const data=state.data,box=$('today'),board=data.board_week;box.replaceChildren();
+  const data=state.data,box=$('today'),board=data.board_week,report=board.report||{},ahead=board.ahead||{};box.replaceChildren();
   const bar=el('div','weekbar'),left=el('div');
   add(left,el('div','eyebrow','ЭНЭ ДОЛОО ХОНОГ'));
   if(data.week){add(left,el('h1','',`${data.week.id} · ${md(data.week.start_date)}–${md(data.week.end_date)}`),el('div','muted',data.week.title));}
@@ -162,22 +175,39 @@ function renderToday(){
   add(box,add(bar,left,chips));
   if(data.stale_mn)add(box,el('div','banner',`Анхаар: ${data.stale_mn} Доорх товч төлөв хуучирсан байж болно — агентаас шинэчлэхийг хүснэ үү.`));
   add(box,el('div','headline',board.headline_mn||''));
-  const parts=el('div','three');(board.parts||[]).forEach(part=>{const card=el('div','card');add(card,el('span','state',part.state),el('h3','',part.title),el('div','',part.text));parts.append(card);});
-  add(box,parts);
-  add(box,add(el('div','three'),listCard('col-done','✓ Энэ долоо хоногт хийсэн',board.done_mn),listCard('col-problem','! Асуудал',board.problems_mn),listCard('col-next','→ Дараа нь',board.next_mn)));
-  add(box,el('p','muted small',`Товч төлөвийг агент ${md(board.updated)}-нд шинэчилсэн.`));
+  const shown=el('div','card track-report'),kept=el('div','card track-ahead');
+  add(shown,el('div','eyebrow',TRACK.report.toUpperCase()),el('h2','',WORDS.report_head),el('p','small muted',report.source_mn||''),promiseList(report.promised));
+  plainList(shown,'Багшийн зөвлөгөө',report.advice_mn);plainList(shown,'Дараа нь',report.next_mn);
+  add(kept,el('div','eyebrow',TRACK.ahead.toUpperCase()),el('h2','',WORDS.ahead_head),el('p','small muted',ahead.note_mn||''));
+  plainList(kept,'✓ Хийсэн',ahead.done_mn);plainList(kept,'! Асуудал',ahead.problems_mn);plainList(kept,'→ Дараа нь',ahead.next_mn);
+  add(box,add(el('div','two'),shown,kept),el('p','muted small',`Товч төлөвийг агент ${md(board.updated)}-нд шинэчилсэн. ${WORDS.footer}`));
   add(box,el('h2','','Нээлттэй зүйлс'));
   const tiles=el('div','tiles');
   Object.keys(KIND).forEach(kind=>{const count=data.counts[kind]||{},open=(count.open||0)+(count.doing||0);
-    const tile=button('tile','',()=>{state.kind=kind;state.status=open?'open':(count.done?'done':'all');renderFeedback();show('feedback');});
+    const tile=button('tile','',()=>{state.kind=kind;state.track='all';state.status=open?'open':(count.done?'done':'all');renderFeedback();show('feedback');});
     add(tile,el('div','eyebrow',KIND[kind].toUpperCase()),el('div','num',String(open)),el('div','small muted',`хийгээгүй · ${count.done||0} шалгаагүй · ${count.confirmed||0} баталсан`));tiles.append(tile);});
   add(box,tiles);
   if(data.week&&(data.week.work||[]).length){const more=el('details');add(more,el('summary','','Төлөвлөгөөнд энэ долоо хоногт юу гэж бичсэн бэ'));
     const list=el('ul');data.week.work.concat(data.week.deliverables||[]).forEach(text=>list.append(el('li','',text)));add(box,add(more,list));}
 }
+function renderReading(){
+  const box=$('reading'),rows=state.data.reading||[];box.replaceChildren();
+  add(box,el('h1','','Унших'),el('p','muted','Долоо хоногийн төлөвлөгөөний унших жагсаалт. «Уншсан» гэж зөвхөн таны хэлснээр тэмдэглэнэ. Хөтөч дотор Монгол тайлбар, эх өгүүллийн холбоос хамт бий.'));
+  [['current','Одоо унших'],['next','Дараагийнх'],['later','Үлдсэн'],['read','Уншсан ✅']].forEach(([key,title])=>{
+    const chosen=rows.filter(row=>row.status===key);if(!chosen.length)return;
+    add(box,el('h2','',`${title} · ${chosen.length}`));
+    const table=el('table','reading'),body=el('tbody');
+    chosen.forEach(row=>{const line=el('tr'),what=el('td'),open=el('td','narrow');
+      add(what,el('div','',row.paper),el('div','small muted',row.how),key==='read'?el('div','small muted',row.note):null);
+      if(row.guide){const link=el('a','','Хөтөч нээх →');link.href='/reader/'+row.guide;open.append(link);}else open.append(el('span','small muted','хөтөч бэлдээгүй'));
+      body.append(add(line,el('td','narrow',row.week),what,open));});
+    add(box,add(table,body));});
+  const all=el('a','','Унших өрөөг бүтнээр нээх →');all.href='/reader';add(box,add(el('p'),all));
+}
 
 function matches(item){
   if(state.kind!=='all'&&item.kind!==state.kind)return false;
+  if(state.track!=='all'&&item.track!==state.track)return false;
   if(state.status==='all')return true;
   if(state.status==='open')return item.status==='open'||item.status==='doing';
   return item.status===state.status;
@@ -191,6 +221,7 @@ function renderFeedback(){
   add(box,add(head,toggle));
   add(box,el('p','muted','Багш юу гэж хэлсэн, хийсэн эсэх, аль файлд байгаа. «Хийсэн · та шалгаагүй» гэснийг та үзээд баталж эсвэл буцаана.'));
   if(state.adding)add(box,addForm());
+  add(box,filterRow('Аль ажил:','track',[['all','Бүгд']].concat(Object.entries(TRACK))));
   add(box,filterRow('Хэнээс:','kind',[['all','Бүгд']].concat(Object.entries(KIND))));
   add(box,filterRow('Төлөв:','status',[['all','Бүгд'],['open','Хийгээгүй, хийж байна'],['done','Хийсэн · шалгаагүй'],['confirmed','Баталсан'],['later','Хойшилсон']]));
   const rows=data.items.filter(matches);
@@ -206,21 +237,21 @@ function addForm(){
   const about=el('select');Object.entries(ABOUT).forEach(([value,text])=>{const option=el('option','',text);option.value=value;about.append(option);});
   const said=el('textarea');said.maxLength=1200;said.required=true;said.placeholder='Багш яг юу гэж хэлснийг сонссон үгээрээ бичнэ.';
   add(form,field('Огноо',day),field('Хэн хэлсэн',who),field('Юуны тухай',about),field('Юу гэж хэлсэн',said,'wide'),
-    el('div','wide small muted','Энэ бүртгэл GitHub-д нийтэд хадгалагдана. Утас, имэйл бүү бичээрэй; багшийг албан тушаалаар нь бичнэ.'));
+    el('div','wide small muted','Энэ бүртгэл зөвхөн таны компьютерт хадгалагдана (GitHub-д гарахгүй).'));
   const save=el('button','primary','Хадгалах');save.type='submit';add(form,add(el('div','wide'),save));
   form.addEventListener('submit',event=>{event.preventDefault();act(async()=>{await post('/api/work/item',{new:true,kind:'teacher',date:day.value,from_mn:who.value,about:about.value,said_mn:said.value});state.adding=false;state.kind='all';state.status='all';},'Нэмлээ. Агент дараагийн сессэд эндээс уншина.');});
   return form;
 }
 function itemCard(item){
   const card=el('article','item '+item.status),head=el('header');
-  add(head,pill(item.status),el('span','tag',ABOUT[item.about]||item.about),el('span','',`${item.from_mn} · ${md(item.date)}`),el('span','id',`${KIND[item.kind]} · ${item.id}`));
+  add(head,pill(item.status),el('span','pill '+(item.track==='ahead'?'track-a':'track-r'),TRACK[item.track]||''),el('span','tag',ABOUT[item.about]||item.about),el('span','',`${item.from_mn} · ${md(item.date)}`),el('span','id',`${KIND[item.kind]} · ${item.id}`));
   add(card,head,el('blockquote','',item.said_mn));
   if(item.action_mn){const action=el('p','action');add(action,el('b','',item.status==='open'?'Хийх нь: ':'Хийсэн нь: '),document.createTextNode(item.action_mn));card.append(action);}
   if((item.evidence||[]).length){const list=el('ul','evidence');item.evidence.forEach(row=>{const line=el('li','',row.text_mn+' — ');line.append(pathNode(row.path));list.append(line);});card.append(list);}
   const log=item.log||[];
   if(log.length||item.source_mn){const more=el('details');add(more,el('summary','',`Түүх (${log.length})`),el('div','small muted','Эх сурвалж: '+(item.source_mn||'')));
     log.forEach(row=>more.append(el('div','small',`${md(row.date)} · ${row.by==='user'?'та':'агент'}: ${row.text_mn}`)));card.append(more);}
-  const foot=el('footer'),note=el('input');note.type='text';note.maxLength=600;note.placeholder='Тэмдэглэл (заавал биш)';note.setAttribute('aria-label',`${item.id}: тэмдэглэл`);
+  const foot=el('footer'),note=el('input');note.type='text';note.maxLength=1200;note.placeholder='Тэмдэглэл (заавал биш)';note.setAttribute('aria-label',`${item.id}: тэмдэглэл`);
   const change=(status,done)=>act(()=>post('/api/work/item',Object.assign({id:item.id,note:note.value},status?{status}:{})),done);
   foot.append(note);
   const decision=item.kind==='decision';
@@ -233,6 +264,8 @@ function itemCard(item){
   if(item.status!=='open')foot.append(button('ghost warn',decision?'↩ Дахин нээх':'↩ Дахин засах хэрэгтэй',()=>change('open','Буцаалаа. Агент дараагийн сессэд харна.')));
   if(item.status!=='later'&&item.status!=='confirmed')foot.append(button('ghost','⏸ Хойшлуулах',()=>change('later','Хойшлууллаа.')));
   foot.append(button('ghost','Тэмдэглэл нэмэх',()=>{if(!note.value.trim())return say('Тэмдэглэлээ бичнэ үү.',true);change(null,'Тэмдэглэл нэмлээ.');}));
+  const other=item.track==='ahead'?'report':'ahead';
+  foot.append(button('ghost',`→ «${TRACK[other]}» болгох`,()=>act(()=>post('/api/work/item',{id:item.id,track:other,note:note.value}),'Шилжүүллээ.')));
   return add(card,foot);
 }
 
