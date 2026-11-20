@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#C6A8EF"
     },
-    "window.title": "[THesisS · III] III/I · Ажлын самбар /work нэг газар болсон: багшийн зөвлөгөө ба хийсэн эсэх, энэ долоо… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · III] III/I · Ажил хоёр хэсэгт: семинарт тайлагнах ажил (төлөвлөгөөний W04: шалгах асуултын б… ${separator} ${dirty}${activeEditorShort}"
   }
 }
