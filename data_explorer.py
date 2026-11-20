@@ -17,6 +17,7 @@ from CORE.document_corpus import official
 from sqlite_retrieval import ReadOnlyContentStore
 from website_retrieval import WebsiteRetriever
 from project_plan import public_plan, public_project_note
+import work_board
 
 
 def source_id(kind, url, version=1):
@@ -59,6 +60,12 @@ def progress(root):
     # The public Markdown is the sole calendar/task source. Status is explicit;
     # a past date never marks a thesis task complete.
     data['plan']=public_plan(root,data.pop('plan_status',None))
+    # One source for the short status panel: the work board (CORE/workboard.json). The copy in
+    # project-progress.json went three weeks without an update (found 2026-11-20); it is only a fallback.
+    try:
+        data['simple_status']=work_board.simple_status(root)
+    except (OSError,ValueError,KeyError,TypeError):
+        pass
     data['project_note']=public_project_note(data,data.pop('project_note',None))
     return data
 

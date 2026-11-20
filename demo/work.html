@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ажлын самбар · THesisS</title>
+<style>
+:root{--ink:#163d37;--muted:#5f6d66;--line:#dce3d8;--cream:#f7f8f2;--card:#fff;--night:#123a33;--gold:#ffd76a;
+  --open:#b3261e;--open-bg:#fdecea;--doing:#8a5a00;--doing-bg:#fff4d6;--done:#1b5e9b;--done-bg:#e6f0fa;
+  --ok:#1f6b3a;--ok-bg:#e3f4e8;--later:#5b5b66;--later-bg:#ececf1;
+  font-family:"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--cream)}
+*{box-sizing:border-box}body{margin:0;font-size:15px;line-height:1.5}
+.top{background:var(--night);color:#fff;padding:14px 28px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.top strong{font-size:18px}.top .day{color:#cfe1da;font-size:13px;margin-left:10px}
+.top nav{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap}.top a{color:var(--gold);font-size:13px;text-decoration:none}
+.top a:hover,.top a:focus{text-decoration:underline}
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 20px;display:flex;gap:4px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+.tabs button{border:0;background:none;padding:13px 14px;font:inherit;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+.tabs button[aria-selected=true]{color:var(--ink);font-weight:700;border-bottom-color:var(--ink)}
+.tabs button:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #2f7dd1;outline-offset:2px}
+.badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:10px;background:var(--open);color:#fff;font-size:12px;font-weight:700;text-align:center}
+main{max-width:1120px;margin:0 auto;padding:22px 22px 70px}
+section[hidden]{display:none}
+h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 10px}h3{font-size:15px;margin:0 0 8px}
+.eyebrow{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.muted{color:var(--muted)}.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.weekbar{display:flex;gap:20px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px}
+.chip b{margin-right:6px}.chip.soon{border-color:#e2b23c;background:#fff8e3}
+.banner{margin:14px 0;padding:10px 14px;border-radius:10px;background:var(--doing-bg);color:#5c3c00;border:1px solid #e9cf8a}
+.headline{background:var(--night);color:#fff;border-radius:12px;padding:16px 20px;font-size:17px;margin:16px 0}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.three ul{margin:0;padding-left:18px}.three li{margin:0 0 6px}
+.state{display:inline-block;font-size:12px;background:#eef2e6;border-radius:999px;padding:2px 10px;margin-bottom:6px}
+.col-done{border-top:4px solid var(--ok)}.col-problem{border-top:4px solid #b9770e}.col-next{border-top:4px solid #5b47b0}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{text-align:left;font:inherit;color:inherit;cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile:hover{border-color:var(--ink)}.tile .num{font-size:28px;font-weight:700;line-height:1.1}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.filter{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--ink)}
+.filter[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.primary{background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+.primary[disabled]{opacity:.45;cursor:not-allowed}
+.ghost{background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:8px;padding:7px 12px;font:inherit;cursor:pointer}
+.ghost.warn{color:var(--open);border-color:var(--open)}
+input[type=text],input[type=date],textarea,select{font:inherit;border:1px solid #b9c4b9;border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink)}
+textarea{width:100%;min-height:72px}
+.form{display:grid;grid-template-columns:160px 1fr 170px;gap:10px;margin:10px 0 18px}.form .wide{grid-column:1/-1}
+.form label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}.form input,.form select{width:100%}
+.dategroup{margin:22px 0 8px;font-size:13px;font-weight:700;color:var(--muted)}
+.item{background:#fff;border:1px solid var(--line);border-left:6px solid var(--later);border-radius:12px;padding:14px 16px;margin:0 0 10px}
+.item.open{border-left-color:var(--open)}.item.doing{border-left-color:#d49a17}.item.done{border-left-color:var(--done)}
+.item.confirmed{border-left-color:var(--ok)}
+.item header{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+.pill.open{background:var(--open-bg);color:var(--open)}.pill.doing{background:var(--doing-bg);color:var(--doing)}
+.pill.done{background:var(--done-bg);color:var(--done)}.pill.confirmed{background:var(--ok-bg);color:var(--ok)}
+.pill.later{background:var(--later-bg);color:var(--later)}.pill.on{background:var(--ok-bg);color:var(--ok)}.pill.off{background:var(--later-bg);color:var(--later)}.pill.fixed{background:#eef2e6;color:var(--ink)}
+.tag{border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-size:12px}.id{margin-left:auto;color:var(--muted);font-size:12px}
+blockquote{margin:10px 0 8px;padding:2px 0 2px 12px;border-left:3px solid var(--line);font-size:16px}
+.action{margin:0 0 6px}.evidence{margin:0 0 6px;padding-left:18px;font-size:13px}
+code{background:#eef2e6;border-radius:5px;padding:1px 5px;font-size:12.5px;word-break:break-all}
+details{margin:6px 0}summary{cursor:pointer;color:var(--muted);font-size:13px}
+.item footer{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.item footer input{flex:1;min-width:200px}
+.sets{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.setbtn{text-align:left;font:inherit;color:inherit;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.setbtn[aria-pressed=true]{border:2px solid var(--ink);padding:11px 13px}.setbtn b{display:block}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;vertical-align:top;padding:9px 10px;border-bottom:1px solid var(--line);font-size:14px}
+th{background:#eef2e6;font-size:12px;color:var(--muted)}tr:last-child td{border-bottom:0}
+td.narrow{white-space:nowrap}table.parts{table-layout:fixed}table.parts td:nth-child(1){width:23%;white-space:normal}table.parts td:nth-child(2){width:140px}table.parts td:nth-child(4){width:27%}tr.reviewed td{background:#f6fbf6}
+.qedit{display:grid;gap:6px;margin-top:6px}.qedit input{width:100%}
+.reviewbox{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.reviewbox input{flex:1;min-width:120px}
+.progress{height:10px;background:#e4e9de;border-radius:6px;overflow:hidden;margin:6px 0 10px}.progress div{height:100%;background:var(--ok)}
+.lockrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+.msg{position:fixed;right:18px;bottom:18px;max-width:420px;background:var(--night);color:#fff;border-radius:10px;padding:12px 16px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.msg.error{background:#8c1d18}.msg[hidden]{display:none}
+@media(max-width:860px){.three,.tiles,.sets{grid-template-columns:1fr}.form{grid-template-columns:1fr}th:nth-child(4),td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div><strong>Ажлын самбар</strong><span class="day" id="dayLabel"></span></div>
+  <nav aria-label="Бусад хуудас"><a href="/">Чат</a><a href="/kiosk">Ресепшний дэлгэц</a><a href="/data">Мэдээллийн сан</a><a href="/reader">Өгүүлэл унших</a><a href="/code-map">Кодын хот</a></nav>
+</header>
+<div class="tabs" role="tablist" aria-label="Самбарын хэсгүүд">
+  <button role="tab" id="tab-today" data-tab="today" aria-controls="today">Өнөөдөр</button>
+  <button role="tab" id="tab-feedback" data-tab="feedback" aria-controls="feedback">Зөвлөгөө ба асуудал <span class="badge" id="badgeOpen" hidden></span></button>
+  <button role="tab" id="tab-questions" data-tab="questions" aria-controls="questions">Шалгах асуулт</button>
+  <button role="tab" id="tab-structure" data-tab="structure" aria-controls="structure">Системийн бүтэц</button>
+  <button role="tab" id="tab-files" data-tab="files" aria-controls="files">Зураг, файл</button>
+</div>
+<main>
+  <p id="loading" class="muted">Самбарыг уншиж байна…</p>
+  <section id="today" role="tabpanel" aria-labelledby="tab-today" hidden></section>
+  <section id="feedback" role="tabpanel" aria-labelledby="tab-feedback" hidden></section>
+  <section id="questions" role="tabpanel" aria-labelledby="tab-questions" hidden></section>
+  <section id="structure" role="tabpanel" aria-labelledby="tab-structure" hidden></section>
+  <section id="files" role="tabpanel" aria-labelledby="tab-files" hidden></section>
+</main>
+<div id="msg" class="msg" role="status" aria-live="polite" hidden></div>
+<script>
+'use strict';
+const TABS=['today','feedback','questions','structure','files'];
+const STATUS={open:['☐','Хийгээгүй'],doing:['◐','Хийж байна'],done:['✓','Хийсэн · та шалгаагүй'],confirmed:['✔','Та баталсан'],later:['⏸','Хойшилсон']};
+const KIND={teacher:'Багшийн зөвлөгөө',user:'Миний хүсэлт',decision:'Миний шийдэх зүйл',audit:'Олдсон асуудал'};
+const ABOUT={ppt:'PPT',thesis:'Диплом',system:'Систем',plan:'Төлөвлөгөө'};
+const DAYS=['ням','даваа','мягмар','лхагва','пүрэв','баасан','бямба'];
+const state={data:null,token:'',kind:'all',status:'all',set:'system',adding:false,editing:new Set(),lockArmed:false,queue:Promise.resolve()};
+const $=id=>document.getElementById(id);
+function el(tag,cls,text){const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined&&text!==null)node.textContent=text;return node;}
+function add(parent,...kids){kids.forEach(kid=>{if(kid)parent.append(kid);});return parent;}
+function md(iso){return iso&&iso.length>=10?`${+iso.slice(5,7)}/${iso.slice(8,10)}`:'';}
+function weekday(iso){const [y,m,d]=iso.split('-').map(Number);return DAYS[new Date(y,m-1,d).getDay()];}
+function say(text,error){const box=$('msg');box.textContent=text;box.className='msg'+(error?' error':'');box.hidden=false;clearTimeout(say.timer);say.timer=setTimeout(()=>{box.hidden=true;},error?9000:3500);}
+function pill(status){const [icon,label]=STATUS[status]||['',status];return el('span','pill '+status,`${icon} ${label}`);}
+function button(cls,text,onClick){const node=el('button',cls,text);node.type='button';node.addEventListener('click',onClick);return node;}
+function pathNode(path){if(/^(https?:\/\/127\.0\.0\.1|\/)/.test(path)){const link=el('a','',path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,''));link.href=path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,'');return link;}return el('code','',path);}
+
+async function load(){
+  const response=await fetch('/api/work',{headers:{Accept:'application/json'}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||`Самбарыг уншиж чадсангүй (${response.status}).`);
+  state.data=data;state.token=data.csrf_token;
+  if(!data.question_sets.some(set=>set.key===state.set)&&data.question_sets.length)state.set=data.question_sets[0].key;
+  render();
+}
+async function post(path,body){
+  const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Work-Token':state.token},body:JSON.stringify(body)});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(data.error||`Хадгалж чадсангүй (${response.status}).`);
+  return data;
+}
+async function act(work,done){try{await work();await load();if(done)say(done);}catch(error){say(error.message,true);}}
+
+function show(tab){
+  if(!TABS.includes(tab))tab='today';
+  TABS.forEach(name=>{$(name).hidden=name!==tab;$('tab-'+name).setAttribute('aria-selected',String(name===tab));});
+  if(location.hash.slice(1)!==tab)history.replaceState(null,'','#'+tab);
+}
+function render(){
+  const data=state.data;$('loading').hidden=true;
+  $('dayLabel').textContent=`${md(data.today)} · ${weekday(data.today)} гараг`;
+  const open=data.items.filter(item=>item.status==='open'||item.status==='doing').length;
+  $('badgeOpen').textContent=open;$('badgeOpen').hidden=!open;
+  renderToday();renderFeedback();renderQuestions();renderStructure();renderFiles();
+  show(location.hash.slice(1)||'today');
+}
+
+function listCard(cls,title,rows){const card=el('div','card '+cls);add(card,el('h3','',title));const list=el('ul');(rows||[]).forEach(row=>list.append(el('li','',row)));return add(card,list);}
+function renderToday(){
+  const data=state.data,box=$('today'),board=data.board_week;box.replaceChildren();
+  const bar=el('div','weekbar'),left=el('div');
+  add(left,el('div','eyebrow','ЭНЭ ДОЛОО ХОНОГ'));
+  if(data.week){add(left,el('h1','',`${data.week.id} · ${md(data.week.start_date)}–${md(data.week.end_date)}`),el('div','muted',data.week.title));}
+  else add(left,el('h1','','Төлөвлөгөөний долоо хоног олдсонгүй'));
+  const chips=el('div','chips');
+  data.dates.forEach(row=>{const chip=el('span','chip'+(row.days<=7?' soon':''));add(chip,el('b','',md(row.date)),document.createTextNode(`${row.label} · ${row.days===0?'өнөөдөр':row.days+' хоногийн дараа'}${row.week?' · '+row.week:''}`));chips.append(chip);});
+  add(box,add(bar,left,chips));
+  if(data.stale_mn)add(box,el('div','banner',`Анхаар: ${data.stale_mn} Доорх товч төлөв хуучирсан байж болно — агентаас шинэчлэхийг хүснэ үү.`));
+  add(box,el('div','headline',board.headline_mn||''));
+  const parts=el('div','three');(board.parts||[]).forEach(part=>{const card=el('div','card');add(card,el('span','state',part.state),el('h3','',part.title),el('div','',part.text));parts.append(card);});
+  add(box,parts);
+  add(box,add(el('div','three'),listCard('col-done','✓ Энэ долоо хоногт хийсэн',board.done_mn),listCard('col-problem','! Асуудал',board.problems_mn),listCard('col-next','→ Дараа нь',board.next_mn)));
+  add(box,el('p','muted small',`Товч төлөвийг агент ${md(board.updated)}-нд шинэчилсэн.`));
+  add(box,el('h2','','Нээлттэй зүйлс'));
+  const tiles=el('div','tiles');
+  Object.keys(KIND).forEach(kind=>{const count=data.counts[kind]||{},open=(count.open||0)+(count.doing||0);
+    const tile=button('tile','',()=>{state.kind=kind;state.status=open?'open':(count.done?'done':'all');renderFeedback();show('feedback');});
+    add(tile,el('div','eyebrow',KIND[kind].toUpperCase()),el('div','num',String(open)),el('div','small muted',`хийгээгүй · ${count.done||0} шалгаагүй · ${count.confirmed||0} баталсан`));tiles.append(tile);});
+  add(box,tiles);
+  if(data.week&&(data.week.work||[]).length){const more=el('details');add(more,el('summary','','Төлөвлөгөөнд энэ долоо хоногт юу гэж бичсэн бэ'));
+    const list=el('ul');data.week.work.concat(data.week.deliverables||[]).forEach(text=>list.append(el('li','',text)));add(box,add(more,list));}
+}
+
+function matches(item){
+  if(state.kind!=='all'&&item.kind!==state.kind)return false;
+  if(state.status==='all')return true;
+  if(state.status==='open')return item.status==='open'||item.status==='doing';
+  return item.status===state.status;
+}
+function filterRow(label,key,options){const row=el('div','toolbar');add(row,el('span','small muted',label));
+  options.forEach(([value,text])=>{const chip=button('filter',text,()=>{state[key]=value;renderFeedback();});chip.setAttribute('aria-pressed',String(state[key]===value));row.append(chip);});return row;}
+function renderFeedback(){
+  const data=state.data,box=$('feedback');box.replaceChildren();
+  const head=el('div','toolbar');add(head,el('h1','','Зөвлөгөө ба асуудал'));
+  const toggle=button('primary',state.adding?'Болих':'＋ Багшийн зөвлөгөө нэмэх',()=>{state.adding=!state.adding;renderFeedback();});toggle.style.marginLeft='auto';
+  add(box,add(head,toggle));
+  add(box,el('p','muted','Багш юу гэж хэлсэн, хийсэн эсэх, аль файлд байгаа. «Хийсэн · та шалгаагүй» гэснийг та үзээд баталж эсвэл буцаана.'));
+  if(state.adding)add(box,addForm());
+  add(box,filterRow('Хэнээс:','kind',[['all','Бүгд']].concat(Object.entries(KIND))));
+  add(box,filterRow('Төлөв:','status',[['all','Бүгд'],['open','Хийгээгүй, хийж байна'],['done','Хийсэн · шалгаагүй'],['confirmed','Баталсан'],['later','Хойшилсон']]));
+  const rows=data.items.filter(matches);
+  if(!rows.length)add(box,el('p','card muted','Энэ шүүлтүүрт тохирох бүртгэл алга.'));
+  let lastDate='';
+  rows.forEach(item=>{if(item.date!==lastDate){lastDate=item.date;add(box,el('div','dategroup',`${item.date} · ${weekday(item.date)} гараг`));}add(box,itemCard(item));});
+}
+function addForm(){
+  const form=el('form','card form');
+  const field=(label,node,cls)=>{const wrap=el('div',cls||'');const tag=el('label','',label);node.id='new-'+Math.random().toString(36).slice(2);tag.htmlFor=node.id;return add(wrap,tag,node);};
+  const day=el('input');day.type='date';day.value=state.data.today;day.required=true;
+  const who=el('input');who.type='text';who.value='Удирдагч багш';who.maxLength=80;who.required=true;
+  const about=el('select');Object.entries(ABOUT).forEach(([value,text])=>{const option=el('option','',text);option.value=value;about.append(option);});
+  const said=el('textarea');said.maxLength=1200;said.required=true;said.placeholder='Багш яг юу гэж хэлснийг сонссон үгээрээ бичнэ.';
+  add(form,field('Огноо',day),field('Хэн хэлсэн',who),field('Юуны тухай',about),field('Юу гэж хэлсэн',said,'wide'),
+    el('div','wide small muted','Энэ бүртгэл GitHub-д нийтэд хадгалагдана. Утас, имэйл бүү бичээрэй; багшийг албан тушаалаар нь бичнэ.'));
+  const save=el('button','primary','Хадгалах');save.type='submit';add(form,add(el('div','wide'),save));
+  form.addEventListener('submit',event=>{event.preventDefault();act(async()=>{await post('/api/work/item',{new:true,kind:'teacher',date:day.value,from_mn:who.value,about:about.value,said_mn:said.value});state.adding=false;state.kind='all';state.status='all';},'Нэмлээ. Агент дараагийн сессэд эндээс уншина.');});
+  return form;
+}
+function itemCard(item){
+  const card=el('article','item '+item.status),head=el('header');
+  add(head,pill(item.status),el('span','tag',ABOUT[item.about]||item.about),el('span','',`${item.from_mn} · ${md(item.date)}`),el('span','id',`${KIND[item.kind]} · ${item.id}`));
+  add(card,head,el('blockquote','',item.said_mn));
+  if(item.action_mn){const action=el('p','action');add(action,el('b','',item.status==='open'?'Хийх нь: ':'Хийсэн нь: '),document.createTextNode(item.action_mn));card.append(action);}
+  if((item.evidence||[]).length){const list=el('ul','evidence');item.evidence.forEach(row=>{const line=el('li','',row.text_mn+' — ');line.append(pathNode(row.path));list.append(line);});card.append(list);}
+  const log=item.log||[];
+  if(log.length||item.source_mn){const more=el('details');add(more,el('summary','',`Түүх (${log.length})`),el('div','small muted','Эх сурвалж: '+(item.source_mn||'')));
+    log.forEach(row=>more.append(el('div','small',`${md(row.date)} · ${row.by==='user'?'та':'агент'}: ${row.text_mn}`)));card.append(more);}
+  const foot=el('footer'),note=el('input');note.type='text';note.maxLength=600;note.placeholder='Тэмдэглэл (заавал биш)';note.setAttribute('aria-label',`${item.id}: тэмдэглэл`);
+  const change=(status,done)=>act(()=>post('/api/work/item',Object.assign({id:item.id,note:note.value},status?{status}:{})),done);
+  foot.append(note);
+  const decision=item.kind==='decision';
+  if(item.status==='done')foot.append(button('primary','✔ Зөв, баталлаа',()=>change('confirmed','Баталсан гэж тэмдэглэлээ.')));
+  else if(item.status!=='confirmed'){
+    if(decision)foot.append(button('primary','✔ Шийдлээ',()=>{if(!note.value.trim())return say('Шийдвэрээ тэмдэглэлд бичнэ үү.',true);change('confirmed','Шийдвэрийг тэмдэглэлээ. Агент дараагийн сессэд уншина.');}));
+    else if(item.kind==='audit'&&item.status==='open')foot.append(button('primary','Засахыг зөвшөөрөх',()=>{if(!note.value.trim())note.value='Засахыг зөвшөөрөв.';change('doing','Зөвшөөрлийг тэмдэглэлээ. Агент дараагийн сессэд засна.');}));
+    else foot.append(button('ghost','✔ Хийгдсэн гэж тэмдэглэх',()=>change('confirmed','Хийгдсэн гэж тэмдэглэлээ.')));
+  }
+  if(item.status!=='open')foot.append(button('ghost warn',decision?'↩ Дахин нээх':'↩ Дахин засах хэрэгтэй',()=>change('open','Буцаалаа. Агент дараагийн сессэд харна.')));
+  if(item.status!=='later'&&item.status!=='confirmed')foot.append(button('ghost','⏸ Хойшлуулах',()=>change('later','Хойшлууллаа.')));
+  foot.append(button('ghost','Тэмдэглэл нэмэх',()=>{if(!note.value.trim())return say('Тэмдэглэлээ бичнэ үү.',true);change(null,'Тэмдэглэл нэмлээ.');}));
+  return add(card,foot);
+}
+
+function expected(row){if(row.abstain)return row.abstain_mn;const values=row.required_values.length?row.required_values.join('; '):(row.any_of.length?'нэг нь: '+row.any_of.join('; '):'');return values||row.answer_mn||'';}
+function renderQuestions(){
+  const data=state.data,box=$('questions');box.replaceChildren();
+  add(box,el('h1','','Шалгах асуулт'),el('div','banner',data.evaluation.problem_mn));
+  const sets=el('div','sets');
+  data.question_sets.forEach(set=>{const node=button('setbtn','',()=>{state.set=set.key;state.editing.clear();state.lockArmed=false;renderQuestions();});node.setAttribute('aria-pressed',String(set.key===state.set));
+    add(node,el('b','',`${set.label_mn} · ${set.total}`),el('span','small muted',set.lock_mn));
+    set.results.forEach(result=>node.append(el('div','small',`${md(result.date)}: ${result.text_mn}${result.stale?' — хэмжсэний дараа асуулт засагдсан':''}`)));sets.append(node);});
+  add(box,sets);
+  const set=data.question_sets.find(entry=>entry.key===state.set);
+  if(!set)return add(box,el('p','card muted','Асуултын багц энэ компьютерт алга.'));
+  set.results.forEach(result=>add(box,el('p','small muted',`Дүнгийн хүрээ: ${result.scope_mn}`)));
+  add(box,el('p','small muted',`Файл: ${set.path}${set.locked_at?' · түгжсэн '+set.locked_at:''}. ${data.evaluation.source_mn}`));
+  if(set.editable){
+    add(box,el('p','',`Мөр бүрийг уншаад зөв бол «OK» дарна. Буруу бол «Засах» дарж асуулт, зөв хариултын утгыг өөрөө засаад хадгална. Энд системийн хариултыг харуулахгүй — таны хяналт системээс хараат бус байх ёстой.`));
+    const bar=el('div','progress'),fill=el('div'),count=el('div','small');bar.setAttribute('role','img');bar.id='reviewBar';fill.id='reviewFill';count.id='reviewCount';
+    add(box,count,add(bar,fill));
+    const lock=el('div','lockrow'),name=el('input');name.type='text';name.maxLength=80;name.placeholder='Таны нэр';name.setAttribute('aria-label','Хянасан хүний нэр');
+    const all=set.reviewed===set.total&&set.total>0;
+    const go=button('primary',state.lockArmed?'Дахин дарж баталгаажуул — түгжсэний дараа өөрчлөхгүй':'Бүгдийг хянасан — түгжих',()=>{
+      if(!name.value.trim())return say('Нэрээ бичнэ үү.',true);
+      if(!state.lockArmed){state.lockArmed=true;state.lockName=name.value;return renderQuestions();}
+      act(async()=>{await post('/api/work/lock',{set:set.key,base_sha:set.sha,locked_by:name.value});state.lockArmed=false;},'Багцыг түгжлээ.');});
+    go.id='lockButton';name.value=state.lockName||'';const hint=el('span','small muted');hint.id='lockHint';
+    add(box,add(lock,name,go,hint));updateProgress(set);
+  }
+  const table=el('table'),head=el('tr');['№','Асуулт','Зөв хариултад байх ёстой','Төрөл',set.editable?'Таны хяналт':'Тэмдэглэл'].forEach(text=>head.append(el('th','',text)));
+  add(table,add(el('thead'),head));const body=el('tbody');
+  set.questions.forEach(row=>body.append(questionRow(set,row)));
+  add(box,add(table,body));
+}
+function updateProgress(set){
+  const all=set.reviewed===set.total&&set.total>0;
+  if($('reviewCount'))$('reviewCount').textContent=`${set.total}-аас ${set.reviewed} хянасан`;
+  if($('reviewFill'))$('reviewFill').style.width=`${set.total?Math.round(100*set.reviewed/set.total):0}%`;
+  if($('reviewBar'))$('reviewBar').setAttribute('aria-label',`${set.total}-аас ${set.reviewed} хянасан`);
+  if($('lockButton'))$('lockButton').disabled=!all;
+  if($('lockHint'))$('lockHint').textContent=all?'':'Бүх мөрийг хянасны дараа идэвхжинэ.';
+}
+// One save at a time, each with the file hash the previous save returned; only that row is redrawn,
+// so a note being typed in another row is not lost and two quick clicks do not collide.
+function saveQuestion(set,row,fields,done){
+  state.queue=state.queue.then(async()=>{
+    try{
+      const result=(await post('/api/work/question',{set:set.key,id:row.id,base_sha:set.sha,fields})).result;
+      set.sha=result.sha;set.reviewed=result.reviewed;state.editing.delete(row.id);
+      set.questions[set.questions.findIndex(entry=>entry.id===row.id)]=result.question;
+      const line=[...document.querySelectorAll('#questions tbody tr')].find(node=>node.dataset.question===row.id);
+      if(line)line.replaceWith(questionRow(set,result.question));
+      updateProgress(set);say(done);
+    }catch(error){say(error.message,true);}
+  });
+}
+function questionRow(set,row){
+  const line=el('tr',row.user_review?'reviewed':''),editing=state.editing.has(row.id);line.dataset.question=row.id;
+  const idCell=el('td','narrow');add(idCell,el('b','',row.id),row.split?el('div','small muted',row.split):null);
+  const queryCell=el('td'),valueCell=el('td');
+  add(queryCell,el('div','',row.query));
+  add(valueCell,el('div','',expected(row)));
+  if(row.note)valueCell.append(el('div','small muted',row.note));
+  if(row.source){const link=el('a','small',row.source.replace(/^https?:\/\//,''));link.href=row.source;link.target='_blank';link.rel='noopener noreferrer';valueCell.append(link);}
+  const kindCell=el('td','narrow',row.kind_mn),reviewCell=el('td');
+  if(!set.editable){reviewCell.textContent=row.user_review||'';return add(line,idCell,queryCell,valueCell,kindCell,reviewCell);}
+  const save=(fields,done)=>saveQuestion(set,row,fields,done);
+  const review=el('input');review.type='text';review.maxLength=400;review.value=row.user_review||'';review.placeholder='OK эсвэл засвар';review.setAttribute('aria-label',`${row.id}: таны тэмдэглэл`);
+  const box=el('div','reviewbox');
+  add(box,button('primary','OK',()=>save({user_review:'OK'},`${row.id}: OK`)),review,button('ghost','Хадгалах',()=>save({user_review:review.value},`${row.id}: тэмдэглэл хадгаллаа`)),
+    button('ghost',editing?'Болих':'Засах',()=>{if(editing)state.editing.delete(row.id);else state.editing.add(row.id);line.replaceWith(questionRow(set,row));}));
+  reviewCell.append(box);
+  if(editing){
+    const query=el('input');query.type='text';query.maxLength=400;query.value=row.query;query.setAttribute('aria-label',`${row.id}: асуулт`);
+    add(queryCell,add(el('div','qedit'),query));
+    const values=el('input');values.type='text';values.value=row.required_values.join('; ');values.placeholder='утгуудыг ; тэмдгээр тусгаарлана';values.setAttribute('aria-label',`${row.id}: зөв хариултын утга`);
+    const note=el('input');note.type='text';note.maxLength=400;note.value=row.note||'';note.placeholder='тайлбар';note.setAttribute('aria-label',`${row.id}: тайлбар`);
+    const edit=el('div','qedit');if(!row.abstain)edit.append(values);edit.append(note);
+    edit.append(button('primary','Засварыг хадгалах',()=>{const fields={query:query.value,note:note.value};if(!row.abstain)fields.required_values=values.value.split(';').map(text=>text.trim()).filter(Boolean);save(fields,`${row.id}: засвар хадгаллаа`);}));
+    valueCell.append(edit);
+  }
+  return add(line,idCell,queryCell,valueCell,kindCell,reviewCell);
+}
+
+function renderStructure(){
+  const box=$('structure');box.replaceChildren();
+  add(box,el('h1','','Системийн бүтэц'),el('p','muted','Асуултаас хариулт хүртэлх таван алхам. «Асаалттай / Унтраалттай» гэдгийг тохиргооны файлаас яг одоо уншсан. «Тогтмол» гэсэн хэсэг тохиргоогүй — кодод үргэлж ажилладаг.'));
+  state.data.structure.forEach(group=>{
+    add(box,el('h2','',group.step));
+    const table=el('table','parts'),body=el('tbody');
+    group.rows.forEach(row=>{const line=el('tr');const name=el('td','narrow');add(name,el('b','',row.name));
+      const stateCell=el('td','narrow');stateCell.append(row.switch?el('span','pill '+(row.on?'on':'off'),row.on?'✓ Асаалттай':'○ Унтраалттай'):el('span','pill fixed','● Тогтмол'));
+      const text=el('td');add(text,el('div','',row.text),row.note?el('div','small muted',row.note):null);
+      const file=el('td');file.append(el('code','',row.file));body.append(add(line,name,stateCell,text,file));});
+    add(box,add(table,body));
+  });
+}
+function renderFiles(){
+  const files=state.data.files,box=$('files');box.replaceChildren();
+  add(box,el('h1','','Зураг, файл'),el('p','muted','Диаграмм бүр хаана байгаа, яаж засах.'));
+  const figures=el('table'),head=el('tr');['Зураг','Дипломд','Слайдад','Эх файл','Сүүлд зассан'].forEach(text=>head.append(el('th','',text)));
+  add(figures,add(el('thead'),head));const body=el('tbody');
+  files.figures.forEach(row=>{const line=el('tr');const file=el('td');file.append(el('code','',row.file));add(line,el('td','',row.name),el('td','',row.thesis),el('td','',row.slide),file,el('td','narrow',md(row.changed)));body.append(line);});
+  add(box,add(figures,body),el('h2','','Яаж засах вэ'));
+  const how=el('ol','card');how.style.paddingLeft='34px';files.howto_mn.forEach(text=>how.append(el('li','',text)));add(box,how,el('h2','','Гол файлууд'));
+  const outputs=el('table'),rows=el('tbody');
+  files.outputs.forEach(row=>{const line=el('tr');const path=el('td');path.append(el('code','',row.path));add(line,el('td','',row.label_mn),path,el('td','narrow',md(row.changed)));rows.append(line);});
+  add(box,add(outputs,rows));
+  if((state.data.rules_mn||[]).length){add(box,el('h2','','Энэ самбарын дүрэм'));const rules=el('ul','card');rules.style.paddingLeft='34px';state.data.rules_mn.forEach(text=>rules.append(el('li','',text)));add(box,rules);}
+}
+
+document.querySelectorAll('.tabs button').forEach(node=>node.addEventListener('click',()=>show(node.dataset.tab)));
+window.addEventListener('hashchange',()=>{if(state.data)show(location.hash.slice(1));});
+load().catch(error=>{$('loading').textContent=error.message;});
+</script>
+</body>
+</html>

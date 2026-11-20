@@ -33,6 +33,7 @@ from teacher_media import TeacherMedia, TeacherMediaError
 from privacy_filter import hide_mobiles
 import code_map
 import reading_room
+import work_board
 
 ROOT = Path(__file__).resolve().parent
 MAX_BODY = 8192
@@ -101,6 +102,7 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                                       manager=releases, clarification=clarification_context)
     admin_token = secrets.token_urlsafe(32)
     gemini_token = secrets.token_urlsafe(32)
+    work_token = secrets.token_urlsafe(32)
     teachers = teacher_service if teacher_service is not None else TeacherMedia(root)
 
     class Handler(BaseHTTPRequestHandler):
@@ -307,6 +309,23 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.error(404, 'Админ хуудас олдсонгүй.')
                 mime = {'.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript'}[file.suffix]
                 return self.send_data(200, file.read_bytes(), mime + '; charset=utf-8')
+            # Work board: teacher feedback, the week, question sets and the system structure. The page
+            # reads the repo on every request; writes go through /api/work/* with this page's token.
+            if path in {'/work', '/work.html'}:
+                file = root / 'demo' / 'work.html'
+                if not file.is_file():
+                    return self.error(404, 'Ажлын самбарын хуудас олдсонгүй.')
+                return self.send_data(200, file.read_bytes(), 'text/html; charset=utf-8')
+            if path == '/api/work':
+                try:
+                    active = live_content.snapshot().public()
+                    release = {key: active.get(key) for key in ('label', 'activated_utc')}
+                except (ReleaseError, ValueError, OSError, sqlite3.Error):
+                    release = None
+                try:
+                    return self.send_json(200, {**work_board.snapshot(root, release=release), 'csrf_token': work_token})
+                except (OSError, ValueError, KeyError, TypeError, AttributeError):
+                    return self.error(503, 'Ажлын самбарын бүртгэлийг уншиж чадсангүй.')
             # Study views read repo files live: reading plan + guides, and the Python code map.
             if path == '/reader' or path.startswith('/reader/'):
                 code = path.removeprefix('/reader').strip('/')
@@ -516,6 +535,22 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.error(403, str(error))
                 except (ValueError, OSError, KeyError, TypeError, sqlite3.Error) as error:
                     return self.error(400, str(error))
+            if path.startswith('/api/work/'):
+                supplied = self.headers.get('X-Work-Token', '')
+                if not supplied.isascii() or not secrets.compare_digest(supplied, work_token):
+                    return self.error(403, 'Ажлын самбарыг дахин нээнэ үү.')
+                operation = {'/api/work/item': work_board.save_item, '/api/work/question': work_board.save_question,
+                             '/api/work/lock': work_board.lock_set}.get(path)
+                if operation is None:
+                    return self.error(404, 'Самбарын үйлдэл олдсонгүй.')
+                try:
+                    return self.send_json(200, {'result': operation(root, self.read_json(16384))})
+                except work_board.Conflict as error:
+                    return self.error(409, str(error))
+                except ValueError as error:
+                    return self.error(400, str(error))
+                except (KeyError, TypeError, AttributeError, OSError):   # a hand-edited file with a wrong shape
+                    return self.error(400, 'Хадгалж чадсангүй.')
             if path not in {"/api/search", "/api/preview", "/api/website-search", "/api/route",
                             "/api/conversation/reset",
                             "/api/voice/transcribe", "/api/voice/speak", "/api/voice/reset", "/api/voice/correct",

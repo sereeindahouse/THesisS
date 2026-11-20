@@ -621,3 +621,12 @@ __pycache__/
 /.claude/skills/thesis-autofix/*
 !/.claude/skills/thesis-autofix/SKILL.md
 !/papers/41-autofix-round4-20261117.mn.md
+# 11/20: work board (/work) — teacher feedback, the week, question sets, structure; one figure palette;
+# seminar deck v102 script; whole-view audit report.
+!/work_board.py
+!/demo/work.html
+!/CORE/workboard.json
+!/tests/test_work_board.py
+!/thesis/Figures/palette.tex
+!/tools/nmct_slides/update_seminar_v102.py
+!/papers/42-whole-audit-20261120.mn.md

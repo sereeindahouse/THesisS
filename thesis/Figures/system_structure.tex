@@ -4,13 +4,14 @@
 % Байрлалыг (x,y) координатаар өгсөн: нэг хайрцгийг зөөхөд тоог нь л өөрчилнө.
 % 2026.11.16 (багшийн зөвлөгөө): өнгө нэмсэн — хөх = системийн алхам, улбар шар = гадны
 % үйлчилгээ, ногоон = мэдээлэл, ягаан = хэнд, хаана хандахыг заах. Доод талд тайлбартай.
+% 2026.11.20 (багш нар 11/17: «өнгө бүгд ижил»): өнгийг Figures/palette.tex-ийн тод палитраар сольсон.
 \begin{tikzpicture}[
     font=\footnotesize,
-    box/.style={draw=blue!65!black, fill=blue!10, line width=0.7pt, rounded corners=2pt, align=center, text width=2.3cm,
+    box/.style={draw=nmBlueD, fill=nmBlue, line width=0.7pt, rounded corners=2pt, align=center, text width=2.3cm,
                 minimum height=0.95cm, inner sep=2pt},
-    ext/.style={box, draw=orange!70!black, fill=orange!38},
-    data/.style={box, draw=green!45!black, fill=green!13},
-    ref/.style={box, draw=violet!70!black, fill=violet!13},
+    ext/.style={box, draw=nmOrangeD, fill=nmOrange},
+    data/.style={box, draw=nmGreenD, fill=nmGreen},
+    ref/.style={box, draw=nmVioletD, fill=nmViolet},
     key/.style={minimum width=4mm, minimum height=3mm, inner sep=0pt, line width=0.7pt},
     head/.style={font=\footnotesize\bfseries, align=center},
     arr/.style={-{Stealth[length=2mm]}, semithick},
@@ -86,12 +87,12 @@
 \draw[arr] (rtab.east) -- ++(0.9,0) |- ([yshift=-2mm]tree.west);
 
 % --- өнгөний тайлбар
-\node[key, draw=blue!65!black, fill=blue!10] (k1) at (0.6,-12.2) {};
+\node[key, draw=nmBlueD, fill=nmBlue] (k1) at (0.6,-12.2) {};
 \node[note, anchor=west] at (k1.east) {системийн алхам};
-\node[key, draw=orange!70!black, fill=orange!38] (k2) at (4.2,-12.2) {};
+\node[key, draw=nmOrangeD, fill=nmOrange] (k2) at (4.2,-12.2) {};
 \node[note, anchor=west] at (k2.east) {гадны үйлчилгээ};
-\node[key, draw=green!45!black, fill=green!13] (k3) at (7.8,-12.2) {};
+\node[key, draw=nmGreenD, fill=nmGreen] (k3) at (7.8,-12.2) {};
 \node[note, anchor=west] at (k3.east) {мэдээлэл};
-\node[key, draw=violet!70!black, fill=violet!13] (k4) at (10.4,-12.2) {};
+\node[key, draw=nmVioletD, fill=nmViolet] (k4) at (10.4,-12.2) {};
 \node[note, anchor=west] at (k4.east) {хэнд, хаана хандахыг заах};
 \end{tikzpicture}

@@ -23,6 +23,7 @@ TEMPLATE = r"""\documentclass[11pt]{article}
 \usepackage{amssymb}
 \usepackage{tikz}
 \usepackage{xcolor}
+\input{palette}
 \usetikzlibrary{positioning,arrows.meta,bending,shapes.geometric,shapes.symbols,shapes.multipart,fit,calc,backgrounds,decorations.pathreplacing,shadows}
 \pagestyle{empty}
 \begin{document}
@@ -36,6 +37,7 @@ def export(name, target, dpi=200):
     with tempfile.TemporaryDirectory() as tmp:
         work = Path(tmp)
         shutil.copy2(ROOT / 'thesis/Figures' / f'{name}.tex', work / 'figure.tex')
+        shutil.copy2(ROOT / 'thesis/Figures/palette.tex', work / 'palette.tex')   # one palette for every figure
         (work / 'page.tex').write_text(TEMPLATE.replace('FIGURE', 'figure'), encoding='utf-8')
         run = subprocess.run([_tool('xelatex'), '-interaction=nonstopmode', '-halt-on-error', 'page.tex'],
                              cwd=work, capture_output=True, check=False)

@@ -112,7 +112,7 @@ ol{{list-style:none;margin:0;padding:0;display:grid;gap:8px}}
 .missing{{font-size:12px;color:var(--muted);white-space:nowrap}}a{{color:#2f6b5d}}
 @media(max-width:620px){{.paper{{grid-template-columns:1fr}}}}
 </style></head>
-<body><div class="top"><h1>Өгүүлэл унших</h1><a href="/data">← Мэдлэгийн атлас</a><a href="/code-map">Кодын хот</a></div>
+<body><div class="top"><h1>Өгүүлэл унших</h1><a href="/work">Ажлын самбар</a><a href="/data">← Мэдлэгийн атлас</a><a href="/code-map">Кодын хот</a></div>
 <main><p class="summary">{total} өгүүлэл · {read} уншсан · {guided} нь Монгол хөтөчтэй. Төлөвийг долоо хоногийн төлөвлөгөөнөөс уншдаг; энэ хуудас «уншсан» гэж тэмдэглэхгүй.</p>
 {body}</main></body></html>
 '''

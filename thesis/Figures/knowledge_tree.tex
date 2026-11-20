@@ -1,15 +1,22 @@
 % Мэдлэгийн модны бүтэц (TikZ). Эх: config/knowledge-topics.json (2026.11.16-нд тулгасан):
 % үндэс -> 11 хүрээ -> 31 дэд сэдэв. Зурагт «Элсэлт», «Байршил, өрөө» хоёр хүрээний дэд сэдвийг жишээ болгон задалсан.
+% 2026.11.20 (багш нар 11/17: «өнгө бүгд ижил»): хүрээг мэдээллийн эх сурвалжаар нь өнгөөр ялгасан —
+% хөх = вэб сайтаас авсан 8 хүрээ, ногоон = сургуулийн зүгээс өгсөн мэдээллийн 3 хүрээ (Хүснэгт 3.1-тэй ижил);
+% задалж үзүүлсэн хоёр хүрээ тод дүүргэлттэй, дэд сэдэв нь хүрээнийхээ өнгөтэй. Доод талд тайлбартай.
 \begin{tikzpicture}[
     font=\footnotesize,
     node distance=0pt,
-    box/.style={draw=blue!65!black, fill=blue!10, line width=0.7pt, rounded corners=1.5pt, align=left, inner sep=3pt, minimum height=5.2mm},
+    box/.style={draw=nmBlueD, fill=nmBlue, line width=0.7pt, rounded corners=1.5pt, align=left, inner sep=3pt, minimum height=5.2mm},
     dom/.style={box, text width=4.3cm, anchor=west},
-    subt/.style={box, draw=green!45!black, fill=green!13, text width=6.6cm, anchor=west},
-    open/.style={fill=blue!28},
+    school/.style={draw=nmGreenD, fill=nmGreen},
+    subt/.style={box, text width=6.6cm, anchor=west},
+    open/.style={fill=nmBlueS},
+    openschool/.style={fill=nmGreenS},
+    key/.style={minimum width=4mm, minimum height=3mm, inner sep=0pt, line width=0.7pt},
+    note/.style={font=\scriptsize, inner sep=1.5pt},
     line/.style={semithick, black!70}]
 
-\node[box, draw=violet!70!black, fill=violet!13, align=center, text width=2.3cm] (root) at (0,-3.25) {Сургуулийн\\мэдээлэл};
+\node[box, draw=nmVioletD, fill=nmViolet, align=center, text width=2.3cm] (root) at (0,-3.25) {Сургуулийн\\мэдээлэл};
 
 \node[dom]       (d0)  at (2.9,0)     {Сургуулийн тухай};
 \node[dom, open] (d1)  at (2.9,-0.65) {Элсэлт};
@@ -19,9 +26,9 @@
 \node[dom]       (d5)  at (2.9,-3.25) {Мэдээ};
 \node[dom]       (d6)  at (2.9,-3.90) {Арга хэмжээ};
 \node[dom]       (d7)  at (2.9,-4.55) {Холбоо барих};
-\node[dom, open] (d8)  at (2.9,-5.20) {Байршил, өрөө};
-\node[dom]       (d9)  at (2.9,-5.85) {Багш, ажилтан};
-\node[dom]       (d10) at (2.9,-6.50) {Анги, хичээлийн хуваарь};
+\node[dom, school, openschool] (d8)  at (2.9,-5.20) {Байршил, өрөө};
+\node[dom, school] (d9)  at (2.9,-5.85) {Багш, ажилтан};
+\node[dom, school] (d10) at (2.9,-6.50) {Анги, хичээлийн хуваарь};
 
 \foreach \n in {d0,d1,d2,d3,d4,d6,d7,d8,d9,d10}
     \draw[line] (root.east) -- ++(0.45,0) |- (\n.west);
@@ -36,9 +43,9 @@
 \foreach \n in {a1,a2,a3,a4,a5,a6}
     \draw[line] (d1.east) -- ++(0.45,0) |- (\n.west);
 
-\node[subt] (l1) at (8.6,-4.55) {Давхар бүрийн өрөө};
-\node[subt] (l2) at (8.6,-5.20) {Ресепшн, үйлчилгээний өрөө};
-\node[subt] (l3) at (8.6,-5.85) {Тэнхимийн өрөө};
+\node[subt, school] (l1) at (8.6,-4.55) {Давхар бүрийн өрөө};
+\node[subt, school] (l2) at (8.6,-5.20) {Ресепшн, үйлчилгээний өрөө};
+\node[subt, school] (l3) at (8.6,-5.85) {Тэнхимийн өрөө};
 \foreach \n in {l1,l3}
     \draw[line] (d8.east) -- ++(0.45,0) |- (\n.west);
 \draw[line] (d8.east) -- (l2.west);
@@ -46,4 +53,10 @@
 \node[font=\scriptsize\bfseries, anchor=south] at (root.north |- 0,0.75) {Үндэс};
 \node[font=\scriptsize\bfseries, anchor=south west] at (2.9,0.75) {Хүрээ (11)};
 \node[font=\scriptsize\bfseries, anchor=south west] at (8.6,0.75) {Дэд сэдэв (жишээ)};
+
+% --- өнгөний тайлбар
+\node[key, draw=nmBlueD, fill=nmBlue] (k1) at (3.1,-7.3) {};
+\node[note, anchor=west] at (k1.east) {вэб сайтаас авсан мэдээлэл};
+\node[key, draw=nmGreenD, fill=nmGreen] (k2) at (8.8,-7.3) {};
+\node[note, anchor=west] at (k2.east) {сургуулийн зүгээс өгсөн мэдээлэл};
 \end{tikzpicture}

@@ -183,6 +183,18 @@ def entry_index(root: Path):
     return found
 
 
+def board_rows(root: Path, today: date):
+    """Open items of the work board (/work): teacher feedback, the user's requests and decisions, audit findings."""
+    if not (root / "CORE/workboard.json").is_file():
+        return ["(самбарын бүртгэл алга)"]
+    sys.path.insert(0, str(root))
+    try:
+        import work_board
+        return work_board.brief_lines(root, today)
+    except (ImportError, OSError, ValueError, KeyError, TypeError) as error:
+        return [f"⚠ самбарыг уншиж чадсангүй: {type(error).__name__}"]
+
+
 def brief(root: Path, today: date | None = None):
     """One-screen digest so a new session knows everything recorded without reading every note."""
     today = today or date.today()
@@ -194,6 +206,8 @@ def brief(root: Path, today: date | None = None):
     parts = [
         f"# THesisS товчоо — {today.isoformat()}",
         f"Git: {head.get('value', '?')} · өөрчлөлт: {len(status.get('value', '').splitlines())} файл",
+        # 11/20: the user could not see whether the teacher's advice was done. The board is read first.
+        "", "## Ажлын самбар — нээлттэй зүйлс (127.0.0.1:8765/work; бүртгэл CORE/workboard.json)", *board_rows(root, today),
         # Long tool output gets cut in the middle (11/07 desktop session lost the ✅ rows), so keep reading status on top.
         "", "## Унших төлөв (✅ = хэрэглэгч өөрөө хэлсэн)", *reading_rows(plan),
         "", "## Одоогийн бүртгэл (PROJECT-NOTE)", current_block(_text(root, "CORE/PROJECT-NOTE.mn.md")),

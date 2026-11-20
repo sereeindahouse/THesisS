@@ -37,6 +37,7 @@ SECTIONS = {
 }
 
 KEY_DOCS = [
+    ('Ажлын самбарын бүртгэл (хуудас: http://127.0.0.1:8765/work)', 'CORE/workboard.json'),
     ('Миний ажил нэг хуудсанд', 'CORE/THESIS-START.mn.md'),
     ('Долоо хоногийн төлөвлөгөө ба унших жагсаалт', 'CORE/WEEKLY-PLAN-2026-2027.mn.md'),
     ('Өдөр бүрийн хийсэн ажил, нотолгоо', 'CORE/PROJECT-NOTE.mn.md'),
@@ -63,8 +64,12 @@ def planned_copies(root: Path):
     add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_2_бүтэн_ноорог.pdf')
     # 11/16: docs/diagrams/*.pdf (11/06-ны хуучин зураг) хуулахгүй — диаграммууд одоо хоёр PDF-ийн дотор.
     seminars = sorted(root.glob('CORE/seminar-*'))
-    add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*.pptx')))
+    deck = _newest(p for folder in seminars for p in folder.glob('*.pptx'))
+    add('02_Семинар', deck)
     add('02_Семинар', _newest(p for folder in seminars for p in folder.glob('*Яриа*.md')))
+    # 11/20: слайдын дүрсээр зурсан диаграмм Canva-д өөрөөр харагдвал оронд нь тавих зураг (сүүлийн семинарынх).
+    for source in sorted(deck.parent.glob('Зураг_*.png')) if deck else ():     # the pictures of that same deck
+        add('02_Семинар', source)
     for source in sorted(root.glob('data/school-request/*.pdf')):
         add('03_Сургуульд_өгөх', source)
     # 11/15: хэрэглэгч сургуулиас асууж тэмдэглэх асуултын хуудас.
@@ -86,6 +91,8 @@ def planned_copies(root: Path):
     # 11/17 (round 4): хэрэглэгчийн «намайг яаж автоматжуулах вэ» асуулт ба дагалдах асуултын судалгаа.
     add('06_Систем', root / 'reports/Автомат гогцоо ба дагалдах асуулт.md', 'Автомат_гогцоо_ба_дагалдах_асуулт.md')
     add('06_Систем', _newest(root.glob('papers/*autofix-round*.mn.md')), 'Автомат_засварын_тойрог.mn.md')
+    # 11/20: диплом, PPT, 127 систем, багшийн зөвлөгөөний бүтэн шалгалт (самбар /work-ийн дэлгэрэнгүй).
+    add('06_Систем', _newest(root.glob('papers/*whole-audit*.mn.md')), 'Бүтэн_шалгалтын_тайлан.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 
@@ -181,6 +188,7 @@ def render_index(rows, edited, link_ok):
     lines += ['## Үндсэн баримтууд (эх файлыг нь нээж уншина)', '']
     lines += [f'- {label}: `{path}`' for label, path in KEY_DOCS]
     lines += ['', '## Локал хуудсууд (`CORE/DEMO.cmd` асаасны дараа)', '',
+              '- Ажлын самбар (багшийн зөвлөгөө, энэ долоо хоног, шалгах асуулт): http://127.0.0.1:8765/work',
               '- Чат: http://127.0.0.1:8765/',
               '- Мэдлэгийн атлас, мод, одны зураг: http://127.0.0.1:8765/data',
               '- Өгүүлэл унших өрөө: http://127.0.0.1:8765/reader',

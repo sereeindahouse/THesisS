@@ -4,17 +4,24 @@
 % мэдээллээр хоёр бүлэгт хуваасан: өдөр тутмын зочин, нээлттэй өдөрлөгийн зочин.
 % 2026.11.16 (багшийн зөвлөгөө): хүний дүрсийн оронд UML-ийн нөгөө стандарт тэмдэглэгээ —
 % «actor» түлхүүр үгтэй тэгш өнцөгт; бүх зууван нэг хэмжээтэй, тор дээр байрласан; өнгө нэмсэн.
-% Өнгө: ногоон хөх = хүн оролцогч, улбар шар = гадны үйлчилгээ, хөх = зочны хэрэглээний
-% тохиолдол, ягаан = сургуулийн ажилтны хэсэг. Утгыг бичиг давхар илэрхийлнэ.
+% 2026.11.20 (багш нар 11/17: «өнгө бүгд ижил», «Шинэ хувилбарыг шалгаж нийтлэх гэдэг үгийг зас»):
+% өнгийг Figures/palette.tex-ээс авч бүлэг бүрийг ялгасан; үгийг «Мэдээллийг шалгаж шинэчлэх» болгосон.
+% Өнгө: ногоон хөх = зочин, хөх = зочны хэрэглээний тохиолдол, ягаан = хэнд, хаана хандахыг мэдэх,
+% улбар шар = гадны үйлчилгээ ба түүгээр гүйцэтгэх үйлдэл, ногоон = сургуулийн ажилтан ба мэдээлэл
+% шинэчлэх үйлдэл. Утгыг бичиг, доод талын тайлбар давхар илэрхийлнэ.
 \begin{tikzpicture}[
     font=\footnotesize,
-    uc/.style={draw=blue!65!black, fill=blue!10, ellipse, align=center, text width=3.3cm,
+    uc/.style={draw=nmBlueD, fill=nmBlue, ellipse, align=center, text width=3.3cm,
                minimum width=4.7cm, minimum height=1.25cm, inner sep=0pt, line width=0.7pt},
-    ucstaff/.style={uc, draw=violet!70!black, fill=violet!13},
-    actor/.style={draw=teal!60!black, fill=teal!30, align=center, text width=2.75cm,
+    ucref/.style={uc, draw=nmVioletD, fill=nmViolet},
+    ucext/.style={uc, draw=nmOrangeD, fill=nmOrangeL},
+    ucstaff/.style={uc, draw=nmGreenD, fill=nmGreen},
+    actor/.style={draw=nmTealD, fill=nmTeal, align=center, text width=2.75cm,
                   minimum height=1.75cm, inner sep=2pt, line width=0.7pt},
-    service/.style={actor, draw=orange!70!black, fill=orange!38},
-    staff/.style={actor, draw=violet!70!black, fill=violet!13},
+    service/.style={actor, draw=nmOrangeD, fill=nmOrange},
+    staff/.style={actor, draw=nmGreenD, fill=nmGreenS},
+    key/.style={minimum width=4mm, minimum height=3mm, inner sep=0pt, line width=0.7pt},
+    note/.style={font=\scriptsize, inner sep=1.5pt},
     line/.style={semithick},
     dep/.style={dashed, semithick, -{Stealth[length=2mm]}},
     gen/.style={-{Triangle[open, length=2.6mm, width=2.6mm]}, semithick},
@@ -28,12 +35,12 @@
 \node[uc] (typed)  at (0,0)      {Бичгээр асуух};
 \node[uc] (voice)  at (0,-1.9)  {Дуугаар асуух};
 \node[uc] (answer) at (0,-3.8)   {Эх сурвалж, огноотой\\хариулт авах};
-\node[uc] (refer)  at (0,-5.7)  {Хэнд, хаана хандахыг\\мэдэх};
+\node[ucref] (refer)  at (0,-5.7)  {Хэнд, хаана хандахыг\\мэдэх};
 \node[uc] (listen) at (0,-7.6)   {Хариултыг дуугаар\\сонсох};
-\node[uc] (stt)    at (6.2,-1.9) {Яриаг текст болгох};
+\node[ucext] (stt)    at (6.2,-1.9) {Яриаг текст болгох};
 \node[ucstaff] (import)  at (6.2,-3.8)  {Сургуулийн хүснэгт\\оруулах};
-\node[ucstaff] (publish) at (6.2,-5.7) {Шинэ хувилбарыг\\шалгаж нийтлэх};
-\node[uc] (tts)    at (6.2,-7.6) {Текстийг дуу болгох};
+\node[ucstaff] (publish) at (6.2,-5.7) {Мэдээллийг\\шалгаж шинэчлэх};
+\node[ucext] (tts)    at (6.2,-7.6) {Текстийг дуу болгох};
 
 % --- оролцогчид: «actor» түлхүүр үгтэй тэгш өнцөгт
 \node[actor] (daily) at (-5.6,0)    {{\scriptsize «actor»}\\Өдөр тутмын зочин\\{\scriptsize оюутан, эцэг эх,}\\{\scriptsize ажил горилогч}};
@@ -54,4 +61,19 @@
 \draw[line] (tts) -- (edge);
 \draw[line] (worker.west) -- (import.east);
 \draw[line] (worker.west) -- (publish.east);
+
+% --- өнгөний тайлбар
+% Тод, бүдэг хоёр дөрвөлжин: оролцогчийн ба түүний үйлдлийн дүүргэлт хоёулаа тайлбарт байна.
+\node[key, draw=nmTealD, fill=nmTeal] (k1) at (-6.95,-9.4) {};
+\node[note, anchor=west] at (k1.east) {зочин};
+\node[key, draw=nmBlueD, fill=nmBlue] (k2) at (-4.9,-9.4) {};
+\node[note, anchor=west] at (k2.east) {зочны үйлдэл};
+\node[key, draw=nmVioletD, fill=nmViolet] (k3) at (-1.7,-9.4) {};
+\node[note, anchor=west] at (k3.east) {хэнд, хаана хандахыг мэдэх};
+\node[key, draw=nmOrangeD, fill=nmOrange] (k4) at (3.3,-9.4) {};
+\node[key, draw=nmOrangeD, fill=nmOrangeL] (k4b) at (3.8,-9.4) {};
+\node[note, anchor=west] at (k4b.east) {гадны үйлчилгээ, үйлдэл};
+\node[key, draw=nmGreenD, fill=nmGreenS] (k5) at (8.3,-9.4) {};
+\node[key, draw=nmGreenD, fill=nmGreen] (k5b) at (8.8,-9.4) {};
+\node[note, anchor=west] at (k5b.east) {ажилтан, мэдээлэл шинэчлэх};
 \end{tikzpicture}
