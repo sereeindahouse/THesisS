@@ -46,8 +46,9 @@ class RegistrationProcessTests(unittest.TestCase):
                 result = chat.route(None, query)
                 self.assertEqual(result['route'], 'A')
                 self.assertIn(STEPS, result['answer'])
-                self.assertIn('Элсэлт 2026', result['answer'])
-                self.assertIn('2026-10-10', result['answer'])
+                # 11/23: the page title and date moved from the answer text to the source list.
+                self.assertNotIn('татсан', result['answer'])
+                self.assertTrue(result['citations'][0]['retrieved_at'].startswith('2026-10-10'))
                 self.assertEqual(generator.calls, 0)
 
     def test_common_how_action_word_keeps_process_but_unknown_stt_word_is_not_repaired(self):
@@ -131,7 +132,8 @@ class SpeechTextTests(unittest.TestCase):
             claims=[dict(text=text, source_id=SOURCE['source_id']) for _ in range(2)], reason='test')
         result = ChatRAG('.', Policy(), retriever, generator).route(None, 'Бүртгэлийн мэдээллийг тайлбарла')
         self.assertEqual(result['route'], 'C')
-        self.assertEqual(result['answer'], text + ' [1]\n\n' + text + ' [1]')
+        # The shown answer carries no «[1]» markers since 11/22 (answer_presentation.py); the sources stay.
+        self.assertEqual(result['answer'], text + '\n\n' + text)
         self.assertEqual(len(result['citations']), 1)
         self.assertLess(len(result['answer']), MAX_SPEECH_CHARACTERS)
         self.assertGreater(len(spoken_text(result)), MAX_SPEECH_CHARACTERS)

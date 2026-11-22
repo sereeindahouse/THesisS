@@ -451,7 +451,7 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
     def test_teacher_office_is_recorded_office_not_presence(self):
         result = self.path().answer('Зохиомол Хүн багшийн өрөө хаана вэ?')
         self.assertIn('FAKE-301', result['answer'])
-        self.assertIn('Одоо тэнд байгааг батлахгүй', result['answer'])
+        self.assertIn('Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй', result['answer'])
         self.assertFalse(result['reception']['physical_location_confirmed'])
 
     def test_teacher_email_is_school_address_or_reported_missing(self):
@@ -471,7 +471,7 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
     def test_department_rooms_do_not_claim_unique_headquarters(self):
         result = self.path().answer('Зохиомол ухааны тэнхим хаана вэ?')
         self.assertIn('FAKE-301', result['answer'])
-        self.assertIn('Тэнхимийн ганц төв байр гэж батлахгүй', result['answer'])
+        self.assertNotIn('төв байр', result['answer'])
 
     def test_exact_class_teacher_and_bare_question_clarify(self):
         self.assertEqual(self.path().answer('Ангийн багш хэн бэ?')['reason_code'], 'reception_group_required')

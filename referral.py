@@ -96,7 +96,9 @@ def attach_referral(result, referral, *, rules=(), locate=None):
         source = 'source_topic' if office else None
     office = office or None
     general = referral['general']
-    text = ('Энэ сэдвээр лавлах газар: ' + office + '. ' + general.get('with_office_mn', general['text_mn'])
+    # «Лавлах газар: Санхүүгийн алба (8-р давхар, 804 тоот, ажлын цаг 08:00–17:00).» — the office name
+    # stays in the nominative, so no case ending is guessed for a name the school wrote (11/22).
+    text = ('Лавлах газар: ' + office + '. ' + general.get('with_office_mn', general['text_mn'])
             if office else general['text_mn'])
     reviewed = bool(office) and ((referral.get('question_offices') or {}).get('reviewed') is True
                                  if source == 'question' else True)

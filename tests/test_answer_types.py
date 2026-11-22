@@ -642,9 +642,17 @@ class ReceptionWordingTests(unittest.TestCase):
                    Staff(name='Э.Багш', department='Механик инженерийн тэнхим', role='Механик инженерийн тэнхимийн багш')),
             classes=(), timetable=())
         path = ReceptionAnswerPath(tables, enabled=True)
+        # 11/23: a post holder's phone is never given; the school e-mail and the room are (reception topic 2).
+        phone = path.answer('Захирлын утасны дугаар хэд вэ?')
+        self.assertEqual(phone['reason_code'], 'reception_post_phone')
+        self.assertIsNone(phone['answer'])   # the phone is not answered; the note says where to reach the person
+        self.assertEqual(phone['message'], 'Ажилтны гар утасны дугаарыг энд өгдөггүй. Захирал Т.Зохиомол. '
+                         'Сургуулийн имэйл: fake.director@nmct.edu.mn. Ажлын өрөө: 508 тоот, 5-р давхар.')
+        self.assertEqual(path.answer('Захирлын гар утасны дугаар хэд вэ?')['message'], phone['message'])
+        self.assertIsNone(path.answer('Сургуулийн утасны дугаар хэд вэ?'))
         director = path.answer('Сургуулийн захирал хэн бэ?')
         self.assertEqual(director['reason_code'], 'reception_role_holder')
-        self.assertEqual(director['answer'], 'Т.Зохиомол — Захирал. Ажлын өрөө: 508, 5-р давхар. '
+        self.assertEqual(director['answer'], 'Т.Зохиомол — Захирал. Ажлын өрөө: 508 тоот, 5-р давхар. '
                                              'Сургуулийн имэйл: fake.director@nmct.edu.mn.')
         # Who heads a department is on its website page (W04-A11): the teacher directory answers
         # it with its source; a meeting with a head is not on the website, so this path takes it.
@@ -655,7 +663,7 @@ class ReceptionWordingTests(unittest.TestCase):
                       path.answer('Механик тэнхимийн эрхлэгчтэй уулзаж болох уу?')['answer'])
         meet = path.answer('Захиралтай уулзаж болох уу?')
         self.assertEqual(meet['reason_code'], 'reception_role_meet')
-        self.assertIn('өрөөндөө байгааг батлахгүй', meet['answer'])
+        self.assertIn('өрөөндөө байгаа эсэхийг мэдэх боломжгүй', meet['answer'])
         # A personal name, a post nobody holds, or the website's own people stay with the other paths.
         for query in ('Э.Багш хэн бэ?', 'Оюутны зөвлөлийн дарга хэн бэ?', 'Сургуулийг хэн үүсгэн байгуулсан бэ?'):
             with self.subTest(query=query):
@@ -669,9 +677,9 @@ class ReceptionWordingTests(unittest.TestCase):
                                         Room(4, '402', purpose='Анги'), Room(4, '403', purpose='Анги'), Room(4, '404', purpose='Анги')),
                                  staff=(), classes=(), timetable=())
         path = ReceptionAnswerPath(tables, enabled=True)
-        self.assertEqual(path.answer('Хурлын заал хэддүгээр давхарт байдаг вэ?')['answer'], 'Хурлын заал: 809 өрөө, 8-р давхар.')
+        self.assertEqual(path.answer('Хурлын заал хэддүгээр давхарт байдаг вэ?')['answer'], 'Хурлын заал: 8-р давхар, 809 тоот.')
         self.assertEqual(path.answer('Компьютерын лаборатори хаана вэ?')['answer'],
-                         'Компьютерын лаборатори: 410 өрөө, 4-р давхар; 613 өрөө, 6-р давхар.')
+                         'Компьютерын лаборатори: 4-р давхар, 410 тоот; 6-р давхар, 613 тоот.')
         self.assertFalse(path.recognizes('Анги хаана вэ?'))   # four rooms: too common to name
         # A near spelling or a room code is not a purpose (review, round 6).
         self.assertFalse(path.recognizes('Цахим лаборатори хаана вэ?'))
@@ -688,10 +696,10 @@ class ReceptionWordingTests(unittest.TestCase):
             timetable_complete=True, calendar_bound=True, term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
             holidays_reviewed=True)
         path = ReceptionAnswerPath(tables, enabled=True)
-        self.assertEqual(path.answer('номын сан хаана байдаг')['answer'], 'Номын сан: 1006 өрөө, 10-р давхар.')
-        self.assertEqual(path.answer('хурлын заал хэд давхарт')['answer'], 'Хурлын заал: 809 өрөө, 8-р давхар.')
-        self.assertEqual(path.answer('компьютерын лаб хаана')['answer'], 'Компьютерын лаборатори: 410 өрөө, 4-р давхар.')
-        self.assertEqual(path.answer('эмч байдаг уу')['answer'], 'Тийм. Эмч: 607 өрөө, 6-р давхар.')
+        self.assertEqual(path.answer('номын сан хаана байдаг')['answer'], 'Номын сан: 10-р давхар, 1006 тоот.')
+        self.assertEqual(path.answer('хурлын заал хэд давхарт')['answer'], 'Хурлын заал: 8-р давхар, 809 тоот.')
+        self.assertEqual(path.answer('компьютерын лаб хаана')['answer'], 'Компьютерын лаборатори: 4-р давхар, 410 тоот.')
+        self.assertEqual(path.answer('эмч байдаг уу')['answer'], 'Тийм. Эмч: 6-р давхар, 607 тоот.')
         self.assertFalse(path.recognizes('Дотуур байр байдаг уу?'))
         self.assertFalse(path.recognizes('Эмч байгаа юу?'))   # whether someone is there now
         tomorrow = path.answer('КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ', now=datetime(2026, 11, 18, 10, 0))
@@ -711,10 +719,10 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(query=query):
                 room = path.answer(query)
                 self.assertEqual(room['reason_code'], 'reception_class_teacher_room')
-                self.assertIn('ажлын өрөө: 604, 6-р давхар. Одоо тэнд байгааг батлахгүй.', room['answer'])
+                self.assertIn('ажлын өрөө: 604, 6-р давхар. Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.', room['answer'])
         # «нягтлан» is the post «Нягтлан бодогч»: its one holder's room.
         post = path.answer('Нягтлан хаана байдаг вэ?')
-        self.assertEqual(post['answer'], 'Нягтлан бодогч (С.Зохиомол): 804 өрөө, 8-р давхар. Одоо тэнд байгааг батлахгүй.')
+        self.assertEqual(post['answer'], 'Нягтлан бодогч (С.Зохиомол): 8-р давхар, 804 тоот. Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.')
         # A parent who wants the class teacher is asked which class.
         self.assertEqual(path.answer('Хүүхдийнхээ ангийн багштай уулзмаар байна')['reason_code'], 'reception_group_required')
         self.assertFalse(path.recognizes('Хичээлийн хуваарь хаанаас харах вэ?'))   # no timetable loaded here
@@ -725,8 +733,8 @@ class ReceptionWordingTests(unittest.TestCase):
     def test_round11_basement_floor(self):
         tables = ReceptionTables(rooms=(Room(-1, 'В3', purpose='Робокон клуб'),), staff=(), classes=(), timetable=())
         path = ReceptionAnswerPath(tables, enabled=True)
-        self.assertEqual(path.answer('В3 тоот хэддүгээр давхарт вэ?')['answer'], 'В3 өрөө: хонгилын давхар.')
-        self.assertEqual(path.answer('Робокон клуб хаана вэ?')['answer'], 'Робокон клуб: В3 өрөө, хонгилын давхар.')
+        self.assertEqual(path.answer('В3 тоот хэддүгээр давхарт вэ?')['answer'], 'В3 тоот өрөө хонгилын давхарт байрладаг (Робокон клуб).')
+        self.assertEqual(path.answer('Робокон клуб хаана вэ?')['answer'], 'Робокон клуб: хонгилын давхар, В3 тоот.')
 
     def test_round12_posts_classes_teachers_and_the_calendar(self):
         tables = ReceptionTables(
@@ -750,7 +758,7 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertFalse(path.recognizes('Сургуулийн имэйл хаяг юу вэ?'))
         # A class's lesson hours by weekday; a teacher's subjects from the timetable.
         self.assertEqual(path.answer('КУ-2 ангийн хичээл хэдэн цагт дуусдаг вэ?')['answer'],
-                         'КУ-2 — бүртгэсэн хуваарийн хичээлийн цаг: даваа 08:00–14:15; пүрэв 09:35–11:05. Хуваарь өөрчлөгдсөн байж болно.')
+                         'КУ-2 — хуваарийн хичээлийн цаг: даваа 08:00–14:15; пүрэв 09:35–11:05. Хуваарь өөрчлөгдөж болно.')
         self.assertIn('Математик (КУ-2); Физик (КУ-2)', path.answer('Б.Багш багш ямар хичээл заадаг вэ?')['answer'])
         # The school calendar: a school day, a recorded holiday, a day without lessons.
         wednesday = datetime(2026, 11, 18, 10, 0)
@@ -787,7 +795,7 @@ class ReceptionWordingTests(unittest.TestCase):
             rooms=(Room(4, '401', purpose='Анги'), Room(4, '406', purpose='Сургалтын алба'), Room(5, '508'),
                    Room(-1, 'В3', purpose='Робокон клуб')), staff=(), classes=(), timetable=())
         path = ReceptionAnswerPath(tables, enabled=True)
-        self.assertEqual(path.answer('508 тоот хаана вэ?')['answer'], '508 өрөө: 5-р давхар.')
+        self.assertEqual(path.answer('508 тоот хаана вэ?')['answer'], '508 тоот өрөө 5-р давхарт байрладаг.')
         self.assertEqual(path.answer('Дөрөвдүгээр давхарт юу байдаг вэ?')['answer'],
                          '4-р давхарт бүртгэлтэй: 406 (Сургалтын алба); анги, бусад өрөө: 401.')
         self.assertEqual(path.answer('Хонгилд юу байдаг вэ?')['answer'], 'Хонгилын давхарт бүртгэлтэй: В3 (Робокон клуб).')
@@ -803,14 +811,14 @@ class ReceptionWordingTests(unittest.TestCase):
                                  term_end=date(2026, 12, 25), holidays_reviewed=True)
         path = ReceptionAnswerPath(tables, enabled=True)
         # W04-R07: «тоот өрөө» together.
-        self.assertEqual(path.answer('301 тоот өрөө хэддүгээр давхарт вэ?')['answer'], '301 өрөө: 3-р давхар.')
+        self.assertEqual(path.answer('301 тоот өрөө хэддүгээр давхарт вэ?')['answer'], '301 тоот өрөө 3-р давхарт байрладаг.')
         # The break's own dates are not recorded: the term's end and where to ask (review).
         self.assertEqual(path.answer('Улирлын амралт хэзээ эхлэх вэ?')['answer'],
-                         'Ресепшний хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл 2026-12-25-нд дуусна. '
+                         'Хуанлид амралтын хугацаа бүртгэгдээгүй; энэ улирлын хичээл 2026-12-25-нд дуусна. '
                          'Амралтын яг хугацааг сургалтын албанаас тодруулна уу.')
         self.assertFalse(path.recognizes('Зуны амралт хэзээ эхлэх вэ?'))
         self.assertEqual(path.answer('Хичээл хэдэн минут үргэлжилдэг вэ?')['answer'],
-                         'Ресепшний хуваарийн хүснэгтээр нэг хичээл ихэвчлэн 90 минут, хичээлийн хооронд 5 минутын завсарлагатай; '
+                         'Хуваариар нэг хичээл ихэвчлэн 90 минут, хичээлийн хооронд 5 минутын завсарлагатай; '
                          '11:05–13:20 хооронд 135 минут (08:00-09:30, 09:35-11:05, 13:20-14:50).')
 
     def test_round25_questions_that_ask_a_clock_time(self):
@@ -834,7 +842,7 @@ class ReceptionWordingTests(unittest.TestCase):
         for query in ('Сургалтын алба хэдэн цагт хаадаг вэ?', 'Сургалтын алба хэдэн цаг хүртэл нээлттэй вэ?',
                       'Сургалтын алба хэдэн цагаас нээдэг вэ?'):
             with self.subTest(query=query):
-                self.assertEqual(path.answer(query)['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
+                self.assertEqual(path.answer(query)['answer'], 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг (4-р давхар, 406 тоот).')
                 self.assertTrue(path.recognizes(query))
         self.assertEqual(path.answer('Номын сан хэдэн цаг хүртэл нээлттэй вэ?')['reason_code'], 'reception_hours_unknown')
         # Taking payments is not confirmed to follow the working hours; an unknown place is not claimed at all.
@@ -861,8 +869,8 @@ class ReceptionWordingTests(unittest.TestCase):
         # The midday break is the one longer gap between the shared lesson times; the offices' break is not recorded.
         for query in ('Өдрийн завсарлага хэдэн цагт вэ?', 'Их завсарлага хэзээ вэ?', 'Хичээлийн цайны цаг хэдээс хэд хүртэл вэ?'):
             with self.subTest(query=query):
-                self.assertEqual(path.answer(query)['answer'], 'Ресепшний хуваарийн хүснэгтээр хичээлийн өдрийн завсарлага '
-                                 '12:40–13:20 (40 минут). Албадын цайны цаг хүснэгтэд бүртгэгдээгүй.')
+                self.assertEqual(path.answer(query)['answer'], 'Хуваариар хичээлийн өдрийн завсарлага '
+                                 '12:40–13:20 (40 минут).')
         # A bare «цайны цаг» or «завсарлага» may ask something else: not claimed.
         for query in ('Цайны цаг хэдээс хэд хүртэл вэ?', 'Завсарлага хэзээ вэ?', 'Сургалтын алба цайны цагаар ажилладаг уу?'):
             with self.subTest(query=query):
@@ -881,8 +889,7 @@ class ReceptionWordingTests(unittest.TestCase):
         joined = path_with(('08:00-09:30', '09:35-11:05', '11:10-12:40', '13:20-14:50'),
                            (Lesson('mon', '11:10-14:50', 'Г-99', '302', 'Б.Багш', 'Дадлага'),))
         self.assertEqual(joined.answer('Өдрийн завсарлага хэдэн цагт вэ?')['answer'],
-                         'Ресепшний хуваарийн хүснэгтээр ихэнх анги 12:40–13:20 хооронд хичээлгүй (өдрийн завсарлага, 40 минут). '
-                         'Албадын цайны цаг хүснэгтэд бүртгэгдээгүй.')
+                         'Хуваариар ихэнх анги 12:40–13:20 хооронд хичээлгүй (өдрийн завсарлага, 40 минут).')
 
     def test_round15_room_timetable_subject_teachers_and_teacher_rooms(self):
         tables = ReceptionTables(
@@ -897,10 +904,10 @@ class ReceptionWordingTests(unittest.TestCase):
         wednesday = datetime(2026, 11, 18, 10, 0)
         self.assertEqual(path.answer('612 тоотод одоо хичээл орж байна уу?', now=wednesday)['answer'],
                          '612 тоот — хуваариар одоо (лхагва 10:00): 09:35-11:05 КУ-2 (Хими). '
-                         'Дараагийн хичээл: 11:10-12:40 КУ-2 (Хэрэглээний математик 1). Бодит байдлыг батлахгүй.')
+                         'Дараагийн хичээл: 11:10-12:40 КУ-2 (Хэрэглээний математик 1).')
         self.assertIn('хичээл бүртгэгдээгүй (сул)', path.answer('612 тоот одоо сул уу?', now=datetime(2026, 11, 18, 13, 0))['answer'])
         self.assertEqual(path.answer('612 тоот өрөөнд даваа гарагт ямар хичээл ордог вэ?')['answer'],
-                         '612 тоот — даваа гарагт бүртгэсэн хичээл: 08:00-09:30 КУ-2 (Техникийн Англи хэл). Хуваарь өөрчлөгдсөн байж болно.')
+                         '612 тоот — даваа гарагт хичээл: 08:00-09:30 КУ-2 (Техникийн Англи хэл). Хуваарь өөрчлөгдөж болно.')
         self.assertFalse(path.recognizes('999 тоотод одоо хичээл орж байна уу?'))   # not a recorded room
         # rag_runtime calls answer() alone: what is not claimed gets None and goes on to the website (review).
         self.assertIsNone(path.answer('999 тоотод одоо хичээл орж байна уу?', now=wednesday))
@@ -929,12 +936,12 @@ class ReceptionWordingTests(unittest.TestCase):
         path = ReceptionAnswerPath(tables, enabled=True)
         self.assertEqual(path.answer('Хичээл хэзээ эхэлсэн бэ?')['reason_code'], 'reception_term_dates')
         self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 18, 10, 0))['answer'],
-                         'Энэ долоо хоногт (11/16–11/22) бүртгэсэн амралтын өдөр: баасан (11/20).')
+                         'Энэ долоо хоногт (11/16–11/22) амралтын өдөр: баасан (11/20).')
         self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 11, 25, 10, 0))['answer'],
-                         'Энэ долоо хоногт (11/23–11/29) хуанлид бүртгэсэн амралтын өдөр байхгүй.')
+                         'Энэ долоо хоногт (11/23–11/29) хуанлид амралтын өдөр байхгүй.')
         # Days outside the term are said, and a week wholly outside it is (review).
         self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2026, 12, 23, 10, 0))['answer'],
-                         'Энэ долоо хоногт (12/21–12/27) хуанлид бүртгэсэн амралтын өдөр байхгүй. '
+                         'Энэ долоо хоногт (12/21–12/27) хуанлид амралтын өдөр байхгүй. '
                          'Хичээлийн улирлаас гадуур: бямба (12/26), ням (12/27).')
         self.assertEqual(path.answer('Энэ долоо хоногт амралтын өдөр бий юу?', now=datetime(2027, 1, 13, 10, 0))['reason_code'],
                          'reception_outside_term')
@@ -960,7 +967,7 @@ class ReceptionWordingTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertEqual(path.answer(query)['answer'],
                                  'Тэнхимд хамаарах бүртгэлтэй өрөө: 605 (6-р давхар; Багш нарын өрөө); В6 (хонгилын давхар; '
-                                 'Туршилтын өрөө). Тэнхимийн ганц төв байр гэж батлахгүй.')
+                                 'Туршилтын өрөө).')
         self.assertIn('304 (3-р давхар', path.answer('Барилгын тэнхимийн өрөө хаана вэ?')['answer'])
         # The teachers' room when that is asked (W04-R08); an unrecorded department goes on to the website (review).
         self.assertNotIn('В6', path.answer('Механик инженерийн тэнхимийн багш нарын өрөө хаана вэ?')['answer'])
@@ -968,7 +975,7 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertIsNone(path.answer('Цахилгааны тэнхим хаана байдаг вэ?'))
         # A class's timetable asked without a question word: the week's lessons with their rooms.
         self.assertEqual(path.answer('КУ-2 ангийн хуваарь')['answer'],
-                         'КУ-2 — бүртгэсэн долоо хоногийн хуваарь: даваа 08:00 Хими (612). Хуваарь өөрчлөгдсөн байж болно.')
+                         'КУ-2 — долоо хоногийн хуваарь: даваа 08:00 Хими (612). Хуваарь өөрчлөгдөж болно.')
 
     def test_round19_teachers_rooms_subject_teachers_and_office_staff(self):
         tables = ReceptionTables(
@@ -982,18 +989,18 @@ class ReceptionWordingTests(unittest.TestCase):
         path = ReceptionAnswerPath(tables, enabled=True)
         # The teachers' rooms of several departments: the departments tell them apart.
         self.assertEqual(path.answer('Багш нарын өрөө хаана вэ?')['answer'],
-                         'Багш нарын өрөө: 304 өрөө, 3-р давхар (Барилга, дэд бүтцийн инженерийн тэнхим); 408 өрөө, 4-р давхар; '
-                         '605 өрөө, 6-р давхар (Механик инженерийн тэнхим).')
+                         'Багш нарын өрөө: 3-р давхар, 304 тоот (Барилга, дэд бүтцийн инженерийн тэнхим); 4-р давхар, 408 тоот; '
+                         '6-р давхар, 605 тоот (Механик инженерийн тэнхим).')
         # The teachers of a subject with their recorded rooms; a named teacher keeps their own office.
         expected = ('Бүртгэсэн хуваарьт Англи хэл, Техникийн англи хэл заадаг багш нарын ажлын өрөө: А.Багш — 408 өрөө, '
-                    '4-р давхар; Б.Багш — өрөө бүртгэгдээгүй. Одоо тэнд байгааг батлахгүй.')
+                    '4-р давхар; Б.Багш — өрөө бүртгэгдээгүй. Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.')
         for query in ('Англи хэлний багш нар хаана байдаг вэ?', 'Англи хэлний багшийн өрөө хаана вэ?'):
             with self.subTest(query=query):
                 self.assertEqual(path.answer(query)['answer'], expected)
         self.assertEqual(path.answer('А.Багш багшийн өрөө хаана вэ?')['reason_code'], 'reception_teacher_office')
         # Who staffs an office; a short or unknown name is left to the website.
         self.assertEqual(path.answer('Карьер хөгжлийн төв хэн хариуцдаг вэ?')['answer'],
-                         'Гадаад харилцаа, карьер хөгжлийн төв — бүртгэлд заасан ажилтан: В.Ажилтан (Карьерын мэргэжилтэн). '
+                         'Гадаад харилцаа, карьер хөгжлийн төв — ажилтан: В.Ажилтан (Карьерын мэргэжилтэн). '
                          'Ажлын өрөө: 1007 (10-р давхар).')
         self.assertFalse(path.recognizes('Номын сан хэн хариуцдаг вэ?'))
         # Review: «… багшийн өрөө хаана байдаг вэ?» too; a person named with an initial is no subject, though
@@ -1009,7 +1016,7 @@ class ReceptionWordingTests(unittest.TestCase):
                    Staff(name='В.Багш', department='Механик инженерийн тэнхим'), Staff(name='Г.Багш', department='Механик инженерийн тэнхим')),
             timetable=()), enabled=True)
         self.assertEqual(heads.answer('Механик инженерийн тэнхим хэн хариуцдаг вэ?')['answer'],
-                         'Механик инженерийн тэнхим — бүртгэлд заасан хариуцагч: Б.Эрхлэгч (Механик инженерийн тэнхимийн эрхлэгч). '
+                         'Механик инженерийн тэнхим — хариуцагч: Б.Эрхлэгч (Механик инженерийн тэнхимийн эрхлэгч). '
                          'Ажлын өрөө: 605 (6-р давхар).')
 
     def test_round20_indirect_questions_contacts_and_office_staff(self):
@@ -1030,10 +1037,10 @@ class ReceptionWordingTests(unittest.TestCase):
         path = ReceptionAnswerPath(tables, enabled=True)
         # A post one person holds: their school e-mail and room, also when a room carries the post's name.
         self.assertEqual(path.answer('Сэтгэл зүйчтэй хэрхэн холбогдох вэ?')['answer'],
-                         'Н.Зүйч — Сэтгэл зүйч. Сургуулийн имэйл: zuich@nmct.edu.mn. Ажлын өрөө: 409, 4-р давхар.')
+                         'Н.Зүйч — Сэтгэл зүйч. Сургуулийн имэйл: zuich@nmct.edu.mn. Ажлын өрөө: 409 тоот, 4-р давхар.')
         self.assertEqual(path.answer('Сургалтын албатай яаж холбогдох вэ?')['reason_code'], 'reception_contact_unknown')
         # «Сургалтын албаны өрөө» names the office; «Номын сангийн ажилтан хэн бэ?» its recorded staff.
-        self.assertEqual(path.answer('Сургалтын албаны өрөө хаана вэ?')['answer'], 'Сургалтын алба: 406 өрөө, 4-р давхар.')
+        self.assertEqual(path.answer('Сургалтын албаны өрөө хаана вэ?')['answer'], 'Сургалтын алба: 4-р давхар, 406 тоот.')
         # Review: one staff member of an office is not its contact; a yes/no «… байгааг мэдэх үү?» stays as asked.
         lone = ReceptionAnswerPath(ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '', ''),)),),
                                                    staff=(Staff(name='А.Б', department='Сургалтын алба', role='Арга зүйч',
@@ -1044,7 +1051,7 @@ class ReceptionWordingTests(unittest.TestCase):
         for query in ('Номын сангийн ажилтан хэн бэ?', 'Номын сан хэн ажилладаг вэ?', 'Номын санд хэн ажилладаг вэ?'):
             with self.subTest(query=query):
                 self.assertEqual(path.answer(query)['answer'],
-                                 'Номын сан — бүртгэлд заасан ажилтан: Х.Номч (Номын санч). Ажлын өрөө: 1006 (10-р давхар).')
+                                 'Номын сан — ажилтан: Х.Номч (Номын санч). Ажлын өрөө: 1006 (10-р давхар).')
 
     def test_round21_spoken_fillers_and_colloquial_endings(self):
         from reception_tables import normalize_wording
@@ -1071,9 +1078,9 @@ class ReceptionWordingTests(unittest.TestCase):
         timetable = (Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Хими'),)
         path = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable, timetable_complete=True),
                                    enabled=True)
-        self.assertEqual(path.answer('Ням гарагт хичээл ордог уу?')['answer'], 'Үгүй. Ням гарагт бүртгэсэн хуваарьт хичээл байхгүй.')
+        self.assertEqual(path.answer('Ням гарагт хичээл ордог уу?')['answer'], 'Үгүй. Ням гарагт хуваарьт хичээл байхгүй.')
         self.assertEqual(path.answer('Даваа гарагт хичээлтэй юу?')['answer'],
-                         'Тийм. Даваа гарагт бүртгэсэн хуваарьт 1 анги хичээлтэй. Амралт, баярын өдөр өөр байж болно.')
+                         'Тийм. Даваа гарагт хуваарьт 1 анги хичээлтэй. Амралт, баярын өдөр өөр байж болно.')
         # A partial timetable never says a day has no lessons.
         partial = ReceptionAnswerPath(ReceptionTables(rooms=(), staff=(), classes=(), timetable=timetable), enabled=True)
         self.assertEqual(partial.answer('Ням гарагт хичээл ордог уу?')['reason_code'], 'reception_timetable_incomplete')
@@ -1097,22 +1104,22 @@ class ReceptionWordingTests(unittest.TestCase):
         fixed = ReceptionAnswerPath(_corrected(tables, {'note_mn': 'тест', 'office_hours': {'name_contains': 'алба', 'hours': '08:00–17:00'},
                                                         'staff_room_by_role': {'Сэтгэл зүйч': '1001'}}), enabled=True)
         # The common hours go to offices without their own; a recorded value stays; other services get none.
-        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
-        self.assertEqual(fixed.answer('Оюутны алба хэдэн цагт ажилладаг вэ?')['answer'], 'Оюутны алба — ажлын цаг: 09:00–16:00.')
+        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг (4-р давхар, 406 тоот).')
+        self.assertEqual(fixed.answer('Оюутны алба хэдэн цагт ажилладаг вэ?')['answer'], 'Оюутны алба 09:00–16:00 цагийн хооронд ажилладаг (4-р давхар, 409 тоот).')
         # The other wordings of the same question; an office's own name may hold a comma.
         for query in ('Сургалтын алба хэдэн цагаас ажилладаг вэ?', 'Сургалтын алба хэдэн цаг хүртэл ажилладаг вэ?',
                       'Сургалтын албаны ажлын цаг хэд вэ?'):
             with self.subTest(query=query):
-                self.assertEqual(fixed.answer(query)['answer'], 'Сургалтын алба — ажлын цаг: 08:00–17:00.')
+                self.assertEqual(fixed.answer(query)['answer'], 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг (4-р давхар, 406 тоот).')
         comma = ReceptionAnswerPath(_corrected(ReceptionTables(rooms=(Room(4, '405', services=(Service('Дотоод хяналт, чанарын алба', '', ''),)),),
                                                               staff=(), classes=(), timetable=()),
                                                {'office_hours': {'name_contains': 'алба', 'hours': '08:00–17:00'}}), enabled=True)
         self.assertEqual(comma.answer('Дотоод хяналт, чанарын алба хэдэн цагт ажилладаг вэ?')['answer'],
-                         'Дотоод хяналт, чанарын алба — ажлын цаг: 08:00–17:00.')
+                         'Дотоод хяналт, чанарын алба 08:00–17:00 цагийн хооронд ажилладаг (4-р давхар, 405 тоот).')
         self.assertIsNone(fixed.answer('Сургуулийн ажлын цаг хэд вэ?'))   # the school's own hours: the website answer
         self.assertEqual(fixed.answer('Сэтгэл зүйч хэдэн цагт ажилладаг вэ?')['reason_code'], 'reception_hours_unknown')
         # The post's holder sits in the corrected room.
-        self.assertIn('Ажлын өрөө: 1001, 10-р давхар', fixed.answer('Сэтгэл зүйчтэй уулзаж болох уу?')['answer'])
+        self.assertIn('Ажлын өрөө: 1001 тоот, 10-р давхар', fixed.answer('Сэтгэл зүйчтэй уулзаж болох уу?')['answer'])
         # Anything malformed rejects the dataset: an unknown key, a free-text hour, an unrecorded room.
         for bad in ({'rooms': {}}, {'office_hours': {'name_contains': 'алба', 'hours': 'өглөөнөөс орой'}},
                     {'staff_room_by_role': {'Сэтгэл зүйч': '9999'}}, ['алба']):
@@ -1137,7 +1144,7 @@ class ReceptionWordingTests(unittest.TestCase):
                 self.assertEqual(result['reason_code'], 'reception_school_hours')
                 self.assertTrue(fixed.recognizes(query))
         # A named office keeps its own hours; an unconfirmed day, a lesson time and another place are not the school's hours.
-        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба — ажлын цаг: 09:00–16:00.')
+        self.assertEqual(fixed.answer('Сургалтын алба хэдэн цагт ажилладаг вэ?')['answer'], 'Сургалтын алба 09:00–16:00 цагийн хооронд ажилладаг (4-р давхар, 406 тоот).')
         self.assertEqual(fixed.answer('Номын сан хэдэн цагт ажилладаг вэ?')['reason_code'], 'reception_hours_unknown')
         for query in ('Сургууль бямба гарагт ажилладаг уу?', 'Бямба гарагт хэдэн цагт ажилладаг вэ?',
                       'Сургууль хэдэн цагт тардаг вэ?', 'Сургуулийн номын сан хэдэн цагт ажилладаг вэ?'):
@@ -1182,7 +1189,7 @@ class ReceptionWordingTests(unittest.TestCase):
             classes=(), timetable=())
         result = ReceptionAnswerPath(tables, enabled=True).answer('Захирлын өрөө хаана вэ?')
         self.assertEqual(result['reason_code'], 'reception_role_room')
-        self.assertEqual(result['answer'], 'Захирал (Т.Зохиомол): 508 өрөө, 5-р давхар. Одоо тэнд байгааг батлахгүй.')
+        self.assertEqual(result['answer'], 'Захирал (Т.Зохиомол): 5-р давхар, 508 тоот. Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.')
 
     def test_department_contact_is_its_head_never_a_phone(self):
         # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact block.
@@ -1196,9 +1203,9 @@ class ReceptionWordingTests(unittest.TestCase):
         path = ReceptionAnswerPath(tables, enabled=True)
         phone = path.answer('Барилгын тэнхимийн утас хэд вэ?')
         self.assertEqual(phone['reason_code'], 'reception_department_phone')
-        self.assertTrue(phone['answer'].startswith('Тэнхимийн утасны дугаарыг энд харуулахгүй. Тэнхимийн эрхлэгч Б.Эрхлэгч'))
+        self.assertTrue(phone['answer'].startswith('Тэнхимийн утасны дугаарыг энд өгдөггүй. Тэнхимийн эрхлэгч Б.Эрхлэгч'))
         self.assertIn('fake.head@nmct.edu.mn', phone['answer'])
-        self.assertIn('304, 3-р давхар', path.answer('Барилгын тэнхимтэй яаж холбогдох вэ?')['answer'])
+        self.assertIn('304 тоот, 3-р давхар', path.answer('Барилгын тэнхимтэй яаж холбогдох вэ?')['answer'])
         self.assertFalse(path.recognizes('Химийн тэнхимийн утас хэд вэ?'))   # no recorded head: website path
 
     def test_class_teacher_email(self):
@@ -1215,7 +1222,7 @@ class ReceptionWordingTests(unittest.TestCase):
                 self.assertTrue(self.path.recognizes(query))
                 result = self.path.answer(query)
                 self.assertEqual(result['reason_code'], reason)
-                self.assertIn('утасны дугаарыг энд харуулахгүй', result['answer'])
+                self.assertIn('утасны дугаарыг энд өгдөггүй', result['answer'])
                 self.assertIn('fake.teacher@nmct.edu.mn', result['answer'])
         # An unrecorded teacher stays with the staff path (which says phones are not shown).
         self.assertFalse(self.path.recognizes('Х.Хүрэлбаатар багшийн утас?'))
@@ -1234,7 +1241,7 @@ class ReceptionWordingTests(unittest.TestCase):
         result = path.answer('А.Номин-Эрдэнэ багш даваа гарагт хичээлтэй юу?')
         self.assertEqual(result['reason_code'], 'reception_teacher_day')
         self.assertLess(result['answer'].index('08:00-09:30'), result['answer'].index('09:35-11:05'))
-        self.assertIn('өрөөндөө байгааг батлахгүй', result['answer'])
+        self.assertIn('Яг одоо хаана байгааг мэдэх боломжгүй', result['answer'])
         self.assertNotIn('609', result['answer'])
         # Sunday 11/15 → tomorrow is Monday; Monday 11/16 → Tuesday has no lessons.
         tomorrow = path.answer('А.Номин-Эрдэнэ багш маргааш хичээлтэй юу?', now=datetime(2026, 11, 15, 9))

@@ -32,7 +32,7 @@ class ReferralTest(unittest.TestCase):
         out = attach_referral(dict(result), approved, rules=RULES, locate=lambda name: '406 өрөө, 4-р давхар')
         self.assertEqual(out['referral']['office'], 'Сургалтын алба (406 өрөө, 4-р давхар)')
         self.assertEqual(out['referral']['office_source'], 'source_topic')
-        self.assertTrue(out['message'].startswith('Энэ сэдвээр лавлах газар: Сургалтын алба'))
+        self.assertTrue(out['message'].startswith('Лавлах газар: Сургалтын алба'))
 
     def test_question_words_choose_the_office_before_related_pages(self):
         # 11/17 probe: «Төлбөрөө хэсэгчлэн төлж болох уу?» retrieved the career page; the

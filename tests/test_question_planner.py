@@ -370,7 +370,7 @@ class QuestionPlannerTests(unittest.TestCase):
                        referral=dict(text='Ресепшний ажилтнаас асууна уу.'), llm_calls=0)
         result = compose(plan['parts'][0]['original'] + ' ' + plan['parts'][1]['original'], plan, [found, missing])
         self.assertIn('Жилд 8,280,000 ₮.', result['answer'])
-        self.assertIn('Энэ хэсгийн баталгаатай мэдээлэл олдсонгүй.', result['answer'])
+        self.assertIn('Энэ талаар мэдээлэл олдсонгүй.', result['answer'])
         self.assertEqual(result['reason_code'], 'compound_parts_partly_answered')
         self.assertEqual(result['referral']['text'], 'Ресепшний ажилтнаас асууна уу.')
         self.assertEqual([p['answered'] for p in result['parts']], [True, False])

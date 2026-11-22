@@ -76,7 +76,7 @@ class TeacherMediaHTTPTests(unittest.TestCase):
     def test_generic_request_clarifies_from_available_captured_subset(self):
         status,result,_=self.request('POST','/api/route',dict(query='Багшийн зурагтай танилцуулга үзье.'))
         self.assertEqual(status,200);self.assertEqual(result['route'],'D');self.assertIsNone(result['answer'])
-        self.assertNotIn('teacher_cards',result);self.assertIn('бүх багшийн жагсаалт биш',result['message'])
+        self.assertNotIn('teacher_cards',result);self.assertIn('зарим багш',result['message'])
         self.assertTrue(result['suggestions'][0].startswith('Батчулуун'))
 
     def test_general_staff_request_clarifies_information_scope_without_photo_choices(self):
@@ -115,8 +115,8 @@ class TeacherMediaHTTPTests(unittest.TestCase):
         self.assertEqual(card['source_quote'],result['answer'])
         self.assertEqual(card['source_html_sha256'],result['citations'][0]['source_html_sha256'])
         self.assertNotIn('sample-woman',json.dumps(result,ensure_ascii=False))
-        self.assertIn('жишээ зураг',result['message'].casefold())
-        self.assertIn('харуулаагүй',result['message'].casefold())
+        self.assertIn('зураг сайтад байхгүй',result['message'].casefold())
+        self.assertIn('нэр, танилцуулгыг нь харууллаа',result['message'].casefold())
 
     def test_text_only_scoped_directory_keeps_partial_notice_and_source_text_in_tts(self):
         self.media.text_only_fixture()

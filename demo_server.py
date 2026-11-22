@@ -203,14 +203,13 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                 names = match['candidates']
                 result.update(route='D', answer_kind='teacher_profile_clarification',
                     reason_code='teacher_name_required',
-                    message='Ямар багшийн зурагтай танилцуулгыг үзэх вэ? Доорх нэрсийн албан эхтэй танилцуулга бэлэн байна. Энэ нь бүх багшийн жагсаалт биш.',
+                    message='Аль багшийн танилцуулгыг үзэх вэ? Сайтад танилцуулгатай зарим багшийг доор харуулав.',
                     suggestions=[name+' багшийн зурагтай танилцуулгыг үзье.' for name in names[:6]])
             else:
                 card = match['profile']
                 result.update(route='A', answer_kind='official_teacher_profile',
                     reason_code='source_bound_teacher_profile', answer=card['source_quote'],
-                    message=('Албан сайтаас хадгалсан нэр, танилцуулга, зургийг үзүүлэв. Эхийн огноог нягтлаарай.'
-                        if card.get('image_url') else 'Албан сайтаас хадгалсан нэр, танилцуулгыг үзүүлэв. Эхэд жишээ зураг байсан тул багшийн бодит зураг гэж харуулаагүй. Эхийн огноог нягтлаарай.'),
+                    message=('' if card.get('image_url') else 'Багшийн зураг сайтад байхгүй тул нэр, танилцуулгыг нь харууллаа.'),
                     teacher_cards=[card], citations=[dict(document_id=card['teacher_id'],version=1,
                         title=card['name']+' — багшийн албан танилцуулга',
                         source_url_or_filename=card['source_url'],locator=card['source_locator'],

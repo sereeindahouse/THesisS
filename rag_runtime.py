@@ -22,6 +22,7 @@ from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
 from privacy_filter import hide_mobiles
+from answer_presentation import present
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -47,7 +48,7 @@ RUNTIME_ARTIFACT_SHA256 = {
     for name in ('rag_runtime.py', 'rule_selector.py', 'tools/evaluate_llm_selection.py', 'source_fields.py', 'answer_contract.py',
                  'website_retrieval.py', 'CORE/website_corpus.py', 'CORE/document_corpus.py', 'CORE/client_tab_corpus.py',
                  'evidence_contract.py', 'speech_text.py', 'historical_fields.py', 'question_router.py',
-                 'reception_tables.py', 'stt_text_normalization.py')
+                 'reception_tables.py', 'stt_text_normalization.py', 'answer_presentation.py', 'referral.py')
 }
 
 def named_office_field_scope(query, sources):
@@ -1517,11 +1518,15 @@ class ChatRAG:
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
 
     def _office_place(self, name):
-        """Room and floor of an office, only from enabled, reviewed reception tables."""
+        """Floor, room and confirmed hours of an office, only from enabled, reviewed reception tables."""
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
         for room in getattr(tables, 'rooms', ()):
-            if any(service.name == name for service in room.services):
-                return room.name + ' өрөө, ' + floor_text(room.floor)
+            for service in room.services:
+                if service.name == name:
+                    hours = (service.office_hours if re.fullmatch(r'\d{2}:\d{2}\s*[–-]\s*\d{2}:\d{2}', service.office_hours or '')
+                             else '')
+                    return (floor_text(room.floor) + ', ' + room.name + ' тоот'
+                            + (', ажлын цаг ' + hours if hours else ''))
         return None
 
     def _school_topic_questions(self, database, package_id, *, allow_draft=False):
@@ -1617,6 +1622,9 @@ class ChatRAG:
             result['query'] = query
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
+        # Plain wording after every guard, before speech (answer_presentation.py, 11/22).
+        tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
+        result = present(result, confirmed_school_hours=bool(getattr(tables, 'school_hours', '')))
         # Before storing and speaking: no staff mobile is shown or read out (privacy_filter.py).
         result = hide_mobiles(result)
         result['latency_ms'] = round((time.perf_counter() - started) * 1000, 2)

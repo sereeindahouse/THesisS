@@ -198,6 +198,46 @@ def normalize_wording(text):
     return re.sub(r'(?<!\w)хаана\s+суудаг', 'хаана байдаг', text, flags=re.I)
 
 
+# 11/22 the user read the answers: «КУ-2 — бүртгэсэн үндсэн өрөө: 612. Тухайн хичээлийн өрөө хуваариар
+# өөр байж болно.», «… Бодит байршлыг батлахгүй.» read like the table talking about itself. The same
+# facts, said the way a person at the desk says them; no value is added or changed.
+_NATURAL = (
+    (r'(?P<group>\S+) — бүртгэсэн үндсэн өрөө: (?P<room>[^.\s]+)\. Тухайн хичээлийн өрөө хуваариар өөр байж болно\.',
+     r'\g<group> анги ихэвчлэн \g<room> тоот өрөөнд хичээллэдэг. Зарим хичээл өөр өрөөнд орж болно.'),
+    (r' — бүртгэлд заасан ангийн багш: ', ' ангийн багш: '),
+    (r' — бүртгэлд заасан ажлын өрөө: ', ' — ажлын өрөө: '),
+    (r' — бүртгэлд заасан (хариуцагч|ажилтан): ', r' — \1: '),
+    (r' — бүртгэсэн (хуваарийн хичээлийн цаг|долоо хоногийн хуваарь|хуваарьт заадаг хичээл|уулзах цаг): ', r' — \1: '),
+    (r'(?<![А-Яа-яӨөҮүЁё])бүртгэсэн (хуваарь|хичээл|амралтын)', r'\1'),
+    (r'\s*Уулзах цаг хүснэгтэд бүртгэгдээгүй тул өрөөндөө байгааг батлахгүй\.', ' Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.'),
+    (r'\s*Одоо тэнд байгааг батлахгүй\.', ' Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.'),
+    # A teacher's lessons are the schedule, not where the teacher is now (CLAUDE.md, reception rule): the
+    # caveat stays, in plain words (code review 11/23).
+    (r'; өрөөндөө байгааг батлахгүй\.', '. Яг одоо хаана байгааг мэдэх боломжгүй.'),
+    (r'; бодит байршлыг батлахгүй\.', '. Яг одоо хаана байгааг мэдэх боломжгүй.'),
+    (r'\s*Бодит байршлыг батлахгүй\.', ' Яг одоо хаана байгааг мэдэх боломжгүй.'),
+    (r'\s*Бодит байдлыг батлахгүй\.', ''),  # room answers already say «хуваариар»; a room is not a person
+    (r'\s*Тэр цагт ирсэн эсэх, байршлыг батлахгүй\.', ' Тэр цагт өрөөндөө байгаа эсэхийг мэдэх боломжгүй.'),
+    (r'\s*Тэнхимийн ганц төв байр гэж батлахгүй\.', ''),
+    (r'\s*Албадын цайны цаг хүснэгтэд бүртгэгдээгүй\.', ''),
+    (r'Ажлын цаг хүснэгтэд бүртгэгдээгүй\.', 'Ажлын цагийн мэдээлэл алга.'),
+    (r'Ресепшний хуваарийн хүснэгтэд бүртгэсэн', 'Хуваарьт заасан'),
+    (r'Ресепшний хуваарийн хүснэгтээр', 'Хуваариар'),
+    (r'Ресепшний хуанлид', 'Хуанлид'),
+    (r'\AБүртгэлд: ', ''),
+    (r'Хуваарь өөрчлөгдсөн байж болно', 'Хуваарь өөрчлөгдөж болно'),
+)
+
+
+def natural(answer):
+    """The reception answer in plain words (see _NATURAL); None and other values pass through."""
+    if not isinstance(answer, str):
+        return answer
+    for pattern, replacement in _NATURAL:
+        answer = re.sub(pattern, replacement, answer)
+    return re.sub(r'\s{2,}', ' ', answer).strip()
+
+
 _XML_NS = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 _REL_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id'
 
@@ -632,6 +672,13 @@ _SCHOOL_HOURS = re.compile(
     r'(?:(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?)|танай|танайх|та нар) )?'
     r'(?:(?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл|хэдээс) '
     + _OPEN_VERB + r'|(?:ерөнхий )?ажлын цаг (?:хэд|хэдэн|ямар))(?: (?:вэ|бэ))?')
+# 11/22: «Сургууль ням гарагт ажилладаг уу?» reached the website's old hours (09:00–18:00, Бямба 10:00–14:00),
+# which the confirmed 08:00–17:00 replaces; weekend hours were not confirmed, so the reply says only that.
+_WEEKEND_HOURS = re.compile(
+    r'(?:(?:(?:манай|танай|энэ) )?(?:сургууль|сургуулийн|коллеж(?:ийн)?|шмтк(?:-?ийн)?|танай|танайх) )?'
+    r'(?:бямба|ням|бямба ням|амралтын өдөр)(?: (?:гарагт|гараг|гарагууд|өдөр|өдрүүдэд|өдөрт))? '
+    r'(?:ажилладаг уу|ажиллах уу|ажилладаг юу|нээлттэй юу|нээлттэй байдаг уу|амардаг уу|хэдэн цагт ажилладаг|'
+    r'хэдэн цагаас ажилладаг|хэдэн цаг хүртэл ажилладаг)(?: (?:вэ|бэ))?')
 # 2026-11-20: the user confirmed that the school's lunch break is always 12:40–13:20. With that value set a bare
 # «цайны цаг» is answered as well; without it only the timetable's midday gap is (round 25). Whether an office
 # serves through the break was not said, so «… цайны цагаар ажилладаг уу?» is not matched.
@@ -756,7 +803,7 @@ class ReceptionAnswerPath:
             'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
             'reception_floor_unknown': 'Энэ давхрын өрөө ресепшний хүснэгтэд бүртгэгдээгүй байна.',
         }
-        return dict(query=query, answer=answer, reason_code=reason, message=messages.get(reason, ''),
+        return dict(query=query, answer=natural(answer), reason_code=reason, message=messages.get(reason, ''),
             reception=dict(dataset_label=self.tables.dataset_label if self.tables else None,
                 is_fake=self.tables.is_fake if self.tables else False,
                 physical_location_confirmed=False, **metadata))
@@ -812,6 +859,10 @@ class ReceptionAnswerPath:
             ('department_contact', r'(.{1,80}?) тэнхим(?:тэй|ийн эрхлэгчтэй) (?:яаж|хэрхэн) холбогдох (?:вэ|бэ)'),
             ('class_teacher_phone', r'(.{1,120}?) ангийн багшийн утас(?:ны дугаар)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_phone', r'(.{1,120}?) багшийн утас(?:ны дугаар)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
+            # 11/23: «Захирлын утасны дугаар хэд вэ?» got «мэдээлэл олдсонгүй»; parents ask the reception for a
+            # phone and get the school e-mail (reception topic 2). Only a recorded post holder answers here.
+            # Lazy so that «гар» stays out of the post («Захирлын гар утас …», code review 11/23).
+            ('post_phone', r'((?:[^\s?!,;/]+ ){0,2}?[^\s?!,;/]{3,40}?) (?:гар )?утас(?:ны дугаар)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             # 11/17: a class teacher's school e-mail; before teacher_email, which would read
             # «КУ-2 ангийн» as a person's name.
             ('class_teacher_email', r'(.{1,120}?) ангийн багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?'
@@ -946,9 +997,7 @@ class ReceptionAnswerPath:
     def recognizes(self, query):
         if not self.enabled:
             return False
-        if self._asks_lunch_break(query):
-            return True
-        if self._asks_school_hours(query):
+        if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'place_exists':
@@ -998,6 +1047,8 @@ class ReceptionAnswerPath:
         if extra is not None and extra[0] in ('teacher_phone', 'class_teacher_phone'):
             # An unrecorded name stays with the staff path, which says phones are not shown.
             return any(self._match(query)) or self._phone_owner(*extra) is not None
+        if extra is not None and extra[0] == 'post_phone':
+            return self._post_holder(extra[1]) is not None
         return any(self._match(query)) or extra is not None
 
     def _room_of(self, person):
@@ -1007,15 +1058,22 @@ class ReceptionAnswerPath:
         return next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
 
     def _workplace(self, person):
-        """« Ажлын өрөө: 508, 5-р давхар.» from the rooms table, or nothing."""
+        """« Ажлын өрөө: 508 тоот, 5-р давхар.» from the rooms table, or nothing."""
         room = self._room_of(person)
-        return (' Ажлын өрөө: ' + room.name + ', ' + floor_text(room.floor) + '.') if room else ''
+        return (' Ажлын өрөө: ' + room.name + ' тоот, ' + floor_text(room.floor) + '.') if room else ''
+
+    @staticmethod
+    def _office_text(service, room):
+        """«Сургалтын алба: 4-р давхар, 406 тоот. Ажлын цаг 08:00–17:00.» — where and, when the school
+        confirmed it, when (the user asked on 11/20 that office answers say the hours too)."""
+        return (service.name + ': ' + floor_text(room.floor) + ', ' + room.name + ' тоот.'
+                + (' Ажлын цаг ' + service.office_hours + '.' if _recorded(service.office_hours) else ''))
 
     def _post_room(self, person):
         """«Захирал (Т.Оюунжаргал): 508 өрөө, 5-р давхар.» for a post holder with a recorded room."""
         room = self._room_of(person)
-        return (person.role + ' (' + person.name + '): ' + room.name + ' өрөө, ' + floor_text(room.floor)
-                + '. Одоо тэнд байгааг батлахгүй.')
+        return (person.role + ' (' + person.name + '): ' + floor_text(room.floor) + ', ' + room.name + ' тоот.'
+                + ' Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.')
 
     def _class_teacher_of(self, value):
         """(class, its teacher's staff row or None, reason or None). «Хүүхдийн ангийн багш …» names no
@@ -1119,7 +1177,7 @@ class ReceptionAnswerPath:
         groups = {}
         labelled = len({room.department for room in rooms}) > 1
         for room in rooms:
-            groups.setdefault(room.purpose, []).append(room.name + ' өрөө, ' + floor_text(room.floor)
+            groups.setdefault(room.purpose, []).append(floor_text(room.floor) + ', ' + room.name + ' тоот'
                                                        + (' (' + room.department + ')' if labelled and room.department else ''))
         return '; '.join(purpose + ': ' + '; '.join(places) for purpose, places in groups.items()) + '.'
 
@@ -1316,6 +1374,13 @@ class ReceptionAnswerPath:
         text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
         return _SCHOOL_HOURS.fullmatch(' '.join(text.split())) is not None
 
+    def _asks_weekend_hours(self, query):
+        """Saturday/Sunday hours are asked and the school's confirmed weekday hours are set (11/22)."""
+        if self.tables is None or not self.tables.school_hours or not isinstance(query, str) or len(query) > 200:
+            return False
+        text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
+        return _WEEKEND_HOURS.fullmatch(' '.join(text.split())) is not None
+
     def _asks_lunch_break(self, query):
         """The lunch break is asked and the user-confirmed value is set (2026-11-20)."""
         if self.tables is None or not self.tables.lunch_break or not isinstance(query, str) or len(query) > 200:
@@ -1335,6 +1400,11 @@ class ReceptionAnswerPath:
             return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')
                                 + 'Сургуулийн ажлын цаг: ' + self.tables.school_hours + '.',
                                 'reception_school_hours', source_table='corrections')
+        if self._asks_weekend_hours(query):
+            return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')
+                                + 'Сургуулийн ажлын цаг: ' + self.tables.school_hours
+                                + '. Бямба, ням гарагийн ажлын цагийн мэдээлэл алга.',
+                                'reception_school_hours_weekend', source_table='corrections')
         extra = self._extra_match(query)
         if extra is None:
             return self._answer_legacy(query, now=now)
@@ -1353,7 +1423,7 @@ class ReceptionAnswerPath:
             if owner is None:
                 return self._answer_legacy(query, now=now)
             person, group = owner
-            text = 'Багшийн утасны дугаарыг энд харуулахгүй; ресепшнээс асууна уу.'
+            text = 'Багшийн утасны дугаарыг энд өгдөггүй.'
             if person.email:
                 where = self._workplace(person)
                 who = (group.group + ' — бүртгэлд заасан ангийн багш: ' + group.teacher + '; сургуулийн имэйл: '
@@ -1361,12 +1431,23 @@ class ReceptionAnswerPath:
                 text += ' ' + who + person.email + '.' + where
             return reply(text, 'classes' if group is not None else 'staff',
                          'reception_class_teacher_phone' if group is not None else 'reception_teacher_phone')
+        if intent == 'post_phone':
+            person = self._post_holder(value)
+            if person is None:
+                return None  # «Сургуулийн утас …» and names nobody holds: the main path answers
+            text = 'Ажилтны гар утасны дугаарыг энд өгдөггүй. ' + person.role + ' ' + person.name + '.'
+            text += (' Сургуулийн имэйл: ' + person.email + '.') if person.email else ''
+            # The phone itself is not answered: a note with where to reach the person, not an answer
+            # (round 26b: as an answer it scored as «answered an unanswerable question», U01/O08).
+            result = self._result(query, None, 'reception_post_phone', source_table='staff')
+            result['message'] = prefix + text + self._workplace(person)
+            return result
         if intent.startswith('department_'):
             heads = self._role_holders(value + ' тэнхимийн эрхлэгч', True)
             if len(heads) != 1:
                 return self._answer_legacy(query, now=now)
             head = heads[0]
-            text = ('Тэнхимийн утасны дугаарыг энд харуулахгүй. ' if intent == 'department_phone' else '')
+            text = ('Тэнхимийн утасны дугаарыг энд өгдөггүй. ' if intent == 'department_phone' else '')
             text += 'Тэнхимийн эрхлэгч ' + head.name + ' (' + head.department + ').' + self._workplace(head)
             text += (' Сургуулийн имэйл: ' + head.email + '.') if head.email else ''
             return reply(text, 'staff', 'reception_' + intent)
@@ -1561,7 +1642,7 @@ class ReceptionAnswerPath:
             found = self._service(value)
             if found is not None:
                 room, service = found
-                return reply('Тийм. ' + service.name + ': ' + room.name + ' өрөө, ' + floor_text(room.floor) + '.',
+                return reply('Тийм. ' + self._office_text(service, room),
                              'rooms', 'reception_service_exists')
             rooms = self._purpose_rooms(value)
             if rooms:
@@ -1582,7 +1663,7 @@ class ReceptionAnswerPath:
                 return self._answer_legacy(query, now=now)
             kind, first, second = place
             if kind == 'office':
-                return reply(second.name + ': ' + first.name + ' өрөө, ' + floor_text(first.floor) + '.',
+                return reply(self._office_text(second, first),
                              'rooms', 'reception_service_lookup')
             return reply(first.group + ' — бүртгэсэн үндсэн өрөө: ' + first.room
                          + '. Тухайн хичээлийн өрөө хуваариар өөр байж болно.', 'classes', 'reception_class_room')
@@ -1604,16 +1685,13 @@ class ReceptionAnswerPath:
                     return self._answer_legacy(code[1] + ' өрөө хаана вэ?', now=now) | {'query': query}
                 return None  # not a recorded office ("Сургууль хэдэн цагт…"): main RAG path
             room, service = found
-            if intent == 'office_floor':
-                text = service.name + ': ' + floor_text(room.floor) + '.'
-            elif intent == 'office_full':
-                text = (service.name + ': ' + room.name + ' өрөө, ' + floor_text(room.floor) + '. '
-                        + ('Ажлын цаг: ' + service.office_hours + '.' if _recorded(service.office_hours)
-                           else 'Ажлын цаг хүснэгтэд бүртгэгдээгүй.'))
+            if intent in ('office_floor', 'office_full'):
+                text = self._office_text(service, room)
             elif intent == 'office_hours':
                 if not _recorded(service.office_hours):
                     return missing('reception_hours_unknown')
-                text = service.name + ' — ажлын цаг: ' + service.office_hours + '.'
+                text = (service.name + ' ' + service.office_hours + ' цагийн хооронд ажилладаг ('
+                        + floor_text(room.floor) + ', ' + room.name + ' тоот).')
             else:
                 if not service.contact or service.contact in {'—', '-'}:
                     return missing('reception_contact_unknown')
@@ -1877,7 +1955,8 @@ class ReceptionAnswerPath:
                     return self._result(query, None, 'reception_room_not_found')
                 return self._result(query, prefix + self._post_room(person), 'reception_role_room', source_table='staff')
             row = matches[0]
-            return self._result(query, prefix + row.name + ' өрөө: ' + floor_text(row.floor) + '.',
+            return self._result(query, prefix + row.name + ' тоот өрөө ' + floor_text(row.floor) + 'т байрладаг'
+                + (' (' + row.purpose + ')' if row.purpose and _key(row.purpose) != 'анги' else '') + '.',
                 'reception_room_lookup', source_table='rooms')
         person = next((row for row in self.tables.staff if _key(row.name) == _key(teacher[1])), None)
         if person is None:

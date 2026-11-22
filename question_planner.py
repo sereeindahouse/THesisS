@@ -560,10 +560,14 @@ def compose(query, plan, results):
     base = deepcopy(results[answered.index(True)] if any(answered) else results[0])
     lines, citations, related, seen = [], [], [], set()
     for part, result, ok in zip(plan['parts'], results, answered):
+        asked = part['original'].strip()
+        asked = asked[:1].upper() + asked[1:]  # «…, хэсэгчлэн төлж болох уу?» was echoed in lower case
         if ok:
-            lines.append(part['original'] + '\n' + result['answer'].strip())
+            lines.append(asked + '\n' + result['answer'].strip())
         else:
-            lines.append(part['original'] + '\nЭнэ хэсгийн баталгаатай мэдээлэл олдсонгүй.')
+            # The page shows no note under a compound answer, so where to ask goes with the part (11/22).
+            where = (result.get('referral') or {}).get('office')
+            lines.append(asked + '\nЭнэ талаар мэдээлэл олдсонгүй.' + (' Лавлах газар: ' + where + '.' if where else ''))
         for item in result.get('citations') or []:
             key = json.dumps(item, sort_keys=True, ensure_ascii=False)
             if key not in seen:

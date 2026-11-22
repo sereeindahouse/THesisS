@@ -72,24 +72,48 @@ def guide_page(root, code):
     return build(markdown, pdf_url=pdf_url, abs_url=abs_url, home_url='/reader')
 
 
+HOURS = re.compile(r'~(\d+(?:\.\d+)?)\s*цаг')
+WEEK_HEAD = re.compile(r'^### (W\d{2}) · \d{4}\.(\d{2})\.(\d{2})–(?:\d{4}\.)?(\d{2})\.(\d{2})')
+
+
+def week_dates(root):
+    """«W05» -> «11/23–11/29» from the plan's week headings."""
+    found = {}
+    for line in (Path(root) / PLAN).read_text(encoding='utf-8').splitlines():
+        match = WEEK_HEAD.match(line)
+        if match:
+            week, m1, d1, m2, d2 = match.groups()
+            found[week] = f'{int(m1)}/{d1}–{int(m2)}/{d2}'
+    return found
+
+
 def index_page(root):
-    rows, plain = reading_list(root), Renderer()
-    groups = [('current', 'Энэ долоо хоног'), ('next', 'Дараагийнх'), ('read', 'Уншсан'), ('later', 'Үлдсэн')]
+    """Unread papers week by week with the planned hours (11/23: the user reads 14 hours a week), then the read ones."""
+    rows, plain, dates = reading_list(root), Renderer(), week_dates(root)
+
+    def item(row, status):
+        paper, how = (plain.inline(RELATIVE_LINK.sub(r'\1', row[key])) for key in ('paper', 'how'))
+        action = (f'<a class="open" href="/reader/{row["guide"]}">Хөтөч нээх →</a>' if row['guide']
+                  else '<span class="missing">Хөтөч бэлдээгүй</span>')
+        return (f'<li class="paper {status}"><span class="week">{html.escape(row["week"])}</span>'
+                f'<div class="what"><p>{paper}</p><small>{how}</small></div>{action}</li>')
+
     sections = []
-    for status, title in groups:
-        chosen = [row for row in rows if row['status'] == status]
-        if not chosen:
-            continue
-        items = []
-        for row in chosen:
-            paper, how = (plain.inline(RELATIVE_LINK.sub(r'\1', row[key])) for key in ('paper', 'how'))
-            action = (f'<a class="open" href="/reader/{row["guide"]}">Хөтөч нээх →</a>' if row['guide']
-                      else '<span class="missing">Хөтөч бэлдээгүй</span>')
-            items.append(f'<li class="paper {status}"><span class="week">{html.escape(row["week"])}</span>'
-                         f'<div class="what"><p>{paper}</p><small>{how}</small></div>{action}</li>')
-        items = ''.join(items)
-        sections.append(f'<section><h2>{title} <span>{len(chosen)}</span></h2><ol>{items}</ol></section>')
-    read = sum(row['status'] == 'read' for row in rows)
+    unread = [row for row in rows if row['status'] != 'read']
+    for week in dict.fromkeys(row['week'] for row in unread):
+        chosen = [row for row in unread if row['week'] == week]
+        hours = sum(float(found[1]) for row in chosen for found in [HOURS.search(row['how'])] if found)
+        now = any(row['status'] == 'current' for row in chosen)
+        title = (html.escape(week) + (' · ' + dates[week] if week in dates else '')
+                 + (' · энэ долоо хоног' if now else ''))
+        load = f' · ~{hours:g} цаг' if hours else ''
+        items = ''.join(item(row, 'current' if now else 'later') for row in chosen)
+        sections.append(f'<section><h2>{title} <span>{len(chosen)} өгүүлэл{load}</span></h2><ol>{items}</ol></section>')
+    done = [row for row in rows if row['status'] == 'read']
+    if done:
+        items = ''.join(item(row, 'read') for row in done)
+        sections.append(f'<section><h2>Уншсан <span>{len(done)}</span></h2><ol>{items}</ol></section>')
+    read = len(done)
     guided = sum(bool(row['guide']) for row in rows)
     body = ''.join(sections) or '<p class="empty">Унших жагсаалт олдсонгүй.</p>'
     return INDEX.format(total=len(rows), read=read, guided=guided, body=body)
@@ -113,6 +137,6 @@ ol{{list-style:none;margin:0;padding:0;display:grid;gap:8px}}
 @media(max-width:620px){{.paper{{grid-template-columns:1fr}}}}
 </style></head>
 <body><div class="top"><h1>Өгүүлэл унших</h1><a href="/work">Ажлын самбар</a><a href="/data">← Мэдлэгийн атлас</a><a href="/code-map">Кодын хот</a></div>
-<main><p class="summary">{total} өгүүлэл · {read} уншсан · {guided} нь Монгол хөтөчтэй. Төлөвийг долоо хоногийн төлөвлөгөөнөөс уншдаг; энэ хуудас «уншсан» гэж тэмдэглэхгүй.</p>
+<main><p class="summary">{total} өгүүлэл · {read} уншсан · {guided} нь Монгол хөтөчтэй. Долоо хоногт 14 цаг хүртэл уншихаар хуваарилсан; цаг нь тооцоо. Төлөвийг долоо хоногийн төлөвлөгөөнөөс уншдаг; энэ хуудас «уншсан» гэж тэмдэглэхгүй — уншсанаа хэлбэл тэмдэглэнэ.</p>
 {body}</main></body></html>
 '''

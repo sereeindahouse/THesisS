@@ -639,3 +639,18 @@ __pycache__/
 !/papers/43-MON06-tsahim-tanhim-hotoch-20261120.mn.md
 !/tools/build_question_review_docx.py
 !/tools/nmct_slides/update_seminar_v103.py
+# 11/23: plain answer wording after the guards (presentation layer, natural reception replies, stored answers
+# v3), the wording lint, the 14 h/week reading schedule, the RAG explanation, Mongolian academic-style research
+# and the thesis language audit. The 40-question draft and its research note name school staff: local only.
+!/answer_presentation.py
+!/tests/test_answer_presentation.py
+!/tools/answer_text_lint.py
+!/tools/build_content_v3.py
+!/tools/rebuild_reading_table.py
+!/data/content-draft-v3-20261123.json
+!/data/reading-plan-20261122.json
+!/papers/45-mn-academic-structure-20261122.mn.md
+!/papers/45-thesis-language-audit-20261122.mn.md
+!/papers/46-reading-plan-20261122.mn.md
+!/papers/48-rag-how-it-works-20261123.mn.md
+!/papers/49-answer-wording-round26-20261123.mn.md

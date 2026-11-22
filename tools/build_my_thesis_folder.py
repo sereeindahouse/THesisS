@@ -95,6 +95,8 @@ def planned_copies(root: Path):
     add('06_Систем', _newest(root.glob('papers/*autofix-round*.mn.md')), 'Автомат_засварын_тойрог.mn.md')
     # 11/20: диплом, PPT, 127 систем, багшийн зөвлөгөөний бүтэн шалгалт (самбар /work-ийн дэлгэрэнгүй).
     add('06_Систем', _newest(root.glob('papers/*whole-audit*.mn.md')), 'Бүтэн_шалгалтын_тайлан.mn.md')
+    # 11/23: хэрэглэгчийн «RAG дууссан уу, вектор хайлт кодонд бий юу, ер нь яаж хийдэг вэ» асуултын хариу.
+    add('06_Систем', _newest(root.glob('papers/*rag-how-it-works*.mn.md')), 'RAG_яаж_ажилладаг.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 
