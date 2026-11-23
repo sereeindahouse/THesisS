@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import NUMBER_UNITS, last_vowel, normalize_wording, spoken_form, strip_fillers
+from reception_tables import NUMBER_UNITS, last_vowel, normalize_wording, spoken_form, strip_context_clause, strip_fillers
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
@@ -226,6 +226,9 @@ class QuestionPlanner:
     def _inherit(self, parts):
         result = [parts[0]]
         for part in parts[1:]:
+            # «…хэн бэ? Уулзах гэсэн юм, хаана суудаг вэ?» (11/23, check set Q32): the reason before a place question is no
+            # topic of its own; without it the part asks where the person before is.
+            part = strip_context_clause(part)
             subject = self._subject(result[-1])
             possessive = re.search(r'(?<!\w)нь(?!\w)', part.casefold())
             if subject and (possessive or not self._has_topic(part)):
@@ -559,15 +562,21 @@ def compose(query, plan, results):
     answered = [bool((r.get('answer') or '').strip()) for r in results]
     base = deepcopy(results[answered.index(True)] if any(answered) else results[0])
     lines, citations, related, seen = [], [], [], set()
+    previous = None
     for part, result, ok in zip(plan['parts'], results, answered):
         asked = part['original'].strip()
         asked = asked[:1].upper() + asked[1:]  # «…, хэсэгчлэн төлж болох уу?» was echoed in lower case
-        if ok:
+        if ok and previous is not None and result['answer'].strip() == previous:
+            # Two parts answered by the same stored answer show it once, under both questions (11/23, Q14).
+            header, _, body = lines[-1].partition('\n')
+            lines[-1] = header + ' ' + asked + '\n' + body
+        elif ok:
             lines.append(asked + '\n' + result['answer'].strip())
         else:
             # The page shows no note under a compound answer, so where to ask goes with the part (11/22).
             where = (result.get('referral') or {}).get('office')
             lines.append(asked + '\nЭнэ талаар мэдээлэл олдсонгүй.' + (' Лавлах газар: ' + where + '.' if where else ''))
+        previous = result['answer'].strip() if ok else None
         for item in result.get('citations') or []:
             key = json.dumps(item, sort_keys=True, ensure_ascii=False)
             if key not in seen:
@@ -590,7 +599,8 @@ def compose(query, plan, results):
     base['reason_codes'] = [base['reason_code']]
     if referral:
         base['referral'] = referral
-        base['message'] = referral.get('text', '')
+        # Nothing answered: say so before where to ask (11/23, check set Q22, Q24).
+        base['message'] = (('' if any(answered) else 'Энэ талаар мэдээлэл олдсонгүй. ') + referral.get('text', '')).strip()
     else:
         base.pop('referral', None)
         base['message'] = ''

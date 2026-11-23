@@ -1158,5 +1158,57 @@ class NamedOfficeEvidenceTests(unittest.TestCase):
                 self.assertIsNone(named_office_field_scope(query,[]))
 
 
+
+class FaqIntentRouteTests(unittest.TestCase):
+    """11/23: a visitor's own wording names one stored FAQ, and the router answers that FAQ's own question, so
+    every FAQ guard still decides (faq_intent.py); nothing is generated."""
+
+    class Router:
+        enabled = True
+
+        def __init__(self):
+            self.asked, self.faq_id = [], 'faq.canteen'
+
+        def route(self, db, query, allow_draft=False):
+            self.asked.append(query)
+            if query == 'Хоолны газар байдаг уу?':
+                return dict(query=query, route='B', package_id='package1', reason_code='official_website_stored_answer',
+                            reason_codes=['official_website_stored_answer'], answer='Тийм. Хоолны газар 360 суудалтай.',
+                            answer_faq_id=self.faq_id, citations=[], clarification=None, exact_matches=[],
+                            generated=False, llm_calls=0, message='', answer_kind='official_website_stored_answer')
+            return Policy().route(db, query, allow_draft)
+
+    def setUp(self):
+        from faq_intent import FaqIntents
+        self.router = self.Router()
+        self.chat = ChatRAG('.', self.router, Retriever(), Generator())
+        self.chat.faq_intents = FaqIntents([dict(faq_id='faq.canteen', require=[['хоол'], ['газар']])])
+        self.chat._stored_faqs = lambda database, package_id: {'faq.canteen': dict(
+            question='Хоолны газар байдаг уу?', question_aliases=[], answer='Тийм. Хоолны газар 360 суудалтай.')}
+
+    def mapped(self, query='Хоолны газар байгаа юу', reason='no_supported_question_match', database='db'):
+        return self.chat._faq_intent_answer(database, query, Policy(reason).route(database, query), False)
+
+    def test_own_wording_gets_the_stored_answer_of_the_faq_it_names(self):
+        result = self.mapped()
+        self.assertEqual(result['answer'], 'Тийм. Хоолны газар 360 суудалтай.')
+        self.assertEqual((result['query'], result['understood_as']), ('Хоолны газар байгаа юу', 'Хоолны газар байдаг уу?'))
+        self.assertEqual(result['faq_intent']['faq_id'], 'faq.canteen')
+        self.assertEqual(self.router.asked[-1], 'Хоолны газар байдаг уу?')
+        self.assertFalse(result['generated'])
+
+    def test_only_after_no_match_and_only_the_same_faqs_answer(self):
+        self.assertIsNone(self.mapped(database=None))
+        self.assertIsNone(self.mapped(reason='unsupported_year'))        # a hard stop of the router is kept
+        self.assertIsNone(self.mapped('Номын сан хаана байдаг вэ?'))      # names no stored FAQ
+        self.router.faq_id = 'faq.other'                                 # the router answered another FAQ
+        self.assertIsNone(self.mapped())
+
+    def test_next_years_admission_is_not_answered_with_this_years_dates(self):
+        result = ChatRAG('.', Policy(), Retriever(), Generator()).route(
+            None, 'Охин маань ирэх жил 9-өө төгсөнө. Элсэлтийн бүртгэл хэзээ эхлэх бол?')
+        self.assertEqual(result['reason_code'], 'future_admission_round_not_published')
+        self.assertIsNone(result['answer'])
+
 if __name__=='__main__':
     unittest.main()

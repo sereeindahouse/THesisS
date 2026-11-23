@@ -62,6 +62,15 @@ def _office(result, referral, rules, locate):
     return None
 
 
+def _question_rule(query, referral):
+    """The first question_offices rule the question's own words match, or None."""
+    offices = referral.get('question_offices') or {}
+    if offices.get('enabled') is not True:
+        return None
+    text = str(query or '').lower()
+    return next((rule for rule in offices.get('rules') or () if re.search(rule['pattern'], text)), None)
+
+
 def _question_office(query, referral, locate):
     """Office named by the question's own words, e.g. «төлбөр» -> finance office.
 
@@ -71,16 +80,13 @@ def _question_office(query, referral, locate):
     stops the search. An office is named only when the school's room table
     places it, so a missing table names nothing.
     """
-    offices = referral.get('question_offices') or {}
-    if offices.get('enabled') is not True or not locate:
+    rule = _question_rule(query, referral) if locate else None
+    if rule is None:
         return None
-    text = str(query or '').lower()
-    for rule in offices.get('rules') or ():
-        if re.search(rule['pattern'], text):
-            place = locate(rule['office']) if rule.get('office') else None
-            # '' = the question's topic was found but names no office here: no page-topic guess.
-            return rule['office'] + ' (' + place + ')' if place else ''
-    return None
+    # A place the room table does not hold may be written on the rule (11/23: «Ресепшн», 1-р давхар).
+    place = (locate(rule['office']) or rule.get('place_mn')) if rule.get('office') else None
+    # '' = the question's topic was found but names no office here: no page-topic guess.
+    return rule['office'] + ' (' + place + ')' if place else ''
 
 
 def attach_referral(result, referral, *, rules=(), locate=None):
@@ -96,10 +102,12 @@ def attach_referral(result, referral, *, rules=(), locate=None):
         source = 'source_topic' if office else None
     office = office or None
     general = referral['general']
+    # A rule's own advice after the office («Ангийн багшдаа мөн мэдэгдээрэй.», 11/23).
+    note = (_question_rule(result.get('query'), referral) or {}).get('note_mn') if source == 'question' else None
     # «Лавлах газар: Санхүүгийн алба (8-р давхар, 804 тоот, ажлын цаг 08:00–17:00).» — the office name
     # stays in the nominative, so no case ending is guessed for a name the school wrote (11/22).
-    text = ('Лавлах газар: ' + office + '. ' + general.get('with_office_mn', general['text_mn'])
-            if office else general['text_mn'])
+    text = ('Лавлах газар: ' + office + '. ' + (note.rstrip('.') + '. ' if note else '')
+            + general.get('with_office_mn', general['text_mn']) if office else general['text_mn'])
     reviewed = bool(office) and ((referral.get('question_offices') or {}).get('reviewed') is True
                                  if source == 'question' else True)
     result['referral'] = dict(text=text, office=office, office_source=source, office_reviewed=reviewed,

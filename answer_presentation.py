@@ -216,6 +216,16 @@ _QUANTITIES = (
 _MISSION = re.compile(r'\n\nЭрхэм зорилго:.*\Z', re.S)
 
 
+def _lead(units, hit):
+    """Move the asked sentence to the front. A bare «Тийм.» or «Үгүй.» that opened the text answered a yes/no
+    question, not this one, and goes (11/23, check set Q13: «… 7–30 хоногийн хугацаанд дадлага хийнэ. Тийм. …»)."""
+    first = units[0]
+    units.insert(0, units.pop(hit))
+    if re.fullmatch(r'(?:Тийм|Үгүй)[.!]?', first.strip()):
+        units.remove(first)
+    return units
+
+
 def direct_first(query, text):
     """Move the line, list item or sentence that holds the asked field or amount to the top. Only for «<unit>-ийн
     эрхлэгч хэн бэ?» is something left out: the unit's mission statement printed under the head's name."""
@@ -253,8 +263,7 @@ def direct_first(query, text):
                 units = _sentences(body)
                 hit = next((i for i, unit in enumerate(units) if holds.search(unit)), None)
                 if hit:
-                    units.insert(0, units.pop(hit))
-                    return ' '.join(units) + tail
+                    return ' '.join(_lead(units, hit)) + tail
             return text
     # «Монбүшёо тэтгэлэгт хэдэн оюутан хамрагдсан бэ?» — the line with «12 оюутан» when it is buried under the card.
     counted = re.search(r'хэдэн\s+([а-яөүё]{3,})', q)
@@ -271,8 +280,7 @@ def direct_first(query, text):
             units = _sentences(body)
             hit = next((i for i, unit in enumerate(units) if holds.search(unit)), None)
             if hit:
-                units.insert(0, units.pop(hit))
-                return ' '.join(units) + tail
+                return ' '.join(_lead(units, hit)) + tail
     return text
 
 
@@ -339,8 +347,7 @@ _REWRITES = (
      lambda m: m['y'].strip() + ' оны мэдээлэл олдсонгүй.'),
     (re.compile(r'^(?P<y>\d{4}) оны сургалтын төлбөрийн дүнг одоогийн хариултын эх батлахгүй байна\.?$'),
      lambda m: m['y'] + ' оны сургалтын төлбөрийн мэдээлэл алга.'),
-    (re.compile(r'^Хадгалсан эх нь өнөөдрийн мэдээлэл.*$'),
-     lambda m: 'Өнөөдрийн байдлыг (нээлттэй ажлын байр, бүртгэл гэх мэт) энэ системээс мэдэх боломжгүй.'),
+    (re.compile(r'^Хадгалсан эх нь өнөөдрийн мэдээлэл.*$'), lambda m: _LIVE_NOTE),
     (re.compile(r'^Хадгалсан эх өнөөдрийн бодит хоолны цэс.*$'),
      lambda m: 'Өнөөдрийн хоолны цэс, үнийн мэдээлэл энэ системд алга.'),
     (re.compile(r'^Хадгалсан мэдээ өнөөдрийн валютын ханшийг батлахгүй.*$'),
@@ -413,6 +420,12 @@ _MACHINE = re.compile(
     r'батлах\s+(?:тохирох\s+)?эх(?!\s+сурвалж)|хайлтын\s+эх(?!\s+сурвалж)|(?<!эцэг )(?<!\S)эх(?:ээр|ээс|эд|ийн)\s|'
     r'хүснэгтэд\s+бүртгэгдээгүй|(?<!\S)багцын|FAQ|энэ\s+хайлтаар', re.I)
 _NOT_FOUND = 'Энэ талаар мэдээлэл олдсонгүй.'
+_LIVE_NOTE = 'Өнөөдрийн байдлыг (нээлттэй ажлын байр, бүртгэл гэх мэт) энэ системээс мэдэх боломжгүй.'
+# «… анкет өгөх гэсэн юм, хаана очих вэ?», «Хэдэн давхарт гарах вэ?», «… хэнд хэлэх вэ?» ask where to go or whom to
+# tell: the office the question itself names (referral.py) is the reply, so no «not found» sentence leads it
+# (check set Q28, Q34, Q35, 11/23).
+_WHERE_TO_GO = re.compile(r'хаана\s+(?:очи|оч(?:но|оо)|өгө|өгн|хандах|бөглө)|хаашаа|хэд(?:эн|дүгээр)\s+давхарт?\s+гар'
+                          r'|хэнд\s+(?:хандах|хандана|хэлэх|хэлнэ|өгөх|мэдэгдэх)', re.I)
 _BY_REASON = {
     'credential_not_shared': 'Нууц үг, пин кодыг энд өгдөггүй. Хариуцсан ажилтнаас биечлэн асууна уу.',
     'personal_record_outside_scope': ('Хувийн дүн, ирц, төлбөрийн мэдээллийг энэ системээс харах боломжгүй. '
@@ -474,6 +487,12 @@ def plain_note(result, referral_text=''):
         if referral_text and original.endswith(referral_text):
             original = original[:-len(referral_text)]
         lead = _plain(original, _NOT_FOUND)
+        # «Хүүхэд маань өвдөөд өнөөдөр хичээлдээ ирж чадахгүй нь хэнд хэлэх вэ?» (Q28): «өнөөдөр» is no question about
+        # today's openings, so the live-status note goes too.
+        if (lead in (_NOT_FOUND, _LIVE_NOTE) and referral_text
+                and (result.get('referral') or {}).get('office_source') == 'question'
+                and _WHERE_TO_GO.search(str(result.get('query') or ''))):
+            lead = ''
     return (lead + ' ' + referral_text).strip()
 
 

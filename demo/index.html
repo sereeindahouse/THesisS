@@ -328,6 +328,7 @@ function renderTurn(turn,result){
   target.append(node("p","Тодруулсан асуулт: "+result.conversation.resolved_query,"chat-notice"));
  }
  if(typeof result.question_plan?.followup?.rewritten==="string")target.append(node("p","Өмнөх асуултаас ойлгосон нь: "+result.question_plan.followup.rewritten,"chat-notice"));
+ if(typeof result.latin_script?.read_as==="string")target.append(node("p","Ингэж ойлголоо: «"+result.latin_script.read_as+"»","chat-notice"));
  if(result.answer_kind==="development_draft_preview")target.append(node("p","Хөгжүүлэлтийн ноорог мэдээлэл.","chat-notice"));
  const hasAnswer=typeof result.answer==="string"&&Boolean(result.answer.trim());
  if((["partial_teacher_directory","partial_official_website_extract"].includes(result.answer_kind)||result.teacher_cards?.some(card=>card.portrait_available===false))&&hasAnswer&&typeof result.message==="string"&&result.message.trim())target.append(node("p",result.message,"chat-notice"));

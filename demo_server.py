@@ -28,6 +28,7 @@ from clarification_context import ClarificationContext, ClarificationConflict
 from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
 from release_runtime import LiveContentRuntime
 from question_planner import QuestionPlanner, compose as compose_parts
+from latin_query import to_cyrillic, vocabulary_from
 from website_retrieval import WebsiteRetriever
 from teacher_media import TeacherMedia, TeacherMediaError
 from privacy_filter import hide_mobiles
@@ -169,6 +170,35 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
         def admin_authorized(self):
             supplied = self.headers.get('X-Admin-Token', '')
             return supplied.isascii() and secrets.compare_digest(supplied, admin_token)
+
+        def latin_reading(self, query, rag):
+            """The Cyrillic reading of a Latin-letter question, or None (switch: planner config `latin_script`).
+            The spelling of an ambiguous letter follows the school's own texts: the website chunks the
+            retriever holds and the reception tables' names (built once per running server)."""
+            try:
+                settings = json.loads((root / 'config/question-planner.json').read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                return None
+            if settings.get('latin_script') is not True:
+                return None
+            vocabulary = getattr(rag, '_latin_vocabulary', None)
+            if vocabulary is None:
+                retriever = getattr(rag, 'retriever', None)
+                try:
+                    retriever.status()          # loads the website chunks when this is the first request
+                except Exception:
+                    pass
+                rows = getattr(retriever, '_rows', None) or ()
+                texts = [row.get('text', '') for row in rows]
+                tables = getattr(getattr(rag, 'reception', None), 'tables', None)
+                for room in getattr(tables, 'rooms', ()) or ():
+                    texts += [room.purpose or '', room.department or '']
+                for person in getattr(tables, 'staff', ()) or ():
+                    texts += [person.name or '', person.role or '', person.department or '']
+                vocabulary = vocabulary_from(texts)
+                if rows:                        # never keep a vocabulary built without the website texts
+                    rag._latin_vocabulary = vocabulary
+            return to_cyrillic(query, vocabulary)
 
         def teacher_answer(self, query, draft, database, rag):
             """Explicit profile lookup has its own dated source bundle and TTS capability."""
@@ -719,6 +749,12 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             voice.transcription_lineage(body['transcription_id'], raw_query))
                         conversation = dict(raw_query=raw_query, resolved_query=raw_query,
                                             applied=False, reason="fresh_query", clarification_id=None)
+                        # A typed question in Latin letters is read in Cyrillic first (latin_query.py, 11/23);
+                        # config/question-planner.json `latin_script` switches it off.
+                        latin = (self.latin_reading(raw_query, rag) if input_lineage['kind'] == 'typed'
+                                 and "clarification_id" not in body else None)
+                        if latin:
+                            conversation.update(resolved_query=latin, latin_script=dict(original=raw_query, read_as=latin))
                         if "clarification_id" in body:
                             token = body["clarification_id"]
                             if not isinstance(token, str) or not re.fullmatch(r"[0-9a-f]{32}", token):
@@ -778,6 +814,9 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             result = rag._remember(result, allow_draft)
                         if plan is not None and plan['changed']:
                             result['question_plan'] = plan
+                        if latin:
+                            # The page shows «Ингэж ойлголоо: …» above any answer (demo/index.html).
+                            result['latin_script'] = dict(original=raw_query, read_as=latin)
                         context_started = time.perf_counter()
                         if "clarification_id" in body:
                             result_corpus = (result.get("rag") or {}).get("corpus_id")

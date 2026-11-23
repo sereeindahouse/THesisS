@@ -162,11 +162,49 @@ def spoken_form(text):
     return text
 
 
+# 11/23 (check set): typed shortenings («Захиралын өрөө хэдэн давхарт бга вэ», «Сургалтын алба хаана бдаг вэ»).
+_SHORT_FORMS = (
+    (r'(?<!\w)бдаг(?!\w)', 'байдаг'),
+    (r'(?<!\w)бгаа?(?!\w)', 'байгаа'),
+    (r'(?<!\w)бнуу?(?!\w)', 'байна уу'),
+    (r'(?<!\w)бн(?!\w)', 'байна'),
+    (r'(?<!\w)бхгүй(?!\w)', 'байхгүй'),
+    (r'(?<!\w)([Зз])ахиралын(?!\w)', r'\1ахирлын'),
+)
+_LOCATION_ASK = r'(?:хаана|хэддүгээр\s+давхар|хэдэн\s+давхар|хэд\s+давхар)'
+# A place the question names itself: a number, a room, an office, a hall (not «тэр», «тэд»).
+_OWN_PLACE = r'(?:\d|өрөө|тоот|алба|тэнхим|анги|танхим|заал|лаборатори|номын\s+сан|ресепшн)'
+
+
+def strip_context_clause(text):
+    """The visitor's reason before the question, when the question is about a place (11/23, check set):
+    «Сургалтад ирсэн юм, 809 тоот хаана байдаг вэ?» -> «809 тоот хаана байдаг вэ?», «Уулзах гэсэн юм, хаана
+    суудаг вэ?» -> «хаана суудаг вэ?» (the planner then gives it the subject of the question before), and
+    «X-тай уулзъя гэсэн юм, тэд хаана суудаг вэ?» -> «X хаана суудаг вэ?». Only before a place question: «Элсэх
+    гэсэн юм, бүртгэл хэзээ эхлэх вэ?» keeps its admission context."""
+    if not isinstance(text, str):
+        return text
+    # Only when the place question names its own place («809 тоот хаана …»): in «Би ажлын ярилцлагад ирсэн юм аа.
+    # Хэдэн давхарт гарах вэ?» the reason is what the visitor asks about (check set Q35), and in «Сэлмаа багштай
+    # уулзахаар ирсэн юм, тэр хаана …» the person is (the meeting rule below, also after «… ирсэн юм. X-тай уулзъя …»).
+    text = re.sub(r'^\s*[^?!.,]{2,60}?\s+ирсэн\s+юм(?:\s+аа)?\s*[,.]\s*(?=[^?!.]*?(?:' + _OWN_PLACE + r'|(?:тай|тэй|той)\s+уулз)[^?!.]*?\s'
+                  + _LOCATION_ASK + r')', '', text, count=1, flags=re.I)
+    # The dot of an initial («Б.Сэлмаа багштай …») is part of the name, not the end of a sentence.
+    meet = re.fullmatch(r'\s*(?P<who>(?:[^?!.,]|(?<=(?-i:[А-ЯӨҮЁ]))\.){2,80}?)(?:тай|тэй|той)\s+уулз\w*\s+(?:гэсэн|ирсэн)\s+юм(?:\s+аа)?\s*[,.]\s*'
+                        r'(?:тэд|тэр|тэр\s+хүн|түүнийг)?\s*(?P<ask>' + _LOCATION_ASK + r'.*)', text, re.I | re.S)
+    if meet:
+        return meet.group('who').strip() + ' ' + meet.group('ask')
+    return re.sub(r'^\s*уулз\w*\s+гэсэн\s+юм(?:\s+аа)?\s*[,.]\s*(?=' + _LOCATION_ASK + r')', '', text, count=1, flags=re.I)
+
+
 def normalize_wording(text):
     """Spoken and typed wordings in one form (round 8): «хэд/хэдэн давхарт» asks «хэддүгээр
     давхарт», «лаб» is «лаборатори», «хаана суудаг» is «хаана байдаг». The question planner and
     both reception matchers read the result. Round 13: a room number said in words («таван зуун
     найм тоот» -> «508 тоот»), «хэд давхар вэ» (no «-т»), the typo «хана вэ»."""
+    for pattern, replacement in _SHORT_FORMS:
+        text = re.sub(pattern, replacement, text, flags=re.I)
+    text = strip_context_clause(text)
     text = spoken_form(_SPOKEN_ROOM.sub(_spoken_room, text))
     # Round 18: the typed «ве»/«бе», a spoken «хэд дүгээр» and a wondering «… хэзээ эхлэх бол?» in their usual
     # forms first, so the rules below see them («жилийн төлбөр хэд ве» found no answer). «бол» only in a
@@ -187,6 +225,12 @@ def normalize_wording(text):
                   r'(?=\s+(?:вэ|бэ)\s*[?!.]*$|\s*[?!.]*$)', r'\1хэддүгээр давхарт', text, flags=re.I)
     text = re.sub(r'(?<!\w)хана(?=\s+(?:вэ|бэ|байдаг|байна|байрладаг)(?!\w)|\s*[?!.]*$)', 'хаана', text, flags=re.I)
     text = re.sub(r'(?<!\w)хэд(?:эн)?\s+давхарт(?!\w)', 'хэддүгээр давхарт', text, flags=re.I)
+    # 11/23: a floor or a room does not move: «…хэддүгээр давхарт байгаа вэ», «… өрөө хаана байгаа вэ» ask where it
+    # is («байдаг»); a person's «хаана байгаа вэ» (where now) is left as asked.
+    text = re.sub(r'(?<!\w)(хэддүгээр\s+давхарт)\s+байгаа(?=\s+(?:вэ|бэ)(?!\w))', r'\1 байдаг', text, flags=re.I)
+    text = re.sub(r'(?<!\w)((?:өрөө|тоот|алба)\w*\s+хаана)\s+байгаа(?=\s+(?:вэ|бэ)(?!\w))', r'\1 байдаг', text, flags=re.I)
+    # «КУ-4 мягмар гарагт хэдэн цагаас хичээлтэй вэ?» asks the same as «… хэдэн цагт хичээлтэй вэ?».
+    text = re.sub(r'(?<!\w)хэдэн\s+цагаас\s+(?=хичээлтэй(?!\w))', 'хэдэн цагт ', text, flags=re.I)
     text = re.sub(r'(?<!\w)лаб(?!\w)', 'лаборатори', text, flags=re.I)
     # «нягтлан» alone is the post «нягтлан бодогч» (round 9).
     text = re.sub(r'(?<!\w)(нягтлан)(?!\w)(?!\s+бодогч)', r'\1 бодогч', text, flags=re.I)
@@ -859,7 +903,10 @@ class ReceptionAnswerPath:
             ('office_hours', r'(.{1,120}?)(?:гийн|ны|ийн|ын) ажлын цаг (?:хэд|хэдэн|ямар)(?: вэ)?'),
             # A department's contact is its head (department_contact below), not an office's.
             ('office_contact', r'(?!.*тэнхим)(.{1,120}?)(?:тай|тэй|той) (?:яаж|хэрхэн) холбогдох (?:вэ|бэ)'),
-            ('department', r'(.{1,120}?) тэнхим(?:ийн (?:байр|өрөө|багш нарын өрөө))? хаана (?:байдаг |байна |байрладаг )?вэ'),
+            # 11/23 (check set Q38): «Химийн инженерийн тэнхимийн багш нар хаана суудаг вэ?» — the department's
+            # teachers' room, like «… тэнхимийн багш нарын өрөө хаана вэ?».
+            ('department', r'(.{1,120}?) тэнхим(?:ийн (?:байр|өрөө|багш(?:ийн| нар(?:ын)?)?(?: (?:ажлын )?өрөө)?))? хаана '
+                           r'(?:байдаг |байна |байрладаг )?вэ'),
             # 11/17 (4): a phone question about a recorded teacher or class teacher. Staff phones
             # are never shown; as at the reception desk, the school e-mail is offered instead.
             # Round 4 (11/17): «Барилгын тэнхимийн утас хэд вэ?» showed another department's contact
@@ -884,6 +931,9 @@ class ReceptionAnswerPath:
             # teacher lookup, which read «КУ-2 ангийн» as a person's name («багш олдсонгүй»).
             ('class_teacher_room', r'(.{1,120}?) ангийн багш(?:ийн (?:ажлын )?өрөө)? хаана (?:байдаг |байна )?вэ'),
             ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
+                          r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
+            # 11/23 (check set Q36): a class code alone, without «анги» («КУ-4 мягмар гарагт хэдэн цагаас хичээлтэй вэ?»).
+            ('class_day', r'([А-ЯӨҮЁ]{2,3}-\d) (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
                           r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
             ('term_dates', r'(?:энэ )?(?:улирал|улирлын хичээл|хичээлийн улирал) хэзээ (дуус\w*|эхл\w*|эхэл\w*)(?: (?:вэ|бэ))?'),
             # Round 16: «Хичээл хэзээ эхэлсэн бэ?» showed a unit's founding in 2014. Only the past: «Хичээл
@@ -1736,9 +1786,14 @@ class ReceptionAnswerPath:
             matches = self._department_rooms(value)
             if not matches:
                 return self._answer_legacy(query, now=now)   # not claimed (recognizes)
-            # «… тэнхимийн багш нарын өрөө хаана вэ?» asks for that room only (W04-R08).
-            if 'багш нарын өрөө' in query.casefold():
-                matches = [room for room in matches if 'багш нарын өрөө' in (room.purpose or '').casefold()] or matches
+            # «… тэнхимийн багш нарын өрөө хаана вэ?» asks for that room only (W04-R08); so do «… тэнхимийн багш нар
+            # хаана суудаг вэ?» and «… тэнхимийн багшийн өрөө …» (11/23, check set Q38).
+            if re.search(r'тэнхимийн\s+багш', query.casefold()):
+                teachers = [room for room in matches if 'багш нарын өрөө' in (room.purpose or '').casefold()]
+                if teachers:
+                    return reply('; '.join(room.department + 'ийн багш нарын өрөө: ' + room.name + ' тоот, '
+                                           + floor_text(room.floor) for room in teachers) + '.',
+                                 'rooms', 'reception_department_rooms')
             return reply('Тэнхимд хамаарах бүртгэлтэй өрөө: ' + '; '.join(
                 room.name + ' (' + floor_text(room.floor) + '; ' + (room.purpose or 'зориулалт дутуу') + ')'
                 for room in matches) + '. Тэнхимийн ганц төв байр гэж батлахгүй.', 'rooms', 'reception_department_rooms')
@@ -1823,19 +1878,31 @@ class ReceptionAnswerPath:
                                  'timetable', 'reception_holiday')
                 if reason:
                     return missing(reason)
-                label = _RELATIVE_DAYS[_key(day)] + ' (' + _MN_DAYS[target.weekday()] + ' гараг)'
+                label = _key(day) + ' (' + _MN_DAYS[target.weekday()] + ' гараг)'
                 day = _MN_DAYS[target.weekday()]
             weekday = _DAY_LOOKUP[_key(day)]
             lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.group) == _key(group.group)
                               and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
             if not lessons and not self.tables.timetable_complete:
                 return missing('reception_timetable_incomplete')
-            # A joint lesson is stored once per teacher/room; list each time once.
-            slots = list(dict.fromkeys(lesson.time + ' (' + lesson.room + ' тоот)' for lesson in lessons))
+            # A joint lesson is stored once per teacher/room; each time once, with its subject (11/23, check set Q36:
+            # «… хэдэн цагаас хичээлтэй вэ?» needs the subject too, and the first lesson's start comes first).
+            by_time = {}
+            for lesson in lessons:
+                by_time.setdefault(lesson.time, []).append(lesson)
+            slots = []
+            for time_text, items in by_time.items():
+                subjects = ', '.join(dict.fromkeys(item.subject for item in items if item.subject))
+                rooms = ', '.join(dict.fromkeys(item.room for item in items if item.room))
+                slots.append(time_text + (' ' + subjects if subjects else '') + (' (' + rooms + ' тоот)' if rooms else ''))
             period = (' Хуваарийн хугацаа: ' + self.tables.term_start.isoformat() + ' – '
                       + self.tables.term_end.isoformat() + '.') if self.tables.term_start and self.tables.term_end else ''
-            return reply(group.group + ' — ' + (label or _MN_DAYS[weekday] + ' гарагийн') + ' бүртгэсэн хуваарь: '
-                         + ('; '.join(slots) if slots else 'хичээл бүртгэгдээгүй') + '.' + period
+            when = label or (_MN_DAYS[weekday] + ' гарагт')
+            if not slots:
+                return reply(group.group + ' анги ' + when + ' хуваарьт хичээлгүй.' + period
+                             + ' Хуваарь өөрчлөгдсөн байж болно.', 'timetable', 'reception_class_day')
+            return reply(group.group + ' анги ' + when + ' ' + _clock(lessons[0].interval[0]) + '-аас хичээлтэй: '
+                         + '; '.join(slots) + '.' + period
                          + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
         if intent == 'timetable_where':
             if not self.tables.timetable:

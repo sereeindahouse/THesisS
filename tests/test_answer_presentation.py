@@ -282,5 +282,41 @@ class ReviewSecondPassTests(unittest.TestCase):
         self.assertEqual(note, 'Хичээлийн хуваарь бүрэн биш тул хуваариар хариулах боломжгүй.')
 
 
+
+class CheckSetPresentationTests(unittest.TestCase):
+    """11/23 check set: a reordered answer drops a stray «Тийм.», where to go is answered by the office."""
+
+    def test_a_bare_yes_is_not_left_inside_the_reordered_answer(self):
+        text = 'Тийм. Өвлийн амралтаар явна. Компанид 7–30 хоногийн хугацаанд дадлага хийнэ.'
+        self.assertEqual(direct_first('Японд дадлагад хэдэн хоног явдаг вэ?', text),
+                         'Компанид 7–30 хоногийн хугацаанд дадлага хийнэ. Өвлийн амралтаар явна.')
+
+    def test_where_to_go_is_answered_by_the_office_the_question_names(self):
+        referral = 'Лавлах газар: Сургалтын алба (4-р давхар, 406 тоот). Сургуулийн ерөнхий утас +976 75777799.'
+
+        def shown(query, source='question'):
+            return present(dict(query=query, answer=None, reason_code='selection_not_relevant',
+                                message='Ойролцоо хэсгийг хариулт болгож харуулахгүй. ' + referral,
+                                referral=dict(text=referral, office_source=source)))['message']
+        for query in ('Ажлын анкет өгөх гэсэн юм, хаана очих вэ?', 'хэддүгээр давхарт гарах вэ?',
+                      'Хүүхэд өвдөөд хичээлдээ ирж чадахгүй нь, хэнд хэлэх вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(shown(query), referral)
+        # An office guessed from related pages, or a question that is not where to go, keeps «not found».
+        self.assertEqual(shown('Ажлын анкет өгөх гэсэн юм, хаана очих вэ?', 'source_topic'),
+                         'Энэ талаар мэдээлэл олдсонгүй. ' + referral)
+        self.assertEqual(shown('Гар утсаа гээчихлээ, олдсон юм хаана хадгалдаг вэ?'),
+                         'Энэ талаар мэдээлэл олдсонгүй. ' + referral)
+
+    def test_whom_to_tell_today_is_no_question_about_todays_openings(self):
+        referral = 'Лавлах газар: Сургалтын алба (4-р давхар, 406 тоот). Ангийн багшдаа мөн мэдэгдээрэй.'
+        result = present(dict(query='Хүүхэд маань өвдөөд өнөөдөр хичээлдээ ирж чадахгүй нь хэнд хэлэх вэ', answer=None,
+                              reason_code='live_status_not_supported',
+                              message=('Хадгалсан эх нь өнөөдрийн мэдээлэл, бүртгэл, сул орон тооны бодит төлөвийг батлахгүй. '
+                                       'Доорх албан эхийн огноог шалгах эсвэл сургуультай холбогдоорой. ' + referral),
+                              referral=dict(text=referral, office_source='question')))
+        self.assertEqual(result['message'], referral)
+
+
 if __name__ == '__main__':
     unittest.main()

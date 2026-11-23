@@ -664,3 +664,15 @@ __pycache__/
 !/report_room.py
 !/tests/test_seminar_room.py
 !/papers/53-seminar-view-research-20261123.mn.md
+# 11/23 (8): the 40 check questions used to improve the system (user's permission, 11/23): stored answers v4
+# (career centre, campus, student news, olympiad), the FAQ intent layer (own wording -> one stored FAQ), basic
+# reading of Mongolian typed in Latin letters behind a switch, the check-set runner. The 40 questions stay local.
+!/faq_intent.py
+!/config/faq-intents.json
+!/tests/test_faq_intent.py
+!/latin_query.py
+!/tests/test_latin_query.py
+!/tools/build_content_v4.py
+!/data/content-draft-v4-20261123.json
+!/tools/run_check_set.py
+!/papers/54-check-set-40-development-20261123.mn.md

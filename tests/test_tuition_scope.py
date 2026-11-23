@@ -169,4 +169,15 @@ class TuitionScopeTests(unittest.TestCase):
         self.assertEqual(self.generator.calls, 0)
 
 
+class OwnFeeWordingTests(unittest.TestCase):
+    def test_ones_own_fee_names_tuition(self):
+        # 11/23 check set Q21: the reflexive «сургалтын төлбөрөө» missed the instalment screen.
+        from answer_contract import tuition_label_query
+        for question in ['Сургалтын төлбөрөө сар сараар нь төлж болох уу?', 'Сургалтын мөнгөө хуваан төлж болох уу?',
+                         'Сургалтын төлбөрийнхөө баримтыг хаанаас авах вэ?']:
+            with self.subTest(question=question):
+                self.assertTrue(tuition_label_query(question))
+        self.assertFalse(tuition_label_query('Бүртгэлийн хураамжаа хэрхэн төлөх вэ?'))
+
+
 if __name__ == '__main__': unittest.main()

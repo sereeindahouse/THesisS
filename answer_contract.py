@@ -137,7 +137,9 @@ def quantity_context_supported(statement, quote):
 def tuition_label_query(query):
     """Recognise only an explicit tuition label, including its money alias."""
     text = unicodedata.normalize('NFC', query).casefold()
-    return bool(re.search(r'\bсургалтын\s+(?:төлбөр(?:ийн|ийг)?|мөнгө(?:ний)?|мөнгийг)\b', text))
+    # 11/23: the reflexive «сургалтын төлбөрөө», «…мөнгөө» (one's own fee) names tuition too: «Сургалтын төлбөрөө
+    # сар сараар нь төлж болох уу?» missed the instalment screen and showed the olympiad discount list (check set Q21).
+    return bool(re.search(r'\bсургалтын\s+(?:төлбөр(?:ийн|ийг|өө|ийнхөө)?|мөнгө(?:ний|ө)?|мөнгийг)\b', text))
 
 
 def tuition_amount_query(query):

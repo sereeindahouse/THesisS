@@ -21,6 +21,7 @@ from reception_tables import ReceptionAnswerPath, floor_text
 from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
+from faq_intent import FaqIntents
 from privacy_filter import hide_mobiles
 from answer_presentation import present
 from rule_selector import default_generator
@@ -1460,6 +1461,16 @@ class GroundedGenerator(LLMRuntime):
 class ChatRAG:
     """Keep deterministic answers first; expand unsupported FAQ coverage to web sources."""
     EXTEND = {"no_supported_question_match", "select_supported_question", "unmatched_named_entity", "requested_year_value_lookup"}
+    # 11/23: router outcomes after which a visitor's own wording may still name one stored FAQ (faq_intent.py): no
+    # stored question matched, several were close, or the wording was not exact. The router's named-entity, office-scope
+    # and combined-constraint stops are kept (every bank checked on 11/23 needed only these three).
+    FAQ_INTENT_REASONS = {"no_supported_question_match", "select_supported_question", "constrained_wording_not_exact"}
+    # 11/23 (check set Q25): «Охин маань ирэх жил 9-өө төгсөнө. Элсэлтийн бүртгэл хэзээ эхлэх бол?» asks about an
+    # admission round no saved page covers. The guard stops the fallbacks (own-wording FAQ, website extracts) from
+    # answering it with this year's dates; a stored FAQ that the router itself matches (a later round's FAQ) still
+    # answers, so the check comes after the router's answer.
+    NEXT_YEAR = re.compile(r'(?<!\w)(?:ирэх|дараа|дараагийн|хойтон|хойтын)\s+(?:хичээлийн\s+)?жил', re.I)
+    ADMISSION = re.compile(r'(?<!\w)(?:элс|бүртг|шалгалт|хураамж|сургалтын\s+төлбөр)', re.I)
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
     # Round 9: a thank-you is not greeted again, and «Та хэн бэ?», «Юу хийж чадах вэ?» (what a
@@ -1516,6 +1527,10 @@ class ChatRAG:
         self._responses = OrderedDict()
         self._lock = threading.Lock()
         self._totals = Counter(requests=0, llm_calls=0, generated_answers=0, direct_extracts=0)
+        # A visitor's own wording -> one stored FAQ (11/23); E5 only when the retriever has its encoder.
+        encoder = getattr(retriever, '_encoder', None) if getattr(retriever, 'use_dense', False) else None
+        self.faq_intents = FaqIntents.from_config(self.root, encoder=encoder, lock=getattr(retriever, '_lock', None))
+        self._faq_texts = {}
 
     def _office_place(self, name):
         """Floor, room and confirmed hours of an office, only from enabled, reviewed reception tables."""
@@ -1555,6 +1570,39 @@ class ChatRAG:
             # Topic clarification remains useful if no safe stored option can
             # be read. Never replace it with an invented/cross-package option.
             return []
+
+    def _stored_faqs(self, database, package_id):
+        """The pinned package's FAQs (question, aliases, answer), one package cached; expired ones left out."""
+        key = (str(database), package_id)
+        faqs = self._faq_texts.get(key)
+        if faqs is None:
+            from sqlite_retrieval import ReadOnlyContentStore
+            with ReadOnlyContentStore(database) as store:
+                content = store.export(package_id or store.package_id())
+            faqs = {faq['faq_id']: dict(question=faq['question'], question_aliases=faq.get('question_aliases') or [],
+                                        answer=faq.get('answer') or '')
+                    for faq in content['faqs'] if faq.get('approval_status') != 'expired'}
+            self._faq_texts = {key: faqs}       # replaced whole: another thread keeps the dict it read
+        return faqs
+
+    def _faq_intent_answer(self, database, query, result, allow_draft):
+        """The stored FAQ a visitor's own wording names, answered through the router with all its guards, or None."""
+        if (not getattr(self.faq_intents, 'enabled', False) or database is None or result.get('answer')
+                or result.get('exact_matches') or result.get('reason_code') not in self.FAQ_INTENT_REASONS):
+            return None
+        try:
+            faqs = self._stored_faqs(database, result.get('package_id'))
+        except (OSError, ValueError, KeyError):
+            return None
+        mapped = self.faq_intents.match(query, faqs)
+        if mapped is None:
+            return None
+        answered = self.policy.route(database, mapped['question'], allow_draft=allow_draft)
+        if not answered.get('answer') or answered.get('answer_faq_id') != mapped['faq_id']:
+            return None
+        answered.update(query=query, faq_intent=mapped, understood_as=mapped['question'], related_sources=[],
+                        suggestions=[], message='Таны асуултыг «' + mapped['question'] + '» гэж ойлгож хариуллаа.')
+        return self._remember(answered, allow_draft)
 
     def status(self):
         provider = self.generator.status()
@@ -1702,6 +1750,14 @@ class ChatRAG:
             return self._remember(result,allow_draft)
         if result.get("answer"):
             return result
+        if self.policy.enabled and self.NEXT_YEAR.search(query) and self.ADMISSION.search(query):
+            result.update(route='E', answer=None, citations=[], candidates=[], clarification=None, related_sources=[],
+                          suggestions=[], exact_matches=[], reason_code='future_admission_round_not_published',
+                          message='Ирэх жилийн элсэлтийн мэдээлэл олдсонгүй.')
+            return self._remember(result, allow_draft)
+        mapped = self._faq_intent_answer(database, query, result, allow_draft)
+        if mapped is not None:
+            return mapped
         # A FAQ's year coverage is not the website's year coverage. Allow only
         # absence (not rejected/expired/partial/exact matches) to reach web evidence.
         # Every requested year group must still have matching web evidence below.

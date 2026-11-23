@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from reception_tables import (CONFIG_PATH, MAX_BYTES, ReceptionAnswerPath,
+from reception_tables import (CONFIG_PATH, MAX_BYTES, ReceptionAnswerPath, normalize_wording, strip_context_clause,
     ReceptionDataError, SCHEMA, load_tables, validate_table_rows)
 
 FIXTURE = Path(__file__).parent / 'fixtures' / 'reception_fake'
@@ -485,6 +485,71 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
                 self.assertIsNone(self.path().answer(query))
         self.assertEqual(self.path().answer('Хүн багшийн өрөө хаана вэ?')['reason_code'],
                          'reception_teacher_not_found')
+
+
+
+class CheckSetWordingTests(unittest.TestCase):
+    """11/23 check-set wordings on constructed records only (no real staff, rooms or timetable)."""
+    def setUp(self):
+        rows = {
+            'rooms': [dict(floor='3', name='FAKE-301', purpose='Зохиомол лаборатори', department='Зохиомол ухааны тэнхим',
+                           services='[]'),
+                      dict(floor='3', name='FAKE-302', purpose='Багш нарын өрөө', department='Зохиомол ухааны тэнхим',
+                           services='[]'),
+                      dict(floor='2', name='FAKE-201', purpose='Анги', department='', services='[]')],
+            'staff': [dict(name='З.Хүн', department='Зохиомол ухааны тэнхим', room='FAKE-302', office_hours='', role='Багш')],
+            'classes': [dict(group='ЗУ-2', room='FAKE-201', course='2', department='Зохиомол ухааны тэнхим',
+                             teacher='З.Хүн')],
+            'timetable': [dict(day='tue', time='09:35-11:05', group='ЗУ-2', room='FAKE-201', teacher='З.Хүн',
+                               subject='Зохиомол хичээл'),
+                          dict(day='tue', time='08:00-09:30', group='ЗУ-2', room='FAKE-301', teacher='З.Хүн',
+                               subject='Өөр хичээл')],
+        }
+        meta = dict(schema_version=1, timetable_complete=True, is_fake=True, term_start='2030-01-01',
+                    term_end='2030-01-31', holidays=[], holidays_reviewed=True, dataset_label='FAKE calendar')
+        self.path = ReceptionAnswerPath(validate_table_rows(rows, metadata=meta, timetable_complete=True), enabled=True)
+
+    def ask(self, query):
+        query = normalize_wording(query)
+        self.assertTrue(self.path.recognizes(query), query)
+        return self.path.answer(query)
+
+    def test_shortenings_and_the_reason_before_a_place_question(self):
+        self.assertEqual(normalize_wording('FAKE-301 тоот хаана бдаг вэ'), 'FAKE-301 тоот хаана байдаг вэ')
+        self.assertEqual(normalize_wording('Захиралын өрөө хаана бн'), 'Захирлын өрөө хаана байна')
+        self.assertEqual(strip_context_clause('Сургалтад ирсэн юм, FAKE-301 тоот хаана байдаг вэ?'),
+                         'FAKE-301 тоот хаана байдаг вэ?')
+        self.assertEqual(strip_context_clause('Б.Зохиомол багштай уулзъя гэсэн юм, тэр хаана суудаг вэ?'),
+                         'Б.Зохиомол багш хаана суудаг вэ?')
+        self.assertEqual(strip_context_clause('Сургалтад ирсэн юм. Зохиомол багштай уулзъя гэсэн юм, тэр хаана суудаг вэ?'),
+                         'Зохиомол багш хаана суудаг вэ?')
+        # The reason is what is asked about when the question names no place of its own (check set Q35), and a
+        # pronoun is no place: the person met stays (code review 11/23 (8)).
+        kept = 'Би ажлын ярилцлагад ирсэн юм аа. Хэдэн давхарт гарах вэ?'
+        self.assertEqual(strip_context_clause(kept), kept)
+        self.assertEqual(strip_context_clause('Зохиомол багштай уулзахаар ирсэн юм, тэр хаана байдаг вэ?'),
+                         'Зохиомол багш хаана байдаг вэ?')
+        self.assertIn('FAKE-301 тоот өрөө 3-р давхарт', self.ask('Сургалтад ирсэн юм, FAKE-301 тоот хаана байдаг вэ?')['answer'])
+
+    def test_a_class_day_lists_its_lessons_from_the_first(self):
+        for query in ('ЗУ-2 мягмар гарагт хэдэн цагт хичээлтэй вэ?', 'ЗУ-2 мягмар гарагт хэдэн цагаас хичээлтэй вэ?'):
+            with self.subTest(query=query):
+                result = self.ask(query)
+                self.assertEqual(result['reason_code'], 'reception_class_day')
+                self.assertIn('ЗУ-2 анги мягмар гарагт 08:00-аас хичээлтэй: 08:00-09:30 Өөр хичээл (FAKE-301 тоот); '
+                              '09:35-11:05 Зохиомол хичээл (FAKE-201 тоот).', result['answer'])
+        # «маргааш» in the nominative before the time (code review 11/23 (8)); 2030-01-07 is a Monday in the term.
+        tomorrow = self.path.answer(normalize_wording('ЗУ-2 анги маргааш хэдэн цагт хичээлтэй вэ?'),
+                                    now=datetime(2030, 1, 7, 10, 0))
+        self.assertIn('ЗУ-2 анги маргааш (мягмар гараг) 08:00-аас хичээлтэй:', tomorrow['answer'])
+
+    def test_a_departments_teachers_are_found_in_their_room(self):
+        for query in ('Зохиомол ухааны тэнхимийн багш нартай уулзъя гэсэн юм, тэд хаана суудаг вэ?',
+                      'Зохиомол ухааны тэнхимийн багшийн өрөө хаана вэ?'):
+            with self.subTest(query=query):
+                result = self.ask(query)
+                self.assertIn('Зохиомол ухааны тэнхимийн багш нарын өрөө: FAKE-302 тоот, 3-р давхар', result['answer'])
+                self.assertNotIn('FAKE-301', result['answer'])
 
 
 if __name__ == '__main__':

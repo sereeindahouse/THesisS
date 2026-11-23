@@ -377,5 +377,25 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertFalse(result['generated'])
 
 
+
+class ComposeWordingTests(unittest.TestCase):
+    """11/23 check set (Q14, Q22, Q24): one stored answer is shown once; nothing found is said before where to ask."""
+
+    def test_the_same_answer_for_two_parts_is_shown_once_under_both_questions(self):
+        plan = planner().plan('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?')
+        same = dict(answer='Жилд 8,280,000 ₮.', route='B', reason_code='x',
+                    citations=[{'url': 'https://nmct.edu.mn/elselt'}], llm_calls=0)
+        result = compose('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?', plan, [dict(same), dict(same)])
+        self.assertEqual(result['answer'], 'Сургалтын төлбөр хэд вэ? Хэсэгчлэн төлж болох уу?\nЖилд 8,280,000 ₮.')
+
+    def test_nothing_answered_says_so_before_the_referral(self):
+        plan = planner().plan('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?')
+        missing = dict(answer=None, route='E', reason_code='website_no_evidence', citations=[], llm_calls=0,
+                       referral=dict(text='Лавлах газар: Санхүүгийн алба (8-р давхар).'))
+        result = compose('Сургалтын төлбөр хэд вэ, хэсэгчлэн төлж болох уу?', plan, [dict(missing), dict(missing)])
+        self.assertEqual(result['reason_code'], 'compound_parts_not_answered')
+        self.assertEqual(result['message'], 'Энэ талаар мэдээлэл олдсонгүй. Лавлах газар: Санхүүгийн алба (8-р давхар).')
+
+
 if __name__ == '__main__':
     unittest.main()
