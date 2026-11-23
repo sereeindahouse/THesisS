@@ -6,9 +6,11 @@
 % «actor» түлхүүр үгтэй тэгш өнцөгт; бүх зууван нэг хэмжээтэй, тор дээр байрласан; өнгө нэмсэн.
 % 2026.11.20 (багш нар 11/17: «өнгө бүгд ижил», «Шинэ хувилбарыг шалгаж нийтлэх гэдэг үгийг зас»):
 % өнгийг Figures/palette.tex-ээс авч бүлэг бүрийг ялгасан; үгийг «Мэдээллийг шалгаж шинэчлэх» болгосон.
-% Өнгө: ногоон хөх = зочин, хөх = зочны хэрэглээний тохиолдол, ягаан = хэнд, хаана хандахыг мэдэх,
+% Өнгө: хөх = зочин (тод) ба зочны хэрэглээний тохиолдол (бүдэг), ягаан = хэнд, хаана хандахыг мэдэх,
 % улбар шар = гадны үйлчилгээ ба түүгээр гүйцэтгэх үйлдэл, ногоон = сургуулийн ажилтан ба мэдээлэл
 % шинэчлэх үйлдэл. Утгыг бичиг, доод талын тайлбар давхар илэрхийлнэ.
+% 2026.11.23 (багш: «зочин, хүснэгт оруулах … өнгө маш ижил байна»): зочны ногоон хөх өнгө ажилтны
+% ногоонтой бараг ижил харагдаж байсан тул зочныг өөрийн үйлдлүүдтэй нэг хөх бүлэгт оруулав.
 \begin{tikzpicture}[
     font=\footnotesize,
     uc/.style={draw=nmBlueD, fill=nmBlue, ellipse, align=center, text width=3.3cm,
@@ -16,7 +18,7 @@
     ucref/.style={uc, draw=nmVioletD, fill=nmViolet},
     ucext/.style={uc, draw=nmOrangeD, fill=nmOrangeL},
     ucstaff/.style={uc, draw=nmGreenD, fill=nmGreen},
-    actor/.style={draw=nmTealD, fill=nmTeal, align=center, text width=2.75cm,
+    actor/.style={draw=nmBlueD, fill=nmBlueS, align=center, text width=2.75cm,
                   minimum height=1.75cm, inner sep=2pt, line width=0.7pt},
     service/.style={actor, draw=nmOrangeD, fill=nmOrange},
     staff/.style={actor, draw=nmGreenD, fill=nmGreenS},
@@ -64,10 +66,9 @@
 
 % --- өнгөний тайлбар
 % Тод, бүдэг хоёр дөрвөлжин: оролцогчийн ба түүний үйлдлийн дүүргэлт хоёулаа тайлбарт байна.
-\node[key, draw=nmTealD, fill=nmTeal] (k1) at (-6.95,-9.4) {};
-\node[note, anchor=west] at (k1.east) {зочин};
-\node[key, draw=nmBlueD, fill=nmBlue] (k2) at (-4.9,-9.4) {};
-\node[note, anchor=west] at (k2.east) {зочны үйлдэл};
+\node[key, draw=nmBlueD, fill=nmBlueS] (k1) at (-6.95,-9.4) {};
+\node[key, draw=nmBlueD, fill=nmBlue] (k2) at (-6.45,-9.4) {};
+\node[note, anchor=west] at (k2.east) {зочин, зочны үйлдэл};
 \node[key, draw=nmVioletD, fill=nmViolet] (k3) at (-1.7,-9.4) {};
 \node[note, anchor=west] at (k3.east) {хэнд, хаана хандахыг мэдэх};
 \node[key, draw=nmOrangeD, fill=nmOrange] (k4) at (3.3,-9.4) {};

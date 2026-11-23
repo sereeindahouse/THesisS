@@ -2,7 +2,9 @@
 % үндэс -> 11 хүрээ -> 31 дэд сэдэв. Зурагт «Элсэлт», «Байршил, өрөө» хоёр хүрээний дэд сэдвийг жишээ болгон задалсан.
 % 2026.11.20 (багш нар 11/17: «өнгө бүгд ижил»): хүрээг мэдээллийн эх сурвалжаар нь өнгөөр ялгасан —
 % хөх = вэб сайтаас авсан 8 хүрээ, ногоон = сургуулийн зүгээс өгсөн мэдээллийн 3 хүрээ (Хүснэгт 3.1-тэй ижил);
-% задалж үзүүлсэн хоёр хүрээ тод дүүргэлттэй, дэд сэдэв нь хүрээнийхээ өнгөтэй. Доод талд тайлбартай.
+% дэд сэдэв нь хүрээнийхээ өнгөтэй. Доод талд тайлбартай.
+% 2026.11.23 (багш: «жишээ болгон задалсан хүрээ өөр өнгөтэй байх хэрэг байна уу, бусад шиг болго»):
+% задалсан хоёр хүрээний тод дүүргэлтийг авч бусадтай ижил болгов; гарчгийн «(11)» тоог хасав (тайлбар доор нь).
 \begin{tikzpicture}[
     font=\footnotesize,
     node distance=0pt,
@@ -10,8 +12,6 @@
     dom/.style={box, text width=4.3cm, anchor=west},
     school/.style={draw=nmGreenD, fill=nmGreen},
     subt/.style={box, text width=6.6cm, anchor=west},
-    open/.style={fill=nmBlueS},
-    openschool/.style={fill=nmGreenS},
     key/.style={minimum width=4mm, minimum height=3mm, inner sep=0pt, line width=0.7pt},
     note/.style={font=\scriptsize, inner sep=1.5pt},
     line/.style={semithick, black!70}]
@@ -19,14 +19,14 @@
 \node[box, draw=nmVioletD, fill=nmViolet, align=center, text width=2.3cm] (root) at (0,-3.25) {Сургуулийн\\мэдээлэл};
 
 \node[dom]       (d0)  at (2.9,0)     {Сургуулийн тухай};
-\node[dom, open] (d1)  at (2.9,-0.65) {Элсэлт};
+\node[dom]       (d1)  at (2.9,-0.65) {Элсэлт};
 \node[dom]       (d2)  at (2.9,-1.30) {Сургалт, тэнхимүүд};
 \node[dom]       (d3)  at (2.9,-1.95) {Оюутны амьдрал};
 \node[dom]       (d4)  at (2.9,-2.60) {Карьер, хамтын ажиллагаа};
 \node[dom]       (d5)  at (2.9,-3.25) {Мэдээ};
 \node[dom]       (d6)  at (2.9,-3.90) {Арга хэмжээ};
 \node[dom]       (d7)  at (2.9,-4.55) {Холбоо барих};
-\node[dom, school, openschool] (d8)  at (2.9,-5.20) {Байршил, өрөө};
+\node[dom, school] (d8)  at (2.9,-5.20) {Байршил, өрөө};
 \node[dom, school] (d9)  at (2.9,-5.85) {Багш, ажилтан};
 \node[dom, school] (d10) at (2.9,-6.50) {Анги, хичээлийн хуваарь};
 
@@ -51,7 +51,7 @@
 \draw[line] (d8.east) -- (l2.west);
 
 \node[font=\scriptsize\bfseries, anchor=south] at (root.north |- 0,0.75) {Үндэс};
-\node[font=\scriptsize\bfseries, anchor=south west] at (2.9,0.75) {Хүрээ (11)};
+\node[font=\scriptsize\bfseries, anchor=south west] at (2.9,0.75) {Хүрээ};
 \node[font=\scriptsize\bfseries, anchor=south west] at (8.6,0.75) {Дэд сэдэв (жишээ)};
 
 % --- өнгөний тайлбар
