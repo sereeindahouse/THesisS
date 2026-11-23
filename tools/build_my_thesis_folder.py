@@ -97,6 +97,8 @@ def planned_copies(root: Path):
     add('06_Систем', _newest(root.glob('papers/*whole-audit*.mn.md')), 'Бүтэн_шалгалтын_тайлан.mn.md')
     # 11/23: хэрэглэгчийн «RAG дууссан уу, вектор хайлт кодонд бий юу, ер нь яаж хийдэг вэ» асуултын хариу.
     add('06_Систем', _newest(root.glob('papers/*rag-how-it-works*.mn.md')), 'RAG_яаж_ажилладаг.mn.md')
+    # 11/23 (2): «бүх даалгаврыг хийсэн үү?» — даалгавар бүрийн тулгалт, дутууг нөхсөн тойрог.
+    add('06_Систем', _newest(root.glob('papers/*honest-check*.mn.md')), 'Даалгавар_бүрийн_тулгалт.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 
