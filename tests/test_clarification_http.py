@@ -403,7 +403,9 @@ class ClarificationHTTPTests(unittest.TestCase):
         status, spoken = self.request('/api/voice/speak', {**speech, 'query': result['query']})
         self.assertEqual(status, 200)
         self.assertIn('12,345 төгрөг', result['answer'])
-        expected_spoken = result['answer'].replace(
+        # 11/23 (2): the shown source line «(Эх сурвалж: …)» is not read aloud.
+        self.assertIn('\n\n(Эх сурвалж: ', result['answer'])
+        expected_spoken = result['answer'].split('\n\n(Эх сурвалж: ')[0].replace(
             '12,345 төгрөг', 'арван хоёр мянга гурван зуун дөчин таван төгрөг').replace(
             ' (татсан: 2026-10-10) — эхийн мэдээлэл:', '.').replace(
             '2026 оны', 'хоёр мянга хорин зургаан оны')

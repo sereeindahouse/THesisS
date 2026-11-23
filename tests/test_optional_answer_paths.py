@@ -147,7 +147,9 @@ class OptionalAnswerPathTests(unittest.TestCase):
         from tests.test_rag_runtime import Policy as RoutingPolicy, Retriever, Generator
         retriever, generator = Retriever(), Generator()
         chat = ChatRAG(self.temp.name, RoutingPolicy(), retriever, generator)
-        baseline = chat._route(None, 'Сургалтын төлбөр хэд вэ?')
+        from answer_presentation import present
+        # route() reads the internal reply through the presentation layer (11/23); nothing else may differ.
+        baseline = present(chat._route(None, 'Сургалтын төлбөр хэд вэ?'))
         result = chat.route(None, 'Сургалтын төлбөр хэд вэ?')
         for field in ('route', 'answer', 'citations', 'reason_code', 'llm_calls'):
             self.assertEqual(result[field], baseline[field])

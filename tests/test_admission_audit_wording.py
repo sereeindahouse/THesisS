@@ -54,7 +54,8 @@ class AdmissionAuditWordingTests(unittest.TestCase):
         retriever.sources=[source]
         result=ChatRAG('.',Policy(),retriever,generator).route(None,'Элсэлтийн хураамж хэдэн төгрөг вэ?')
         self.assertEqual(result['route'],'A')
-        self.assertTrue(result['answer'].endswith(paragraph))
+        # 11/23 (2): the shown extract ends with its source line «(Эх сурвалж: <page>, <date>)».
+        self.assertTrue(result['answer'].split('\n\n(Эх сурвалж:')[0].endswith(paragraph))
         self.assertEqual(generator.calls,0)
         self.assertEqual(result['llm_calls'],0)
 
@@ -191,7 +192,8 @@ class AdmissionAuditWordingTests(unittest.TestCase):
         self.assertEqual(result['route'], 'E')
         self.assertEqual(result['reason_code'], 'supplied_grade_eligibility_not_verified')
         self.assertEqual(result['query'], question)
-        self.assertIn('өгсөн голчийн тоонд', result['message'])
+        self.assertIn('өгсөн голчийн тоонд', result['audit_message'])  # the guard's wording; the visitor reads it plainly
+        self.assertIn('Таны голчоор Японд дэвшин суралцах эрхтэй эсэхийг', result['message'])
         self.assertIsNone(result['answer'])
         self.assertEqual(result['citations'], [])
         self.assertEqual(retriever.calls, 0)

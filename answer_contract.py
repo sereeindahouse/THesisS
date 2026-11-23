@@ -4,6 +4,9 @@ import unicodedata
 from speech_text import normalize_spoken_currency, normalize_spoken_notation, remove_rendered_citations
 
 MAX_SPEECH_CHARACTERS = 2000
+# The shown answer's source line («(Эх сурвалж: Элсэлт 2026, 2026-10-10)», answer_presentation) is not read aloud,
+# as the old «(татсан: …) — эхийн мэдээлэл» caption was not (code review 11/23 (2)).
+_SOURCE_LINE = re.compile(r'\s*\(Эх сурвалж: [^\n]+\)\s*\Z')
 
 
 def spoken_text(result):
@@ -11,17 +14,18 @@ def spoken_text(result):
     if result.get('answer') is not None:
         prefix = 'Ноорог, сургуулиар баталгаажаагүй. ' if result.get('answer_kind') == 'development_draft_preview' else ''
         if result.get('answer_kind') == 'partial_teacher_directory':
-            prefix = result.get('message','Хадгалсан танилцуулга нь бүх багшийн бүрэн жагсаалт биш.') + ' '
+            prefix = result.get('message','Энэ нь бүх багшийн бүрэн жагсаалт биш.') + ' '
         elif result.get('answer_kind') == 'partial_official_website_extract':
-            prefix = (result.get('message') or 'Эхээс асуусан бүх мэдээллийг баталж чадсангүй; хариулт хэсэгчилсэн.') + ' '
-        text = result['answer']
+            prefix = (result.get('message') or 'Асуусан мэдээллийн зарим нь олдсонгүй.') + ' '
+        text = _SOURCE_LINE.sub('', result['answer'])
         if result.get('answer_kind') in {'rag_generated', 'official_website_extract', 'partial_official_website_extract'}:
             text = remove_rendered_citations(text, len(result.get('citations', [])))
         text = normalize_spoken_notation(text, official_extract=result.get('answer_kind') == 'official_website_extract')
         return normalize_spoken_currency(prefix + text)
     text = result.get('message', '')
-    if result.get('clarification'):
-        text += ' ' + result['clarification']['question']
+    question = (result.get('clarification') or {}).get('question')
+    if question and question.strip() != text.strip():   # the router repeats its question as the message
+        text += ' ' + question
     return normalize_spoken_currency(normalize_spoken_notation(text))
 
 

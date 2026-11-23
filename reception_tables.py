@@ -690,6 +690,9 @@ _LUNCH_BREAK = re.compile(
     r'(?: (?:байдаг|болдог|эхэлдэг))?(?: (?:вэ|бэ))?')
 
 
+_OFFICE_NOTES = ('office_weekend', 'office_lunch', 'office_payment_hours')
+
+
 def _corrected(tables, corrections):
     """The imported tables with the facts the user confirmed with the school after the import (config
     ``corrections``, 2026-11-18): they stay when a new timetable is imported. ``office_hours`` gives the common
@@ -839,6 +842,16 @@ class ReceptionAnswerPath:
             # Round 13: «508 тоот хаана вэ?» (also said in words: «таван зуун найм тоот»).
             ('room_floor', r'([^\s?!,;/]{0,20}\d[^\s?!,;/]{0,20}) тоот (?:өрөө )?хаана (?:байдаг |байна )?вэ'),
             ('office_floor', r'(.{1,120}?) хэддүгээр давхарт (?:байдаг |байна )?вэ'),
+            # 11/23 (2): «Сургалтын алба бямба гарагт ажилладаг уу?», «… цайны цагаар ажилладаг уу?», «Санхүүгийн алба
+            # хэдэн цаг хүртэл төлбөр авдаг вэ?» reached the FAQ router's «…хадгалсан асуулт алга. Тааж нэгтгэхгүй.»
+            # Only the weekday hours are confirmed: a note with those hours and what is not known (office_note).
+            ('office_weekend', r'(.{1,120}?) (?:бямба|ням|бямба,? ням|амралтын)(?: (?:гар[аи]гт|гар[аи]г|өдөр|өдөрт|өдрүүдэд))? '
+                               r'(?:(?:хэдэн цагт|хэдэн цагаас|хэдэн цаг хүртэл) )?(?:ажилладаг|ажиллах|нээлттэй(?: байдаг)?|'
+                               r'үйлчилдэг) (?:уу|юу|үү|вэ|бэ)'),
+            ('office_lunch', r'(.{1,120}?) (?:(?:өдрийн|үдийн) )?(?:цайны цаг(?:аар|т)|цайны завсарлагаар) '
+                             r'(?:ажилладаг|ажиллах|нээлттэй(?: байдаг)?|үйлчилдэг|үйлчлэх) (?:уу|юу|үү)'),
+            ('office_payment_hours', r'(.{1,120}?) (?:хэдэн цаг хүртэл|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цагт|'
+                                     r'хэдээс хэд хүртэл) (?:төлбөр|мөнгө)(?: хүлээн)? (?:авдаг|авах|төлүүлдэг) (?:вэ|бэ)'),
             # 11/18: with the offices' hours recorded, the other wordings of the same question too.
             # Round 25: opening and closing are the same hours («Сургалтын алба хэдэн цагт хаадаг вэ?»).
             ('office_hours', r'(.{1,120}?) (?:хэдэн цагт|хэдэн цагаас(?: хэдэн цаг хүртэл)?|хэдэн цаг хүртэл|хэдээс хэд хүртэл) '
@@ -1049,6 +1062,8 @@ class ReceptionAnswerPath:
             return any(self._match(query)) or self._phone_owner(*extra) is not None
         if extra is not None and extra[0] == 'post_phone':
             return self._post_holder(extra[1]) is not None
+        if extra is not None and extra[0] in _OFFICE_NOTES:
+            return self._service(extra[1]) is not None
         return any(self._match(query)) or extra is not None
 
     def _room_of(self, person):
@@ -1068,6 +1083,22 @@ class ReceptionAnswerPath:
         confirmed it, when (the user asked on 11/20 that office answers say the hours too)."""
         return (service.name + ': ' + floor_text(room.floor) + ', ' + room.name + ' тоот.'
                 + (' Ажлын цаг ' + service.office_hours + '.' if _recorded(service.office_hours) else ''))
+
+    def _office_note(self, query, intent, service, room, prefix):
+        """An office's weekend, lunch-break or payment hours: the confirmed weekday hours and the place, then what is
+        not known — a note to read with the referral, not an answer (11/23 (2))."""
+        hours = (service.name + ' ' + service.office_hours + ' цагийн хооронд ажилладаг (' + floor_text(room.floor)
+                 + ', ' + room.name + ' тоот). ') if _recorded(service.office_hours) else ''
+        if intent == 'office_weekend':
+            unknown = 'Бямба, ням гарагийн ажлын цагийн мэдээлэл алга.' if hours else 'Ажлын цагийн мэдээлэл алга.'
+        elif intent == 'office_lunch':
+            unknown = (('Сургуулийн цайны цаг ' + self.tables.lunch_break + '. ') if self.tables.lunch_break else '') + \
+                      'Цайны цагаар ажилладаг эсэх мэдээлэл алга.'
+        else:
+            unknown = 'Төлбөр хүлээн авах цагийн тусгай мэдээлэл алга.'
+        result = self._result(query, None, 'reception_office_note', source_table='rooms')
+        result['message'] = prefix + hours + unknown
+        return result
 
     def _post_room(self, person):
         """«Захирал (Т.Оюунжаргал): 508 өрөө, 5-р давхар.» for a post holder with a recorded room."""
@@ -1685,6 +1716,8 @@ class ReceptionAnswerPath:
                     return self._answer_legacy(code[1] + ' өрөө хаана вэ?', now=now) | {'query': query}
                 return None  # not a recorded office ("Сургууль хэдэн цагт…"): main RAG path
             room, service = found
+            if intent in _OFFICE_NOTES:
+                return self._office_note(query, intent, service, room, prefix)
             if intent in ('office_floor', 'office_full'):
                 text = self._office_text(service, room)
             elif intent == 'office_hours':
@@ -1928,12 +1961,20 @@ class ReceptionAnswerPath:
                 return missing()
             lessons = [lesson for lesson in self.tables.timetable if _key(lesson.group) in groups
                        and lesson.day == _DAYS[now.weekday()]]
-            # A joint lesson is stored once per teacher/room; list each slot once.
-            slots = list(dict.fromkeys(lesson.group + ': ' + lesson.time for lesson in lessons))
-            text = ('; '.join(slots)
-                    if lessons else 'энэ өдрийн бүрэн хуваарьт хичээл бүртгэгдээгүй')
-            return reply(now.strftime('%Y-%m-%d') + ' — хуваариар бол ' + text
-                         + '. Бодит байршлыг батлахгүй.', 'timetable', 'reception_course_timetable')
+            # A joint lesson is stored once per teacher/room; list each slot once. One line per class (11/23 (2):
+            # 25 «ЦИ-2: 08:00-09:30; КУ-2: 08:00-09:30; …» pairs in one line could not be read at the desk).
+            if not lessons:
+                # Plain words here too (code review 11/23 (2)).
+                return reply(now.strftime('%Y-%m-%d') + '-нд ' + value + '-р курсын хуваарьт хичээл алга.',
+                             'timetable', 'reception_course_timetable')
+            times = {}
+            for lesson in lessons:
+                times.setdefault(lesson.group, [])
+                if lesson.time not in times[lesson.group]:
+                    times[lesson.group].append(lesson.time)
+            return reply(now.strftime('%Y-%m-%d') + '-ны хуваарь:\n'
+                         + '\n'.join(group + ': ' + ', '.join(slots) for group, slots in times.items())
+                         + '\nЯг одоо хаана байгааг мэдэх боломжгүй.', 'timetable', 'reception_course_timetable')
         return None
 
     def _answer_legacy(self, query, *, now=None):

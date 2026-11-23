@@ -851,7 +851,9 @@ class ChatTests(unittest.TestCase):
     def test_c_citations_and_cache(self):
         r=self.chat.route(None,'Төлбөр хэд вэ?')
         self.assertEqual(r['route'],'C')
-        self.assertIn('[1]',r['answer'])
+        # 11/23: the shown answer carries no «[1]» marker; the quote and its source stay in claims and citations.
+        self.assertNotIn('[1]',r['answer'])
+        self.assertTrue(r['rag']['claims'])
         self.assertEqual(r['citations'][0]['source_url_or_filename'],SOURCE['url'])
         self.assertEqual(self.chat.recall(r['response_id'],r['query'],r['package_id'],False)['answer'],r['answer'])
         self.assertEqual(self.generator.calls,1)
@@ -881,8 +883,10 @@ class ChatTests(unittest.TestCase):
             result=self.chat.route(None,'Төлбөр хэд вэ?')
             self.assertEqual(result['reason_code'],'requested_information_not_verified')
             self.assertNotIn('саатал',result['message'])
-            self.assertIn('бүрэн баталж чадсангүй',result['message'])
-            self.assertIn('бүтэн нэр',result['message'])
+            # 11/23: the visitor reads one plain sentence; the guard's wording stays for diagnosis.
+            self.assertIn('бүрэн олдсонгүй',result['message'])
+            self.assertIn('бүрэн баталж чадсангүй',result['audit_message'])
+            self.assertIn('бүтэн нэр',result['audit_message'])
             self.assertIsNone(result['answer'])
             self.assertEqual(result['suggestions'],[])
 

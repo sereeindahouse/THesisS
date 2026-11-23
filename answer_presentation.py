@@ -10,12 +10,16 @@ layer runs after them and only changes HOW it reads:
 - the shown answer loses menu/form fragments, citation markers and shouting capitals, and
   numbered cards («01 … 02 …») become a list; the quotes themselves stay verbatim in
   `rag.claims`, and no word of the source is replaced by another word;
-- when the question asks for one field (e-mail, phone, address, the head of a unit), the
-  line that holds it is moved to the top;
+- when the question asks for one field (e-mail, phone, address, the head of a unit) or an
+  amount («хэдэн минут»), the line or sentence that holds it is moved to the top;
+- (11/23, 2) a website excerpt of several cards starts at the asked card when the cards
+  before it share no word with the question; number cards («8/13 / Бүртгэл хаагдах /
+  16:00 цаг») read as one line; a quoted page keeps its title and date after the answer;
 - a reply without an answer gets one plain sentence chosen from the guard's reason, and
   the guard's own wording is kept in `audit_message` for diagnosis.
 
-It never adds a fact: the only text it writes is a sentence about what was not found.
+It never adds a fact: the only text it writes is a sentence about what was not found,
+the label order of a number card, and the source line «(Эх сурвалж: <page>, <date>)».
 """
 import re
 
@@ -35,8 +39,13 @@ _CONTACT_BLOCK = re.compile(
     r'(?:\s+Мэдэгдэл\s+илгээх\b.*?\bИлгээх)?(?=\s|$)', re.S)
 _FORM = re.compile(r'\s*Мэдэгдэл\s+илгээх\s+Нэр\s*\*.*?\bИлгээх\b', re.S)
 # «2026-2027 оны … журам (татсан: 2026-10-10) — эхийн мэдээлэл:\n\n<excerpt>» (rag_runtime source_text_lookup):
-# the excerpt first; the page title and date are already in the source list under the answer.
-_EXTRACT_HEADER = re.compile(r'\A[^\n]+? \(татсан: \d{4}-\d{2}-\d{2}\)(?:\n\n(?P<notice>.+?))? — эхийн мэдээлэл:\n\n', re.S)
+# the excerpt first, then the page and the day it was saved in one short line, so the year of a fee or a rule
+# stays next to the value (11/23 full suite: «Сургалтын төлбөр: жилд 8,280,000 ₮.» had lost «Элсэлт 2026»).
+_EXTRACT_HEADER = re.compile(
+    r'\A(?P<title>[^\n]+?) \(татсан: (?P<date>\d{4}-\d{2}-\d{2})\)(?:\n\n(?P<notice>.+?))? — эхийн мэдээлэл:\n\n', re.S)
+_SOURCE_TAIL = re.compile(r'\n\n\(Эх сурвалж: [^\n]+\)\Z')
+# A Japanese card label in front of the Mongolian title («合宿 · Гашшүкү хөтөлбөр»).
+_CJK_LABEL = re.compile(r'[぀-ヿ㐀-鿿]+\s*·\s*')
 _ROSTER = re.compile(r'(?P<dept>\S[^\n:]*?тэнхим) — сайтад нийтэлсэн багш, ажилтан \((?P<n>\d+) нэр\):')
 _MENU = [
     re.compile(r'Академик\s+бүтэц\s+Тэнхимүүд\s+'),
@@ -120,13 +129,54 @@ def _numbered(text):
     return text
 
 
+_STAT_VALUE = re.compile(r'\d[\d.,/%₮+:\- ]*[₮%]?')  # «7», «8/13», «20,000₮», «100%»
+
+
+def _stat(line):
+    """A card's value: short, and not a year or a phone number (code review 11/23 (2))."""
+    return (bool(_STAT_VALUE.fullmatch(line)) and len(line) <= 8 and not re.fullmatch(r'(?:19|20)\d{2}', line)
+            and not re.search(r'\d{7}', line.replace(' ', '')))
+
+
+def _short(line, words=6):
+    return 0 < len(line.split()) <= words and not re.search(r'[.!?:;]$', line)
+
+
+def _stat_cards(text):
+    """Website number cards — a value line, its label and a short note («8/13\\nБүртгэл хаагдах\\n16:00 цаг») —
+    as one line «Бүртгэл хаагдах: 8/13 (16:00 цаг)». Only when two or more cards are found, and a label must
+    start with a letter («1\\n1-р курс\\n…» is a numbered list, not a card)."""
+    lines = text.split('\n')
+    out, i, cards = [], 0, 0
+    while i < len(lines):
+        value = lines[i].strip()
+        label = lines[i + 1].strip() if i + 1 < len(lines) else ''
+        if (_stat(value) and _short(label) and re.match(r'[A-Za-zА-ЯЁӨҮа-яёөү]', label)
+                and not _STAT_VALUE.fullmatch(label)):
+            note = lines[i + 2].strip() if i + 2 < len(lines) else ''
+            after = lines[i + 3].strip() if i + 3 < len(lines) else ''
+            # A card's note is short and does not start like a heading («Хугацааны хуваарь» after the last card).
+            has_note = (_short(note, 5) and not _STAT_VALUE.fullmatch(note)
+                        and (not after or _stat(after) or not re.match(r'[А-ЯЁӨҮ]', note)))
+            out.append(label + ': ' + value + (' (' + note + ')' if has_note else ''))
+            i += 3 if has_note else 2
+            cards += 1
+            continue
+        out.append(lines[i])
+        i += 1
+    return '\n'.join(out) if cards >= 2 else text
+
+
 def clean_text(text, *, keep_website_hours=True):
     """Website menu/form fragments, citation markers and shouting out; the source's words stay."""
     if not isinstance(text, str) or not text.strip():
         return text
     header = _EXTRACT_HEADER.match(text)
+    tail = ''
     if header:
         text = text[header.end():] + ('\n\n' + header['notice'].strip() if header['notice'] else '')
+        tail = '\n\n(Эх сурвалж: ' + header['title'].strip() + ', ' + header['date'] + ')'
+    text = _CJK_LABEL.sub('', text)
     text = _ROSTER.sub(lambda m: m['dept'] + 'ийн багш, ажилтан (' + m['n'] + '):', text)
     text = _DEPARTMENT_HEADER.sub(_department, text)
     text = _CONTACT_BLOCK.sub(lambda m: _contact(m, keep_website_hours), text)
@@ -139,10 +189,11 @@ def clean_text(text, *, keep_website_hours=True):
     text = _HEADING_TWICE.sub(lambda m: '' if m['h'][:1].isupper() else m.group(0), text)
     text = _sentence_case(text)
     text = _numbered(text)
+    text = _stat_cards(text)
     text = re.sub(r'[ \t]{2,}', ' ', text)
     text = re.sub(r'[ \t]+\n', '\n', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
-    return text.strip()
+    return text.strip() + tail
 
 
 # What the question asks for, and how to recognise the line that holds it.
@@ -157,8 +208,17 @@ _FIELDS = (
 _ROLE = re.compile(r'эрхлэгч|захирал|захирл|дарга|даргы|менежер', re.I)
 
 
+# «Ярилцлага хэдэн минут үргэлжлэх вэ?» — the sentence with the asked amount, not the description before it.
+_QUANTITIES = (
+    (re.compile(r'хэдэн\s+минут|хэр\s+удаан\s+үргэлж|хэдэн\s+цаг\s+үргэлж'), re.compile(r'\d+\s*минут|\d+\s*цаг\s+үргэлж')),
+    (re.compile(r'хэдэн\s+үг'), re.compile(r'\d+(?:\s*[–-]\s*\d+)?\s*үг')),
+)
+_MISSION = re.compile(r'\n\nЭрхэм зорилго:.*\Z', re.S)
+
+
 def direct_first(query, text):
-    """Move the line or list item that holds the asked field to the top; nothing is removed."""
+    """Move the line, list item or sentence that holds the asked field or amount to the top. Only for «<unit>-ийн
+    эрхлэгч хэн бэ?» is something left out: the unit's mission statement printed under the head's name."""
     if not isinstance(text, str) or not text.strip() or not isinstance(query, str):
         return text
     q = query.casefold()
@@ -172,6 +232,11 @@ def direct_first(query, text):
             return text
     role = _ROLE.search(q)
     if role:
+        if re.search(r'(?<!\w)хэн(?!\w)', q) and re.match(r'[^\n]{3,160}эрхлэгч:\s*\S', text):
+            # «Ерөнхий Эрдмийн тэнхимийн эрхлэгч: Б.Сэлмаа.» answers it; the mission paragraph is not the answer
+            # (the source line after it stays — code review 11/23 (2)).
+            body, tail = _split_tail(text)
+            return _MISSION.sub('', body) + tail
         roster = re.match(r'(?P<head>[^\n:]{3,120}:\s*)(?P<items>[^\n]+)', text)
         if roster and ';' in roster['items']:
             items = [item.strip() for item in roster['items'].rstrip('.').split(';')]
@@ -180,21 +245,94 @@ def direct_first(query, text):
                 # «Билгүүн (МИТ-ийн эрхлэгч).» first, then the rest of the published list.
                 lead = items.pop(hit)
                 return lead + '.\n\n' + roster['head'] + '; '.join(items) + '.' + text[roster.end():]
+        return text
+    for asks, holds in _QUANTITIES:
+        if asks.search(q):
+            body, tail = _split_tail(text)
+            if '\n' not in body.strip():
+                units = _sentences(body)
+                hit = next((i for i, unit in enumerate(units) if holds.search(unit)), None)
+                if hit:
+                    units.insert(0, units.pop(hit))
+                    return ' '.join(units) + tail
+            return text
+    # «Монбүшёо тэтгэлэгт хэдэн оюутан хамрагдсан бэ?» — the line with «12 оюутан» when it is buried under the card.
+    counted = re.search(r'хэдэн\s+([а-яөүё]{3,})', q)
+    if counted:
+        holds = re.compile(r'\d[\d,. ]*' + re.escape(counted.group(1)[:4]), re.I)
+        body, tail = _split_tail(text)
+        lines = body.split('\n')
+        if len(lines) > 1:
+            hit = next((i for i, line in enumerate(lines) if holds.search(line)), None)
+            if hit is not None and hit >= 2:
+                lines.insert(0, lines.pop(hit))
+                return '\n'.join(lines) + tail
+        else:
+            units = _sentences(body)
+            hit = next((i for i, unit in enumerate(units) if holds.search(unit)), None)
+            if hit:
+                units.insert(0, units.pop(hit))
+                return ' '.join(units) + tail
     return text
+
+
+def _split_tail(text):
+    tail = _SOURCE_TAIL.search(text)
+    return (text[:tail.start()], tail.group(0)) if tail else (text, '')
+
+
+# Words that say nothing about which part of a page answers («хэдэн», «байдаг», the school's own name), as the
+# five-letter stems the comparison uses, so «сургуулиас» is left out too (code review 11/23 (2)).
+_STOP_STEMS = frozenset({'хэдэн', 'ямар', 'хаана', 'хэзээ', 'байна', 'байда', 'болох', 'болно', 'болон', 'эсвэл',
+                         'гэсэн', 'сургу', 'шмтк'})
+
+
+def _stems(text):
+    return {word[:5] for word in re.findall(r'[а-яёөүa-z]{4,}', text.casefold()) if word[:5] not in _STOP_STEMS}
+
+
+def focus(query, text):
+    """A website excerpt of several cards where the asked part starts lower down («Шалгалтаас чөлөөлөгдөх …» after
+    the exam's score lines): start at the first line that shares two or more words with the question when every
+    line before it shares none, and leave out the page's contact footer when contacts were not asked."""
+    if not isinstance(text, str) or not isinstance(query, str):
+        return text
+    body, tail = _split_tail(text)
+    lines = body.split('\n')
+    asked = _stems(query)
+    if len(lines) < 4 or len(asked) < 2:
+        return text
+    scores = [len(asked & _stems(line)) for line in lines]
+    # The first line sharing two or more of the question's words, when no line before it shares any («Шалгалтаас
+    # чөлөөлөгдөх» before the olympiad line that shares three — 11/23 (2) probes).
+    start = next((i for i, score in enumerate(scores) if score >= 2), 0)
+    if any(scores[:start]):
+        start = 0
+    end = len(lines)
+    q = query.casefold()
+    # Any spelling of a contact question keeps the footer («и-мэйл», «цахим шуудан» — code review 11/23 (2)).
+    if not (re.search(r'холбоо', q) or any(asks.search(q) for asks, _ in _FIELDS)):
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].strip() == 'Холбоо барих'), end)
+    if start == 0 and end == len(lines):
+        return text
+    return '\n'.join(lines[start:end]).strip() + tail
 
 
 # --- a reply without an answer: one plain sentence instead of the guard's rule text ----------
 _DROP = re.compile(  # sentences in which the system explains its own rules
     r'орлуулахгүй|орлуулж\s+хариулахгүй|хариулт\s+болгож\s+харуулахгүй|нягтлаарай|Доорх\s+сэдвүүдээс\s+мөн|'
     r'ресепшний\s+ажилтнаас|Доорх\s+(?:албан\s+)?эх(?:ийг|ийн)?\s+шал|сургуультай\s+холбо|хувийн\s+бүртгэлийн\s+хариу|'
-    r'Үргэлжлэх\s+хугацаа,\s+нийт\s+оноо\s+нь|Товчилсон\s+нэр\s+хэрэглэсэн|нэвтрэх\s+цэсийг\s+баталгаатай|'
-    r'Энэ\s+чат\s+суралцагчийн\s+хувийн\s+бүртгэлтэй|Холбоотой\s+хэсгийг\s+доор|Холбоотой\s+албан\s+мэдээнүүдийг')
+    r'Үргэлжлэх\s+хугацаа,\s+нийт\s+оноо\s+нь|нэвтрэх\s+цэсийг\s+баталгаатай|тоон\s+босго\s+гэж\s+үзэхгүй|'
+    r'банкны\s+албан\s+эхээс\s+шалгана|^Тэр\s+хүрээг\s+хасаж\s+өөр\s+асуултад\s+хариулахгүй|'
+    r'Энэ\s+чат\s+суралцагчийн\s+хувийн\s+бүртгэлтэй|Холбоотой\s+хэсгийг\s+доор|Холбоотой\s+албан\s+мэдээнүүдийг|'
+    r'^Тааж\s+нэгтгэхгүй')
 _REWRITES = (
     (re.compile(r'^Энэ асуултад хариулах (?:тодорхой )?мэдээлэл хадгалсан эх сурвалж(?:аас|ид) олдсонгүй\.?$'),
      lambda m: 'Энэ талаар мэдээлэл олдсонгүй.'),
     (re.compile(r'^Асуусан (?P<x>.+?) хадгалсан эх сурвалжид олдсонгүй\.?$'), lambda m: 'Асуусан ' + m['x'] + ' олдсонгүй.'),
     (re.compile(r'^Энэ хайлтаар олдсон эхэд (?P<x>.+?) тодорхой заагаагүй байна\.?$'),
      lambda m: _cap(m['x']) + ' олдсонгүй.'),
+    (re.compile(r'^Эхэд (?P<x>.+?) (?:тодорхой )?заагаагүй(?: байна)?\.?$'), lambda m: _cap(m['x']) + ' олдсонгүй.'),
     (re.compile(r'^Энэ хайлтаар олдсон эхүүдээс (?P<x>.+?) (?:яг минутаар )?батлах мэдээлэл олдсонгүй\.?$'),
      lambda m: _cap(m['x']) + ' заасан мэдээлэл олдсонгүй.'),
     (re.compile(r'^Асуусан (?P<y>[\d, ]+) оны?г? (?:хүрээг хамтад нь )?батлах тохирох эх энэ хайлтаар олдсонгүй\.?$'),
@@ -214,13 +352,102 @@ _REWRITES = (
     (re.compile(r'^Холбоотой албан эхүүдийг оллоо\.?$'), lambda m: 'Шууд хариулт олдсонгүй; холбогдох хуудсыг доор харуулав.'),
     (re.compile(r'^Аль хөтөлбөр эсвэл оныг сонирхож байгаагаа нэмбэл илүү тодорхой хариулна\.?$'),
      lambda m: 'Аль хөтөлбөр, аль оныг сонирхож байгаагаа хэлбэл илүү тодорхой хариулна.'),
+    # 11/23 (2): notes the 11/23 lint did not count, read in the probe banks.
+    (re.compile(r'^Асуултын нэр(?:ийг энэ багцын хадгалсан асуулттай баттай холбож чадсангүй|, он, тоо эсвэл хүрээг '
+                r'хамтад нь дэмжих нэг хадгалсан асуулт алга)\.?$'), lambda m: 'Энэ талаар мэдээлэл олдсонгүй.'),
+    # Full test suite 11/23 (2): what was not found stays named («тусгай утас»), not a generic «not found».
+    (re.compile(r'^Хадгалсан эхээр баталж чадаагүй мэдээлэл: (?P<x>.+?)\.?$'), lambda m: 'Олдоогүй мэдээлэл: ' + m['x'] + '.'),
+    (re.compile(r'^Хадгалсан эхээс «(?P<x>[^»]+)»-д хамаарах давхар болон тусгай утсыг хамтад нь баталсан бүртгэл олдсонгүй\.?$'),
+     lambda m: '«' + m['x'] + '»-ийн давхар, тусгай утасны мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Асуусан сургалтын албаны өөрийн давхар, тусгай утсыг энэ хайлтын эхээр зөрүүгүй баталж чадсангүй\.?$'),
+     lambda m: 'Сургалтын албаны давхар, тусгай утасны мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Асуусан нэрлэсэн компанийн өөрийн он, хичээл, платформын холбоог энэ хайлтын эхээр зөрүүгүй баталж чадсангүй\.?$'),
+     lambda m: 'Нэрлэсэн компанитай хамтын ажиллагааны он, хичээл, платформын мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Асуусан нэрлэсэн тэнхимийн өөрийн он, нийт болон курс тус бүрийн бүтэн хүснэгтийг энэ хайлтын эхээр '
+                r'зөрүүгүй баталж чадсангүй\.?$'),
+     lambda m: 'Нэрлэсэн тэнхимийн он, курс тус бүрийн бүтэн хүснэгт олдсонгүй.'),
+    (re.compile(r'^Асуултын нэр, он, нэмэлт хүсэлт эсвэл хоёр талбарын холбоог бүрэн тодорхойлж чадсангүй\.?$|'
+                r'^Асуултын бичвэрт үгүйсгэсэн эсвэл нөхцөлт хэлбэр байна\.?$'),
+     lambda m: 'Асуултыг бүрэн ойлгож чадсангүй.'),
+    (re.compile(r'^Сургалтын албаны давхар болон тусгай утсыг энэ эхээр баталж чадсангүй; ерөнхий сургуулийн дугаараар '
+                r'орлуулахгүй\.?$'),
+     lambda m: 'Сургалтын албаны давхар, тусгай утасны мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Асуусан .+? энэ хайлтын эхээр (?:хамтад нь |зөрүүгүй )?баталж чадсангүй\.?$'),
+     lambda m: 'Энэ асуултын хариу олдсонгүй.'),
+    (re.compile(r'^Баталгаажуулаагүй зүйл: (?P<x>.+?)\.?$'), lambda m: 'Олдоогүй мэдээлэл: ' + m['x'] + '.'),
+    (re.compile(r'^Нэрлэсэн багшийн тухай энэ хайлтаар батлах эх олдсонгүй\.?$'), lambda m: 'Нэрлэсэн багшийн мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Асуусан багш нарын бүрэн нэрсийн жагсаалтыг энэ хайлтаар батлах эх олдсонгүй\.?$'),
+     lambda m: 'Асуусан багш нарын нэрсийн жагсаалт олдсонгүй.'),
+    (re.compile(r'^Таны нэрлэсэн бүртгэлийн хураамжийг батлах эх энэ хайлтаар олдсонгүй\.?$'),
+     lambda m: 'Таны нэрлэсэн бүртгэлийн хураамжийн мэдээлэл олдсонгүй.'),
+    # Code review 11/23 (2): the guard's advice reaches the visitor in plain words instead of being dropped, and the
+    # remaining «…батлах хэсэг энэ хайлтаар олдсонгүй» notes of rag_runtime / source_fields.
+    (re.compile(r'^Товчилсон нэр хэрэглэсэн бол бүтэн нэрийг нь бичиж, асуусан оноо хамт тодруулна уу\.?$'),
+     lambda m: 'Нэр, оныг бүтнээр нь бичиж дахин асууж болно.'),
+    (re.compile(r'^Таны өгсөн голчийн тоонд үндэслэн Японд дэвшин суралцах эрхтэй эсэхийг баталж чадсангүй\.?$'),
+     lambda m: 'Таны голчоор Японд дэвшин суралцах эрхтэй эсэхийг энд тодорхойлох боломжгүй.'),
+    (re.compile(r'^Тэр нөхцөлийг хасаж өөр асуултад хариулахгүй; хэрэгтэй хүрээгээ тодруулна уу\.?$'),
+     lambda m: 'Асуултаа тодруулж дахин асууна уу.'),
+    (re.compile(r'^Нэрлэсэн компанийн хамтын ажиллагааны сар, платформыг энэ эхээр баталж чадсангүй\.?$'),
+     lambda m: 'Нэрлэсэн компанитай хамтын ажиллагааны сар, платформын мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Бичгийн болон ярилцлагын шалгалтын үргэлжлэх хугацааг хоёуланг нь батлах хэсэг энэ хайлтаар олдсонгүй\.?$'),
+     lambda m: 'Бичгийн болон ярилцлагын шалгалтын үргэлжлэх хугацааны мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Сургалтын төлбөрийн дүнг шууд батлах тохирох заалт энэ хайлтаар олдсонгүй\.?$'),
+     lambda m: 'Сургалтын төлбөрийн дүн олдсонгүй.'),
+    (re.compile(r'^Элсэлтийн онлайн бүртгэлийн алхмуудыг бүрэн батлах хэсэг энэ хайлтаар олдсонгүй\.?$'),
+     lambda m: 'Элсэлтийн онлайн бүртгэлийн алхмууд бүрэн олдсонгүй.'),
+    (re.compile(r'^Сургуулийн имэйлийг нь асууж болно, эсвэл ресепшнээс асууна уу\.?$'),
+     lambda m: 'Сургуулийн имэйлийг нь асууж болно.'),
+    (re.compile(r'^Багшийн утасны дугаарыг энд харуулахгүй; ресепшнээс асууна уу\.?$'),
+     lambda m: 'Багшийн утасны дугаарыг энд харуулахгүй.'),
+    (re.compile(r'^Нэрлэсэн багшийн асуусан холбоо барих талбарыг өөрийн нэртэй нь нэг хэсэгт баталсан эх олдсонгүй\.?$'),
+     lambda m: 'Нэрлэсэн багшийн асуусан холбоо барих мэдээлэл олдсонгүй.'),
+    (re.compile(r'^Багшийн асуусан хувийн эсвэл ажлын нарийвчилсан мэдээллийг батлах эх энэ хайлтаар олдсонгүй\.?$'),
+     lambda m: 'Багшийн асуусан мэдээлэл олдсонгүй.'),
 )
+_GENERIC = frozenset({'Энэ талаар мэдээлэл олдсонгүй.', 'Энэ асуултын хариу олдсонгүй.'})
+# Whatever guard sentence is still left that explains the system's own checks («…хадгалсан асуулт алга», «…эхээр
+# баталж чадсангүй», «…хүснэгтэд бүртгэгдээгүй») becomes one plain «not found» sentence (said once).
+_MACHINE = re.compile(
+    r'хадгалсан\s+(?:асуулт|эх(?!\s+сурвалж))|Тааж|баталж\s+чадсангүй|баталсангүй|батлахгүй|батлагдаагүй|'
+    r'батлах\s+(?:тохирох\s+)?эх(?!\s+сурвалж)|хайлтын\s+эх(?!\s+сурвалж)|(?<!эцэг )(?<!\S)эх(?:ээр|ээс|эд|ийн)\s|'
+    r'хүснэгтэд\s+бүртгэгдээгүй|(?<!\S)багцын|FAQ|энэ\s+хайлтаар', re.I)
+_NOT_FOUND = 'Энэ талаар мэдээлэл олдсонгүй.'
 _BY_REASON = {
     'credential_not_shared': 'Нууц үг, пин кодыг энд өгдөггүй. Хариуцсан ажилтнаас биечлэн асууна уу.',
     'personal_record_outside_scope': ('Хувийн дүн, ирц, төлбөрийн мэдээллийг энэ системээс харах боломжгүй. '
                                       'Өөрийн сургалтын системд нэвтэрч харна уу.'),
     'personal_record_service_unavailable': 'Хувийн дүн, ирц, төлбөрөө харах системийн хаягийг энд зааж өгөх боломжгүй.',
     'invalid_year_range': 'Оны дараалал буруу байна. Эхлэх, дуусах оноо шалгаад дахин асууна уу.',
+    # The reception tables' notes (reception_tables.ReceptionAnswerPath._result) in plain words; the guard's own
+    # text stays in audit_message.
+    'reception_data_unavailable': 'Өрөө, анги, багшийн мэдээлэл одоогоор бэлэн биш байна.',
+    'reception_room_not_found': 'Нэрлэсэн өрөө олдсонгүй. Өрөөний дугаарыг шалгаад дахин асууна уу.',
+    'reception_teacher_not_found': 'Нэрлэсэн багш олдсонгүй. Бүтэн нэрээр нь асууна уу.',
+    'reception_time_required': 'Аль өдөр, хэдэн цагийг шалгахыг хэлнэ үү (жишээ: даваа 09:30).',
+    'reception_invalid_time': 'Цагийг 00:00–23:59 хэлбэрээр бичнэ үү.',
+    # Returned by many timetable questions, not only «… одоо хичээлтэй юу?» (code review 11/23 (2)).
+    'reception_timetable_incomplete': 'Хичээлийн хуваарь бүрэн биш тул хуваариар хариулах боломжгүй.',
+    'reception_date_required': 'Аль өдрийн хуваарийг асууж байгаагаа хэлнэ үү.',
+    'reception_calendar_unknown': ('Улирлын огноо, амралтын өдрийн мэдээлэл алга тул тухайн өдрийн хуваарийг '
+                                   'хэлэх боломжгүй.'),
+    'reception_outside_term': 'Энэ өдөр хичээлийн улиралд багтахгүй.',
+    'reception_holiday': 'Энэ өдөр амралтын өдөр тул хичээлийн хуваарь хамаарахгүй.',
+    'reception_lookup_missing': 'Асуусан мэдээлэл олдсонгүй.',
+    'reception_contact_unknown': 'Энэ албаны холбоо барих мэдээлэл олдсонгүй.',
+    'reception_hours_unknown': 'Ажлын цагийн мэдээлэл олдсонгүй.',
+    'reception_email_unknown': 'Энэ хүний сургуулийн имэйл олдсонгүй.',
+    'reception_room_unknown': 'Энэ хүний ажлын өрөө олдсонгүй.',
+    'reception_floor_unknown': 'Энэ давхрын өрөөний мэдээлэл олдсонгүй.',
+}
+# The FAQ router's questions back to the visitor (question_router.route_query clarify()), by the clarification's
+# kind, so a later wording change in the router cannot bring the machine text back (code review 11/23 (2)).
+_CLARIFY = {
+    'ambiguous_constrained_exact_match': ('Энэ асуулт хэд хэдэн сэдэвт хамаарч байна. Аль хөтөлбөр, аль он, аль '
+                                          'албаны тухай асууж байгаагаа тодруулна уу.'),
+    'ambiguous_exact_match': 'Ижил төстэй хэд хэдэн асуулт байна. Аль нь болохыг доороос сонгоно уу.',
+    'constrained_wording_not_exact': 'Яг аль хүний, аль хөтөлбөрийн эсвэл аль хичээлийн жилийн мэдээлэл хэрэгтэйг тодруулна уу.',
+    'select_supported_question': 'Төстэй хэд хэдэн асуулт байна. Аль нь болохыг доороос сонгоно уу.',
 }
 
 
@@ -246,18 +473,34 @@ def plain_note(result, referral_text=''):
         original = result.get('audit_message', result.get('message')) or ''
         if referral_text and original.endswith(referral_text):
             original = original[:-len(referral_text)]
-        kept = []
-        for sentence in _sentences(original):
-            if _DROP.search(sentence):
-                continue
-            for pattern, rewrite in _REWRITES:
-                match = pattern.match(sentence)
-                if match:
-                    sentence = rewrite(match)
-                    break
-            kept.append(sentence)
-        lead = ' '.join(kept) or 'Энэ талаар мэдээлэл олдсонгүй.'
+        lead = _plain(original, _NOT_FOUND)
     return (lead + ' ' + referral_text).strip()
+
+
+def _plain(original, fallback):
+    """The guard's sentences without the rule talk. A sentence still about the system's checks becomes ``fallback``
+    when it leads, and is left out after a kept sentence; a partial answer's notice never says that nothing was found
+    (code review 11/23 (2))."""
+    kept = []
+    for sentence in _sentences(original):
+        if _DROP.search(sentence):
+            continue
+        for pattern, rewrite in _REWRITES:
+            match = pattern.match(sentence)
+            if match:
+                sentence = rewrite(match)
+                break
+        else:
+            if _MACHINE.search(sentence):
+                if kept:
+                    continue
+                sentence = fallback
+        if fallback != _NOT_FOUND and sentence in _GENERIC:
+            sentence = fallback
+        if sentence == fallback and any('олдсонгүй' in earlier for earlier in kept):
+            continue
+        kept.append(sentence)
+    return ' '.join(kept) or fallback
 
 
 def present(result, *, confirmed_school_hours=False):
@@ -267,6 +510,8 @@ def present(result, *, confirmed_school_hours=False):
     answer = result.get('answer')
     if isinstance(answer, str) and answer.strip():
         shown = clean_text(answer, keep_website_hours=not confirmed_school_hours)
+        if result.get('answer_kind') in {'rag_generated', 'official_website_extract'}:
+            shown = focus(result.get('query'), shown)
         shown = direct_first(result.get('query'), shown)
         if shown != answer:
             result['answer'] = shown
@@ -275,11 +520,25 @@ def present(result, *, confirmed_school_hours=False):
             # The note under a full answer was the guard talking to itself; the page hides it.
             result['audit_message'] = result['message']
             result['message'] = ''
+        elif result.get('message'):
+            # A partial answer keeps its notice (what is missing), in plain words (11/23 (2)).
+            plain = _plain(result['message'], 'Асуусан мэдээллийн зарим нь олдсонгүй.')
+            if plain != result['message']:
+                result['audit_message'] = result['message']
+                result['message'] = plain
     elif not result.get('clarification') and result.get('message') and result.get('reason_code') not in {
             'conversation_help', 'out_of_scope'}:
         referral = (result.get('referral') or {}).get('text', '')
         result['audit_message'] = result.get('audit_message', result['message'])
         result['message'] = plain_note(result, referral)
+    elif isinstance(result.get('clarification'), dict):
+        plain = _CLARIFY.get(result['clarification'].get('kind'))
+        asked = result['clarification'].get('question')
+        if plain and asked != plain:
+            result['audit_message'] = result.get('audit_message', result.get('message'))
+            result['clarification']['question'] = plain
+            if result.get('message') == asked:
+                result['message'] = plain
     for source in result.get('related_sources') or []:
         if isinstance(source, dict) and isinstance(source.get('excerpt'), str):
             source['excerpt'] = clean_text(source['excerpt'], keep_website_hours=not confirmed_school_hours)

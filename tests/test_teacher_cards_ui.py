@@ -32,7 +32,7 @@ const text={...base,name:'Text Teacher',portrait_available:false,image_status:'s
 let list=render([photo,{...photo,name:'Other'},text,{...text,name:'Fourth'}]);
 assert.equal(all(list,'article').length,4);assert.equal(all(list,'img').length,2);
 assert.deepEqual(all(list,'h3').map(n=>n.textContent),['Source Teacher','Other','Text Teacher','Fourth']);
-assert(words(list).includes('жишээ зураг'));assert(words(list).includes('2026-01-02'));
+assert(words(list).includes('Сайтын зураг'));assert(words(list).includes('2026-01-02'));
 assert.equal(all(list,'a').length,4);assert(all(list,'a').every(n=>n.rel==='noopener noreferrer'));
 for(const card of [{...text,image_status:undefined},{...text,image_url:undefined},
  {...text,image_url:'https://attacker.example/a.png'},{...photo,image_url:'https://attacker.example/a.png'},

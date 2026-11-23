@@ -35,7 +35,8 @@ class WebsiteHandoffTests(unittest.TestCase):
         value=c.route(None,'Нийтийн хоолны газрын өнөөдрийн цэс болон үнэ хэд вэ?')
         self.assertIsNone(value['answer']);self.assertEqual(g.calls,0)
         self.assertEqual(value['reason_code'],'requested_attribute_not_supported')
-        self.assertIn('өнөөдрийн бодит хоолны цэс',value['message'])
+        self.assertIn('өнөөдрийн бодит хоолны цэс',value['audit_message'])
+        self.assertIn('Өнөөдрийн хоолны цэс',value['message'])
 
     def test_today_base_word_and_inflected_form_both_keep_live_status_guard(self):
         for query in ['Өнөөдөр бүртгэл нээлттэй юу?', 'Өнөөдрийн бүртгэлийн төлөв юу вэ?']:

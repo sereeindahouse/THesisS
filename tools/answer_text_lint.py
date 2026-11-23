@@ -24,6 +24,9 @@ PATTERNS = {
         r'батлахгүй', r'баталсангүй', r'баталж\s+чадсангүй', r'гэж\s+нийтэлсэн', r'бүртгэлд\s+заасан',
         r'бүртгэсэн\s+үндсэн', r'гэжээ', r'баталгаатай\s+мэдээлэл', r'Эдгээр\s+нь\s+ерөнхий', r'хамрах\s+хүрээ',
         r'регистр,\s+паспорт', r'тайлбарлажээ', r'дурдсан\.', r'Эхийн\s+он', r'Эхийн\s+огноо',
+        # 11/23 (2): read in the probe banks after the first count had called them clean.
+        r'Тааж\s+нэгтгэхгүй', r'хадгалсан\s+асуулт', r'хүснэгтэд\s+бүртгэгдээгүй', r'хайлтын\s+эх(?:ээр|ээс)',
+        r'батлах\s+(?:тохирох\s+)?эх(?!\s+сурвалж)', r'батлагдаагүй', r'FAQ',
     ],
     'reception_referral': [r'ресепшний\s+ажилтнаас'],  # pointless for a system that stands at the reception
     'nav': [  # website menu, breadcrumb and form fragments

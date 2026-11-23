@@ -157,7 +157,7 @@ $("closeTools").addEventListener("click",()=>$("toolsDialog").close());
 $("toolsDialog").addEventListener("click",e=>{if(e.target===$("toolsDialog")){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close()}});
 $("attachAudio").addEventListener("click",()=>$("voiceFile").click());
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n};
-function sourceList(citations){const ul=node("ul");for(const c of citations||[]){const li=node("li");let url;try{url=new URL(c.source_url_or_filename)}catch{}if(url&&["https:","http:"].includes(url.protocol)){const a=node("a",c.title||c.document_id);a.href=url.href;a.target="_blank";a.rel="noopener noreferrer";li.append(a)}else li.append(node("span",c.title||c.document_id));li.append(node("span"," · v"+c.version+" · "+(c.source_accepted_for_project?"Албан сайтын эх":(c.approval_status||"төлөв тодорхойгүй"))+(c.retrieved_at?" · татсан "+c.retrieved_at.slice(0,10):"")));if(c.locator)li.append(node("div",c.locator,"muted"));if(c.extraction_method==="visual_transcription")li.append(node("div","PDF / зурган эхээс буулгасан хэсэг · "+(c.reviewer_kind==="human"?"хүн":"AI туслах")+" эхтэй нь тулгасан","small muted"));ul.append(li)}return ul}
+function sourceList(citations,plain){const ul=node("ul");for(const c of citations||[]){const li=node("li");let url;try{url=new URL(c.source_url_or_filename)}catch{}if(url&&["https:","http:"].includes(url.protocol)){const a=node("a",c.title||c.document_id);a.href=url.href;a.target="_blank";a.rel="noopener noreferrer";li.append(a)}else li.append(node("span",c.title||c.document_id));li.append(node("span"," · "+(plain?"":"v"+c.version+" · ")+(c.source_accepted_for_project?(plain?"сургуулийн сайт":"Албан сайтын эх сурвалж"):(c.approval_status||"төлөв тодорхойгүй"))+(c.retrieved_at?(plain?" · "+c.retrieved_at.slice(0,10)+"-ны байдлаар":" · татсан "+c.retrieved_at.slice(0,10)):"")));if(c.locator)li.append(node("div",c.locator,"muted"));if(c.extraction_method==="visual_transcription")li.append(node("div","Зураг, PDF-ээс бичвэрт буулгасан · "+(c.reviewer_kind==="human"?"хүн":"AI туслах")+" эх сурвалжтай нь тулгасан","small muted"));ul.append(li)}return ul}
 async function api(path,body){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),path==="/api/route"?120000:45000);
  try{const r=await fetch(path,{method:body?"POST":"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,signal:controller.signal});
@@ -222,7 +222,7 @@ function sizeComposer(){const input=$("routeQuery");input.style.height="auto";in
 function compactSourceList(citations){
  const sources=new Map();for(const citation of citations){const key=citation.document_id+"@"+citation.version+"@"+citation.source_url_or_filename;
   if(!sources.has(key))sources.set(key,{...citation,locators:new Set()});if(citation.locator)sources.get(key).locators.add(citation.locator);
- }return sourceList([...sources.values()].map(c=>({...c,locator:[...c.locators].join(" · ")})));
+ }return sourceList([...sources.values()].map(c=>({...c,locator:[...c.locators].join(" · ")})),true);
 }
 function appendTurn(query,draft){
  const clarification=pendingClarification?.draft===draft?pendingClarification:null;
@@ -265,17 +265,17 @@ function followupButtons(questions){
  }return options;
 }
 function renderRelatedSources(sources){
- const container=node("section",undefined,"source-excerpts");container.setAttribute("aria-label","Холбоотой эхийн хэсгүүд");
- container.append(node("h3","Холбоотой эхээс унших"));let count=0;
+ const container=node("section",undefined,"source-excerpts");container.setAttribute("aria-label","Холбоотой эх сурвалжийн хэсгүүд");
+ container.append(node("h3","Холбоотой эх сурвалж"));let count=0;
  for(const source of sources){
   let url;try{url=new URL(source.url||source.source_url_or_filename)}catch{continue}
   if(url.protocol!=="https:"||url.hostname!=="nmct.edu.mn"||url.username||url.password||(url.port&&url.port!=="443"))continue;
   const excerpt=typeof source.excerpt==="string"?source.excerpt.trim():"";if(!excerpt)continue;
-  const card=node("article",undefined,"source-excerpt"),link=node("a",source.title||"Албан сайтын эх");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";card.append(link);
-  if(excerpt.length>420){card.append(node("blockquote",excerpt.slice(0,420)+"…"));const more=node("details");more.append(node("summary","Эхийн хэсгийг бүтнээр унших"),node("blockquote",excerpt));card.append(more)}
+  const card=node("article",undefined,"source-excerpt"),link=node("a",source.title||"Сургуулийн сайт");link.href=url.href;link.target="_blank";link.rel="noopener noreferrer";card.append(link);
+  if(excerpt.length>420){card.append(node("blockquote",excerpt.slice(0,420)+"…"));const more=node("details");more.append(node("summary","Бүтнээр унших"),node("blockquote",excerpt));card.append(more)}
   else card.append(node("blockquote",excerpt));
   const date=typeof source.retrieved_at==="string"?source.retrieved_at.slice(0,10):"";
-  card.append(node("small","Албан сайтаас хадгалсан эх"+(date?" · "+date:"")));container.append(card);if(++count===3)break;
+  card.append(node("small","Сургуулийн сайтаас"+(date?" · "+date+"-ны байдлаар":"")));container.append(card);if(++count===3)break;
  }return count?container:null;
 }
 function renderTeacherCards(cards){
@@ -290,13 +290,13 @@ function renderTeacherCards(cards){
   if(source.protocol!=='https:'||source.hostname!=='nmct.edu.mn'||source.username||source.password||source.port||source.search||source.hash)continue;
   const article=node('article',undefined,'teacher-card');
   if(portrait){const image=document.createElement('img');
-   image.src=card.image_url;image.alt=card.name+' — албан эх дээрх зураг';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';image.width=180;image.height=236;
-   image.addEventListener('error',()=>{image.remove();article.append(node('p','Зургийг ачаалж чадсангүй. Албан эхээр үзнэ үү.','small muted'))},{once:true});article.append(image);
+   image.src=card.image_url;image.alt=card.name+' — сургуулийн сайт дээрх зураг';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';image.width=180;image.height=236;
+   image.addEventListener('error',()=>{image.remove();article.append(node('p','Зургийг ачаалж чадсангүй. Сайтаас үзнэ үү.','small muted'))},{once:true});article.append(image);
   }
   const info=node('div',undefined,'teacher-card-info');info.append(node('h3',card.name));
   if(typeof card.role==='string')info.append(node('p',card.role));
   if(typeof card.department==='string')info.append(node('p',card.department));
-  const link=node('a','Албан эхийг нээх ↗');link.href=source.href;link.target='_blank';link.rel='noopener noreferrer';info.append(link);
+  const link=node('a','Сайтаас үзэх ↗');link.href=source.href;link.target='_blank';link.rel='noopener noreferrer';info.append(link);
   if(textOnly)info.append(node('p','Багшийн зураг сайтад байхгүй.'));
   info.append(node('p',(portrait?'Сайтын зураг':'Сайтын танилцуулга')+' · '+String(card.captured_utc||'').slice(0,10)));
   article.append(info);list.append(article);if(++count===6)break;
@@ -321,7 +321,7 @@ function renderTurn(turn,result){
   provenance.append(node("p","Анхны танилт: "+result.input_lineage.raw_text,"input-lineage-raw"));turn.userElement.append(provenance);turn.lineageElement=provenance;
   if(result.search_normalization?.changed&&typeof result.search_normalization.normalized_search_text==="string"){
    provenance.append(node("p","Хайлтад бэлтгэсэн текст: "+result.search_normalization.normalized_search_text,"chat-notice"));
-   provenance.append(node("p","Тоо, нэр томьёоны автомат бэлтгэл. Анхны танилт хадгалагдсан; хүний засвар гэж тооцохгүй.","chat-notice"));
+   provenance.append(node("p","Тоо, нэрийг хайлтад тохируулж бичсэн. Анхны танилт хадгалагдсан.","chat-notice"));
   }
  }
  if(result.conversation?.applied&&result.conversation.resolved_query!==turn.query){
@@ -374,8 +374,8 @@ function renderTurn(turn,result){
 async function askTurn(turn){
  if(routeBusy||voiceBusy||micStarting||micRecorder?.state==="recording")return;
  clearCorrection();++voiceGeneration;clearSpeech();latestRoute=null;
- const generation=++routeGeneration;routeBusy=true;turn.body.replaceChildren(node("p","Албан эхээс хариулт хайж байна","waiting"));
- const slowTimer=setTimeout(()=>{if(generation===routeGeneration&&routeBusy)turn.body.append(node("p","Эхийн мэдээллийг нэгтгэж байна. Асуулт тань хадгалагдсан.","waiting-helper"))},8000);
+ const generation=++routeGeneration;routeBusy=true;turn.body.replaceChildren(node("p","Хариулт хайж байна","waiting"));
+ const slowTimer=setTimeout(()=>{if(generation===routeGeneration&&routeBusy)turn.body.append(node("p","Хариултыг бэлтгэж байна. Асуулт тань хадгалагдсан.","waiting-helper"))},8000);
  $("routeStatus").textContent="";refreshVoiceControls();scrollChat();
  try{
   // An elliptical follow-up («Хэдэн цагт ажилладаг вэ?») may borrow the previous question's
@@ -392,7 +392,7 @@ async function askTurn(turn){
   if(generation!==routeGeneration)return;
   const context=turn.clarification;
   if(context){await discardClarifications([context.id]);turn.clarification=null}
-  const text=node("p",context?"Тодруулгыг үргэлжлүүлж чадсангүй. Эх асуултаа дахин илгээж тодруулна уу.":"Холболт саатсан тул хариулт авч чадсангүй. Асуулт тань хадгалагдсан. Дахин оролдоно уу.","message-error"),retry=node("button",context?"Эх асуултаа дахин илгээх":"Дахин оролдох","secondary-button");retry.type="button";
+  const text=node("p",context?"Тодруулгыг үргэлжлүүлж чадсангүй. Анхны асуултаа дахин илгээнэ үү.":"Холболт саатсан тул хариулт авч чадсангүй. Асуулт тань хадгалагдсан. Дахин оролдоно уу.","message-error"),retry=node("button",context?"Анхны асуултаа дахин илгээх":"Дахин оролдох","secondary-button");retry.type="button";
   const details=node("details",undefined,"message-error-details");details.append(node("summary","Алдааны дэлгэрэнгүй"),node("p",error.message));
   retry.addEventListener("click",()=>context?submitFollowup(context.originalQuery):askTurn(turn));if(generation!==routeGeneration)return;turn.body.replaceChildren(text,retry,details);scrollChat();
  }finally{clearTimeout(slowTimer);if(generation===routeGeneration){routeBusy=false;refreshVoiceControls()}}

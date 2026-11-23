@@ -845,8 +845,11 @@ class ReceptionWordingTests(unittest.TestCase):
                 self.assertEqual(path.answer(query)['answer'], 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг (4-р давхар, 406 тоот).')
                 self.assertTrue(path.recognizes(query))
         self.assertEqual(path.answer('Номын сан хэдэн цаг хүртэл нээлттэй вэ?')['reason_code'], 'reception_hours_unknown')
-        # Taking payments is not confirmed to follow the working hours; an unknown place is not claimed at all.
-        self.assertIsNone(path.answer('Сургалтын алба хэдэн цаг хүртэл төлбөр авдаг вэ?'))
+        # Taking payments is not confirmed to follow the working hours: no answer, a note that says so (11/23 (2));
+        # an unknown place is not claimed at all.
+        payment = path.answer('Сургалтын алба хэдэн цаг хүртэл төлбөр авдаг вэ?')
+        self.assertIsNone(payment['answer'])
+        self.assertIn('Төлбөр хүлээн авах цагийн тусгай мэдээлэл алга', payment['message'])
         for query in ('Дотуур байр хэдэн цагт хаадаг вэ?', 'Гал тогоо хэдэн цагаас ажилладаг вэ?'):
             with self.subTest(query=query):
                 self.assertIsNone(path.answer(query))
@@ -1180,6 +1183,47 @@ class ReceptionWordingTests(unittest.TestCase):
         for bad in ('үдээс хойш', 1240, ['12:40–13:20']):
             with self.subTest(bad=bad), self.assertRaises(ReceptionDataError):
                 _corrected(tables, {'lunch_break': bad})
+
+    def test_an_offices_weekend_lunch_and_payment_hours_are_notes(self):
+        # 11/23 (2): these reached the FAQ router's «…хадгалсан асуулт алга. Тааж нэгтгэхгүй.» Only the weekday hours
+        # are confirmed; the reply says them and what is not known, with no answer.
+        from reception_tables import _corrected
+        tables = ReceptionTables(rooms=(Room(4, '406', services=(Service('Сургалтын алба', '08:00–17:00', ''),)),
+                                        Room(8, '804', services=(Service('Санхүүгийн алба', '08:00–17:00', ''),)),
+                                        Room(10, '1006', services=(Service('Номын сан', '', ''),))),
+                                 staff=(), classes=(), timetable=())
+        fixed = ReceptionAnswerPath(_corrected(tables, {'lunch_break': '12:40–13:20'}), enabled=True)
+        for query, message in (
+                ('Сургалтын алба бямба гарагт ажилладаг уу?', 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг '
+                 '(4-р давхар, 406 тоот). Бямба, ням гарагийн ажлын цагийн мэдээлэл алга.'),
+                ('Сургалтын алба ням гаригт хэдэн цагт ажилладаг вэ?', 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг '
+                 '(4-р давхар, 406 тоот). Бямба, ням гарагийн ажлын цагийн мэдээлэл алга.'),
+                ('Номын сан бямба гарагт ажилладаг уу?', 'Ажлын цагийн мэдээлэл алга.'),
+                ('Сургалтын алба цайны цагаар ажилладаг уу?', 'Сургалтын алба 08:00–17:00 цагийн хооронд ажилладаг '
+                 '(4-р давхар, 406 тоот). Сургуулийн цайны цаг 12:40–13:20. Цайны цагаар ажилладаг эсэх мэдээлэл алга.'),
+                ('Санхүүгийн алба хэдэн цаг хүртэл төлбөр авдаг вэ?', 'Санхүүгийн алба 08:00–17:00 цагийн хооронд ажилладаг '
+                 '(8-р давхар, 804 тоот). Төлбөр хүлээн авах цагийн тусгай мэдээлэл алга.')):
+            with self.subTest(query=query):
+                result = fixed.answer(query)
+                self.assertIsNone(result['answer'])
+                self.assertEqual(result['reason_code'], 'reception_office_note')
+                self.assertEqual(result['message'], message)
+                self.assertTrue(fixed.recognizes(query))
+        # An unrecorded place is not claimed; the school's own weekend question keeps its answer.
+        self.assertFalse(fixed.recognizes('Цайны газар бямба гарагт ажилладаг уу?'))
+        self.assertIsNone(fixed.answer('Цайны газар бямба гарагт ажилладаг уу?'))
+
+    def test_a_courses_day_reads_one_line_per_class(self):
+        from datetime import datetime
+        tables = ReceptionTables(rooms=(), staff=(), timetable_complete=True, classes=(
+            ClassGroup(group='КУ-2', room='612', course='2'), ClassGroup(group='МИ-2', room='402', course='2')), timetable=(
+            Lesson('mon', '08:00-09:30', 'КУ-2', '612', 'Б.Багш', 'Математик'),
+            Lesson('mon', '09:35-11:05', 'КУ-2', '612', 'Б.Багш', 'Физик'),
+            Lesson('mon', '08:00-09:30', 'МИ-2', '402', 'Б.Багш', 'Хими')))
+        path = ReceptionAnswerPath(tables, enabled=True)
+        result = path.answer('2-р курс өнөөдөр хэдэн цагт хичээлтэй вэ?', now=datetime(2026, 11, 23, 9, 0))
+        self.assertEqual(result['answer'], '2026-11-23-ны хуваарь:\nКУ-2: 08:00-09:30, 09:35-11:05\nМИ-2: 08:00-09:30\n'
+                                           'Яг одоо хаана байгааг мэдэх боломжгүй.')
 
     def test_a_post_named_as_a_room_gives_its_holders_room(self):
         # Round 5: «Захирлын өрөө хаана вэ?» answered «өрөө олдсонгүй».

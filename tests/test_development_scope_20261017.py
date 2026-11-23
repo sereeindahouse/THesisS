@@ -75,7 +75,8 @@ class ComplementaryYearEvidenceTests(unittest.TestCase):
                                          [first, second])
         self.assertEqual(result['reason_code'], 'requested_year_not_supported')
         self.assertEqual(result['rag']['year_scope_filter']['unsupported_years'], [])
-        self.assertIn('хамтад нь', result['message'])
+        self.assertIn('хамтад нь', result['audit_message'])  # the guard's wording; the visitor reads a plain note
+        self.assertIn('2018, 2022 оны мэдээлэл олдсонгүй', result['message'])
         self.assertEqual(generator.calls, 0)
 
     def test_supported_year_does_not_disguise_a_missing_staff_count(self):

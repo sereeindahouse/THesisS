@@ -191,7 +191,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return None
                 result.update(route='A',answer_kind='partial_teacher_directory',reason_code='captured_partial_teacher_directory',
                     answer='\n\n'.join(card['source_quote'] for card in cards),
-                    message=match['department']+' — хадгалсан '+str(len(cards))+' багшийн нэр, үүргийг үзүүлэв. Үүнээс '+str(sum(bool(card.get('image_url')) for card in cards))+' нь эхтэй хөрөг зурагтай. Энэ нь бүх багшийн бүрэн жагсаалт биш; эхийн огноог нягтлаарай.',
+                    # 11/23 (2): plain words; «эхтэй хөрөг», «эхийн огноог нягтлаарай» were the system talking to itself.
+                    message=match['department']+': сайтад танилцуулгатай '+str(len(cards))+' багшийг доор харуулав. Энэ нь бүх багшийн бүрэн жагсаалт биш.',
                     teacher_cards=cards,coverage='partial_captured_profiles',full_staff_roster=False,
                     citations=[dict(document_id=card['teacher_id'],version=1,
                         title=card['name']+' — багшийн албан танилцуулга',
