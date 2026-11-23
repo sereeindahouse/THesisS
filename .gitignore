@@ -655,3 +655,6 @@ __pycache__/
 !/papers/48-rag-how-it-works-20261123.mn.md
 !/papers/49-answer-wording-round26-20261123.mn.md
 !/papers/50-honest-check-and-round27-20261123.mn.md
+# 11/23 (3): the Latin-script / abbreviated question decision note; the reading-table rebuild test.
+!/papers/52-latin-script-questions-20261123.mn.md
+!/tests/test_rebuild_reading_table.py

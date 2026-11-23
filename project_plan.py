@@ -11,7 +11,7 @@ import re
 
 
 PLAN_PATH = 'CORE/WEEKLY-PLAN-2026-2027.mn.md'
-MAX_BYTES = 160 * 1024
+MAX_BYTES = 256 * 1024     # 2026-11-23: weekly «Төлөв» lines had grown the plan past 160 KiB
 MAX_WEEKS = 80
 MAX_SECTIONS = 80
 MAX_BLOCKS = 1800

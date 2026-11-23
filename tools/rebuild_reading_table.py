@@ -63,7 +63,9 @@ def build(text, schedule):
     old_rows = lines[head + 2:end]
     kept = [line for line in old_rows if '✅' in line.split('|')[-2]]
     weeks = schedule['weeks']
-    new_rows = [row(week['week'], item, week is weeks[0]) for week in weeks for item in week['items']]
+    # A paper the user has since read keeps only its ✅ row (kept above), not a second «Одоо» row.
+    new_rows = [row(week['week'], item, week is weeks[0]) for week in weeks for item in week['items']
+                if item.get('status') != 'read']
     totals = ' · '.join(f"{week['week']}: {sum(item['hours'] for item in week['items']):g} цаг" for week in weeks)
     table = ['| 7 хоног | Өгүүлэл | Яаж унших | Төлөв |', '|---|---|---|---|', *kept, *new_rows]
     note = f'Долоо хоногийн цаг (14 цагийн дотор): {totals}.'

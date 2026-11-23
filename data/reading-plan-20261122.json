@@ -24,9 +24,9 @@
  "read_rule_mn": "WEEKLY-PLAN-д хэрэглэгч өөрөө хэлсэн гэж ✅-ээр бүртгэсэн өгүүлэл л «уншсан». Хэсэгчлэн уншсаныг «partial» гэж тэмдэглэсэн.",
  "totals": {
   "papers": 43,
-  "read": 8,
+  "read": 11,
   "partial": 1,
-  "todo": 34,
+  "todo": 31,
   "hours_reading": 46.5,
   "hours_review": 1.0,
   "hours_total": 47.5,
@@ -82,10 +82,11 @@
      "hours": 1.0,
      "guide": "papers/43-MON01-dohionii-hel-hotoch-20261120.mn.md",
      "guide_note_mn": "хэллэгийн хөтөч",
-     "status": "todo",
+     "status": "read",
      "used_in_mn": "11/17-ны слайдад «Монгол судалгааны ажил унших» гэж амласан (W04); дипломын эрдэм шинжилгээний хэллэг",
      "priority_mn": "1 — багшид амласан, хоцорсон",
-     "license_mn": "шалгаагүй"
+     "license_mn": "шалгаагүй",
+     "read_note_mn": "✅ 11/23 хэрэглэгч уншсан гэж хэлсэн"
     },
     {
      "code": "MON02",
@@ -103,10 +104,11 @@
      "hours": 1.0,
      "guide": "papers/43-MON02-urtiin-duu-hotoch-20261120.mn.md",
      "guide_note_mn": "хэллэгийн хөтөч",
-     "status": "todo",
+     "status": "read",
      "used_in_mn": "11/17-ны слайдад амласан (W04); дипломын хэллэг",
      "priority_mn": "1 — багшид амласан, хоцорсон",
-     "license_mn": "шалгаагүй"
+     "license_mn": "шалгаагүй",
+     "read_note_mn": "✅ 11/23 хэрэглэгч уншсан гэж хэлсэн"
     },
     {
      "code": "MON03",
@@ -166,10 +168,11 @@
      "hours": 1.0,
      "guide": "papers/43-MON05-bichleg-shaardlaga-hotoch-20261120.mn.md",
      "guide_note_mn": "хэллэгийн хөтөч",
-     "status": "todo",
+     "status": "read",
      "used_in_mn": "11/17-ны слайдад амласан (W04); эх сурвалжийг иш татах загвар",
      "priority_mn": "1 — багшид амласан, хоцорсон",
-     "license_mn": "шалгаагүй"
+     "license_mn": "шалгаагүй",
+     "read_note_mn": "✅ 11/23 хэрэглэгч уншсан гэж хэлсэн"
     },
     {
      "code": "MON06",
@@ -443,10 +446,10 @@
      "pages": 6.0,
      "pages_note_mn": "PDF-ээс тоолсон (2026.11.22)",
      "lang": "en",
-     "sections_mn": "Хураангуй, §1–2 (хэмжүүр), §3.3 (хүний үнэлгээний журам), §4.2 (гол үр дүн), §6",
+     "sections_mn": "Хураангуй, §1–2 (хэмжүүр), §3.3 (хүний үнэлгээний журам), §4.2–4.3 (гол үр дүн), §6",
      "hours": 1.5,
-     "guide": null,
-     "guide_note_mn": "",
+     "guide": "papers/51-RAG18-verifiability-hotoch-20261123.mn.md",
+     "guide_note_mn": "Монгол хөтөч (2026.11.23)",
      "status": "todo",
      "used_in_mn": "W08 (дүрэм ба LLM-ийн харьцуулалт, хүний үнэлгээ)",
      "priority_mn": "3 — W08-д хэрэгтэй",
@@ -466,8 +469,8 @@
      "lang": "en",
      "sections_mn": "Бүтнээр (х.1–4): оршил, tagging, алдааны шинжилгээ, орос хэлний үр дүн",
      "hours": 1.0,
-     "guide": null,
-     "guide_note_mn": "",
+     "guide": "papers/51-STT21-thutmose-hotoch-20261123.mn.md",
+     "guide_note_mn": "Монгол хөтөч (2026.11.23)",
      "status": "todo",
      "used_in_mn": "W11 (он, тоо, өрөөний дугаарыг уншуулах)",
      "priority_mn": "3 — W11-д хэрэгтэй",
@@ -1127,6 +1130,8 @@
   "papers/47-RAG16-fusion-hotoch-20261122.mn.md",
   "papers/47-RAG17-sufficient-context-hotoch-20261122.mn.md",
   "papers/47-RAG15-graphrag-hotoch-20261122.mn.md",
-  "papers/47-RAG07-alce-hotoch-20261122.mn.md"
+  "papers/47-RAG07-alce-hotoch-20261122.mn.md",
+  "papers/51-RAG18-verifiability-hotoch-20261123.mn.md",
+  "papers/51-STT21-thutmose-hotoch-20261123.mn.md"
  ]
 }
