@@ -33,6 +33,8 @@ from teacher_media import TeacherMedia, TeacherMediaError
 from privacy_filter import hide_mobiles
 import code_map
 import reading_room
+import report_room
+import seminar_room
 import work_board
 
 ROOT = Path(__file__).resolve().parent
@@ -339,6 +341,32 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                     return self.error(404, 'Энэ өгүүлэлд Монгол хөтөч хараахан бэлдээгүй.')
                 except (OSError, ValueError, UnicodeDecodeError):
                     return self.error(503, 'Унших жагсаалт эсвэл хөтчийг уншиж чадсангүй.')
+            # Seminar room (speech beside its slides, question cards, notebook page) and report room (the
+            # assistant's notes with their sources): both read CORE/seminar-*/ and papers/ live (11/23).
+            if path == '/seminar' or path.startswith('/seminar/'):
+                try:
+                    page = seminar_room.seminar_page(root, path.removeprefix('/seminar').strip('/') or None)
+                    return self.send_data(200, page.encode('utf-8'), 'text/html; charset=utf-8')
+                except KeyError:
+                    return self.error(404, 'Семинарын хавтас олдсонгүй.')
+                except (OSError, ValueError, UnicodeDecodeError):
+                    return self.error(503, 'Семинарын файлыг уншиж чадсангүй.')
+            if path.startswith('/seminar-slide/'):
+                stem, _, name = path.removeprefix('/seminar-slide/').rpartition('/')
+                try:
+                    number = name[:-4] if name.endswith('.png') else ''
+                    return self.send_data(200, seminar_room.slide_image(root, stem, number), 'image/png')
+                except (KeyError, OSError):
+                    return self.error(404, 'Слайдын зураг олдсонгүй.')
+            if path == '/reports' or path.startswith('/reports/'):
+                name = path.removeprefix('/reports').strip('/')
+                try:
+                    page = report_room.report_page(root, name) if name else report_room.reports_index(root)
+                    return self.send_data(200, page.encode('utf-8'), 'text/html; charset=utf-8')
+                except KeyError:
+                    return self.error(404, 'Ийм тайлан алга.')
+                except (OSError, ValueError, UnicodeDecodeError):
+                    return self.error(503, 'Тайланг уншиж чадсангүй.')
             if path == '/code-map':
                 file = root / 'demo' / 'code-map.html'
                 if not file.is_file():

@@ -658,3 +658,9 @@ __pycache__/
 # 11/23 (3): the Latin-script / abbreviated question decision note; the reading-table rebuild test.
 !/papers/52-latin-script-questions-20261123.mn.md
 !/tests/test_rebuild_reading_table.py
+# 11/23 (4): /seminar (speech beside its slides, question cards, notebook page) and /reports (notes with sources);
+# the quick research brief behind the layout. The seminar files themselves stay local (CORE/seminar-*/).
+!/seminar_room.py
+!/report_room.py
+!/tests/test_seminar_room.py
+!/papers/53-seminar-view-research-20261123.mn.md
