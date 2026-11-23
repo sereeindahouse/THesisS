@@ -704,7 +704,7 @@ class ReceptionWordingTests(unittest.TestCase):
         self.assertFalse(path.recognizes('Эмч байгаа юу?'))   # whether someone is there now
         tomorrow = path.answer('КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ', now=datetime(2026, 11, 18, 10, 0))
         self.assertEqual(tomorrow['reason_code'], 'reception_class_day')
-        self.assertIn('маргаашийн (пүрэв гараг)', tomorrow['answer'])
+        self.assertIn('маргааш (пүрэв гараг) 08:00-аас хичээлтэй', tomorrow['answer'])   # nominative (code review 11/23 (8))
         self.assertIn('08:00-09:30', tomorrow['answer'])
 
     def test_round9_class_teacher_room_post_rooms_and_parents(self):

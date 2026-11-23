@@ -55,7 +55,7 @@
 
 - Шинэ, засагдсан тест: `tests/test_faq_intent.py` (9), `tests/test_latin_query.py` (4), `test_reception_tables.CheckSetWordingTests` (3), `test_answer_presentation.CheckSetPresentationTests` (3), `test_question_planner.ComposeWordingTests` (2), `test_rag_runtime.FaqIntentRouteTests` (3), `test_tuition_scope.OwnFeeWordingTests` (1).
 - Хамаарах бүлгүүд: 261 + 137 + 85 тест OK (эцсийн код).
-- Бүтэн суит (review-ийн засварын өмнө): 2289 тест, 0 FAIL, 2 ERROR — websockets сан алга (хуучин), `test_gemini_stt…consent…` ачааллын үеийн timeout (дангаар нь ажиллуулахад OK). Эцсийн кодын бүтэн суит: <!-- full -->
+- Бүтэн суит (review-ийн засварын өмнө): 2289 тест, 0 FAIL, 2 ERROR — websockets сан алга (хуучин), `test_gemini_stt…consent…` ачааллын үеийн timeout (дангаар нь ажиллуулахад OK). Эцсийн кодын бүтэн суит: 2291 тест, 1 FAIL — `test_answer_types…test_spoken_wordings_and_existence` хуучин «маргаашийн (пүрэв гараг)» хэлбэрийг хүлээсэн (review-ийн засвараар «маргааш (пүрэв гараг)» болсон) → тестийг шинэ хэлбэрт тааруулав, 66 тест OK; 1 ERROR (websockets сан алга, хуучин).
 - 127 дахин асаасан (PID 50712 → 50744, эзэмшил, зам, портыг тулгаж); амьд сервер дээр «Хоолны газар байгаа юу», «surguuli haana bdag ve», «Ах дүү хоёр сурвал хөнгөлөлт бий юу?»-г шалгасан.
 
 ## 7. Хязгаар
