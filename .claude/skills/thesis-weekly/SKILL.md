@@ -1,6 +1,7 @@
 ---
 name: thesis-weekly
 description: Prepare a truthful Mongolian THesisS weekly notebook report, teacher questions and a five-minute seminar speech from actual dated work and the school's supplied handbook.
+when_to_use: Хэрэглэгч «долоо хоногийн тайлан», «семинарын яриа», «энэ слайдыг яаж ярих вэ», «дэвтэр бэлд», «багшид асуух асуулт», «семинарт бэлд» гэж бичихэд.
 ---
 
 # One clear weekly report

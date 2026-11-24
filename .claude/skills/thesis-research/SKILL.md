@@ -1,6 +1,7 @@
 ---
 name: thesis-research
 description: Ground a THesisS model, retrieval, speech or evaluation decision in primary research and project evidence, or review the limits of an existing scientific claim.
+when_to_use: Хэрэглэгч «өгүүлэл хай», «судалгаа хий», «аргын үндэслэл», «иш татах эх сурвалж», «ямар арга сонгох вэ», «энэ үнэн үү, нотол» гэж бичихэд.
 ---
 
 # Research for a decision

@@ -1,6 +1,7 @@
 ---
 name: thesis-debug
 description: Diagnose and fix a reproducible THesisS text, STT, retrieval, answer-selection, source-guard or TTS problem, then verify the affected behavior with scoped evidence.
+when_to_use: Хэрэглэгч «яагаад буруу хариулав», «алдааны шалтгаан», «ажиллахгүй байна», «буруу хариу өгч байна», «сервер ажиллахгүй», «дуу танихгүй байна» гэж бичихэд.
 ---
 
 # Diagnose before changing THesisS

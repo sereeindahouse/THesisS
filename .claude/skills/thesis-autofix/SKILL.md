@@ -1,6 +1,7 @@
 ---
 name: thesis-autofix
 description: Run THesisS find → fix → measure rounds on its own — find answer issues, fix the first wrong stage, measure before/after, self-review, push, then look for the next issue — without asking the user between rounds. Use for "find issues and fix them yourself", "major improvements", or under /loop for unattended work.
+when_to_use: Хэрэглэгч «алдааг олоод зас», «өөрөө засаад яв», «системийг сайжруул», «том сайжруулалт хий», «хариулт муу байна, зас» гэж бичихэд.
 ---
 
 # Autonomous find → fix → measure rounds

@@ -1,6 +1,7 @@
 ---
 name: thesis-resume
 description: Resume or audit the THesisS project using its current note, Git state, school rules, and local checkpoints. Use when beginning a session or answering what is finished and what comes next.
+when_to_use: Хэрэглэгч «үргэлжлүүл», «юу хийсэн бэ», «хаана хүрсэн бэ», «юу үлдсэн бэ», «дараагийн алхам», «төлөвөө шалга» гэж бичих, эсвэл сесс шинээр эхлэхэд.
 ---
 
 # Resume THesisS
