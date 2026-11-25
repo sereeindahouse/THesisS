@@ -36,7 +36,7 @@ REASON_TOPICS = {
     'reception_subject_teachers': 'staff.directory', 'reception_teacher_subjects': 'staff.directory',
     'reception_office_staff': 'staff.directory', 'reception_class_teacher': 'classes.groups',
     'reception_teacher_office': 'staff.offices', 'reception_teacher_office_unrecorded': 'staff.offices',
-    'reception_teacher_meet': 'staff.offices', 'reception_role_meet': 'staff.offices', 'reception_role_room': 'staff.offices',
+    'reception_teacher_meet': 'staff.offices', 'reception_teacher_schedule': 'staff.availability', 'reception_role_meet': 'staff.offices', 'reception_role_room': 'staff.offices',
     'reception_teacher_email': 'staff.offices', 'reception_teacher_phone': 'staff.offices',
     'reception_role_email': 'staff.offices', 'reception_teacher_hours': 'staff.offices',
     'reception_subject_teacher_rooms': 'staff.offices', 'reception_class_teacher_room': 'classes.groups',

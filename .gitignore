@@ -710,3 +710,5 @@ __pycache__/
 # 11/26 (2): everyday wordings, nearest stored questions, another school out of scope.
 !/tests/test_everyday_wording.py
 !/papers/58-everyday-wordings-20261126.mn.md
+# 11/26 (3): the timetable of the day a visitor can meet a teacher.
+!/papers/59-teacher-schedule-20261126.mn.md

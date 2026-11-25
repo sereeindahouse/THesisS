@@ -2,7 +2,7 @@
 
 FAKE records only: invented names, no real school data, no server, no network.
 """
-from datetime import datetime
+from datetime import date, datetime
 import unittest
 
 from answer_presentation import is_fragment, withhold_fragment
@@ -103,6 +103,8 @@ class MeetingAnswerTests(unittest.TestCase):
         self.assertEqual(result['reason_code'], 'reception_teacher_meet')
         answer = result['answer']
         self.assertTrue(answer.startswith('З.Наран — Зохиомол тэнхимийн эрхлэгч.'))
+        # No school hours in this fixture: the timetable's status now and today's lessons, as before 11/26 (the day's
+        # schedule with its free stretches needs the confirmed hours — MeetingScheduleTests).
         for expected in ('604', 'Хуваариар бол', 'naran@school.example', 'Өнөөдрийн хичээл'):
             self.assertIn(expected, answer)
         self.assertEqual(answer.count('мэдэх боломжгүй') + answer.count('батлахгүй'), 1)      # one sentence about presence
@@ -111,6 +113,80 @@ class MeetingAnswerTests(unittest.TestCase):
         # «Мат» opened «Математик» when a short word was cut to three letters: a stranger got that subject's teachers.
         result = path().answer('Мате багшийн өрөө хаана вэ?', now=NOW)
         self.assertFalse(result and result.get('answer'))
+
+
+def calendar_path(complete=True):
+    """The fixture with a calendar: the term, 11/26 a holiday, the school's hours and lunch break, and a Friday lesson."""
+    made = tables()
+    return ReceptionAnswerPath(ReceptionTables(
+        rooms=made.rooms, staff=made.staff, classes=made.classes,
+        timetable=made.timetable + (Lesson(day='fri', time='13:30-15:00', group='ЗА-1', room='612', teacher='З.Наран',
+                                           subject='Алгоритм'),),
+        timetable_complete=True, dataset_label='FAKE only', term_start=date(2026, 9, 7), term_end=date(2026, 12, 25),
+        holidays=(date(2026, 11, 26),), calendar_bound=True, holidays_reviewed=True, school_hours='08:00–17:00',
+        lunch_break='12:40–13:20'), enabled=True, complete=complete)
+
+
+class MeetingScheduleTests(unittest.TestCase):
+    """11/26, the user: «уулзах цаг … хичээлийн хуваарийг оруулсан … тэндээс шүүгээд хичээлтэй үгүй юу гэдгийг хар»."""
+    def card(self, now, query='З.Наран багштай яаж уулзах вэ?'):
+        return calendar_path().answer(query, now=now)
+
+    def test_a_school_day_lists_the_lessons_left_and_the_free_stretches(self):
+        answer = self.card(datetime(2026, 11, 25, 10, 0))['answer']
+        self.assertIn('Хуваариар өнөөдөр (лхагва, 11/25), 10:00-аас хойш: хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот); '
+                      'хичээлгүй — 11:05–17:00 (сургуулийн цайны цаг 12:40–13:20).', answer)
+
+    def test_a_holiday_shows_the_next_school_day(self):
+        answer = self.card(datetime(2026, 11, 26, 9, 0))['answer']
+        self.assertIn('Өнөөдөр амралтын өдөр. Хуваариар дараагийн хичээлийн өдөр — баасан (11/27): хичээлтэй — '
+                      '13:30–15:00 ЗА-1 (612 тоот); хичээлгүй — 08:00–13:30, 15:00–17:00 (сургуулийн цайны цаг 12:40–13:20).',
+                      answer)
+        self.assertNotIn('одоо хичээлтэй', answer)
+
+    def test_after_hours_and_at_the_weekend_the_next_school_day(self):
+        after = self.card(datetime(2026, 11, 27, 18, 0))['answer']
+        self.assertIn('Өнөөдрийн ажлын цаг (08:00–17:00) дууссан. Хуваариар дараагийн хичээлийн өдөр — даваа (11/30) '
+                      'хичээлгүй.', after)
+        weekend = self.card(datetime(2026, 11, 28, 11, 0))['answer']
+        self.assertIn('Өнөөдөр бямба гараг. Хуваариар дараагийн хичээлийн өдөр — даваа (11/30) хичээлгүй.', weekend)
+
+    def test_where_now_on_a_holiday_gives_the_office_and_the_next_school_day(self):
+        result = self.card(datetime(2026, 11, 26, 9, 0), 'З.Наран багш хаана байна')
+        self.assertEqual(result['reason_code'], 'reception_teacher_schedule')
+        # The asked fact first, then the post and the office.
+        self.assertTrue(result['answer'].startswith('З.Наран — өнөөдөр амралтын өдөр. Хуваариар дараагийн хичээлийн өдөр — '
+                                                    'баасан (11/27)'), result['answer'])
+        for expected in ('Албан тушаал: Зохиомол тэнхимийн эрхлэгч.', 'Ажлын өрөө: 604 тоот, 6-р давхар.',
+                         'Яг одоо хаана байгааг мэдэх боломжгүй', 'naran@school.example'):
+            self.assertIn(expected, result['answer'])
+        in_class = self.card(datetime(2026, 11, 26, 9, 0), 'З.Наран багш одоо хичээлтэй юу')
+        self.assertEqual(in_class['reason_code'], 'reception_teacher_schedule')
+        # Switched off, the short holiday answer stays.
+        short = calendar_path(complete=False).answer('З.Наран багш хаана байна', now=datetime(2026, 11, 26, 9, 0))
+        self.assertIsNone(short['answer'])
+
+    def test_the_end_of_the_term_is_said_not_free(self):
+        answer = self.card(datetime(2026, 12, 25, 18, 0), 'З.Наран багш хаана байна')['answer']
+        self.assertIn('Энэ улирлын хуваарь 2026-12-25-нд дууссан; дараагийн хичээлийн өдрийн хуваарь бүртгэгдээгүй.', answer)
+        self.assertNotIn('чөлөөтэй', answer)
+
+    def test_an_impossible_lunch_time_does_not_break_the_card(self):
+        made = calendar_path()
+        made.tables = ReceptionTables(**{**made.tables.__dict__, 'lunch_break': '12:60-13:20'})
+        answer = made.answer('З.Наран багштай яаж уулзах вэ?', now=datetime(2026, 11, 25, 10, 0))['answer']
+        self.assertIn('хичээлгүй — 11:05–17:00.', answer)
+
+    def test_switched_off_the_non_teaching_card_keeps_its_status(self):
+        answer = calendar_path(complete=False).answer('З.Тэмүүлэн багштай яаж уулзах вэ?',
+                                                      now=datetime(2026, 11, 25, 10, 0))['answer']
+        self.assertIn('Хуваариар бол', answer)
+
+    def test_staff_who_do_not_teach_get_no_timetable(self):
+        result = self.card(datetime(2026, 11, 25, 10, 0), 'З.Тэмүүлэн багштай яаж уулзах вэ?')
+        self.assertEqual(result['reason_code'], 'reception_teacher_meet')
+        self.assertNotIn('Хуваариар', result['answer'])          # not «хичээлгүй (чөлөөтэй)» for someone who teaches none
+        self.assertIn('temuulen@school.example', result['answer'])
 
 
 class UnrecordedRoomTests(unittest.TestCase):
