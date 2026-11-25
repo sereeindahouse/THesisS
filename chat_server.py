@@ -19,6 +19,7 @@ from urllib.parse import unquote, urlsplit
 
 from answer_contract import spoken_text
 from clarification_context import ClarificationConflict, ClarificationContext
+from knowledge_view import KnowledgeView
 from latin_query import to_cyrillic, vocabulary_from
 from privacy_filter import hide_mobiles
 from project_policy import ContentUsePolicy
@@ -74,6 +75,14 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
     clarification_context = ClarificationContext()
     teachers = teacher_service if teacher_service is not None else TeacherMedia(root)
     gemini_token = secrets.token_urlsafe(32)
+    # The knowledge tree beside the chat (11/26): counts and placement only; it never changes an answer.
+    try:
+        reception = getattr(rag, 'reception', None)
+        knowledge = KnowledgeView(root, website_database, database,
+                                  getattr(reception, 'tables', None) if getattr(reception, 'enabled', False) else None)
+        knowledge_payload = dict(tree=knowledge.tree(), datasets=knowledge.datasets())
+    except Exception:
+        knowledge, knowledge_payload = None, dict(tree=[], datasets=[])
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = 'HTTP/1.1'
@@ -239,6 +248,8 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
                     'service': 'nmct-assistant-chat', 'voice': voice_state, 'content': {'counts': counts},
                     'reception_tables': bool(getattr(reception, 'enabled', False) and getattr(reception, 'tables', None)),
                     'retrieval': rag.status().get('retrieval', {}), 'generated': False, 'llm_calls': 0})
+            if path == '/api/knowledge':
+                return self.send_json(200, knowledge_payload)
             if path == '/api/voice/gemini/session':
                 return self.send_json(200, dict(**voice.gemini.status(), csrf_token=gemini_token))
             if path.startswith('/api/teacher-media/'):
@@ -378,6 +389,11 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
             result['conversation'] = conversation
             result['input_lineage'] = input_lineage
             result['content_release'] = {'activation_token': release_token}
+            if knowledge is not None:
+                try:
+                    result['knowledge'] = knowledge.place(result, conversation['resolved_query'])
+                except Exception:
+                    pass
             return result
 
         def speak(self, body):

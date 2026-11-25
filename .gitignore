@@ -703,3 +703,7 @@ __pycache__/
 # 11/25 (3): stored answers v7 — admission overview, documents, departments.
 !/tools/build_content_v7.py
 !/data/content-draft-v7-20261125.json
+!/papers/57-basic-questions-sweep-20261125.mn.md
+# 11/26: the knowledge tree beside the chat (knowledge_view.py) and its tests.
+!/knowledge_view.py
+!/tests/test_knowledge_view.py

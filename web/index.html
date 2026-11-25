@@ -97,22 +97,68 @@ dialog::backdrop{background:rgba(20,30,26,.35)}
 .dialog-body select,.dialog-body input[type=password]{padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .dialog-body .check{display:flex;gap:8px;align-items:flex-start}
 .small{font-size:13px;color:var(--muted);margin:0}
+.workspace{flex:1;display:flex;min-height:0}
+.chat{flex:1;display:flex;flex-direction:column;min-width:0}
+.knowledge{width:390px;flex:none;display:flex;flex-direction:column;border-left:1px solid var(--line);background:#fff;min-height:0}
+.app.tree-closed .knowledge{display:none}
+.k-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.k-tabs{display:flex;gap:4px;padding:3px;border-radius:10px;background:var(--soft)}
+.k-tab{padding:6px 11px;border:0;border-radius:8px;background:transparent;font-size:14px;color:var(--muted)}
+.k-tab.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.k-close{padding:4px 10px}
+.k-body{flex:1;overflow-y:auto;padding:12px}
+.k-now{margin:0 0 12px;padding:10px 12px;border-radius:12px;background:var(--soft);font-size:13.5px;line-height:1.45}
+.k-now strong{display:block;margin-bottom:2px}
+.k-now .ok{color:var(--accent-dark)}
+.k-now .miss{color:var(--warn)}
+.k-intro{margin:0 0 10px;color:var(--muted);font-size:13px}
+.k-domain{margin:0 0 6px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;transition:background .2s,border-color .2s}
+.k-domain.hit{border-color:var(--accent);background:#f2faf6;box-shadow:0 0 0 2px rgba(23,103,82,.18)}
+.k-domain.asked{border-color:#c9a24a;border-style:dashed;background:#fffaf0}
+.k-dhead{display:flex;align-items:center;gap:8px}
+.k-num{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:7px;background:var(--soft);color:var(--accent-dark);font-size:12px;font-weight:700}
+.k-domain.hit .k-num{background:var(--accent);color:#fff}
+.k-dhead strong{font-size:14.5px}
+.k-counts{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 0 30px}
+.k-count{padding:1px 7px;border-radius:999px;font-size:11.5px;border:1px solid}
+.k-count.site{color:#1f4e8c;border-color:#b9cdea;background:#f1f6fd}
+.k-count.school{color:#22643f;border-color:#b6dcc4;background:#f0f9f3}
+.k-chips{display:flex;flex-wrap:wrap;gap:4px;margin:5px 0 0 30px}
+.k-chip{padding:1px 8px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px;color:var(--ink)}
+.k-chip.hit{background:var(--accent);border-color:var(--accent);color:#fff}
+.k-set{margin:0 0 10px;padding:11px 12px;border:1px solid var(--line);border-left-width:4px;border-radius:10px}
+.k-set.site,.k-set.stored{border-left-color:#3b6fb6}
+.k-set.school{border-left-color:#2f855a}
+.k-set.tree{border-left-color:var(--accent)}
+.k-set h4{margin:0 0 4px;font-size:14.5px}
+.k-set ul{margin:0;padding-left:18px;font-size:13.5px}
+.k-set li{margin:2px 0}
+.k-feeds{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
+.kplace{display:flex;align-items:center;gap:7px;margin:12px 0 0;padding:6px 10px;border-radius:10px;background:var(--soft);font-size:13px;color:var(--ink);cursor:pointer;border:0;text-align:left;width:100%}
+.kplace:hover{background:#e4efe9}
+.kdot{width:9px;height:9px;border-radius:50%;flex:none;background:#3b6fb6}
+.kdot.school{background:#2f855a}
+.kdot.miss{background:#c9a24a}
+@media (max-width:1100px){.knowledge{position:fixed;top:0;right:0;bottom:0;z-index:30;width:min(390px,94vw);box-shadow:-8px 0 30px rgba(0,0,0,.15)}.app:not(.tree-open) .knowledge{display:none}.app.tree-closed.tree-open .knowledge{display:flex}}
 @media (max-width:600px){.top{padding:8px 12px}.scroll{padding:16px 12px}.composer-area{padding:8px 12px 12px}.user{max-width:92%}.ghost span{display:none}.facts{grid-template-columns:1fr}.facts dt{margin-top:4px}}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
   <header class="top">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m3 8 9-5 9 5-9 5-9-5Zm4 3v6c3 3 7 3 10 0v-6M21 8v8"/></svg></span>
       <span><strong>ШМТК · Ухаалаг туслах</strong><small>Шинэ Монгол технологийн коллеж</small></span>
     </div>
     <div class="top-actions">
+      <button id="toggleTree" class="ghost" type="button" title="Мэдлэгийн мод ба мэдээллийн сан" aria-controls="knowledge"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 6.5V17M12 11H5v6M12 11h7v6"/></svg><span>Мэдлэгийн мод</span></button>
       <button id="newChat" class="ghost" type="button" title="Яриаг цэвэрлэж шинээр эхлэх"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Шинэ яриа</span></button>
       <button id="openSettings" class="ghost" type="button" title="Дууны тохиргоо" aria-label="Дууны тохиргоо"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#fff"/><circle cx="15" cy="17" r="3" fill="#fff"/></svg><span>Тохиргоо</span></button>
     </div>
   </header>
 
+  <div class="workspace">
+  <div class="chat">
   <main id="scroll" class="scroll">
     <div class="column">
       <section id="welcome" class="welcome">
@@ -148,6 +194,22 @@ dialog::backdrop{background:rgba(20,30,26,.35)}
       <p class="foot">Хариулт бүр сургуулийн вэб сайт болон сургуулиас өгсөн мэдээллээс, эх сурвалжтайгаа гарна.</p>
     </div>
   </section>
+  </div>
+  <aside id="knowledge" class="knowledge" aria-label="Мэдлэгийн мод ба мэдээллийн сан">
+    <div class="k-head">
+      <div class="k-tabs" role="tablist">
+        <button id="kTabTree" class="k-tab on" type="button" role="tab" aria-selected="true">Мэдлэгийн мод</button>
+        <button id="kTabData" class="k-tab" type="button" role="tab" aria-selected="false">Мэдээллийн сан</button>
+      </div>
+      <button id="kClose" class="ghost k-close" type="button" aria-label="Самбарыг хаах" title="Хаах">×</button>
+    </div>
+    <div class="k-body">
+      <div id="kNow" class="k-now" aria-live="polite"><strong>Асуулт бүр модны хаанаас хайгдах вэ?</strong>Асуултаа асуухад хариулт аль хүрээ, аль дэд хэсгээс, ямар мэдээллээс олдсоныг энд тодруулна.</div>
+      <div id="kTree" role="tabpanel" aria-labelledby="kTabTree"></div>
+      <div id="kData" role="tabpanel" aria-labelledby="kTabData" hidden></div>
+    </div>
+  </aside>
+  </div>
 </div>
 
 <dialog id="settings" aria-labelledby="settingsTitle">
@@ -315,6 +377,7 @@ function renderTurn(turn, result) {
   } else if (result.answer_kind === "reception_table_lookup" && answer) {
     target.append(el("p", "Эх сурвалж: сургуулиас өгсөн хүснэгт (өрөө, ажилтан, анги, хичээлийн хуваарь).", "hint"));
   }
+  if (result.knowledge) { target.append(placeLine(result.knowledge)); showPlace(result.knowledge); }
   if (result.speech_notice) target.append(el("p", result.speech_notice, "hint"));
   if (hasReply(result) && result.can_speak !== false) {
     const actions = el("div", undefined, "actions"), button = el("button", undefined, "listen"); button.type = "button"; button.innerHTML = SVG_SPEAKER + "<span>Сонсох</span>";
@@ -322,6 +385,94 @@ function renderTurn(turn, result) {
   }
   refresh(); scrollDown();
 }
+// ---- the knowledge tree beside the chat (11/26) ----------------------------------------------------------
+// The server sends the tree (11 domains with sub-sections and what each holds) and the data sets; every reply
+// carries where in the tree it came from (result.knowledge). Nothing here changes an answer.
+let knowledge = null;
+const COUNT_WORDS = [["pages", "хуудас", "site"], ["sections", "хэсэг", "site"], ["answers", "бэлэн хариулт", "site"], ["rows", "хүснэгтийн мөр", "school"]];
+function countBadges(counts) {
+  const box = el("div", undefined, "k-counts");
+  for (const [key, word, kind] of COUNT_WORDS) if (counts?.[key]) box.append(el("span", counts[key] + " " + word, "k-count " + kind));
+  return box;
+}
+function drawTree() {
+  const box = $("kTree"); box.replaceChildren();
+  box.append(el("p", "Сургуулийн мэдээллийг 11 хүрээ, тэдгээрийн дэд хэсгээр зохион байгуулсан. Асуулт бүр эдгээрийн аль нэгээс хайгдана. Хөх — сайтын мэдээлэл, ногоон — сургуулиас өгсөн хүснэгт.", "k-intro"));
+  (knowledge?.tree || []).forEach((domain, index) => {
+    const card = el("section", undefined, "k-domain"); card.dataset.id = domain.id;
+    const head = el("div", undefined, "k-dhead"); head.append(el("span", String(index + 1), "k-num"), el("strong", domain.label));
+    card.append(head, countBadges(domain.counts));
+    if (domain.children?.length) {
+      const chips = el("div", undefined, "k-chips");
+      for (const child of domain.children) { const chip = el("span", child.label, "k-chip"); chip.dataset.id = child.id; chips.append(chip); }
+      card.append(chips);
+    }
+    box.append(card);
+  });
+}
+function drawData() {
+  const box = $("kData"); box.replaceChildren();
+  box.append(el("p", "Туслах зөвхөн доорх мэдээллээс хариулна. Хариулт бүр аль мэдээллээс гарсныг эх сурвалжтай нь харуулдаг.", "k-intro"));
+  for (const set of knowledge?.datasets || []) {
+    const card = el("article", undefined, "k-set " + set.kind); card.append(el("h4", set.title));
+    const list = el("ul"); for (const line of set.lines || []) list.append(el("li", line)); card.append(list);
+    if (set.feeds?.length) { const feeds = el("div", undefined, "k-feeds"); for (const name of set.feeds) feeds.append(el("span", name, "k-chip")); card.append(el("p", "Модны хүрээ:", "small"), feeds); }
+    box.append(card);
+  }
+}
+function showTab(tab) {
+  const tree = tab === "tree";
+  $("kTree").hidden = !tree; $("kData").hidden = tree;
+  $("kTabTree").classList.toggle("on", tree); $("kTabData").classList.toggle("on", !tree);
+  $("kTabTree").setAttribute("aria-selected", String(tree)); $("kTabData").setAttribute("aria-selected", String(!tree));
+}
+function placeText(place) {
+  return place.domain + (place.topic ? " › " + place.topic : "") + (place.source_label ? " · " + place.source_label : "");
+}
+function showPlace(info) {
+  document.querySelectorAll(".k-domain.hit,.k-domain.asked,.k-chip.hit").forEach(node => node.classList.remove("hit", "asked"));
+  const now = $("kNow"); now.replaceChildren();
+  if (!info) return;
+  const found = Array.isArray(info.places) && info.places.length;
+  if (found) {
+    now.append(el("strong", "Энэ асуултын хариулт олдсон газар:", "ok"));
+    for (const place of info.places) {
+      now.append(el("div", "✓ " + placeText(place)));
+      document.querySelector('.k-domain[data-id="' + CSS.escape(place.domain_id) + '"]')?.classList.add("hit");
+      if (place.topic_id) document.querySelector('.k-chip[data-id="' + CSS.escape(place.topic_id) + '"]')?.classList.add("hit");
+    }
+  } else {
+    now.append(el("strong", "Энэ асуултын хариулт олдсонгүй.", "miss"));
+    const asked = (info.asked || []).map(item => item.domain);
+    now.append(el("div", asked.length ? "Хайсан хүрээ: " + asked.join(", ") : "Асуулт модны аль хүрээнд хамаарахыг тодорхойлж чадсангүй."));
+    for (const item of info.asked || []) document.querySelector('.k-domain[data-id="' + CSS.escape(item.domain_id) + '"]')?.classList.add("asked");
+  }
+  showTab("tree");
+  document.querySelector(".k-domain.hit,.k-domain.asked")?.scrollIntoView({ block: "center", behavior: "auto" });
+}
+function placeLine(info) {
+  const button = el("button", undefined, "kplace"); button.type = "button"; button.title = "Мэдлэгийн модноос харах";
+  const found = Array.isArray(info?.places) && info.places.length;
+  const dot = el("span", undefined, "kdot " + (found ? (info.places[0].source === "table" ? "school" : "site") : "miss"));
+  const words = found ? "Мэдлэгийн мод: " + info.places.map(placeText).join("; ") : "Мэдлэгийн мод: олдсонгүй" + ((info?.asked || []).length ? " — хайсан хүрээ: " + info.asked.map(item => item.domain).join(", ") : "");
+  button.append(dot, el("span", words));
+  button.addEventListener("click", () => { openTree(); showPlace(info); });
+  return button;
+}
+function openTree() { $("app").classList.remove("tree-closed"); $("app").classList.add("tree-open"); }
+function closeTree() { $("app").classList.add("tree-closed"); $("app").classList.remove("tree-open"); }
+$("toggleTree").addEventListener("click", () => {
+  const app = $("app"), wide = window.matchMedia("(min-width: 1101px)").matches;
+  const visible = wide ? !app.classList.contains("tree-closed") : app.classList.contains("tree-open");
+  visible ? closeTree() : openTree();
+});
+$("kClose").addEventListener("click", closeTree);
+$("kTabTree").addEventListener("click", () => showTab("tree"));
+$("kTabData").addEventListener("click", () => showTab("data"));
+(async () => {
+  try { knowledge = await api("/api/knowledge"); drawTree(); drawData(); if (new URLSearchParams(location.search).get("tab") === "data") showTab("data"); }
+  catch { $("kTree").replaceChildren(el("p", "Мэдлэгийн модыг ачаалж чадсангүй.", "k-intro")); }
+})();
 function scrollDown() { const area = $("scroll"); area.scrollTo({ top: area.scrollHeight, behavior: "smooth" }); }
 function sizeBox() { const box = $("query"); box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 160) + "px"; }
 

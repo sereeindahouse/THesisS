@@ -102,6 +102,17 @@ class ChatServerTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual(self.request('POST', path, {'query': 'x'})[0], 404)
 
+    def test_the_knowledge_tree_and_the_data_sets_are_served(self):
+        # 11/26: the tree beside the chat — eleven domains with their sub-sections, and the data sets in counts.
+        status, body = self.request('GET', '/api/knowledge')
+        self.assertEqual(status, 200)
+        value = json.loads(body)
+        self.assertEqual(len(value['tree']), 11)
+        self.assertTrue(all(domain['children'] is not None for domain in value['tree']))
+        self.assertIn('tree', {item['kind'] for item in value['datasets']})
+        result = json.loads(self.request('POST', '/api/route', {'query': 'Зохиомол асуулт юу вэ?'})[1])
+        self.assertIn('places', result['knowledge'])
+
     def test_a_question_is_answered_through_the_route(self):
         status, body = self.request('POST', '/api/route', {'query': 'Зохиомол асуулт юу вэ?'})
         self.assertEqual(status, 200)

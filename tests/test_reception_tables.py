@@ -432,8 +432,10 @@ class ImportedReceptionSafetyTests(unittest.TestCase):
         self.rows['rooms'][0]['services'] = json.dumps([
             dict(name='Зохиомол сан', office_hours='', contact='—')], ensure_ascii=False)
         path = self.path()
-        self.assertEqual(path.answer('Зохиомол Шинэ багшийн өрөө хаана вэ?')['reason_code'],
-                         'reception_room_unknown')
+        # Since 11/25 the person is named and the missing room is said, not guessed (no room in the answer).
+        missing_room = path.answer('Зохиомол Шинэ багшийн өрөө хаана вэ?')
+        self.assertEqual(missing_room['reason_code'], 'reception_teacher_office_unrecorded')
+        self.assertIn('Ажлын өрөө нь бүртгэлд алга.', missing_room['answer'])
         self.assertEqual(path.answer('Зохиомол Хүн багш хэзээ оюутантай уулздаг вэ?')['reason_code'],
                          'reception_teacher_hours')
         self.assertEqual(path.answer('Зохиомол сан хэдэн цагт ажилладаг вэ?')['reason_code'],

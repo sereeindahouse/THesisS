@@ -770,7 +770,8 @@ def compose(query, plan, results):
                 parts=[dict(original=part['original'], query=part['query'], rewrites=part['rewrites'],
                             route=result.get('route'), reason_code=result.get('reason_code'),
                             answer_kind=result.get('answer_kind'), answered=ok,
-                            source_urls=_source_urls(result)[:3])
+                            source_urls=_source_urls(result)[:3], answer_faq_id=result.get('answer_faq_id'),
+                            locators=[c.get('locator') for c in result.get('citations') or [] if c.get('locator')][:3])
                        for part, result, ok in zip(plan['parts'], results, answered)])
     base['reason_codes'] = [base['reason_code']]
     if referral:
