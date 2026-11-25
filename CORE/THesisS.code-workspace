@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#C6A8EF"
     },
-    "window.title": "[THesisS · III] III/I · 12/01 Үзлэг №1: чатын хэсгийг үзүүлнэ (11/24-ний семинар: «software тал дээр юу… ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · III] III/I · 12/01 Үзлэг №1: чатын хэсгийг үзүүлнэ. Чатын тусдаа хуулбар; багш, өрөө, алба, … ${separator} ${dirty}${activeEditorShort}"
   }
 }
