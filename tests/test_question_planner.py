@@ -279,8 +279,9 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(p.plan('Компьютерын 2-р курсынхан хэдэн тоот өрөөнд байдаг вэ?')),
                          ['КУ-2 анги хаана хичээллэдэг вэ?'])
         self.assertEqual(self.queries(p.plan('КУ-2 ангийн багш нь хэн бэ?')), ['КУ-2 ангийн багш хэн бэ?'])
-        # A time-bound question is a timetable question, not the registered room.
-        self.assertFalse(p.plan('КУ-2 өнөөдөр хаана хичээллэх вэ?')['changed'])
+        # A time-bound question is a timetable question, not the registered room: since 11/25 it asks that day's
+        # lessons with their rooms (it used to be left as asked, and was then refused as «today's state»).
+        self.assertEqual(self.queries(p.plan('КУ-2 өнөөдөр хаана хичээллэх вэ?')), ['КУ-2 анги өнөөдөр хэдэн цагт хичээлтэй вэ?'])
 
     def test_short_office_name_becomes_the_unique_table_name(self):
         p = planner()

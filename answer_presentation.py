@@ -522,6 +522,49 @@ def _plain(original, fallback):
     return ' '.join(kept) or fallback
 
 
+# --- a website excerpt that is only menu or tile labels ------------------------------------------------------
+# 11/25, the user: «хариулт хангалтгүй». «Механик инженерийн хөтөлбөрийн талаар хэлж өгөөч» showed «Дэлгэрэнгүй / 03 /
+# Механик инженерийн тэнхим» (a tile of the departments index), «Карьер хөгжлийн төв юу хийдэг вэ?» showed a floor
+# plan's «Сэтгэл зүйчийн өрөө: 08 / Техникийн өрөө: 09». Such an excerpt holds no sentence: it is not an answer to
+# an open question. A question that asks for one value (хэд, хэзээ, хэн, хаана, утас …) may be answered by a tile's
+# number or date, so it is left to the typed-value check.
+_CLOSED = re.compile(r'[.!?…]["»”)]?$')                     # a line closed like a sentence
+_VALUE_ASKED = re.compile(r'(?<!\w)(?:хэд|хэдэн|хэддүгээр|хэдий|хэзээ|хэн|хэнд|хаана|хаашаа|аль)(?!\w)|'
+                          r'утас|мэйл|шуудан|(?<!\w)хаяг|дугаар', re.I)
+
+
+def is_fragment(text):
+    """Whether the text is labels only. A line says something when it is closed like a sentence («Тийм, дотуур
+    байртай.»), lists things with a comma («Математик, англи хэл»), or is long; two or more list items also do.
+    Short lines without any of these («Дэлгэрэнгүй», «03», «Техникийн өрөө: 09») are a page's labels.
+    Code review 11/25: the first form asked for five words and a full stop, which would have withheld short
+    correct answers."""
+    lines = [line.strip() for line in str(text or '').split('\n') if line.strip()]
+    if not lines:
+        return False
+    if sum(line.startswith(('•', '-', '–')) for line in lines) >= 2:
+        return False
+
+    def says_something(line):
+        words = re.findall(r'[^\W\d_]{2,}', line)
+        return (len(words) >= 2 and _CLOSED.search(line) is not None) or (len(words) >= 3 and ',' in line) or len(words) >= 10
+    return not any(says_something(line) for line in lines)
+
+
+def withhold_fragment(result):
+    """A website excerpt of labels only, shown for an open question, becomes «not found» (where to ask is added
+    after it); the withheld text stays in ``withheld_answer`` for the audit."""
+    if (not isinstance(result, dict) or result.get('answer_kind') != 'rag_generated'
+            or not isinstance(result.get('answer'), str) or not result['answer'].strip()
+            or _VALUE_ASKED.search(str(result.get('query') or ''))):
+        return result
+    if not is_fragment(clean_text(result['answer'])):
+        return result
+    result.update(route='E', withheld_answer=result['answer'], answer=None, citations=[], clarification=None,
+                  reason_code='website_fragment_withheld', message=_NOT_FOUND)
+    return result
+
+
 def present(result, *, confirmed_school_hours=False):
     """Plain wording for one checked reply; returns the same dict (also when unchanged)."""
     if not isinstance(result, dict):

@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ШМТК · Ухаалаг туслах</title>
+<style>
+:root{color-scheme:light;--ink:#1f2c28;--muted:#6b7772;--line:#e2e8e4;--accent:#176752;--accent-dark:#0f4a3a;--surface:#fbfcfa;--soft:#eef4f0;--warn:#7a5a1e;--error:#9b2c2c;--user:#176752}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;font:16px/1.55 "Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--surface)}
+button,textarea,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.5}
+a{color:var(--accent)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.app{display:flex;flex-direction:column;height:100%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;border-bottom:1px solid var(--line);background:#fff}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--accent);color:#fff}
+.brand strong{display:block;font-size:17px;line-height:1.2}
+.brand small{color:var(--muted)}
+.top-actions{display:flex;gap:8px}
+.ghost{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.ghost:hover:not(:disabled){background:var(--soft)}
+.scroll{flex:1;overflow-y:auto;padding:24px 20px}
+.column{max-width:820px;margin:0 auto}
+.welcome{text-align:center;padding:5vh 0 2vh}
+.welcome h1{margin:0 0 6px;font-size:28px;font-weight:650}
+.welcome p{margin:0 0 22px;color:var(--muted)}
+.topics{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;text-align:left}
+.topics button{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fff;text-align:left}
+.topics button:hover:not(:disabled){border-color:var(--accent);background:var(--soft)}
+.topics small{display:block;color:var(--muted);font-size:12.5px;margin-bottom:2px}
+.messages{display:flex;flex-direction:column;gap:18px}
+.user{align-self:flex-end;max-width:80%;padding:10px 15px;border-radius:16px 16px 4px 16px;background:var(--user);color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
+.user details{margin-top:6px;font-size:13px;opacity:.9}
+.assistant{display:flex;gap:12px;align-items:flex-start}
+.assistant-mark{flex:none;display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:var(--soft);color:var(--accent);font-size:17px}
+.body{flex:1;min-width:0;padding:14px 16px;border:1px solid var(--line);border-radius:4px 16px 16px 16px;background:#fff}
+.notice{margin:0 0 8px;color:var(--muted);font-size:13.5px}
+.answer p{margin:0 0 10px;white-space:pre-line;overflow-wrap:anywhere}
+.answer p:last-child,.answer ul:last-child,.answer .facts:last-child{margin-bottom:0}
+.answer h3{margin:14px 0 6px;font-size:15.5px;color:var(--accent-dark)}
+.answer h3:first-child{margin-top:0}
+.answer ul{margin:0 0 10px;padding-left:22px}
+.answer li{margin:2px 0}
+.facts{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:4px 14px;margin:0 0 10px}
+.facts dt{color:var(--muted)}
+.facts dd{margin:0;overflow-wrap:anywhere}
+.where{margin:10px 0 0;padding:10px 12px;border-left:3px solid var(--accent);background:var(--soft);border-radius:0 10px 10px 0;white-space:pre-line}
+.options{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.options button{padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:14.5px;text-align:left}
+.options button:hover:not(:disabled){border-color:var(--accent);background:var(--soft)}
+.hint{margin:12px 0 0;color:var(--muted);font-size:13.5px}
+.sources{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:13.5px}
+.sources summary{cursor:pointer;color:var(--muted)}
+.sources ul{margin:8px 0 0;padding-left:20px}
+.sources li{margin:3px 0}
+.sources .locator{color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:12px}
+.card{display:flex;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px}
+.card img{width:74px;height:96px;object-fit:cover;border-radius:8px;flex:none}
+.card h4{margin:0 0 2px;font-size:15px}
+.card p{margin:0;color:var(--muted);font-size:13px}
+.actions{display:flex;gap:8px;margin-top:12px}
+.listen{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13.5px}
+.listen:hover:not(:disabled){background:var(--soft)}
+.dock{margin-top:10px}
+.dock audio{width:100%}
+.waiting{margin:0;color:var(--muted)}
+.waiting::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:dots 1.2s steps(4,end) infinite}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+.failed{margin:0 0 8px;color:var(--error)}
+.composer-area{border-top:1px solid var(--line);background:#fff;padding:10px 20px 14px}
+.status{min-height:1.2em;margin:0 0 6px;color:var(--muted);font-size:13.5px}
+.status.recording{color:var(--error);font-weight:600}
+.composer{display:flex;align-items:flex-end;gap:8px;padding:8px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.composer:focus-within{border-color:var(--accent)}
+.composer textarea{flex:1;border:0;outline:0;resize:none;background:transparent;padding:8px;max-height:160px}
+.round{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:50%;background:transparent}
+.round:hover:not(:disabled){background:var(--soft)}
+.round.send{background:var(--accent);color:#fff}
+.round.send:hover:not(:disabled){background:var(--accent-dark)}
+.round.stop{width:auto;padding:0 14px;border-radius:999px;background:var(--error);color:#fff;gap:6px;display:inline-flex;align-items:center}
+.foot{margin:6px 0 0;text-align:center;color:var(--muted);font-size:12.5px}
+.capture{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:13.5px;color:var(--muted)}
+.capture audio{height:32px}
+.followup-bar{display:flex;align-items:center;gap:10px;margin:0 0 6px;font-size:13.5px;color:var(--muted)}
+dialog{border:1px solid var(--line);border-radius:16px;padding:0;max-width:520px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(20,30,26,.35)}
+.dialog-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.dialog-head h2{margin:0;font-size:18px}
+.dialog-body{padding:16px 18px;display:grid;gap:12px}
+.dialog-body label{display:grid;gap:4px;font-size:14.5px}
+.dialog-body select,.dialog-body input[type=password]{padding:8px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.dialog-body .check{display:flex;gap:8px;align-items:flex-start}
+.small{font-size:13px;color:var(--muted);margin:0}
+@media (max-width:600px){.top{padding:8px 12px}.scroll{padding:16px 12px}.composer-area{padding:8px 12px 12px}.user{max-width:92%}.ghost span{display:none}.facts{grid-template-columns:1fr}.facts dt{margin-top:4px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="m3 8 9-5 9 5-9 5-9-5Zm4 3v6c3 3 7 3 10 0v-6M21 8v8"/></svg></span>
+      <span><strong>ШМТК · Ухаалаг туслах</strong><small>Шинэ Монгол технологийн коллеж</small></span>
+    </div>
+    <div class="top-actions">
+      <button id="newChat" class="ghost" type="button" title="Яриаг цэвэрлэж шинээр эхлэх"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Шинэ яриа</span></button>
+      <button id="openSettings" class="ghost" type="button" title="Дууны тохиргоо" aria-label="Дууны тохиргоо"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#fff"/><circle cx="15" cy="17" r="3" fill="#fff"/></svg><span>Тохиргоо</span></button>
+    </div>
+  </header>
+
+  <main id="scroll" class="scroll">
+    <div class="column">
+      <section id="welcome" class="welcome">
+        <h1>Сайн байна уу! Юу мэдэхийг хүсэж байна вэ?</h1>
+        <p>Сургуулийн талаар бичгээр эсвэл микрофоноор Монголоор асуугаарай.</p>
+        <div class="topics" aria-label="Жишээ асуултууд">
+          <button type="button" data-example="Сургалтын төлбөр хэд вэ?"><small>Элсэлт, төлбөр</small>Сургалтын төлбөр хэд вэ?</button>
+          <button type="button" data-example="Элсэлтийн шалгалтад ямар ямар хичээл ордог вэ?"><small>Элсэлт, төлбөр</small>Элсэлтийн шалгалтад ямар хичээл ордог вэ?</button>
+          <button type="button" data-example="Ямар ямар мэргэжлээр сургадаг вэ?"><small>Хөтөлбөр</small>Ямар мэргэжлээр сургадаг вэ?</button>
+          <button type="button" data-example="Төгсөөд Японд үргэлжлүүлж сурч болох уу?"><small>Төгсөлтийн дараа</small>Төгсөөд Японд сурч болох уу?</button>
+          <button type="button" data-example="Сургалтын алба хаана байдаг вэ?"><small>Алба, өрөө</small>Сургалтын алба хаана байдаг вэ?</button>
+          <button type="button" data-example="Номын сан хаана байдаг вэ?"><small>Алба, өрөө</small>Номын сан хаана байдаг вэ?</button>
+          <button type="button" data-example="Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?"><small>Багш, ажилтан</small>Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?</button>
+          <button type="button" data-example="КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ?"><small>Хичээлийн хуваарь</small>КУ-2 анги маргааш хэдэн цагт хичээлтэй вэ?</button>
+        </div>
+      </section>
+      <div id="messages" class="messages" role="log" aria-label="Яриа" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <section class="composer-area" aria-label="Асуултаа илгээх">
+    <div class="column">
+      <div id="followupBar" class="followup-bar" hidden><span>Өмнөх асуултын тодруулгад богино хариулж болно.</span><button id="clearFollowup" class="ghost" type="button">Өөр асуулт асуух</button></div>
+      <div id="capture" class="capture" hidden><span>Таны бичлэг:</span><audio id="capturePlayer" controls preload="metadata"></audio><button id="removeCapture" class="ghost" type="button">Хасах</button></div>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <form id="form" class="composer">
+        <label for="query" class="sr-only">Асуултаа бичнэ үү</label>
+        <textarea id="query" rows="1" maxlength="1000" placeholder="Асуултаа энд бичээрэй…"></textarea>
+        <button id="micStart" class="round" type="button" disabled aria-label="Микрофоноор асуух" title="Микрофоноор асуух"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button>
+        <button id="micStop" class="round stop" type="button" hidden aria-label="Бичлэг дуусгах"><span aria-hidden="true">■</span> Дуусгах</button>
+        <button id="send" class="round send" type="submit" disabled aria-label="Илгээх" title="Илгээх · Enter"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
+      </form>
+      <p class="foot">Хариулт бүр сургуулийн вэб сайт болон сургуулиас өгсөн мэдээллээс, эх сурвалжтайгаа гарна.</p>
+    </div>
+  </section>
+</div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="dialog-head"><h2 id="settingsTitle">Дууны тохиргоо</h2><button id="closeSettings" class="ghost" type="button" aria-label="Хаах">×</button></div>
+  <div class="dialog-body">
+    <label>Хариулт унших хоолой<select id="voice"><option value="mn-MN-BataaNeural">Батаа (эрэгтэй)</option><option value="mn-MN-YesuiNeural">Есүй (эмэгтэй)</option></select></label>
+    <label>Унших хурд<select id="speed"><option value="0.85">Удаан</option><option value="1" selected>Ердийн</option><option value="1.15">Хурдан</option></select></label>
+    <p class="small"><strong>Дуу таних:</strong> <span id="sttState">шалгаж байна…</span></p>
+    <details id="keyBox"><summary>Дуу таних үйлчилгээний түлхүүр</summary>
+      <div class="dialog-body" style="padding:12px 0 0">
+        <p class="small">Яриаг текст болгоход Google-ийн Gemini 3.5 Transcribe үйлчилгээг ашиглана. Түлхүүрийг энэ компьютерт шифрлэж хадгална.</p>
+        <label>AI Studio API түлхүүр<input id="apiKey" type="password" autocomplete="off" spellcheck="false"></label>
+        <label class="check"><input id="freeTier" type="checkbox"><span>Миний AI Studio төсөл үнэгүй түвшинд (Free tier) байгаа.</span></label>
+        <label class="check"><input id="terms" type="checkbox"><span>Үнэгүй түвшинд илгээсэн бичлэгийг Google үйлчилгээгээ сайжруулахад ашиглаж болохыг мэдэж байна.</span></label>
+        <div><button id="saveKey" class="ghost" type="button">Хадгалах</button> <button id="clearKey" class="ghost" type="button">Хадгалсан түлхүүрийг арилгах</button></div>
+      </div>
+    </details>
+  </div>
+</dialog>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const el = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
+const SVG_SPEAKER = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true"><path d="m11 4-5 4H3v8h3l5 4V4Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>';
+
+// ---- state -----------------------------------------------------------------------------------
+const turns = [];
+let asking = false;            // a question is being answered
+let voiceBusy = false;         // speech is being recognised or prepared
+let voice = {};                // the server's voice state
+let sttToken = "";             // this page's token for the speech service routes
+let pendingClarification = null;   // {id}: the next short reply answers the assistant's question
+const ownedClarifications = new Set();
+const ownedAudio = new Set();  // recordings and spoken replies this page created on the server
+let transcription = null;      // {id}: the recognised text now in the box came from this recording
+let mic = { stream: null, recorder: null, timer: null, epoch: 0, starting: false };
+let recorded = null, recordedURL = null;
+let speakGeneration = 0, askGeneration = 0, sttRequest = null;
+
+async function api(path, body, timeout = 45000) {
+  const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(path, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
+    let value;
+    try { value = await response.json(); } catch { throw Error("Серверийн хариуг уншиж чадсангүй. Дахин оролдоно уу."); }
+    if (!response.ok) { const error = Error(value?.error || "Сервер хүсэлтийг боловсруулж чадсангүй."); error.status = response.status; throw error; }
+    return value;
+  } catch (error) {
+    if (error.name === "AbortError") throw Error("Хүлээх хугацаа дууслаа. Сервер ажиллаж байгаа эсэхийг шалгаад дахин оролдоно уу.");
+    throw error;
+  } finally { clearTimeout(timer); }
+}
+
+// ---- rendering an answer ---------------------------------------------------------------------
+// The server sends plain text. Blank lines separate blocks; a block of «• …» lines is a list, a block of
+// «Нэр: утга» lines is a small table, a short first line without a full stop is a heading.
+function renderAnswer(text) {
+  const box = el("div", undefined, "answer");
+  for (const block of text.split(/\n\s*\n/)) {
+    let lines = block.split("\n").map(line => line.trim()).filter(Boolean);
+    if (!lines.length) continue;
+    const bullet = line => /^[•\-–]\s+/.test(line);
+    const fact = line => /^[^:.!?]{2,34}:\s+\S/.test(line) && !/^https?:/.test(line);
+    const heading = lines.length > 1 && lines[0].length <= 90 && !bullet(lines[0]) && !fact(lines[0]) && (/[?:]$/.test(lines[0]) || !/[.!…]$/.test(lines[0]));
+    if (heading) { box.append(el("h3", lines[0].replace(/:$/, ""))); lines = lines.slice(1); }
+    let list = null, facts = null, paragraph = [];
+    const flush = () => { if (paragraph.length) { box.append(el("p", paragraph.join("\n"))); paragraph = []; } };
+    for (const line of lines) {
+      if (bullet(line)) { flush(); facts = null; if (!list) { list = el("ul"); box.append(list); } list.append(el("li", line.replace(/^[•\-–]\s+/, ""))); continue; }
+      list = null;
+      if (fact(line) && lines.filter(fact).length >= 2) {
+        flush(); if (!facts) { facts = el("dl", undefined, "facts"); box.append(facts); }
+        const at = line.indexOf(":"); facts.append(el("dt", line.slice(0, at)), el("dd", line.slice(at + 1).trim())); continue;
+      }
+      facts = null; paragraph.push(line);
+    }
+    flush();
+  }
+  return box;
+}
+function sourceList(citations) {
+  const merged = new Map();
+  for (const c of citations) {
+    const key = c.document_id + "@" + c.version + "@" + c.source_url_or_filename;
+    if (!merged.has(key)) merged.set(key, { ...c, locators: new Set() });
+    if (c.locator) merged.get(key).locators.add(c.locator);
+  }
+  const list = el("ul");
+  for (const c of merged.values()) {
+    const item = el("li"); let url;
+    try { url = new URL(c.source_url_or_filename); } catch {}
+    if (url && ["https:", "http:"].includes(url.protocol)) { const a = el("a", c.title || c.document_id); a.href = url.href; a.target = "_blank"; a.rel = "noopener noreferrer"; item.append(a); }
+    else item.append(el("span", c.title || c.document_id));
+    item.append(el("span", " · сургуулийн сайт" + (c.retrieved_at ? " · " + c.retrieved_at.slice(0, 10) + "-ны байдлаар" : "")));
+    if (c.locators.size) item.append(el("div", [...c.locators].join(" · "), "locator"));
+    list.append(item);
+  }
+  return list;
+}
+function teacherCards(cards) {
+  if (!Array.isArray(cards)) return null;
+  const list = el("div", undefined, "cards"); let count = 0;
+  for (const card of cards) {
+    if (!card || typeof card.name !== "string") continue;
+    let source; try { source = new URL(card.source_url); } catch { continue; }
+    if (source.protocol !== "https:" || source.hostname !== "nmct.edu.mn") continue;
+    const box = el("article", undefined, "card");
+    if (typeof card.image_url === "string" && /^\/api\/teacher-media\/teacher-[a-f0-9]{24}$/.test(card.image_url)) {
+      const image = document.createElement("img"); image.src = card.image_url; image.alt = card.name + " — сургуулийн сайт дээрх зураг"; image.loading = "lazy";
+      image.addEventListener("error", () => image.remove(), { once: true }); box.append(image);
+    }
+    const info = el("div"); info.append(el("h4", card.name));
+    if (typeof card.role === "string") info.append(el("p", card.role));
+    if (typeof card.department === "string") info.append(el("p", card.department));
+    const link = el("a", "Сайтаас үзэх ↗"); link.href = source.href; link.target = "_blank"; link.rel = "noopener noreferrer"; info.append(link);
+    box.append(info); list.append(box); if (++count === 6) break;
+  }
+  return count ? list : null;
+}
+function optionButtons(texts, onPick) {
+  const options = el("div", undefined, "options");
+  for (const text of [...new Set(texts)].filter(t => typeof t === "string" && t.trim()).slice(0, 4)) {
+    const button = el("button", text); button.type = "button"; button.dataset.pick = "1";
+    button.addEventListener("click", () => onPick(text)); options.append(button);
+  }
+  return options;
+}
+function hasReply(result) { return [result?.answer, result?.clarification?.question, result?.message].some(v => typeof v === "string" && v.trim()); }
+
+function renderTurn(turn, result) {
+  turn.result = result; const target = turn.body; target.replaceChildren();
+  if (["raw_stt", "edited_stt"].includes(result.input_lineage?.kind) && !turn.lineage) {
+    const provenance = el("details"); provenance.append(el("summary", result.input_lineage.kind === "edited_stt" ? "Таньсан текстийг зассан" : "Дуунаас таньсан"), el("div", "Анхны танилт: " + result.input_lineage.raw_text));
+    turn.user.append(provenance); turn.lineage = provenance;
+  }
+  if (result.conversation?.applied && result.conversation.resolved_query !== turn.query) target.append(el("p", "Тодруулсан асуулт: " + result.conversation.resolved_query, "notice"));
+  if (typeof result.question_plan?.followup?.rewritten === "string") target.append(el("p", "Өмнөх асуулттай холбож ойлгосон нь: " + result.question_plan.followup.rewritten, "notice"));
+  if (typeof result.latin_script?.read_as === "string") target.append(el("p", "Ингэж ойлголоо: «" + result.latin_script.read_as + "»", "notice"));
+  const answer = typeof result.answer === "string" && result.answer.trim() ? result.answer : "";
+  const note = [result.clarification?.question, result.message].find(v => typeof v === "string" && v.trim()) || "";
+  const understood = /^Таны асуултыг/.test(note);     // «Таны асуултыг «…» гэж ойлгож хариуллаа.»
+  if (answer) {
+    if (note && understood) target.append(el("p", note, "notice"));
+    target.append(renderAnswer(answer));
+    if (note && !understood && note !== answer) target.append(el("p", note, "where"));
+  } else {
+    // Nothing found: what is known first, then where to ask in its own box.
+    const where = typeof result.referral?.text === "string" && note.endsWith(result.referral.text) ? result.referral.text : "";
+    const lead = where ? note.slice(0, note.length - where.length).trim() : note;
+    target.append(renderAnswer(lead || (where ? "Энэ талаар мэдээлэл олдсонгүй." : "Энэ асуултын хариу олдсонгүй.")));
+    if (where) target.append(el("p", where, "where"));
+  }
+  const cards = teacherCards(result.teacher_cards); if (cards) target.append(cards);
+  const clarify = (result.clarification?.options || []).map(option => {
+    if (typeof option?.question !== "string") return null;
+    const years = option.question.match(/20\d{2}\s*[–—-]\s*20\d{2}/);
+    return result.clarification.kind === "missing_year" && result.conversation?.clarification_id ? (years?.[0] || option.question.match(/20\d{2}/)?.[0] || option.question) : option.question;
+  }).filter(Boolean);
+  if (clarify.length) target.append(optionButtons(clarify, text => submit(text, { keepClarification: true })));
+  else if (Array.isArray(result.suggestions) && result.suggestions.length) target.append(el("p", "Ингэж асууж болно:", "hint"), optionButtons(result.suggestions, text => submit(text)));
+  if (result.citations?.length) {
+    const sources = el("details", undefined, "sources"); const unique = new Set(result.citations.map(c => c.source_url_or_filename));
+    sources.append(el("summary", "Эх сурвалж · " + unique.size), sourceList(result.citations)); target.append(sources);
+  } else if (result.answer_kind === "reception_table_lookup" && answer) {
+    target.append(el("p", "Эх сурвалж: сургуулиас өгсөн хүснэгт (өрөө, ажилтан, анги, хичээлийн хуваарь).", "hint"));
+  }
+  if (result.speech_notice) target.append(el("p", result.speech_notice, "hint"));
+  if (hasReply(result) && result.can_speak !== false) {
+    const actions = el("div", undefined, "actions"), button = el("button", undefined, "listen"); button.type = "button"; button.innerHTML = SVG_SPEAKER + "<span>Сонсох</span>";
+    button.addEventListener("click", () => speak(turn)); actions.append(button); target.append(actions);
+  }
+  refresh(); scrollDown();
+}
+function scrollDown() { const area = $("scroll"); area.scrollTo({ top: area.scrollHeight, behavior: "smooth" }); }
+function sizeBox() { const box = $("query"); box.style.height = "auto"; box.style.height = Math.min(box.scrollHeight, 160) + "px"; }
+
+// ---- asking ----------------------------------------------------------------------------------
+function showFollowupBar() { $("followupBar").hidden = !pendingClarification; $("query").placeholder = pendingClarification ? "Тодруулгын хариугаа энд бичээрэй…" : "Асуултаа энд бичээрэй…"; }
+async function dropClarifications(ids) { if (!ids.length) return; for (const id of ids) ownedClarifications.delete(id); try { await api("/api/conversation/reset", { clarification_ids: ids }); } catch {} }
+function clearClarification() { const previous = pendingClarification; pendingClarification = null; showFollowupBar(); if (previous) dropClarifications([previous.id]); }
+
+function addTurn(query) {
+  const turn = { query, result: null, clarification: pendingClarification, transcriptionId: transcription?.id || null };
+  pendingClarification = null; showFollowupBar(); turns.push(turn); $("welcome").hidden = true;
+  turn.user = el("div", query, "user");
+  const row = el("article", undefined, "assistant"), mark = el("div", "✦", "assistant-mark"); mark.setAttribute("aria-hidden", "true");
+  turn.body = el("div", undefined, "body"); row.append(mark, turn.body); turn.row = row;
+  $("messages").append(turn.user, row); return turn;
+}
+async function ask(turn) {
+  if (asking) return;
+  asking = true; const generation = ++askGeneration; stopSpeech();
+  turn.body.replaceChildren(el("p", "Хариулт хайж байна", "waiting")); $("status").textContent = ""; refresh(); scrollDown();
+  try {
+    // A short follow-up («Имэйл нь?») may borrow what the previous question named, within three minutes.
+    const prior = turns[turns.indexOf(turn) - 1];
+    const context = !turn.clarification && prior?.result && Date.now() - (prior.answeredAt || 0) < 180000 ? (prior.result.question_plan?.followup?.rewritten || prior.result.query || prior.query) : null;
+    const result = await api("/api/route", { query: turn.query, ...(turn.clarification ? { clarification_id: turn.clarification.id } : {}), ...(turn.transcriptionId ? { transcription_id: turn.transcriptionId } : {}), ...(typeof context === "string" && context.trim() ? { context_query: context.slice(0, 300) } : {}) }, 120000);
+    turn.answeredAt = Date.now();
+    if (turn.clarification) ownedClarifications.delete(turn.clarification.id);
+    const id = result.conversation?.clarification_id;
+    if (generation !== askGeneration) { if (id) dropClarifications([id]); return; }
+    pendingClarification = id ? { id } : null; if (id) ownedClarifications.add(id); showFollowupBar();
+    renderTurn(turn, result);
+  } catch (error) {
+    if (generation !== askGeneration) return;
+    if (turn.clarification) { dropClarifications([turn.clarification.id]); turn.clarification = null; }
+    const retry = el("button", "Дахин оролдох", "ghost"); retry.type = "button"; retry.addEventListener("click", () => ask(turn));
+    turn.body.replaceChildren(el("p", "Хариулт авч чадсангүй: " + error.message, "failed"), retry); scrollDown();
+  } finally { if (generation === askGeneration) { asking = false; refresh(); } }
+}
+function submit(text, { keepClarification = false } = {}) {
+  if (asking || voiceBusy || mic.starting || mic.recorder?.state === "recording") return;
+  if (!keepClarification) clearClarification();
+  transcription = null; $("query").value = ""; sizeBox(); ask(addTurn(text));
+}
+$("form").addEventListener("submit", event => {
+  event.preventDefault();
+  if (asking || voiceBusy || mic.starting || mic.recorder?.state === "recording") return;
+  const query = $("query").value.trim(); if (!query) return;
+  const turn = addTurn(query); transcription = null; $("query").value = ""; sizeBox(); clearCapture(); ask(turn);
+});
+$("query").addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!$("send").disabled) $("form").requestSubmit(); } });
+$("query").addEventListener("input", () => { if (!$("query").value.trim()) transcription = null; sizeBox(); refresh(); });
+$("clearFollowup").addEventListener("click", () => { clearClarification(); $("query").focus(); });
+document.querySelectorAll("[data-example]").forEach(button => button.addEventListener("click", () => submit(button.dataset.example)));
+
+// ---- speech: listening to a reply ------------------------------------------------------------
+const dock = el("div", undefined, "dock"), player = document.createElement("audio"), dockStatus = el("p", undefined, "hint");
+player.controls = true; player.hidden = true; dock.append(dockStatus, player);
+function stopSpeech() { ++speakGeneration; player.pause(); player.removeAttribute("src"); player.load(); player.hidden = true; dockStatus.textContent = ""; dock.remove(); }
+async function speak(turn) {
+  if (!hasReply(turn.result) || voiceBusy || asking || mic.starting || mic.recorder?.state === "recording") return;
+  stopSpeech(); const generation = speakGeneration, result = turn.result; voiceBusy = true; turn.body.append(dock); dockStatus.textContent = "Дуут хариултыг бэлтгэж байна…"; refresh(); scrollDown();
+  try {
+    const reply = await api("/api/voice/speak", { query: result.query || turn.query, voice: $("voice").value, package_id: result.package_id, release_token: result.content_release?.activation_token ?? null, ...(result.response_id ? { response_id: result.response_id } : {}) });
+    ownedAudio.add(reply.id);
+    if (generation !== speakGeneration) { dropAudio([reply.id]); return; }
+    player.src = reply.audio_url; player.hidden = false; dockStatus.textContent = ""; player.playbackRate = Number($("speed").value);
+    try { await player.play(); } catch { dockStatus.textContent = "Дуу бэлэн. ▶ дарж сонсоно уу."; }
+  } catch (error) { if (generation === speakGeneration) dockStatus.textContent = error.message; }
+  finally { voiceBusy = false; refresh(); }
+}
+$("speed").addEventListener("change", () => { player.playbackRate = Number($("speed").value); });
+$("voice").addEventListener("change", stopSpeech);
+async function dropAudio(ids) {
+  const pending = [...new Set(ids)];
+  for (let start = 0; start < pending.length; start += 100) { const batch = pending.slice(start, start + 100); try { await api("/api/voice/reset", { ids: batch }); for (const id of batch) ownedAudio.delete(id); } catch { return; } }
+}
+
+// ---- speech: asking by voice -----------------------------------------------------------------
+function sttReady() { return voice.gemini?.ready === true; }
+function showSttState() {
+  const cloud = voice.gemini || {};
+  $("sttState").textContent = cloud.ready ? "бэлэн" : cloud.configured ? (cloud.retry_after_seconds > 0 ? "үйлчилгээний хязгаарт хүрсэн; " + cloud.retry_after_seconds + " секундийн дараа дахин оролдоно" : "холболтыг шалгана уу") : "түлхүүр оруулаагүй";
+  if (!cloud.configured) $("keyBox").open = true;
+}
+async function loadStt({ signal } = {}) {
+  const response = await fetch("/api/voice/gemini/session", { signal }); const value = await response.json();
+  if (!response.ok) throw Error(value.error || "Дуу таних тохиргоог уншиж чадсангүй.");
+  sttToken = value.csrf_token; voice.gemini = value; showSttState(); refresh();
+}
+function clearCapture() { $("capture").hidden = true; recorded = null; if (recordedURL) { URL.revokeObjectURL(recordedURL); recordedURL = null; } const p = $("capturePlayer"); p.pause(); p.removeAttribute("src"); p.load(); }
+function cancelStt() { const request = sttRequest; if (!request) return; sttRequest = null; clearTimeout(request.timer); request.controller.abort(); voiceBusy = false; }
+function stopMic(abandon = false) {
+  if (abandon) ++mic.epoch;
+  if (mic.timer) clearTimeout(mic.timer); mic.timer = null;
+  if (mic.recorder?.state === "recording") mic.recorder.stop();
+  if (mic.stream) mic.stream.getTracks().forEach(track => track.stop());
+  mic.stream = null; mic.starting = false; refresh();
+}
+async function recognise() {
+  if (!recorded || voiceBusy) return;
+  const audio = recorded; transcription = null; $("query").value = ""; sizeBox(); voiceBusy = true; refresh();
+  $("status").className = "status"; $("status").textContent = "Яриаг таньж байна…";
+  const request = { controller: new AbortController(), timer: null }; sttRequest = request;
+  request.timer = setTimeout(() => { if (sttRequest !== request) return; cancelStt(); $("status").textContent = "Яриаг таних хугацаа дууслаа. Дахин бичих эсвэл асуултаа бичиж илгээнэ үү."; refresh(); }, 120000);
+  try {
+    await loadStt({ signal: request.controller.signal });      // the server may have restarted: a fresh token, no call to Google
+    if (sttRequest !== request) return;
+    if (!sttReady()) throw Error("Дуу таних үйлчилгээ бэлэн биш байна. Тохиргоог шалгана уу, эсвэл асуултаа бичнэ үү.");
+    const response = await fetch("/api/voice/transcribe", { method: "POST", headers: { "Content-Type": audio.type || "audio/webm", "X-Gemini-Token": sttToken, "X-Gemini-Audio-Consent": "send-this-audio" }, body: audio, signal: request.controller.signal });
+    const value = await response.json(); if (!response.ok) throw Error(value.error || "Яриаг таньж чадсангүй.");
+    ownedAudio.add(value.id);
+    if (sttRequest !== request) { dropAudio([value.id]); return; }
+    const usable = value.speech_text_available !== false && typeof value.text === "string" && value.text.trim();
+    transcription = usable ? { id: value.id } : null; $("query").value = value.text || ""; sizeBox();
+    $("status").textContent = (!usable || value.recognition_review?.needs_extra_review) ? (value.message || "Яриа тод сонсогдсонгүй. Дахин хэлнэ үү.") : "Таньсан текстээ шалгаад ↑ дарж илгээнэ үү.";
+    if (usable) $("query").focus();
+  } catch (error) { if (sttRequest === request) $("status").textContent = error.message; }
+  finally { clearTimeout(request.timer); if (sttRequest === request) { sttRequest = null; voiceBusy = false; refresh(); } loadStt().catch(() => {}); }
+}
+$("micStart").addEventListener("click", async () => {
+  cancelStt(); stopSpeech(); clearCapture(); transcription = null; $("query").value = ""; sizeBox();
+  const epoch = ++mic.epoch; mic.starting = true; refresh(); $("status").className = "status"; $("status").textContent = "Хөтчид микрофон ашиглах зөвшөөрөл өгнө үү…";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: { ideal: true }, noiseSuppression: { ideal: true }, autoGainControl: { ideal: true } }, video: false });
+    if (epoch !== mic.epoch) { stream.getTracks().forEach(track => track.stop()); return; }
+    mic.stream = stream;
+    const mime = ["audio/webm;codecs=opus", "audio/ogg;codecs=opus", "audio/mp4"].find(type => MediaRecorder.isTypeSupported(type));
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {}); mic.recorder = recorder; const chunks = [];
+    recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+    recorder.onerror = () => { stopMic(true); $("status").className = "status"; $("status").textContent = "Микрофоны бичлэг амжилтгүй боллоо. Асуултаа бичиж илгээнэ үү."; };
+    recorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop()); if (mic.recorder === recorder) mic.recorder = null; $("status").className = "status";
+      if (epoch !== mic.epoch) { refresh(); return; }
+      recorded = new Blob(chunks, { type: recorder.mimeType || mime || "audio/webm" }); recordedURL = URL.createObjectURL(recorded); $("capturePlayer").src = recordedURL; $("capture").hidden = false; recognise();
+    };
+    recorder.start(); mic.starting = false; mic.timer = setTimeout(() => stopMic(), 20000);
+    $("status").className = "status recording"; $("status").textContent = "● Бичиж байна… Асуултаа хэлээд «Дуусгах» дарна уу (20 секундэд өөрөө зогсоно)."; refresh();
+  } catch (error) { if (epoch === mic.epoch) { stopMic(true); $("status").className = "status"; $("status").textContent = "Микрофон нээгдсэнгүй: " + error.message; } }
+});
+$("micStop").addEventListener("click", () => stopMic());
+$("removeCapture").addEventListener("click", () => { cancelStt(); clearCapture(); transcription = null; $("status").textContent = ""; refresh(); });
+
+// ---- settings --------------------------------------------------------------------------------
+$("openSettings").addEventListener("click", () => { showSttState(); $("settings").showModal(); });
+$("closeSettings").addEventListener("click", () => $("settings").close());
+$("saveKey").addEventListener("click", async () => {
+  const key = $("apiKey").value; $("apiKey").value = "";
+  try {
+    if (!sttToken) await loadStt();
+    const response = await fetch("/api/voice/gemini/configure", { method: "POST", headers: { "Content-Type": "application/json", "X-Gemini-Token": sttToken }, body: JSON.stringify({ api_key: key, free_tier_confirmed: $("freeTier").checked, data_terms_confirmed: $("terms").checked, max_attempts: 0, remember: true, continuous_use: true }) });
+    const value = await response.json(); if (!response.ok) throw Error(value.error || "Түлхүүрийг хадгалж чадсангүй.");
+    voice.gemini = value; showSttState(); refresh();
+  } catch (error) { $("sttState").textContent = error.message; }
+});
+$("clearKey").addEventListener("click", async () => {
+  try {
+    if (!sttToken) await loadStt();
+    const response = await fetch("/api/voice/gemini/clear", { method: "POST", headers: { "Content-Type": "application/json", "X-Gemini-Token": sttToken }, body: "{}" });
+    const value = await response.json(); if (!response.ok) throw Error(value.error || "Түлхүүрийг арилгаж чадсангүй.");
+    voice.gemini = value; showSttState(); refresh();
+  } catch (error) { $("sttState").textContent = error.message; }
+});
+
+// ---- controls --------------------------------------------------------------------------------
+function refresh() {
+  const recording = mic.recorder?.state === "recording", active = mic.starting || recording, busy = voiceBusy || active || asking;
+  $("micStart").hidden = recording; $("micStop").hidden = !recording;
+  $("micStart").disabled = !sttReady() || busy || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder;
+  $("micStart").title = sttReady() ? "Микрофоноор асуух" : "Дуу таних үйлчилгээ бэлэн биш (Тохиргоо)";
+  $("query").disabled = voiceBusy || active;
+  $("send").disabled = busy || !$("query").value.trim();
+  document.querySelectorAll("[data-example],[data-pick]").forEach(button => { button.disabled = busy; });
+  document.querySelectorAll(".listen").forEach(button => { button.disabled = !voice.tts_ready || busy; button.title = voice.tts_ready ? "Хариултыг дуугаар сонсох" : "Дуугаар унших үйлчилгээ бэлэн биш"; });
+}
+$("newChat").addEventListener("click", () => {
+  ++askGeneration; asking = false; cancelStt(); stopMic(true); stopSpeech(); clearCapture();
+  const ids = [...ownedClarifications]; pendingClarification = null; showFollowupBar(); dropClarifications(ids); dropAudio([...ownedAudio]);
+  transcription = null; turns.length = 0; $("messages").replaceChildren(); $("welcome").hidden = false; $("query").value = ""; sizeBox(); $("status").className = "status"; $("status").textContent = ""; refresh(); $("query").focus();
+});
+window.addEventListener("pagehide", () => {
+  cancelStt(); stopMic(true);
+  if (ownedClarifications.size) fetch("/api/conversation/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clarification_ids: [...ownedClarifications] }), keepalive: true }).catch(() => {});
+  if (ownedAudio.size) fetch("/api/voice/reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: [...ownedAudio].slice(0, 100) }), keepalive: true }).catch(() => {});
+});
+(async () => {
+  try { const status = await api("/api/status"); voice = { ...(status.voice || {}), gemini: voice.gemini || status.voice?.gemini }; }
+  catch (error) { $("status").textContent = "Сервертэй холбогдож чадсангүй: " + error.message; }
+  try { await loadStt(); } catch {}
+  refresh(); $("query").focus();
+  // A link may carry a first question: http://127.0.0.1:8780/?q=Номын сан хаана байдаг вэ?
+  const first = new URLSearchParams(location.search).get("q");
+  if (first && first.trim()) submit(first.trim().slice(0, 1000));
+})();
+</script>
+</body>
+</html>

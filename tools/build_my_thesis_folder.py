@@ -99,6 +99,8 @@ def planned_copies(root: Path):
     add('06_Систем', _newest(root.glob('papers/*rag-how-it-works*.mn.md')), 'RAG_яаж_ажилладаг.mn.md')
     # 11/23 (2): «бүх даалгаврыг хийсэн үү?» — даалгавар бүрийн тулгалт, дутууг нөхсөн тойрог.
     add('06_Систем', _newest(root.glob('papers/*honest-check*.mn.md')), 'Даалгавар_бүрийн_тулгалт.mn.md')
+    # 11/25: «системийн клон хий, зөвхөн чат» ба «хариулт дутуу, богино» — чатын тусдаа хуулбар, бүрэн хариулт.
+    add('06_Систем', _newest(root.glob('papers/*chat-copy*.mn.md')), 'Чатын_хуулбар_ба_бүрэн_хариулт.mn.md')
     add('05_Дэвтэр', root / 'runtime/school-handbook-20261028/ТСА гарын авлага.pdf')
     return plan
 

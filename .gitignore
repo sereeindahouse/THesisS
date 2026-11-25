@@ -676,3 +676,17 @@ __pycache__/
 !/data/content-draft-v4-20261123.json
 !/tools/run_check_set.py
 !/papers/54-check-set-40-development-20261123.mn.md
+# 11/25: the chat alone as a server and a page of its own (chat_server.py, web/index.html), the tool that
+# builds the chat-only copy in a separate folder, complete reception answers and the label-only excerpt guard.
+!/chat_server.py
+!/web/
+/web/*
+!/web/index.html
+!/tools/build_chat_clone.py
+!/tests/test_chat_server.py
+!/tests/test_complete_answers.py
+!/papers/55-chat-copy-and-complete-answers-20261125.mn.md
+# 11/25: stored answers v5 — complete answers for the school topics (history, overview, accreditation, career
+# centre, departments), each built from clauses copied word for word from the saved official pages.
+!/tools/build_content_v5.py
+!/data/content-draft-v5-20261125.json

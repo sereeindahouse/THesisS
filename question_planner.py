@@ -33,7 +33,8 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import NUMBER_UNITS, last_vowel, normalize_wording, spoken_form, strip_context_clause, strip_fillers
+from reception_tables import (NUMBER_UNITS, PERSON_NAME, last_vowel, normalize_wording, spoken_form, strip_context_clause,
+                              strip_fillers)
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 3
@@ -61,6 +62,15 @@ PHONE = re.compile(r'утас|утс[аы]|phone', re.I)
 OTHER_TIME = re.compile(r'маргааш|өчигдөр|нөгөөдөр|(?<!\w)(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)|'
                         r'\d{1,2}:\d{2}|цагт', re.I)
 MEETING = re.compile(r'уулз|одоо|чөлөөтэй|(?<!\w)сул(?!\w)|хичээлтэй', re.I)
+# The planner's own wording of «who is this person» and the questions its answer already covers.
+PERSON_CARD = re.compile(PERSON_NAME + r'(?:\s+багш)?\s+гэж\s+хэн\s+бэ\s*\??', re.I)
+PERSON_COVERED = re.compile(PERSON_NAME + r'\s+багш(?:ийн\s+(?:(?:ажлын\s+)?өрөө\s+хаана|и-?мэйл|имэйл|мэйл|цахим\s+шуудан)|'
+                            r'\s+(?:ямар(?:\s+ямар)?|юу)\s+хичээл\s+заадаг|\s+юу\s+заадаг)', re.I)
+# Right after «<нэр> багш»: «гэж хэн бэ», «хэн бэ», «-ийн талаар / тухай», «-ийг танилцуулна уу» ask who the teacher is.
+# Code review 11/25: anywhere in the question it also caught «… багшийн тэнхимийн эрхлэгч хэн бэ?» and «… багшийн
+# зурагтай танилцуулгыг үзье» (the website introduction with its picture), so only directly after the name.
+WHO = re.compile(r'(?:\s+гэж)?\s+(?:хэн|ямар\s+хүн)\s+(?:бэ|вэ)(?!\w)|\s+гэж\s+хэн(?!\w)|(?:ийн)?\s+(?:талаар|тухай)(?!\w)|'
+                 r'(?:ийг|ыг)?\s+танилцуул', re.I)
 ROOM_ASK = re.compile(r'өрөө|тоот|хаана\s+(?:суудаг|байдаг|ажилладаг|байна)', re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
@@ -280,10 +290,22 @@ class QuestionPlanner:
 
     def _class_day(self, text):
         group, day = self._known_group(text), WEEKDAY.search(text)
+        # 11/25: «КУ-5 анги өнөөдөр хаана хичээлтэй вэ?», «КУ-5 анги одоо хаана байна вэ?» were refused as a question
+        # about today's state; the stored timetable answers them with that day's lessons and rooms.
+        today = None if day else re.search(r'(?<!\w)(өнөөдөр|маргааш|одоо)(?!\w)', text, re.I)
         # «КУ-2 ангийн багш даваа гарагт хичээлтэй юу?» asks about the teacher, not the class.
-        if not group or not day or not re.search(r'хичээл|цаг', text, re.I) or re.search(r'багш', text, re.I):
+        if (not group or not (day or today) or re.search(r'багш', text, re.I)
+                or not re.search(r'хичээл|цаг' + ('|хаана|хуваарь' if today else ''), text, re.I)):
             return text, None
-        canonical = group + ' анги ' + day.group(1).casefold() + ' гарагт хэдэн цагт хичээлтэй вэ?'
+        if today and today.group(1).casefold() == 'одоо':
+            # «КУ-2 анги одоо хаана байна вэ?»: the lesson in progress and the next one (code review 11/25).
+            if not re.search(r'хичээл|хаана', text, re.I):
+                return text, None
+            canonical = group + ' анги одоо хаана хичээлтэй вэ?'
+        elif today:
+            canonical = group + ' анги ' + today.group(1).casefold() + ' хэдэн цагт хичээлтэй вэ?'
+        else:
+            canonical = group + ' анги ' + day.group(1).casefold() + ' гарагт хэдэн цагт хичээлтэй вэ?'
         if canonical.rstrip('?') == text.strip().rstrip('?'):
             return text, None
         return canonical, dict(rule='closed_wording', text=text, value=canonical)
@@ -357,6 +379,13 @@ class QuestionPlanner:
             if full:
                 return (text[:match.start()] + full + ' багшийн' + text[match.end():],
                         dict(rule='staff_name', text=match.group(0), value=full))
+        # 11/25: «Оюунжаргал гэж хэн бэ?», «Хандсүрэн гэдэг хүн хэн бэ?» or the given name alone asks who the
+        # person is; a staff member who is no teacher is named without «багш».
+        match = re.fullmatch(r'\s*([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+(?:гэж|гэдэг\s+хүн|гэдэг\s+багш|гуай))?'
+                             r'(?:\s+хэн\s+(?:бэ|вэ))?\s*[?.!]*\s*', text)
+        full = self.given_names.get(match.group(1).casefold()) if match else None
+        if full:
+            return full + ' гэж хэн бэ?', dict(rule='staff_name', text=match.group(1), value=full)
         return text, None
 
     @staticmethod
@@ -380,7 +409,11 @@ class QuestionPlanner:
                      r'багш\s+одоо\s+хичээлтэй\s+юу|багш\s+хэзээ\s+оюутантай\s+уулздаг|'
                      r'багш\s+(?:одоо\s+)?хаана(?:\s+байна)?\s*(?:вэ)?\s*\??$', text, re.I):
             return text, None
-        if PHONE.search(text):
+        if WHO.match(text[match.end():]) and not re.search(r'ангийн\s+багш|зураг', text, re.I):
+            # 11/25: «Соронзонболд багш гэж хэн бэ хаана байдаг вэ» asks who the teacher is; that answer holds the
+            # room, the e-mail and the lessons too, so the room question after it is not asked separately.
+            canonical = full + ' багш гэж хэн бэ?'
+        elif PHONE.search(text):
             # «холбоо барих утас»: phones are never shown; the phone wording says so and gives
             # the school e-mail instead (not a silent e-mail answer).
             canonical = full + ' багшийн утас?'
@@ -541,6 +574,16 @@ class QuestionPlanner:
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             parts.append(dict(original=original, query=text, rewrites=rewrites))
+        # 11/25: «… багш гэж хэн бэ, хаана суудаг вэ?» — the answer to who a person is already holds the room, the
+        # e-mail and the lessons, so a later part about the same person is not answered a second time.
+        # Only what that answer holds (room, e-mail, subjects): a part about another day, a phone or a meeting is
+        # still asked, and names are compared whole (code review 11/25).
+        described = {match.group(1).replace(' ', '').casefold() for part in parts
+                     for match in [PERSON_CARD.fullmatch(part['query'].strip())] if match}
+        if described and len(parts) > 1:
+            covered = [PERSON_COVERED.match(part['query'].strip()) for part in parts]
+            parts = [part for part, match in zip(parts, covered)
+                     if not (match and match.group(1).replace(' ', '').casefold() in described)]
         result = dict(enabled=self.enabled, compound=len(parts) > 1, parts=parts,
                       changed=len(parts) > 1 or any(p['query'] != query.strip() for p in parts))
         if followup:

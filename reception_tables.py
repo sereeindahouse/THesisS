@@ -735,6 +735,11 @@ _LUNCH_BREAK = re.compile(
 
 
 _OFFICE_NOTES = ('office_weekend', 'office_lunch', 'office_payment_hours')
+# A person named with the initial («Б.Сэлмаа», «А.Номин-Эрдэнэ»); question_planner.py reads the same pattern.
+PERSON_NAME = r'([А-ЯӨҮЁ]\.\s?[А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})'
+# What a completed answer says once, at its end (see ReceptionAnswerPath._completed).
+_CAVEATS = ('Хуваарь өөрчлөгдөж болно.', 'Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.',
+            'Яг одоо хаана байгааг мэдэх боломжгүй.')
 
 
 def _corrected(tables, corrections):
@@ -780,9 +785,12 @@ def _corrected(tables, corrections):
 
 class ReceptionAnswerPath:
     """Exact-name, closed-intent reception lookup. Disabled unless configured."""
-    def __init__(self, tables=None, *, enabled=False, error=None):
+    def __init__(self, tables=None, *, enabled=False, error=None, complete=False):
         self.tables, self.enabled, self.error = tables, enabled is True, error
         self._subjects = {}   # _subject_teachers by asked value: one timetable scan per question (review)
+        # 11/25: an answer about a person, an office, a room or a class also says the other recorded facts a
+        # visitor needs (post, room, school e-mail, lessons today): config ``complete_answers``.
+        self.complete = complete is True
 
     @classmethod
     def from_config(cls, root):
@@ -822,7 +830,8 @@ class ReceptionAnswerPath:
                 raise ReceptionDataError('Resolved reception source is a private data path.')
             return cls(_corrected(load_tables(path, timetable_complete=value.get('timetable_complete', False),
                 dataset_label=value.get('dataset_label', 'Reception tables'),
-                is_fake=value.get('is_fake', False)), value.get('corrections')), enabled=True)
+                is_fake=value.get('is_fake', False)), value.get('corrections')), enabled=True,
+                complete=value.get('complete_answers') is True)
         except FileNotFoundError:
             return cls()
         except (OSError, ValueError, TypeError, AttributeError):
@@ -930,6 +939,8 @@ class ReceptionAnswerPath:
             # Round 9: the class teacher's recorded office; before teacher_room and the legacy
             # teacher lookup, which read «КУ-2 ангийн» as a person's name («багш олдсонгүй»).
             ('class_teacher_room', r'(.{1,120}?) ангийн багш(?:ийн (?:ажлын )?өрөө)? хаана (?:байдаг |байна )?вэ'),
+            # 11/25: «КУ-2 анги одоо хаана байна вэ?» (the planner's wording): the lesson in progress and the next one.
+            ('class_now', r'(.{1,120}?) анги одоо хаана хичээлтэй вэ'),
             ('class_day', r'(.{1,120}?) анги(?:йн)? (?:(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням) гарагт|'
                           r'(өнөөдөр|маргааш)) хэдэн цагт хичээлтэй вэ'),
             # 11/23 (check set Q36): a class code alone, without «анги» («КУ-4 мягмар гарагт хэдэн цагаас хичээлтэй вэ?»).
@@ -959,6 +970,13 @@ class ReceptionAnswerPath:
                             r'(?: (?:байдаг|болдог|эхэлдэг))?(?: вэ)?'),
             # Round 9: «Хичээлийн хуваарь хаанаас харах вэ?» — the class timetable is shown here, by class.
             ('timetable_where', r'(?:хичээлийн |ангийн )?хуваар\w* (?:хаанаас|хаана) (харах|үзэх|олох|харж болох)(?: вэ)?'),
+            # 11/25: «Н.Соронзонболд багш гэж хэн бэ?», «… багшийн талаар хэлж өгөөч», or the name alone — who the
+            # person is (post, room, school e-mail, lessons); «… гэж хэн бэ?» reached «Асуусан хүний нэр олдсонгүй».
+            # Only a name written with its initial (the planner adds it), so «Математикийн багш хэн бэ?» stays a
+            # subject question.
+            ('person_about', PERSON_NAME + r'(?: багш)?(?: гэж)? (?:хэн|ямар хүн) (?:бэ|вэ)'),
+            ('person_about', PERSON_NAME + r' багш(?:ийн|ийг)? (?:талаар|тухай|танилцуул\w*)(?: [^?!,;/]{0,60})?'),
+            ('person_about', PERSON_NAME + r'(?: багш)?'),
             # Round 12: «Б.Сэлмаа багш ямар хичээл заадаг вэ?» — the subjects in the published timetable.
             ('teacher_subjects', r'(.{1,120}?) багш (?:(?:ямар(?: ямар)?|юу) хичээл (?:заадаг|ордог|заах|орох)|юу заадаг) (?:вэ|бэ)'),
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
@@ -1000,8 +1018,9 @@ class ReceptionAnswerPath:
             # Round 12: a post holder's school e-mail («Захирал хэн бэ?» then «Имэйл нь?» -> «Захирал имэйл»).
             ('role_email', r'(.{1,80}?) (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?: хаяг)?(?: (?:нь )?(?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('role_holder', r'(.{1,120}?) (?:нь )?хэн (?:бэ|вэ)'),
+            # 11/25: «Сэтгэл зүйчтэй яаж уулзах вэ?», «Захиралтай хаана уулзах вэ?» ask the same.
             ('role_meet', r'(.{1,120}?)(?:тай|тэй|той) (?:одоо )?(?:уулз(?:аж|ах) (?:болох|болно) уу|уулзах гэсэн(?: юм)?|'
-                          r'уулзмаар байна|уулзъя)'),
+                          r'уулзмаар байна|уулзъя|(?:яаж|хэрхэн|хаана|хэзээ) уулз(?:ах|даг) (?:вэ|бэ))'),
             # Round 12: «КУ-2 ангийн хичээл хэдэн цагт дуусдаг вэ?» (no day) — each weekday's lesson times.
             # «хэзээ эхлэх» (when the term begins) is not a lesson hour (review).
             ('class_hours', r'(.{1,120}?) анги(?:йн)? хичээл(?:үүд)? (?:хэдэн цагт|хэдэн цагаас) (?:дуус|тар|эхэл|эхл)\w*'
@@ -1063,6 +1082,9 @@ class ReceptionAnswerPath:
         if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
         extra = self._extra_match(query)
+        if extra is not None and extra[0] == 'person_about':
+            # Only a person in the staff table; another name goes on to the website's teacher introductions.
+            return self._staff_named(extra[1]) is not None
         if extra is not None and extra[0] == 'place_exists':
             return self._service(extra[1]) is not None or bool(self._purpose_rooms(extra[1]))
         if extra is not None and extra[0] == 'place_where':
@@ -1469,7 +1491,254 @@ class ReceptionAnswerPath:
         text = normalize_wording(query.strip().rstrip('?!？.').strip()).casefold()
         return _LUNCH_BREAK.fullmatch(' '.join(text.split())) is not None
 
+    # -- complete answers (11/25) ------------------------------------------------------------------
+    # The user's example: «Соронзонболд багш гэж хэн бэ, хаана байдаг вэ?» was answered with the room alone, though
+    # the tables also hold the post, the school e-mail and the lessons. A person at the desk would say all of it,
+    # so the answer to what was asked comes first and the other recorded facts follow, one per line.
+    @staticmethod
+    def _role_text(person):
+        """«Компьютерын ухааны тэнхимийн эрхлэгч», «Математикийн багш (Ерөнхий эрдмийн тэнхим)»."""
+        role = re.sub(r'\s*\(хуваариас\)', '', person.role or '').strip()
+        unit = (person.department or '').strip()
+        if not role:
+            return unit
+        if unit and _key(unit) not in _key(role):
+            return role + ' (' + unit + ')'
+        return role
+
+    def _class_groups_of(self, person):
+        return [group.group for group in self.tables.classes if group.teacher and _key(group.teacher) == _key(person.name)]
+
+    def _taught(self, person):
+        """{subject: class groups} this person teaches in the stored timetable."""
+        taught = {}
+        for lesson in self.tables.timetable:
+            if lesson.subject and _key(lesson.teacher) == _key(person.name):
+                taught.setdefault(lesson.subject, set()).add(lesson.group)
+        return taught
+
+    def _today(self, now):
+        """Today's weekday number when the stored timetable applies today, else None (no clock, a holiday,
+        outside the term)."""
+        if not isinstance(now, datetime) or not self.tables.timetable or self._calendar_reason(now):
+            return None
+        return now.weekday()
+
+    def _day_lessons(self, weekday, *, teacher=None, group=None, room=None):
+        """One day's lessons of a teacher, a class or a room in time order, a joint lesson once:
+        «09:35-11:05 Алгоритмын үндэс (КУ-1; 612 тоот)»."""
+        slots = {}
+        for lesson in self.tables.timetable:
+            if (lesson.day != _DAYS[weekday] or teacher is not None and _key(lesson.teacher) != _key(teacher)
+                    or group is not None and _key(lesson.group) != _key(group)
+                    or room is not None and _key(lesson.room) != _key(room)):
+                continue
+            slot = slots.setdefault((lesson.interval, lesson.time, lesson.subject), dict(groups=[], rooms=[], teachers=[]))
+            for field, value in (('groups', lesson.group), ('rooms', lesson.room), ('teachers', lesson.teacher)):
+                if value and value not in slot[field]:
+                    slot[field].append(value)
+        lines = []
+        for (_, time_text, subject), slot in sorted(slots.items(), key=lambda item: item[0][0]):
+            details = []
+            if group is None and slot['groups']:
+                details.append(', '.join(slot['groups'][:4]) + (', …' if len(slot['groups']) > 4 else ''))
+            if room is None and slot['rooms']:
+                details.append(', '.join(slot['rooms'][:4]) + ' тоот')
+            if teacher is None and slot['teachers']:
+                details.append(', '.join(slot['teachers'][:3]) + (', …' if len(slot['teachers']) > 3 else ''))
+            lines.append(time_text + (' ' + subject if subject else '') + (' (' + '; '.join(details) + ')' if details else ''))
+        return lines
+
+    def _person_lines(self, person, now, *, role=True, room=True, email=True, groups=True, subjects=True, today=True):
+        """The recorded facts about a staff member, one «Нэр: утга» line each; only what the tables hold."""
+        lines = []
+        if role and self._role_text(person):
+            lines.append('Албан тушаал: ' + self._role_text(person))
+        place = self._room_of(person)
+        if room and place is not None:
+            lines.append('Ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor))
+        if email and person.email:
+            lines.append('Сургуулийн имэйл: ' + person.email)
+        own = self._class_groups_of(person)
+        if groups and own:
+            lines.append('Ангийн багш: ' + ', '.join(own) + ' анги')
+        taught = self._taught(person)
+        if subjects and taught:
+            shown = sorted(taught.items())
+            lines.append('Заадаг хичээл: ' + '; '.join(
+                subject + ' (' + ', '.join(sorted(names)[:4]) + (', …' if len(names) > 4 else '') + ')'
+                for subject, names in shown[:8]) + (' гэх мэт ' + str(len(shown)) + ' хичээл' if len(shown) > 8 else ''))
+        weekday = self._today(now) if today else None
+        if weekday is not None and taught:
+            lessons = self._day_lessons(weekday, teacher=person.name)
+            if lessons:
+                lines.append('Өнөөдрийн хичээл (' + _MN_DAYS[weekday] + '): ' + '; '.join(lessons))
+            elif self.tables.timetable_complete:
+                lines.append('Өнөөдөр (' + _MN_DAYS[weekday] + '): хуваарьт хичээлгүй')
+        return lines
+
+    def _person_contact(self, person):
+        """«<нэр> (<өрөө> тоот, <давхар>; <сургуулийн имэйл>)» — a person with where to find them."""
+        place = self._room_of(person)
+        details = ([place.name + ' тоот, ' + floor_text(place.floor)] if place is not None else []) + (
+            [person.email] if person.email else [])
+        return person.name + (' (' + '; '.join(details) + ')' if details else '')
+
+    def _office_lines(self, room, service):
+        """The staff the table records for an office, with post and school e-mail."""
+        people = [person for person in self.tables.staff if _key(person.department) == _key(service.name)]
+        if not people:
+            return []
+        return ['Ажилтнууд:'] + ['• ' + person.name + ' — ' + (re.sub(r'\s*\(хуваариас\)', '', person.role) or 'ажилтан')
+                                 + (', ' + person.email if person.email else '') for person in people[:8]]
+
+    def _room_lines(self, room, now):
+        """What is recorded about a room: its unit, who works there, its lessons today."""
+        lines = []
+        if room.department and _key(room.department) not in _key(room.purpose or ''):
+            lines.append('Харьяалал: ' + room.department)
+        people = [person for person in self.tables.staff if person.room and _key(person.room) == _key(room.name)]
+        if people:
+            lines.append('Энэ өрөөнд ажилладаг: ' + '; '.join(person.name for person in people[:10])
+                         + (' гэх мэт ' + str(len(people)) + ' хүн' if len(people) > 10 else ''))
+        weekday = self._today(now)
+        if weekday is not None:
+            lessons = self._day_lessons(weekday, room=room.name)
+            if lessons:
+                lines.append('Өнөөдрийн хичээл (' + _MN_DAYS[weekday] + '): ' + '; '.join(lessons))
+        return lines
+
+    def _class_lines(self, group, now, *, teacher=True, today=True):
+        """A class group's teacher (with where to find them) and its lessons today."""
+        lines = []
+        person = self._staff_named(group.teacher) if group.teacher else None
+        if teacher and group.teacher:
+            lines.append('Ангийн багш: ' + (self._person_contact(person) if person is not None else group.teacher))
+        weekday = self._today(now) if today else None
+        if weekday is not None:
+            lessons = self._day_lessons(weekday, group=group.group)
+            if lessons:
+                lines.append('Өнөөдрийн хичээл (' + _MN_DAYS[weekday] + '): ' + '; '.join(lessons))
+            elif self.tables.timetable_complete:
+                lines.append('Өнөөдөр (' + _MN_DAYS[weekday] + '): хуваарьт хичээлгүй')
+        return lines
+
+    def _department_lines(self, value):
+        """A department's head and the teachers the staff table records for it."""
+        heads = self._role_holders(value + ' тэнхимийн эрхлэгч', True)
+        if len(heads) != 1:
+            return []
+        head = heads[0]
+        lines = ['Тэнхимийн эрхлэгч: ' + head.name + (' (' + head.email + ')' if head.email else '')]
+        others = [person.name for person in self.tables.staff
+                  if _key(person.department) == _key(head.department) and person is not head]
+        if others:
+            lines.append('Багш нар: ' + '; '.join(others[:12]) + (' гэх мэт ' + str(len(others)) + ' хүн' if len(others) > 12 else ''))
+        return lines
+
+    def _subject_role_lines(self, value):
+        """«Математикийн багш хэн бэ?»: the staff whose recorded post is that subject's teacher, with their room —
+        the timetable lists only the subjects whose own name holds the asked word."""
+        stems = [re.sub(r'(?:ийн|ын|ний|ны|н)$', '', word) if len(word) > 4 else word
+                 for word in re.findall(r'[а-яөүёa-z]+', _key(value))]
+        stems = [stem[:max(3, len(stem) - 1)] for stem in stems if len(stem) >= 3 and not stem.startswith('багш')]
+        if not stems:
+            return []
+        roles = {}
+        for person in self.tables.staff:
+            words = re.findall(r'[а-яөүёa-z]+', _key(person.role))
+            if 'багш' in words and all(any(word.startswith(stem) for word in words) for stem in stems):
+                roles.setdefault(person.role, []).append(person)
+        lines = []
+        for role, people in list(roles.items())[:3]:
+            rooms = [room for room in dict.fromkeys(self._room_of(person) for person in people) if room is not None]
+            lines.append(role + ': ' + '; '.join(person.name for person in people[:10])
+                         + (' — ажлын өрөө ' + ', '.join(room.name + ' тоот (' + floor_text(room.floor) + ')' for room in rooms[:3])
+                            if rooms else ''))
+        return lines
+
+    def _completed(self, result, query, now):
+        """The short answer followed by the other recorded facts about the thing it names."""
+        extra = self._extra_match(query)
+        intent, value = extra if extra else (None, None)
+        reason, lines = result.get('reason_code'), []
+        name = value[0] if isinstance(value, tuple) else value
+        teacher = (self._match(query)[1] if any(self._match(query)) else None)
+        person = self._staff_named(name) if isinstance(name, str) else None
+        if person is None and teacher is not None:
+            person = self._staff_named(teacher[1])
+        if reason == 'reception_person' and person is not None:
+            lines = self._person_lines(person, now, role=False)
+        elif reason == 'reception_teacher_office' and person is not None:
+            lines = self._person_lines(person, now, room=False, groups=False, subjects=False)
+        elif reason in ('reception_teacher_email', 'reception_teacher_phone') and person is not None:
+            lines = self._person_lines(person, now, room=False, email=False, groups=False, subjects=False, today=False)
+        elif reason in ('reception_teacher_subjects', 'reception_teacher_day', 'reception_teacher_day_rooms',
+                        'reception_teacher_hours') and person is not None:
+            lines = self._person_lines(person, now, groups=False, subjects=False, today=False)
+        elif reason == 'reception_teacher_timetable' and person is not None:
+            lines = self._person_lines(person, now, groups=False, subjects=False)
+        elif reason == 'reception_role_holder':
+            holders = self._role_holders(name) if isinstance(name, str) else []
+            if len(holders) == 1:
+                lines = self._person_lines(holders[0], now, role=False, room=False, email=False, today=False)
+        elif reason in ('reception_class_teacher', 'reception_class_teacher_room'):
+            group = self._group_named(name) if isinstance(name, str) else None
+            holder = self._staff_named(group.teacher) if group is not None and group.teacher else None
+            if holder is not None:
+                lines = self._person_lines(holder, now, room=reason == 'reception_class_teacher', groups=False,
+                                           subjects=False, today=False)
+        elif reason in ('reception_class_room', 'reception_class_day', 'reception_class_week', 'reception_class_hours',
+                        'reception_class_now'):
+            group = self._group_named(name) if isinstance(name, str) else None
+            if group is None and isinstance(name, str):
+                place = self._place(name)
+                group = place[1] if place and place[0] == 'class' else None
+            if group is not None:
+                lines = self._class_lines(group, now, today=reason in ('reception_class_room', 'reception_class_now'))
+        elif (reason in ('reception_service_lookup', 'reception_service_exists') and isinstance(name, str)
+              and intent in ('place_where', 'place_exists', 'office_floor', 'office_full')):
+            # Where an office is, or whether there is one: also who works there. Its hours or contact asked on
+            # their own stay short («… хаана вэ, хэдэн цагт ажилладаг вэ?» listed the staff twice).
+            place = self._place(name)
+            found = (place[1], place[2]) if place and place[0] == 'office' else self._service(name)
+            if found is not None:
+                lines = self._office_lines(*found)
+        elif reason == 'reception_room_lookup':
+            shown = re.match(r'(?:\[[^\]]*\]\s*)?(\S+) тоот өрөө', result['answer'])
+            room = next((row for row in self.tables.rooms if shown and _key(row.name) == _key(shown[1])), None)
+            if room is not None:
+                lines = self._room_lines(room, now)
+        elif reason == 'reception_department_rooms' and isinstance(name, str):
+            lines = self._department_lines(name)
+        elif reason == 'reception_subject_teachers' and isinstance(name, str):
+            lines = self._subject_role_lines(name)
+        if not lines:
+            return result
+        text, closing = result['answer'], []
+        for caveat in _CAVEATS:
+            if caveat in text:
+                text = text.replace(caveat, '').strip()
+                closing.append(caveat)
+        if any(line.startswith(('Өнөөдрийн хичээл', 'Заадаг хичээл')) for line in lines) and _CAVEATS[0] not in closing:
+            closing.insert(0, _CAVEATS[0])
+        if (any(line.startswith('Ажлын өрөө') for line in lines) or reason == 'reception_teacher_office') \
+                and _CAVEATS[1] not in closing and _CAVEATS[2] not in closing:
+            closing.append(_CAVEATS[1])
+        result['answer'] = '\n'.join([text] + lines + ([' '.join(closing)] if closing else []))
+        result['reception']['completed'] = True
+        return result
+
     def answer(self, query, *, now=None):
+        result = self._answer_core(query, now=now)
+        if not self.complete or result is None or not result.get('answer') or self.tables is None:
+            return result
+        try:
+            return self._completed(result, query, now)
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+            return result      # the short answer stands when the extra lines cannot be built
+
+    def _answer_core(self, query, *, now=None):
         if not self.enabled:
             return None
         if self._asks_lunch_break(query):
@@ -1499,6 +1768,13 @@ class ReceptionAnswerPath:
             return self._result(query, prefix + text, reason, source_table=table)
         if intent == 'group_required':
             return missing('reception_group_required')
+        if intent == 'person_about':
+            person = self._staff_named(value)
+            if person is None:
+                return self._answer_legacy(query, now=now)   # not claimed (recognizes)
+            # Who the person is; the room, e-mail and lessons follow in _completed.
+            return reply(person.name + ' — ' + (self._role_text(person) or 'сургуулийн ажилтан') + '.', 'staff',
+                         'reception_person')
         if intent in ('teacher_phone', 'class_teacher_phone'):
             owner = self._phone_owner(intent, value)
             if owner is None:
@@ -1904,6 +2180,45 @@ class ReceptionAnswerPath:
             return reply(group.group + ' анги ' + when + ' ' + _clock(lessons[0].interval[0]) + '-аас хичээлтэй: '
                          + '; '.join(slots) + '.' + period
                          + ' Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable', 'reception_class_day')
+        if intent == 'class_now':
+            group = self._group_named(value)
+            if group is None:
+                return missing()
+            if not isinstance(now, datetime):
+                return missing('reception_date_required')
+            reason = self._calendar_reason(now)
+            if reason == 'reception_holiday':
+                return reply(group.group + ' анги — өнөөдөр бүртгэсэн амралтын өдөр; хуваарьт хичээл байхгүй.', 'timetable',
+                             'reception_holiday')
+            if reason:
+                return missing(reason)
+            weekday, minute = now.weekday(), now.hour * 60 + now.minute
+            lessons = sorted((lesson for lesson in self.tables.timetable if _key(lesson.group) == _key(group.group)
+                              and lesson.day == _DAYS[weekday]), key=lambda lesson: lesson.interval[0])
+            if not lessons and not self.tables.timetable_complete:
+                return missing('reception_timetable_incomplete')
+
+            def slot(items):
+                # A joint lesson is stored once per teacher and room: one time, its subjects and rooms once.
+                subjects = ', '.join(dict.fromkeys(item.subject for item in items if item.subject))
+                rooms = ', '.join(dict.fromkeys(item.room for item in items if item.room))
+                return items[0].time + (' ' + subjects if subjects else '') + (' (' + rooms + ' тоот)' if rooms else '')
+            current = [lesson for lesson in lessons if lesson.interval[0] <= minute < lesson.interval[1]]
+            later = [lesson for lesson in lessons if lesson.interval[0] > minute]
+            following = [lesson for lesson in later if lesson.interval[0] == later[0].interval[0]] if later else []
+            when = 'одоо (' + _MN_DAYS[weekday] + ' ' + now.strftime('%H:%M') + ')'
+            if current:
+                text = group.group + ' анги ' + when + ' хуваариар: ' + slot(current)
+            elif lessons:
+                text = group.group + ' анги ' + when + ' хуваариар хичээлгүй'
+            else:
+                text = group.group + ' анги өнөөдөр (' + _MN_DAYS[weekday] + ') хуваарьт хичээлгүй'
+            if following:
+                text += '. Дараагийн хичээл: ' + slot(following)
+            elif lessons and not current:
+                text += '; өнөөдрийн хичээл ' + _clock(max(lesson.interval[1] for lesson in lessons)) + '-д дууссан'
+            return reply(text + '. Хуваарь өөрчлөгдсөн байж болно; бодит байршлыг батлахгүй.', 'timetable',
+                         'reception_class_now')
         if intent == 'timetable_where':
             if not self.tables.timetable:
                 return missing('reception_timetable_incomplete')

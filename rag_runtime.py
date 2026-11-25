@@ -23,7 +23,7 @@ from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
 from faq_intent import FaqIntents
 from privacy_filter import hide_mobiles
-from answer_presentation import present
+from answer_presentation import present, withhold_fragment
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -1473,6 +1473,11 @@ class ChatRAG:
     ADMISSION = re.compile(r'(?<!\w)(?:элс|бүртг|шалгалт|хураамж|сургалтын\s+төлбөр)', re.I)
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
+    # The stored question whose answer introduces the school (content v5, tools/build_content_v5.py).
+    SCHOOL_OVERVIEW = 'Шинэ Монгол технологийн коллеж ямар сургууль вэ?'
+    # The school named together with «what kind of», «what is», «about», «introduce»; no place, time or person word.
+    ABOUT_SCHOOL = re.compile(r'^(?!.*(?:хаана|хэзээ|хэн|хэд|хаяг|утас))(?=.*(?:сургуул|коллеж|шмтк|коосэн|nmct))'
+                              r'.*(?:ямар\s+(?:сургууль|коллеж)|гэж\s+(?:юу|ямар)|тухай|талаар|танилцуул)', re.S)
     # Round 9: a thank-you is not greeted again, and «Та хэн бэ?», «Юу хийж чадах вэ?» (what a
     # visitor first asks a desk screen) get what this assistant does instead of a web excerpt.
     SCOPE_MESSAGE = ('Энэ туслах зөвхөн Шинэ Монгол технологийн коллежийн мэдээлэлд хариулна: өрөө, давхар, анги, '
@@ -1570,6 +1575,19 @@ class ChatRAG:
             # Topic clarification remains useful if no safe stored option can
             # be read. Never replace it with an invented/cross-package option.
             return []
+
+    def _school_overview(self, database, query, allow_draft):
+        """The stored introduction of the school as the reply to a question that names only the school, with the
+        topics to ask next; None when the content holds no such accepted answer (then the caller asks which topic)."""
+        if database is None:
+            return None
+        overview = self.policy.route(database, self.SCHOOL_OVERVIEW, allow_draft=allow_draft)
+        if not overview.get('answer'):
+            return None
+        overview.update(query=query, understood_as=self.SCHOOL_OVERVIEW, related_sources=[],
+                        suggestions=self._school_topic_questions(database, overview['package_id'],
+                                                                 allow_draft=allow_draft))
+        return self._remember(overview, allow_draft)
 
     def _stored_faqs(self, database, package_id):
         """The pinned package's FAQs (question, aliases, answer), one package cached; expired ones left out."""
@@ -1669,6 +1687,8 @@ class ChatRAG:
         if prepared is not None:
             result['query'] = query
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
+        # A website excerpt that is only menu or tile labels is no answer to an open question (11/25).
+        result = withhold_fragment(result)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
         # Plain wording after every guard, before speech (answer_presentation.py, 11/22).
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
@@ -1716,6 +1736,11 @@ class ChatRAG:
         if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
                 and result.get('reason_code') in self.EXTEND|{'missing_entity','constrained_wording_not_exact',
                     'constraints_not_supported_together'} and broad_school_information_request(query)):
+            # 11/25: «Сургуулийн талаар мэдээлэл өгнө үү» got only «яг ямар мэдээлэл хэрэгтэй вэ?». When the stored
+            # overview of the school is there it answers, and the topics follow as the next questions.
+            overview = self._school_overview(database, query, allow_draft)
+            if overview is not None:
+                return overview
             result.update(route='D',answer=None,citations=[],candidates=[],clarification=None,
                 reason_code='clarify_topic',clarification_basis='closed_generic_school_information',
                 message='Сургуулийн яг ямар мэдээлэл хэрэгтэй вэ? Тэнхим, мэргэжил, элсэлт эсвэл холбоо барих мэдээллээс сэдвээ сонгоорой.',
@@ -1795,6 +1820,13 @@ class ChatRAG:
         from website_retrieval import search_terms
         topic_terms = set(search_terms(query)) - {'сургууль','шинэ','монгол','nmct','шмтк'}
         if not topic_terms:
+            # «ШМТК ямар сургууль вэ?» names nothing but the school and asks what it is: the stored overview answers
+            # it (11/25). «Энэ юу вэ?», «Тэгээд?» also have no topic word and still get the question below (code
+            # review 11/25).
+            overview = (self._school_overview(database, query, allow_draft)
+                        if self.ABOUT_SCHOOL.search(query.casefold()) else None)
+            if overview is not None:
+                return overview
             result.update(route='D', message='Сургуулийн ямар мэдээлэл хэрэгтэй вэ? Мэргэжил, элсэлт эсвэл холбоо барих мэдээллээс сонгож болно.',
                           suggestions=self.SUGGESTIONS, reason_code='clarify_topic', clarification=None)
             return self._remember(result, allow_draft)
