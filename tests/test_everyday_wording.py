@@ -65,6 +65,10 @@ class EverydayWordingTests(unittest.TestCase):
                          'элсэлтийн шалгалт өгөх үү', 'элсэлтийн бүртгэл хаана хийдэг вэ', 'элсэлт'):
             self.assertEqual(self.read(question), ADMISSION_QUESTION, question)
         self.assertEqual(self.read('ямар бичиг баримт бүрдүүлэх вэ'), 'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?')
+        self.assertEqual(self.read('танай сургуульд орох гэсэн юм'), ADMISSION_QUESTION)
+        # Going into a room or a lesson is not enrolling.
+        for question in ('Би энд орох гэж байна', 'сурах гэсэн юм'):
+            self.assertNotEqual(self.read(question), ADMISSION_QUESTION, question)
         # A paper the office issues is another question.
         self.assertNotEqual(self.read('Тодорхойлолт авахад ямар бичиг баримт хэрэгтэй вэ?'),
                             'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?')
@@ -118,10 +122,40 @@ class OtherSchoolTests(unittest.TestCase):
         for question in ('ШУТИС хаана байдаг вэ?', 'ШУТИС ямар мэргэжилтэй вэ?', 'Отгонтэнгэр их сургууль хаана байдаг вэ?',
                          'МУИС-ийн төлбөр хэд вэ?'):
             self.assertTrue(self.out_of_scope(question), question)
-        # This school, or a contest held together, stays a school question.
+        # This school, a contest held together, or a person named like a school, stays a school question.
         for question in ('ШУТИС-тэй хамтран олимпиад зохион байгуулдаг уу?', 'МУИС-ийн төлбөрөөс манайх хямд уу?',
-                         'Сургууль хаана байдаг вэ?'):
+                         'Сургууль хаана байдаг вэ?', 'Отгонтэнгэр хаана байдаг вэ?', 'Отгонтэнгэр ямар тэнхимд ажилладаг вэ?'):
             self.assertFalse(self.out_of_scope(question), question)
+
+
+class AnsweringPolicy:
+    """A stored answer for every question: «… сургууль хаана байдаг вэ?» matched the school's address FAQ."""
+    enabled = True
+
+    def route(self, db, query, allow_draft=False):
+        return dict(query=query, route='B', package_id='package1', answer='Сургуулийн хаяг: Улаанбаатар хот.', citations=[],
+                    reason_code='official_website_stored_answer', reason_codes=[], clarification=None, exact_matches=[],
+                    generated=False, llm_calls=0, message='', answer_kind='official_website_snapshot',
+                    answer_faq_id='faq.contact.location')
+
+
+class OutOfScopeBeforeStoredAnswerTests(unittest.TestCase):
+    def test_another_school_is_turned_away_even_when_a_stored_answer_matched(self):
+        from reception_tables import ReceptionAnswerPath
+        chat = ChatRAG('.', AnsweringPolicy(), SimpleNamespace(status=lambda: {}), SimpleNamespace(status=lambda: {}),
+                       reception=ReceptionAnswerPath())
+        chat.faq_intents = FaqIntents(enabled=False)
+        turned = chat._route('db', 'Отгонтэнгэр их сургууль хаана байдаг вэ?')
+        self.assertEqual((turned['route'], turned['reason_code'], turned['answer'], turned['answer_faq_id']),
+                         ('D', 'out_of_scope', None, None))
+        # Also when no stored answer matched and the own-wording mapping would have read it as the address.
+        chat.policy = SimpleNamespace(enabled=True, route=lambda db, query, allow_draft=False: dict(
+            AnsweringPolicy().route(db, query), route='E', answer=None, answer_faq_id=None,
+            reason_code='no_supported_question_match'))
+        self.assertEqual(chat._route('db', 'ШУТИС хаана байдаг вэ?')['reason_code'], 'out_of_scope')
+        chat.policy = AnsweringPolicy()
+        kept = chat._route('db', 'Сургууль хаана байдаг вэ?')
+        self.assertEqual((kept['route'], kept['answer_faq_id']), ('B', 'faq.contact.location'))
 
 
 class StemEncoder:
@@ -153,12 +187,21 @@ class NearestQuestionTests(unittest.TestCase):
         self.assertEqual(FaqIntents([]).nearest('оюутнууд хаана хооллодог вэ', FAQS), [])     # no encoder: nothing
 
     def test_only_a_reply_without_an_answer_gets_them(self):
-        rag = SimpleNamespace(faq_intents=FaqIntents([], encoder=StemEncoder()), NEAREST_FLOOR=0.5,
-                              NEAREST_SKIP=ChatRAG.NEAREST_SKIP, _stored_faqs=lambda database, package: FAQS)
-        found = ChatRAG._nearest_questions(rag, 'db', dict(route='E', answer=None, suggestions=['x'], package_id='p'),
+        intents = FaqIntents([dict(faq_id='faq.food', require=[['хоол']])], encoder=StemEncoder())
+        rag = SimpleNamespace(faq_intents=intents, NEAREST_FLOOR=0.5, NEAREST_SKIP=ChatRAG.NEAREST_SKIP,
+                              SUGGESTIONS=['a', 'b', 'c'], _offerable_faqs=lambda database, package, draft: FAQS)
+        found = ChatRAG._nearest_questions(rag, 'db', dict(route='E', answer=None, suggestions=['a', 'b', 'c'], package_id='p'),
                                            'оюутнууд хаана хооллодог вэ')
         self.assertEqual(found['suggestions'], ['Хоолны газар бий юу?'])
         self.assertEqual(found['suggestions_kind'], 'nearest_stored_questions')
+        # The route's own suggestions (a name's candidates) stay; switched-off intents offer nothing.
+        kept = ChatRAG._nearest_questions(rag, 'db', dict(route='E', answer=None, suggestions=['Б.Сэлмаа'], package_id='p'),
+                                          'оюутнууд хаана хооллодог вэ')
+        self.assertEqual(kept['suggestions'], ['Б.Сэлмаа'])
+        rag.faq_intents.enabled = False
+        self.assertNotIn('suggestions_kind', ChatRAG._nearest_questions(
+            rag, 'db', dict(route='E', answer=None, suggestions=[], package_id='p'), 'оюутнууд хаана хооллодог вэ'))
+        rag.faq_intents.enabled = True
         for result in (dict(route='C', answer='…', suggestions=[]),
                        dict(route='E', answer=None, answer_kind='reception_table_lookup', suggestions=[]),
                        dict(route='E', answer=None, reason_code='personal_record_outside_scope', suggestions=[])):

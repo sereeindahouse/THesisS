@@ -22,6 +22,7 @@ from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
 from referral import attach_referral, load_referral, load_topic_rules
 from faq_intent import FaqIntents
+from question_planner import SCHOOL_OVERVIEW_QUESTION
 from privacy_filter import hide_mobiles
 from answer_presentation import present, withhold_fragment
 from speech_text import remove_rendered_citations
@@ -1539,7 +1540,7 @@ class ChatRAG:
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
     # The stored question whose answer introduces the school (content v5, tools/build_content_v5.py).
-    SCHOOL_OVERVIEW = 'Шинэ Монгол технологийн коллеж ямар сургууль вэ?'
+    SCHOOL_OVERVIEW = SCHOOL_OVERVIEW_QUESTION    # the planner reads everyday wordings as this one (11/26)
     # The school named together with «what kind of», «what is», «about», «introduce»; no place, time or person word.
     ABOUT_SCHOOL = re.compile(r'^(?!.*(?:хаана|хэзээ|хэн|хэд|хаяг|утас))(?=.*(?:сургуул|коллеж|шмтк|коосэн|nmct))'
                               r'.*(?:ямар\s+(?:сургууль|коллеж)|гэж\s+(?:юу|ямар)|тухай|талаар|танилцуул)', re.S)
@@ -1564,8 +1565,9 @@ class ChatRAG:
         # Not a question that also names this school, a contest or a clash («МУИС-ийн төлбөрөөс манайх хямд уу?»),
         # nor «их сургуулиуд» in general (review).
         r'(?!.*(?:манай|танай|шмтк|коллеж|олимпиад|тэмцээн|давхц))'
+        # «Отгонтэнгэр», «Шихихутуг», «Их засаг» are also people's names: only with «их сургууль» (code review 11/26).
         r'(?:монгол\s+улсын\s+их\s+сургуул(?!иуд)|шинжлэх\s+ухаан\W+технологийн\s+их\s+сургуул(?!иуд)|муис|шутис|мубис|'
-        r'хааис|ашуүис|сэзис|хуис|шихихутуг|отгонтэнгэр|их\s+засаг)\w*(?:\s+их\s+сургууль\w*)?(?:\s*[-–]\s*\w+|\s+(?:ийн|ын))?\s+'
+        r'хааис|ашуүис|сэзис|хуис|(?:шихихутуг|отгонтэнгэр|их\s+засаг)\s+их\s+сургуул(?!иуд))\w*(?:\s*[-–]\s*\w+|\s+(?:ийн|ын))?\s+'
         r'(?:сургалтын\s+|ямар\s+)?'
         # 11/26: also where it is and what it teaches («ШУТИС хаана байдаг вэ?» showed a contest held there).
         r'(?:төлбөр|элсэлт|бүртгэл|хаяг|утас|захир|хуваар|хаана|байрла|хэдэн\s+давхар|мэргэжил|тэнхим|оюутн|тэтгэлэг|'
@@ -1604,6 +1606,7 @@ class ChatRAG:
         encoder = getattr(retriever, '_encoder', None) if getattr(retriever, 'use_dense', False) else None
         self.faq_intents = FaqIntents.from_config(self.root, encoder=encoder, lock=getattr(retriever, '_lock', None))
         self._faq_texts = {}
+        self._offerable = {}
         self._sections = None       # (corpus ID, file time, page sections), read at the first need
         self.sections = None        # a fixed SectionIndex instead of the stored file
 
@@ -1665,13 +1668,17 @@ class ChatRAG:
     NEAREST_FLOOR = 0.83
     NEAREST_SKIP = frozenset({'personal_record_outside_scope', 'out_of_scope', 'conversation_help'})
 
-    def _nearest_questions(self, database, result, query):
-        if (result.get('answer') or result.get('route') != 'E' or database is None
+    def _nearest_questions(self, database, result, query, allow_draft=False):
+        # Suggestions the route made for this question (a name's candidates, a retry) stay; only the same three
+        # default topics are replaced (code review 11/26). The FAQ-intent switch turns these off too.
+        own = result.get('suggestions')
+        if (result.get('answer') or result.get('route') != 'E' or database is None or not result.get('package_id')
                 or result.get('answer_kind') == 'reception_table_lookup' or result.get('reason_code') in self.NEAREST_SKIP
-                or self.faq_intents.encoder is None):
+                or (own and list(own) != list(self.SUGGESTIONS))
+                or not self.faq_intents.enabled or self.faq_intents.encoder is None):
             return result
         try:
-            faqs = self._stored_faqs(database, result.get('package_id'))
+            faqs = self._offerable_faqs(database, result['package_id'], allow_draft)
             nearest = self.faq_intents.nearest(query, faqs, floor=self.NEAREST_FLOOR)
         except Exception:       # no stored questions or no encoder at run time: the reply stays as it is
             return result
@@ -1680,6 +1687,27 @@ class ChatRAG:
             result['suggestions_kind'] = 'nearest_stored_questions'
             result['nearest_questions'] = [dict(question=text, similarity=similarity) for text, similarity in nearest]
         return result
+
+    def _offerable_faqs(self, database, package_id, allow_draft):
+        """The stored FAQs a visitor may be offered: accepted for the project and answerable in scope under this
+        request's draft setting, as the school-topic options are (_school_topic_questions); one package cached."""
+        key = (str(database), package_id, bool(allow_draft))
+        offerable = self._offerable.get(key)
+        if offerable is None:
+            offerable = {}
+            faqs = self._stored_faqs(database, package_id)
+            if hasattr(self.policy, 'preview') and hasattr(self.policy, 'faq_accepted'):
+                from sqlite_retrieval import ReadOnlyContentStore
+                with ReadOnlyContentStore(database) as store:
+                    content = store.export(package_id)
+                    for faq_id, faq in faqs.items():
+                        if not self.policy.faq_accepted(content, faq_id):
+                            continue
+                        preview = self.policy.preview(store, faq_id, allow_draft=allow_draft, package_id=package_id)
+                        if preview.get('answer_eligible') and preview.get('answer_status') == 'complete_in_scope':
+                            offerable[faq_id] = faq
+            self._offerable = {key: offerable}      # replaced whole: another thread keeps the dict it read
+        return offerable
 
     def _stored_faqs(self, database, package_id):
         """The pinned package's FAQs (question, aliases, answer), one package cached; expired ones left out."""
@@ -1906,7 +1934,7 @@ class ChatRAG:
             # would read the router's message instead of the answer on the screen (found by listening, 11/25).
             result = self._remember(result, allow_draft)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
-        result = self._nearest_questions(database, result, search_query)
+        result = self._nearest_questions(database, result, search_query, allow_draft)
         # Plain wording after every guard, before speech (answer_presentation.py, 11/22).
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
         result = present(result, confirmed_school_hours=bool(getattr(tables, 'school_hours', '')))
@@ -1938,6 +1966,15 @@ class ChatRAG:
             result = self.policy.route(database, query, allow_draft=allow_draft)
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
+        # 11/26: a question outside the school (another school by name, the clock, the weather …) is turned away before
+        # any stored answer — «Отгонтэнгэр их сургууль хаана байдаг вэ?» got this school's address: the own-wording
+        # mapping (_faq_intent_answer) read «сургууль … хаана» as the stored «Сургуулийн хаяг хаана вэ?».
+        if (self.policy.enabled
+                and self.OUT_OF_SCOPE.fullmatch(re.sub(r'\s+', ' ', (query or '').casefold()).strip(' ?!.'))):
+            result.update(route='D', answer=None, citations=[], candidates=[], clarification=None, exact_matches=[],
+                          generated=False, llm_calls=0, answer_kind=None, answer_faq_id=None, binding_faq_id=None,
+                          fact_ids=[], message=self.SCOPE_MESSAGE, suggestions=self.SUGGESTIONS, reason_code='out_of_scope')
+            return self._remember(result, allow_draft)
         if self.policy.enabled and self.WEBSITE_ASK.match(query or ''):
             result.update(route='A', answer='Сургуулийн албан ёсны вэб сайт: ' + self.SCHOOL_WEBSITE, citations=[],
                           candidates=[], clarification=None, exact_matches=[], generated=False, llm_calls=0,

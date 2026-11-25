@@ -47,13 +47,15 @@ def _has(term, words, flat):
 _FORM_WORDS = frozenset(('вэ бэ уу юу үү юм хаана хаанаас хэзээ хэн хэнд хэнээс хэд хэдэн хэддүгээр ямар яаж яах '
                          'юуг юунд байна байдаг байгаа бий болох болно гэж гэсэн гэдэг энэ тэр эдгээр танай танайх манай '
                          'миний би та чинь нь бол ч л хэлнэ хэлж өгөөч өгнө газар хүн хүмүүс зүйл талаар тухай '
-                         'мэдээлэл асуулт сургууль сургуулийн сургуульд коллеж коллежийн шмтк').split())
+                         'мэдээлэл асуулт сургууль сургуулийн сургуульд коллеж коллежийн шмтк '
+                         # where and how one goes (code review 11/26: «байрладаг» shared «байр» with the dormitory)
+                         'байрладаг байрлах байрлалтай байрлаж суудаг сууж ажилладаг ажиллаж очих ирэх явах '
+                         'багш багшийн багшаас өрөө өрөөнд өрөөний энд тэнд').split())
 
 
 def _topic_stems(text):
     """The first four letters of each topic word: «Төлбөрөө хуваан төлж болох уу?» -> {«төлб», «хува», «төлж»}."""
-    words = re.findall(r'[a-zа-яөүё]{3,}', (text or '').casefold())
-    return {word[:4] for word in words if word not in _FORM_WORDS}
+    return {word[:4] for word in _WORD.findall(_flat(text)) if len(word) >= 3 and word.isalpha() and word not in _FORM_WORDS}
 
 
 class FaqIntents:
@@ -63,6 +65,7 @@ class FaqIntents:
         self.enabled = bool(enabled) and bool(self.intents)
         self.encoder = encoder
         self._vectors = {}
+        self._stems = {}          # a stored question's wordings -> their topic stems (nearest())
         # The retriever's own lock when the encoder is the retriever's: one tokenizer must not run in two threads.
         self._lock = lock or threading.Lock()
 
@@ -128,16 +131,29 @@ class FaqIntents:
         asked = _topic_stems(query)
         if not asked:
             return []
-        query_vector = self._embed([query])[0]
-        scored = []
+        candidates = []
         for faq in faqs.values():
             variants = tuple(text for text in [faq.get('question', '')] + list(faq.get('question_aliases') or []) if text)
-            if not variants or not asked & set().union(*map(_topic_stems, variants)):
-                continue
-            if variants not in self._vectors:
-                self._vectors[variants] = self._embed(variants)
+            if variants and variants not in self._stems:
+                self._stems[variants] = set().union(*map(_topic_stems, variants))
+            if variants and asked & self._stems[variants]:
+                candidates.append(variants)
+        if not candidates:
+            return []
+        # The question and every wording not encoded yet in one call (code review 11/26: one call per stored
+        # question held the retriever's lock for each on a cold start).
+        missing = [variants for variants in dict.fromkeys(candidates) if variants not in self._vectors]
+        vectors = self._embed([query] + [text for variants in missing for text in variants])
+        query_vector, start = vectors[0], 1
+        for variants in missing:
+            self._vectors[variants] = vectors[start:start + len(variants)]
+            start += len(variants)
+        scored = []
+        for variants in candidates:
             similarity = float((self._vectors[variants] @ query_vector).max())
             if similarity >= floor:
+                # The shortest wording: 34 of the 36 shortest aliases reach their own stored answer, the other two a
+                # correct one by another way (measured 11/26).
                 scored.append((similarity, min(variants, key=len)))
         shown, result = {query.strip().casefold()}, []
         for similarity, text in sorted(scored, key=lambda row: -row[0]):

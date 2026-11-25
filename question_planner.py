@@ -182,8 +182,13 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
     (_THIS + r'(?:(?:сургууль|шмтк|коллеж)\s+)?хэдэн\s+(?:жилийн\s+)?настай' + _END, SCHOOL_HISTORY_QUESTION),
     # A wish to enrol and the grade of entry: «хүүхдээ оруулах гэсэн юм», «9 төгсөөд орж болох уу», «12-р анги
     # төгссөн хүүхэд орж болох уу» — the admission answer says who may register for which course.
-    (r'(?:(?:хүүхдээ|охиноо|хүүгээ|дүүгээ|би)\s+)?(?:(?:энд|танайд|танай\s+сургуульд|энэ\s+сургуульд|сургуульд)\s+)?'
-     r'(?:оруулах|элсүүлэх|элсэх|орох|суралцах|сурах)\s+(?:гэсэн|гэж\s+байгаа|гэж\s+байна)(?:\s+юм)?(?:\s+аа)?', ADMISSION_QUESTION),
+    # «орох», «сурах» alone may be entering a room or a lesson (code review 11/26): only with a school word.
+    (r'(?:хүүхдээ|охиноо|хүүгээ|дүүгээ)\s+(?:(?:энд|танайд|танай\s+сургуульд|энэ\s+сургуульд|сургуульд)\s+)?'
+     r'(?:оруулах|элсүүлэх|оруулъя)\s+(?:гэсэн|гэж\s+байгаа|гэж\s+байна)(?:\s+юм)?(?:\s+аа)?', ADMISSION_QUESTION),
+    (r'(?:би\s+)?(?:(?:энд|танайд|танай\s+сургуульд|энэ\s+сургуульд|сургуульд)\s+)?(?:элсэх|суралцах)\s+'
+     r'(?:гэсэн|гэж\s+байгаа|гэж\s+байна)(?:\s+юм)?(?:\s+аа)?', ADMISSION_QUESTION),
+    (r'(?:би\s+)?(?:танайд|танай\s+сургуульд|энэ\s+сургуульд|сургуульд)\s+(?:орох|сурах)\s+'
+     r'(?:гэсэн|гэж\s+байгаа|гэж\s+байна)(?:\s+юм)?(?:\s+аа)?', ADMISSION_QUESTION),
     (r'(?:(?:хүүхэд|охин|хүү|би|миний\s+хүүхэд)\s+)?\d{1,2}(?:\s*-?\s*(?:р|дугаар|дүгээр))?(?:\s+анги)?\s+'
      r'(?:төгсөөд|төгссөн|төгсөж\s+байгаа)(?:\s+(?:хүүхэд|сурагч|хүн))?\s+(?:(?:энд|танайд|танай\s+сургуульд)\s+)?'
      r'(?:орж|элсэж|суралцаж)\s+(?:болох|болно)' + _END, ADMISSION_QUESTION),
@@ -218,7 +223,8 @@ DEPARTMENT_INTRO = (('механик', 'Механик инженерийн тэ
 # A department head asked by the department's short name: «цахилгааны тэнхимийн эрхлэгч» found nothing (the website
 # names it «Цахилгаан электроникийн инженерийн тэнхим»); the other four short names already find their heads (11/26).
 # Only before «эрхлэгч»: «Цахилгааны тэнхимийн багш нар» is answered from the tables.
-DEPARTMENT_HEAD = ((re.compile(r'(?<!\w)цахилгаан(?:ы)?\s+(?=тэнхимийн\s+эрхлэгч)', re.I), 'Цахилгаан электроникийн инженерийн '),)
+DEPARTMENT_HEAD = re.compile(r'(?<!\w)цахилгаан(?:ы)?\s+(?=тэнхимийн\s+эрхлэгч)', re.I)
+DEPARTMENT_HEAD_NAME = 'Цахилгаан электроникийн инженерийн '
 # A question of one topic word: the question a visitor at the desk means by it.
 TOPIC_WORDS = {
     'төлбөр': 'Сургалтын төлбөр хэд вэ?', 'сургалтын төлбөр': 'Сургалтын төлбөр хэд вэ?', 'төлбөр хэд': 'Сургалтын төлбөр хэд вэ?',
@@ -590,9 +596,7 @@ class QuestionPlanner:
     @staticmethod
     def _department_head(text):
         """«цахилгааны тэнхимийн эрхлэгч» -> «Цахилгаан электроникийн инженерийн тэнхимийн эрхлэгч»."""
-        changed = text
-        for pattern, full in DEPARTMENT_HEAD:
-            changed = pattern.sub(full, changed)
+        changed = DEPARTMENT_HEAD.sub(DEPARTMENT_HEAD_NAME, text)
         return (changed, dict(rule='department_head', text=text, value=changed)) if changed != text else (text, None)
 
     def _everyday(self, text):
