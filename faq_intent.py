@@ -42,6 +42,20 @@ def _has(term, words, flat):
     return any(word.startswith(term) for word in words)
 
 
+# Question words, particles, pronouns and words every school question shares («газар», «сургууль»): no topic of
+# their own (nearest stored questions, 11/26: «бие засах газар» was offered «хоолны газар»).
+_FORM_WORDS = frozenset(('вэ бэ уу юу үү юм хаана хаанаас хэзээ хэн хэнд хэнээс хэд хэдэн хэддүгээр ямар яаж яах '
+                         'юуг юунд байна байдаг байгаа бий болох болно гэж гэсэн гэдэг энэ тэр эдгээр танай танайх манай '
+                         'миний би та чинь нь бол ч л хэлнэ хэлж өгөөч өгнө газар хүн хүмүүс зүйл талаар тухай '
+                         'мэдээлэл асуулт сургууль сургуулийн сургуульд коллеж коллежийн шмтк').split())
+
+
+def _topic_stems(text):
+    """The first four letters of each topic word: «Төлбөрөө хуваан төлж болох уу?» -> {«төлб», «хува», «төлж»}."""
+    words = re.findall(r'[a-zа-яөүё]{3,}', (text or '').casefold())
+    return {word[:4] for word in words if word not in _FORM_WORDS}
+
+
 class FaqIntents:
     def __init__(self, intents=(), *, threshold=0.84, enabled=True, encoder=None, lock=None):
         self.intents = [dict(intent) for intent in intents]
@@ -101,6 +115,38 @@ class FaqIntents:
         if key not in self._vectors:
             self._vectors[key] = self._embed(key)
         return float((self._vectors[key] @ query_vector).max())
+
+    def nearest(self, query, faqs, *, floor=0.83, limit=3):
+        """The stored questions closest in meaning to a question nothing answered (2026-11-26): for each FAQ its
+        shortest wording (the question or an alias) with the E5 cosine of the closest wording, best first, at least
+        ``floor``, at most ``limit``; [] without the encoder. Offered to choose from, never answered by itself.
+        E5-small scores short Mongolian questions of the same form close together (0.88–0.93 for «дүрэмт
+        хувцастай юу» and «Тэтгэлэг байдаг уу?», measured 11/26), so a stored question must also share a topic
+        word with the question (its first four letters); the closeness only orders them."""
+        if self.encoder is None or not isinstance(query, str) or not query.strip():
+            return []
+        asked = _topic_stems(query)
+        if not asked:
+            return []
+        query_vector = self._embed([query])[0]
+        scored = []
+        for faq in faqs.values():
+            variants = tuple(text for text in [faq.get('question', '')] + list(faq.get('question_aliases') or []) if text)
+            if not variants or not asked & set().union(*map(_topic_stems, variants)):
+                continue
+            if variants not in self._vectors:
+                self._vectors[variants] = self._embed(variants)
+            similarity = float((self._vectors[variants] @ query_vector).max())
+            if similarity >= floor:
+                scored.append((similarity, min(variants, key=len)))
+        shown, result = {query.strip().casefold()}, []
+        for similarity, text in sorted(scored, key=lambda row: -row[0]):
+            if text.strip().casefold() not in shown:
+                shown.add(text.strip().casefold())
+                result.append((text, round(similarity, 4)))
+            if len(result) == limit:
+                break
+        return result
 
     def match(self, query, faqs):
         """The FAQ a question maps to, or None. ``faqs``: faq_id -> stored record (question, aliases, answer)."""

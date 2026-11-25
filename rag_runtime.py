@@ -1565,8 +1565,11 @@ class ChatRAG:
         # nor «их сургуулиуд» in general (review).
         r'(?!.*(?:манай|танай|шмтк|коллеж|олимпиад|тэмцээн|давхц))'
         r'(?:монгол\s+улсын\s+их\s+сургуул(?!иуд)|шинжлэх\s+ухаан\W+технологийн\s+их\s+сургуул(?!иуд)|муис|шутис|мубис|'
-        r'хааис|ашуүис|сэзис)\w*(?:\s*[-–]\s*\w+|\s+(?:ийн|ын))?\s+(?:сургалтын\s+)?'
-        r'(?:төлбөр|элсэлт|бүртгэл|хаяг|утас|захир|хуваар)\w*(?:\s+\w+){0,5}')
+        r'хааис|ашуүис|сэзис|хуис|шихихутуг|отгонтэнгэр|их\s+засаг)\w*(?:\s+их\s+сургууль\w*)?(?:\s*[-–]\s*\w+|\s+(?:ийн|ын))?\s+'
+        r'(?:сургалтын\s+|ямар\s+)?'
+        # 11/26: also where it is and what it teaches («ШУТИС хаана байдаг вэ?» showed a contest held there).
+        r'(?:төлбөр|элсэлт|бүртгэл|хаяг|утас|захир|хуваар|хаана|байрла|хэдэн\s+давхар|мэргэжил|тэнхим|оюутн|тэтгэлэг|'
+        r'дотуур)\w*(?:\s+\w+){0,5}')
     CONVERSATION = (
         (re.compile(r'(?:за\s+)?(?:их\s+)?баярла(?:лаа|аа)(?:\s+\w+)?|thanks?(?:\s+you)?'),
          'Зүгээр ээ! Өөр асуух зүйл байвал асуугаарай.'),
@@ -1655,6 +1658,28 @@ class ChatRAG:
                         suggestions=self._school_topic_questions(database, overview['package_id'],
                                                                  allow_draft=allow_draft))
         return self._remember(overview, allow_draft)
+
+    # 11/26 (the user: «энэ яадаг сургууль вэ» -> «not found», then the same three topics): a question nothing
+    # answers gets the stored questions closest to it in meaning to choose from. Only offered: a click asks that
+    # stored question, which goes through every guard; nothing is answered by the closeness alone.
+    NEAREST_FLOOR = 0.83
+    NEAREST_SKIP = frozenset({'personal_record_outside_scope', 'out_of_scope', 'conversation_help'})
+
+    def _nearest_questions(self, database, result, query):
+        if (result.get('answer') or result.get('route') != 'E' or database is None
+                or result.get('answer_kind') == 'reception_table_lookup' or result.get('reason_code') in self.NEAREST_SKIP
+                or self.faq_intents.encoder is None):
+            return result
+        try:
+            faqs = self._stored_faqs(database, result.get('package_id'))
+            nearest = self.faq_intents.nearest(query, faqs, floor=self.NEAREST_FLOOR)
+        except Exception:       # no stored questions or no encoder at run time: the reply stays as it is
+            return result
+        if nearest:
+            result['suggestions'] = [text for text, _ in nearest]
+            result['suggestions_kind'] = 'nearest_stored_questions'
+            result['nearest_questions'] = [dict(question=text, similarity=similarity) for text, similarity in nearest]
+        return result
 
     def _stored_faqs(self, database, package_id):
         """The pinned package's FAQs (question, aliases, answer), one package cached; expired ones left out."""
@@ -1881,6 +1906,7 @@ class ChatRAG:
             # would read the router's message instead of the answer on the screen (found by listening, 11/25).
             result = self._remember(result, allow_draft)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
+        result = self._nearest_questions(database, result, search_query)
         # Plain wording after every guard, before speech (answer_presentation.py, 11/22).
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
         result = present(result, confirmed_school_hours=bool(getattr(tables, 'school_hours', '')))

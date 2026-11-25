@@ -155,9 +155,115 @@ def _office_stem(word):
     return light_stem(word.casefold())
 
 
+# ---- everyday wordings (2026-11-26) ---------------------------------------------------------------------------------
+# The user: «энэ яадаг сургууль вэ» got «not found»; «when I ask one different question the system collapses». A sweep
+# of 130 everyday questions showed the kinds below. Each maps the whole question (one sentence, casefolded, without
+# punctuation) to the stored or table question that answers it; every guard of the route still applies to that one.
+SCHOOL_OVERVIEW_QUESTION = 'Шинэ Монгол технологийн коллеж ямар сургууль вэ?'
+SCHOOL_HISTORY_QUESTION = 'Сургууль хэзээ байгуулагдсан бэ?'
+ADMISSION_QUESTION = 'Элсэхэд ямар шаардлагатай вэ?'
+_THIS = r'(?:(?:энэ|танай|танайх|манай|энд|ер\s+нь)\s+)?'
+_END = r'(?:\s+(?:вэ|бэ|юм|юм\s+бэ|юм\s+вэ|уу|юу|үү))?'
+EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question in (
+    # What the school is: «энэ яадаг сургууль вэ», «энэ юуны сургууль вэ», «юу заадаг газар вэ», «энд юу хийдэг газар вэ».
+    (_THIS + r'(?:(?:сургууль|коллеж|газар)\s+)?(?:чинь\s+)?(?:яадаг|юуны|ямар|юу\s+(?:хийдэг|заадаг|сургадаг|сурдаг))\s+'
+     r'(?:сургууль|коллеж|газар)' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (_THIS + r'(?:сургууль|коллеж|газар)\s+(?:чинь\s+)?(?:юу|юуг)\s+(?:заадаг|хийдэг|сургадаг)' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (r'энд\s+(?:юу|юуг)\s+(?:сурдаг|заадаг|хийдэг|сургадаг)(?:\s+газар)?' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (r'(?:шмтк|коосэн|коллеж|nmct)\s+(?:гэж|гэдэг(?:\s+(?:нь|чинь))?)\s+(?:юу|ямар\s+сургууль)' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (r'(?:шмтк|nmct)\s+(?:юу\s+гэсэн\s+үг|гэдэг\s+(?:нь|чинь)\s+юу)' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (_THIS + r'(?:сургууль|сургуулийн|коллеж|коллежийн)\s+онцлог(?:\s+нь)?(?:\s+юу)?' + _END, SCHOOL_OVERVIEW_QUESTION),
+    (r'яагаад\s+(?:энэ\s+сургуульд|энд|танай\s+сургуульд|танайд|шмтк-д)\s+(?:сурах|суралцах|орох)(?:\s+ёстой)?' + _END,
+     SCHOOL_OVERVIEW_QUESTION),
+    (_THIS + r'(?:сургууль|коллеж)\s+(?:сайн|япон(?:\s+сургууль)?)' + _END, SCHOOL_OVERVIEW_QUESTION),
+    # The school's age: «хэдэн онд байгуулагдсан бэ», «сургууль хэдэн жилийн настай вэ».
+    (_THIS + r'(?:(?:сургууль|шмтк|коллеж)\s+)?(?:хэдэн\s+онд|хэзээ)\s+(?:байгуулагдсан|байгуулсан|нээгдсэн|үүсгэн\s+байгуулагдсан)'
+     + _END, SCHOOL_HISTORY_QUESTION),
+    (_THIS + r'(?:(?:сургууль|шмтк|коллеж)\s+)?хэдэн\s+(?:жилийн\s+)?настай' + _END, SCHOOL_HISTORY_QUESTION),
+    # A wish to enrol and the grade of entry: «хүүхдээ оруулах гэсэн юм», «9 төгсөөд орж болох уу», «12-р анги
+    # төгссөн хүүхэд орж болох уу» — the admission answer says who may register for which course.
+    (r'(?:(?:хүүхдээ|охиноо|хүүгээ|дүүгээ|би)\s+)?(?:(?:энд|танайд|танай\s+сургуульд|энэ\s+сургуульд|сургуульд)\s+)?'
+     r'(?:оруулах|элсүүлэх|элсэх|орох|суралцах|сурах)\s+(?:гэсэн|гэж\s+байгаа|гэж\s+байна)(?:\s+юм)?(?:\s+аа)?', ADMISSION_QUESTION),
+    (r'(?:(?:хүүхэд|охин|хүү|би|миний\s+хүүхэд)\s+)?\d{1,2}(?:\s*-?\s*(?:р|дугаар|дүгээр))?(?:\s+анги)?\s+'
+     r'(?:төгсөөд|төгссөн|төгсөж\s+байгаа)(?:\s+(?:хүүхэд|сурагч|хүн))?\s+(?:(?:энд|танайд|танай\s+сургуульд)\s+)?'
+     r'(?:орж|элсэж|суралцаж)\s+(?:болох|болно)' + _END, ADMISSION_QUESTION),
+    (r'элсэлтийн\s+шалгалт(?:\s+(?:өгөх|өгдөг|авдаг|авах|байдаг|байна))?' + _END, ADMISSION_QUESTION),
+    (r'(?:элсэлтийн\s+)?бүртгэл(?:ээ)?\s+(?:хаана|яаж)\s+(?:хийдэг|хийх|явагддаг|бүртгүүлэх|өгөх)' + _END
+     + r'|(?:хаана|яаж)\s+бүртгүүлэх' + _END, ADMISSION_QUESTION),
+    (r'(?:элсэхэд\s+)?(?:ямар\s+(?:ямар\s+)?)?(?:бичиг\s+баримт|материал)\s+(?:бүрдүүлэх|бүрдүүлдэг|авчрах|хэрэгтэй|шаардлагатай|өгөх)'
+     + _END, 'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?'),
+    # IT and programming: the computer science department (not a question who teaches it or where).
+    (r'(?!.*(?:хэн|хаана|хэзээ|цагт|өрөө|багш))(?=.*(?:программист|програмист|программ\s*хангамж|програм\s*хангамж|'
+     r'программчлал|програмчлал|(?<!\w)ай\s*ти(?!\w)|(?<!\w)it(?!\w)|мэдээллийн\s+технологи|кодлол|код\s+бичих))'
+     r'.*(?:мэргэжил|хөтөлбөр|сурах|сурч|суралц|байна\s+уу|бий\s+юу|байдаг\s+уу|заадаг\s+уу|сургадаг\s+уу|болох\s+уу).*',
+     'Компьютерын ухааны тэнхимийн талаар тайлбарлана уу.'),
+    # Where the teachers sit, Wi-Fi, how to get to the school.
+    (r'багш\s+нар(?:ын)?(?:\s+өрөө)?\s+хаана(?:\s+(?:суудаг|байдаг|байна|байрладаг))?' + _END, 'Багш нарын өрөө хаана вэ?'),
+    (r'(?:(?:сургуульд|анги(?:\s+танхим)?д|энд)\s+)?(?:wi-?fi|вай\s*фай|утасгүй\s+интернэт|интернэт)'
+     r'(?:\s+(?:байдаг|байна|бий|ашиглаж\s+болох))?' + _END, 'Сургалтын орчин ямар вэ?'),
+    (r'(?:(?:сургууль(?:д|руу)|энд|танайд|танай\s+сургууль\s+руу)\s+)?(?:(?:автобусаар|машинаар|юугаар|яаж)\s+)+'
+     r'(?:очих|ирэх|хүрэх|явах)' + _END, 'Сургуулийн хаяг хаана вэ?'),
+))
+# A department asked what it teaches or what it is like: the stored introduction of that department.
+DEPARTMENT_ABOUT = re.compile(r'(механик|хими|химийн|барилга|барилгын|цахилгаан|цахилгааны|компьютер|компьютерын|ерөнхий\s+эрдмийн)'
+                              r'(?:\s+инженер(?:ийн|ээр)?)?(?:\s+тэнхим(?:ийн)?)?(?:\s+(?:хөтөлбөр|мэргэжил)(?:ийн)?)?\s+'
+                              r'(?:ямар\s+мэргэжил|юу\s+(?:сурдаг|заадаг|сургадаг)|юуг\s+заадаг|тухай|талаар|онцлог(?:\s+нь)?(?:\s+юу)?)'
+                              r'(?:\s+(?:вэ|бэ|хэлж\s+өгөөч|хэлнэ\s+үү))?')
+DEPARTMENT_INTRO = (('механик', 'Механик инженерийн тэнхимийн талаар танилцуулна уу.'),
+                    ('хими', 'Химийн инженерийн тэнхимийн талаар танилцуулна уу.'),
+                    ('барилг', 'Барилга, дэд бүтцийн инженерийн тэнхимийн талаар танилцуулна уу.'),
+                    ('цахилгаан', 'Цахилгаан электроникийн инженерийн тэнхимийн талаар танилцуулна уу.'),
+                    ('компьютер', 'Компьютерын ухааны тэнхимийн талаар тайлбарлана уу.'),
+                    ('ерөнхий', 'Ерөнхий эрдмийн тэнхимийн талаар танилцуулна уу.'))
+# A department head asked by the department's short name: «цахилгааны тэнхимийн эрхлэгч» found nothing (the website
+# names it «Цахилгаан электроникийн инженерийн тэнхим»); the other four short names already find their heads (11/26).
+# Only before «эрхлэгч»: «Цахилгааны тэнхимийн багш нар» is answered from the tables.
+DEPARTMENT_HEAD = ((re.compile(r'(?<!\w)цахилгаан(?:ы)?\s+(?=тэнхимийн\s+эрхлэгч)', re.I), 'Цахилгаан электроникийн инженерийн '),)
+# A question of one topic word: the question a visitor at the desk means by it.
+TOPIC_WORDS = {
+    'төлбөр': 'Сургалтын төлбөр хэд вэ?', 'сургалтын төлбөр': 'Сургалтын төлбөр хэд вэ?', 'төлбөр хэд': 'Сургалтын төлбөр хэд вэ?',
+    'элсэлт': ADMISSION_QUESTION, 'элсэх': ADMISSION_QUESTION, 'элсэлтийн шаардлага': ADMISSION_QUESTION,
+    'элсэлтийн шалгалт': ADMISSION_QUESTION, 'захирал': 'Захирал хэн бэ?', 'хаяг': 'Сургуулийн хаяг хаана вэ?',
+    'сургуулийн хаяг': 'Сургуулийн хаяг хаана вэ?', 'утас': 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.',
+    'утасны дугаар': 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.', 'холбоо барих': 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.',
+    'имэйл': 'Сургуулийн холбоо барих мэдээллийг хэлнэ үү.', 'тэтгэлэг': 'Тэтгэлэг байдаг уу?',
+    'дадлага': 'Японы компанид дадлага хийх боломжтой юу?', 'мэргэжил': 'Ямар мэргэжлээр сургадаг вэ?',
+    'мэргэжлүүд': 'Ямар мэргэжлээр сургадаг вэ?', 'хөтөлбөр': 'Ямар мэргэжлээр сургадаг вэ?',
+    'тэнхим': 'Сургууль хэдэн тэнхимтэй вэ?', 'тэнхимүүд': 'Сургууль хэдэн тэнхимтэй вэ?', 'дотуур байр': 'Дотуур байр байдаг уу?',
+    'хоолны газар': 'Сургуульд хоолны газар бий юу?', 'гуанз': 'Сургуульд хоолны газар бий юу?',
+    'спорт заал': 'Сургуульд спорт заал бий юу?', 'хичээлийн хуваарь': 'Хичээл хэдэн цагт эхэлдэг вэ?',
+    'цайны цаг': 'Цайны цаг хэзээ вэ?', 'ажлын цаг': 'Сургууль хэдэн цагт ажилладаг вэ?', 'түүх': SCHOOL_HISTORY_QUESTION,
+    'сургуулийн түүх': SCHOOL_HISTORY_QUESTION, 'эрхэм зорилго': 'Сургуулийн эрхэм зорилго юу вэ?',
+    'карьерын төв': 'Карьерын төв юу хийдэг вэ?', 'оюутны зөвлөл': 'Оюутны зөвлөл юу хийдэг вэ?',
+    'бүртгэл': 'Элсэлтийн бүртгэл хэзээ явагддаг вэ?', 'вэбсайт': 'Сургуулийн вэбсайт юу вэ?', 'вэб сайт': 'Сургуулийн вэбсайт юу вэ?',
+    'wifi': 'Сургалтын орчин ямар вэ?', 'wi-fi': 'Сургалтын орчин ямар вэ?', 'шмтк': SCHOOL_OVERVIEW_QUESTION,
+    'коосэн': SCHOOL_OVERVIEW_QUESTION,
+}
+# «<алба/өрөө> байна уу», «… бий юу», «… байдаг уу»: whether an office exists is answered by where it is.
+EXISTS_ASK = re.compile(r'(?:сургуульд\s+|энд\s+)?(.+?)\s+(?:байна|байдаг|бий)\s+(?:уу|юу)')
+BARE_ROOM = re.compile(r'([a-zа-яөүё]?\d{3,4}[a-zа-яөүё]?)\s+(?:өрөө\s+)?(?:хаана|хэддүгээр\s+давхарт)(?:\s+(?:байдаг|байна|вэ|бэ))*')
+
+# Typing without vowels («сургалтын тлбр хэд вэ», «элслт хзэ вэ»): a word of consonants alone is read as the one known
+# word with the same consonants. The first letter stays (a word may begin with a vowel: «элслт»); «й», «ь», «ъ» count as
+# vowels (people drop «й» too: «бдг»). Only Cyrillic lower-case words of three letters or more; an upper-case word is an
+# abbreviation («ШМТК»); a skeleton two known words share is left as typed.
+VOWELS = set('аэиоуөүеёюяыйьъ')
+KNOWN_WORDS = ('төлбөр төлбөрийн төлбөрөө сургалтын сургууль сургуулийн сургуульд элсэлт элсэлтийн элсэх элсэхэд бүртгэл '
+               'бүртгэлийн хураамж хураамжийн шалгалт шалгалтын мэргэжил мэргэжлийн тэнхим тэнхимийн багш багшийн өрөө '
+               'өрөөнд давхар давхарт хичээл хичээлийн хуваарь хуваарийн хаана хэзээ хэдэн байдаг байна байгаа байрладаг '
+               'ажилладаг захирал захирлын номын сан алба албаны оюутан оюутны тэтгэлэг дадлага хаяг утас утасны имэйл '
+               'цаг цагт эхэлдэг дуусдаг маргааш өнөөдөр уулзах ямар юу хоол хоолны дотуур байр түүх холбоо барих '
+               'лаборатори ангийн курс курст анги шмтк коосэн').split()
+
+
+def skeleton(word):
+    """«төлбөр» -> «тлбр», «элсэлт» -> «элслт», «байдаг» -> «бдг»."""
+    return word[:1] + ''.join(letter for letter in word[1:] if letter not in VOWELS)
+
+
 class QuestionPlanner:
     def __init__(self, *, enabled=False, split_compound=False, class_groups=False, staff_names=False,
-                 groups=None, given_names=None, topic_keywords=(), offices=(), staff=(), class_names=()):
+                 groups=None, given_names=None, topic_keywords=(), offices=(), staff=(), class_names=(), rooms=()):
         self.enabled = enabled is True
         self.split_compound = self.enabled and split_compound is True
         self.class_groups = self.enabled and class_groups is True
@@ -169,6 +275,18 @@ class QuestionPlanner:
         # "б.сэлмаа" -> the table's own spelling, so the rewrite matches the reception lookup.
         self.staff = {re.sub(r'\s+', '', name.casefold()): name.strip() for name in staff}
         self.class_names = frozenset(class_names)    # every class group code in the table
+        self.rooms = {str(name).casefold(): str(name) for name in rooms}   # room numbers: a bare «604 хаана вэ»
+        # Known words for typing without vowels: the fixed list, the topics' keywords and the offices' names.
+        known = set(KNOWN_WORDS) | {word for phrase in self.topic_keywords + tuple(name.casefold() for name in self.offices)
+                                     for word in re.findall(r'[а-яөүё]+', phrase)}
+        shapes = {}
+        for word in known:
+            if len(skeleton(word)) >= 3:
+                shapes.setdefault(skeleton(word), set()).add(word)
+        self.known_words = frozenset(known)
+        # Words sharing a skeleton read as the shortest when it begins all the others («төлбөр» / «төлбөрөө»).
+        self.vowelless = {shape: min(words, key=len) for shape, words in shapes.items()
+                          if all(word.startswith(min(words, key=len)) for word in words)}
 
     @classmethod
     def from_config(cls, root, reception=None):
@@ -180,7 +298,7 @@ class QuestionPlanner:
         if config.get('schema_version') != 1 or config.get('enabled') is not True:
             return cls()
         tables = getattr(reception, 'tables', None) if getattr(reception, 'enabled', False) else None
-        groups, names, offices, staff, class_names = {}, {}, [], [], []
+        groups, names, offices, staff, class_names, rooms = {}, {}, [], [], [], []
         if tables is not None:
             seen = {}
             for group in tables.classes:
@@ -199,6 +317,7 @@ class QuestionPlanner:
             offices = [service.name for room in tables.rooms for service in room.services]
             staff = [person.name for person in tables.staff]
             class_names = [group.group for group in tables.classes]
+            rooms = [room.name for room in tables.rooms]
         keywords = []
         try:
             domains = json.loads((root / 'config/knowledge-domains.json').read_text(encoding='utf-8'))['domains']
@@ -207,7 +326,7 @@ class QuestionPlanner:
             pass
         return cls(enabled=True, split_compound=config.get('split_compound'), class_groups=config.get('class_groups'),
                    staff_names=config.get('staff_names'), groups=groups, given_names=names, topic_keywords=keywords,
-                   offices=offices, staff=staff, class_names=class_names)
+                   offices=offices, staff=staff, class_names=class_names, rooms=rooms)
 
     # -- rules ---------------------------------------------------------------
     def _split(self, query):
@@ -452,6 +571,53 @@ class QuestionPlanner:
             return name + suffix + ' ажилтан хэн бэ?', dict(rule='desk_wording', text=text, value='office_staff')
         return text, None
 
+    def _unvowelled(self, text):
+        """«сургалтын тлбр хэд вэ» -> «сургалтын төлбөр хэд вэ» (typing without vowels, 2026-11-26)."""
+        def restore(match):
+            word = match.group(0)
+            plain = word.casefold()
+            # An all upper-case word is an abbreviation («ШМТК»); a capital first letter starts a sentence («Тлбр»).
+            if (word.isupper() or len(word) < 3 or plain in self.known_words
+                    or any(letter in VOWELS for letter in plain[1:])):
+                return word
+            restored = self.vowelless.get(skeleton(plain))
+            if restored is None:
+                return word
+            return restored[:1].upper() + restored[1:] if word[:1].isupper() else restored
+        changed = re.sub(r'(?<![\w.-])[а-яөүёА-ЯӨҮЁ]+(?![\w.-])', restore, text)
+        return (changed, dict(rule='vowelless_typing', text=text, value=changed)) if changed != text else (text, None)
+
+    @staticmethod
+    def _department_head(text):
+        """«цахилгааны тэнхимийн эрхлэгч» -> «Цахилгаан электроникийн инженерийн тэнхимийн эрхлэгч»."""
+        changed = text
+        for pattern, full in DEPARTMENT_HEAD:
+            changed = pattern.sub(full, changed)
+        return (changed, dict(rule='department_head', text=text, value=changed)) if changed != text else (text, None)
+
+    def _everyday(self, text):
+        """The question an everyday wording of a whole sentence means, or None (2026-11-26)."""
+        plain = ' '.join(re.sub(r'[?!.,;]+', ' ', text or '').casefold().split())
+        if not plain or len(plain) > 120:
+            return None
+        if plain in TOPIC_WORDS:
+            return TOPIC_WORDS[plain]
+        for pattern, question in EVERYDAY_QUESTIONS:
+            if pattern.fullmatch(plain):
+                return question
+        about = DEPARTMENT_ABOUT.fullmatch(plain)
+        if about:
+            return next(intro for stem, intro in DEPARTMENT_INTRO if about.group(1).startswith(stem))
+        room = BARE_ROOM.fullmatch(plain)
+        if room and room.group(1) in self.rooms:
+            return self.rooms[room.group(1)] + ' тоот хаана вэ?'
+        exists = EXISTS_ASK.fullmatch(plain)
+        if exists:
+            office = next((name for name in self.offices if name.casefold() == exists.group(1)), None)
+            if office:
+                return office + ' хаана байдаг вэ?'
+        return None
+
     def _staff_name(self, text):
         # A given name typed in lower case («сэлмаа багш») is the same teacher (round 8); only names in
         # the staff table are read, so ordinary words before «багш» are not.
@@ -668,6 +834,17 @@ class QuestionPlanner:
             if normalized != text:
                 rewrites.append(dict(rule='wording', text=text, value=normalized))
                 text = normalized
+            if self.enabled:
+                # 11/26: typing without vowels, a department head by its short name, then an everyday wording of
+                # the whole sentence («энэ яадаг сургууль вэ», «төлбөр», «604 хаана байдаг вэ»).
+                for rule in (self._unvowelled, self._department_head):
+                    text, rewrite = rule(text)
+                    rewrites += [rewrite] if rewrite else []
+                everyday = self._everyday(text)
+                if everyday is not None:
+                    rewrites.append(dict(rule='everyday_wording', text=text, value=everyday))
+                    parts.append(dict(original=original, query=everyday, rewrites=rewrites))
+                    continue
             # «Сургуулийн тодорхойлолт авах гэсэн юм» (round 9): at the desk, a wish to get a paper
             # asks where it is issued.
             wish = REQUEST.fullmatch(text.strip())

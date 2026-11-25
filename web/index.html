@@ -349,6 +349,9 @@ function renderTurn(turn, result) {
   if (result.conversation?.applied && result.conversation.resolved_query !== turn.query) target.append(el("p", "Тодруулсан асуулт: " + result.conversation.resolved_query, "notice"));
   if (typeof result.question_plan?.followup?.rewritten === "string") target.append(el("p", "Өмнөх асуулттай холбож ойлгосон нь: " + result.question_plan.followup.rewritten, "notice"));
   if (typeof result.latin_script?.read_as === "string") target.append(el("p", "Ингэж ойлголоо: «" + result.latin_script.read_as + "»", "notice"));
+  // 11/26: an everyday wording or a word typed without vowels was read as another question — show which one.
+  const readAs = result.question_plan?.compound ? [] : (result.question_plan?.parts || []).filter(part => (part.rewrites || []).some(rewrite => rewrite.rule === "everyday_wording" || rewrite.rule === "vowelless_typing"));
+  if (readAs.length === 1 && typeof readAs[0].query === "string" && typeof result.latin_script?.read_as !== "string") target.append(el("p", "Ингэж ойлголоо: «" + readAs[0].query + "»", "notice"));
   const answer = typeof result.answer === "string" && result.answer.trim() ? result.answer : "";
   const note = [result.clarification?.question, result.message].find(v => typeof v === "string" && v.trim()) || "";
   const understood = /^Таны асуултыг/.test(note);     // «Таны асуултыг «…» гэж ойлгож хариуллаа.»
@@ -370,7 +373,7 @@ function renderTurn(turn, result) {
     return result.clarification.kind === "missing_year" && result.conversation?.clarification_id ? (years?.[0] || option.question.match(/20\d{2}/)?.[0] || option.question) : option.question;
   }).filter(Boolean);
   if (clarify.length) target.append(optionButtons(clarify, text => submit(text, { keepClarification: true })));
-  else if (Array.isArray(result.suggestions) && result.suggestions.length) target.append(el("p", "Ингэж асууж болно:", "hint"), optionButtons(result.suggestions, text => submit(text)));
+  else if (Array.isArray(result.suggestions) && result.suggestions.length) target.append(el("p", result.suggestions_kind === "nearest_stored_questions" ? "Та үүнийг асуусан уу?" : "Ингэж асууж болно:", "hint"), optionButtons(result.suggestions, text => submit(text)));
   if (result.citations?.length) {
     const sources = el("details", undefined, "sources"); const unique = new Set(result.citations.map(c => c.source_url_or_filename));
     sources.append(el("summary", "Эх сурвалж · " + unique.size), sourceList(result.citations)); target.append(sources);

@@ -707,3 +707,6 @@ __pycache__/
 # 11/26: the knowledge tree beside the chat (knowledge_view.py) and its tests.
 !/knowledge_view.py
 !/tests/test_knowledge_view.py
+# 11/26 (2): everyday wordings, nearest stored questions, another school out of scope.
+!/tests/test_everyday_wording.py
+!/papers/58-everyday-wordings-20261126.mn.md
