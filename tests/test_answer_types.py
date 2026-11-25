@@ -664,11 +664,19 @@ class ReceptionWordingTests(unittest.TestCase):
         meet = path.answer('Захиралтай уулзаж болох уу?')
         self.assertEqual(meet['reason_code'], 'reception_role_meet')
         self.assertIn('өрөөндөө байгаа эсэхийг мэдэх боломжгүй', meet['answer'])
-        # A personal name, a post nobody holds, or the website's own people stay with the other paths.
-        for query in ('Э.Багш хэн бэ?', 'Оюутны зөвлөлийн дарга хэн бэ?', 'Сургуулийг хэн үүсгэн байгуулсан бэ?'):
+        # A name the staff table does not hold, a post nobody holds, or the website's own people stay with the
+        # other paths.
+        for query in ('Я.Байхгүй хэн бэ?', 'Оюутны зөвлөлийн дарга хэн бэ?', 'Сургуулийг хэн үүсгэн байгуулсан бэ?'):
             with self.subTest(query=query):
                 self.assertFalse(path.recognizes(query))
                 self.assertIsNone(path.answer(query))
+        # Since 11/25 a person in the staff table is answered here: «… гэж хэн бэ?» gives the recorded post (and,
+        # with complete answers, room, e-mail and lessons) instead of only the website's introduction.
+        self.assertTrue(path.recognizes('Э.Багш хэн бэ?'))
+        who = path.answer('Э.Багш хэн бэ?')
+        self.assertEqual(who['reason_code'], 'reception_person')
+        self.assertIn('Э.Багш', who['answer'])
+        self.assertIn('Механик инженерийн тэнхимийн багш', who['answer'])
 
     def test_rooms_by_their_recorded_purpose(self):
         # Round 6: «Хурлын заал хэддүгээр давхарт байдаг вэ?» was refused though the table names room 809.

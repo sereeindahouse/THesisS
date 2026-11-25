@@ -126,6 +126,13 @@ def start_or_reuse(root=ROOT, *, port=PORT):
         start_local_llm(root)
     runtime = root / "runtime"
     runtime.mkdir(parents=True, exist_ok=True)
+    # Whole-section answers use the saved pages cut into sections (website_sections.py); the cut belongs to one
+    # website release, so it is made again when a new release was published. Never a reason not to start.
+    try:
+        from tools.build_website_sections import refresh
+        refresh(root)
+    except Exception:
+        pass
     with (runtime / "demo-server.stdout.log").open("ab") as output, \
             (runtime / "demo-server.stderr.log").open("ab") as errors:
         process = subprocess.Popen(

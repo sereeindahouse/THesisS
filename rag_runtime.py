@@ -24,6 +24,8 @@ from referral import attach_referral, load_referral, load_topic_rules
 from faq_intent import FaqIntents
 from privacy_filter import hide_mobiles
 from answer_presentation import present, withhold_fragment
+from speech_text import remove_rendered_citations
+from website_sections import SectionIndex, asks_what, holds, section_text
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -523,6 +525,38 @@ def school_scope_sources(query, sources):
     kept = [source for source in sources if not urlsplit(source.get('url') or '').path.startswith(
         ('/departments', '/programs'))]
     return kept or sources
+
+
+# A page about one thing answers only a question about that thing (11/25, read from real replies: «Төлбөрөө хэзээ
+# төлөх вэ?» got the olympiad page's tiles, «Цахилгааны инженер мэргэжлээр төгсөөд юу хийх вэ?» the mechanical
+# department's list of companies). Words that name the five departments and their pages:
+DEPARTMENT_PAGES = (('механик', 'mechanical'), ('хими', 'chemical'), ('барилг', 'civil'), ('цахилгаан', 'electrical'),
+                    ('электроник', 'electrical'), ('компьютер', 'computer-science'), ('ерөнхий эрдм', 'general-department'))
+# At the start of a word only: «хими» is also inside «тэнхимийн».
+DEPARTMENT_WORDS = tuple((re.compile(r'(?<!\w)' + word), page) for word, page in DEPARTMENT_PAGES)
+EVENT_PAGES = (('/olympiad', re.compile(r'олимпиад|olympiad', re.I)),)
+
+
+def named_scope_sources(query, sources):
+    """Drop evidence from a page about another thing than the question names.
+
+    An event page stays only when the question names the event. When the question names exactly one department
+    (or its profession), pages of the other departments and their programmes go; every other page stays. A
+    question that names no department, or several, keeps all department pages.
+    """
+    q = query.casefold()
+    kept = []
+    named = {page for word, page in DEPARTMENT_WORDS if word.search(q)}
+    for source in sources:
+        page = urlsplit(source.get('url') or '').path
+        if any(page.startswith(prefix) and not names.search(q) for prefix, names in EVENT_PAGES):
+            continue
+        if len(named) == 1 and page.startswith(('/departments/', '/programs/')):
+            slug = page.split('/')[2] if len(page.split('/')) > 2 else ''
+            if slug and not slug.startswith(next(iter(named))):
+                continue
+        kept.append(source)
+    return kept
 
 
 def common_question_alias(query):
@@ -1465,12 +1499,28 @@ class ChatRAG:
     # stored question matched, several were close, or the wording was not exact. The router's named-entity, office-scope
     # and combined-constraint stops are kept (every bank checked on 11/23 needed only these three).
     FAQ_INTENT_REASONS = {"no_supported_question_match", "select_supported_question", "constrained_wording_not_exact"}
+    # 11/25: outcomes that only say «nothing matching was found»; after them a page section that the question
+    # names may answer (website_sections.py). A refusal with a reason of its own — a future admission round, a
+    # personal record, a staff mobile, two companies in one question — is never replaced.
+    SECTION_REASONS = frozenset({'website_no_evidence', 'website_related_sources', 'selection_not_relevant',
+                                 'website_fragment_withheld', 'concept_overview_not_supported',
+                                 'requested_information_not_verified', 'generation_not_verified',
+                                 'generation_unavailable_with_sources', 'requested_attribute_not_supported',
+                                 'no_supported_question_match', 'select_supported_question', 'missing_entity'})
     # 11/23 (check set Q25): «Охин маань ирэх жил 9-өө төгсөнө. Элсэлтийн бүртгэл хэзээ эхлэх бол?» asks about an
     # admission round no saved page covers. The guard stops the fallbacks (own-wording FAQ, website extracts) from
     # answering it with this year's dates; a stored FAQ that the router itself matches (a later round's FAQ) still
     # answers, so the check comes after the router's answer.
     NEXT_YEAR = re.compile(r'(?<!\w)(?:ирэх|дараа|дараагийн|хойтон|хойтын)\s+(?:хичээлийн\s+)?жил', re.I)
     ADMISSION = re.compile(r'(?<!\w)(?:элс|бүртг|шалгалт|хураамж|сургалтын\s+төлбөр)', re.I)
+    # «… юу хийдэг вэ?», «… ямар үүрэгтэй вэ?», «… юу хариуцдаг вэ?» — what an office does (see _office_card).
+    OFFICE_ABOUT = re.compile(r'^\s*(?P<name>\S.{2,80}?)\s+(?:юу\s+хийдэг|ямар\s+(?:үүрэгтэй|ажил\s+хийдэг|'
+                              r'үйлчилгээ\s+үзүүлдэг)|юуг?\s+хариуцдаг)(?:\s+(?:вэ|бэ))?\s*[?.!]*\s*$', re.I)
+    # 11/25: «Гадаад оюутан элсэж болох уу?» got two tiles of the career page. No saved page speaks of applicants
+    # from abroad; like the next round above, that is said plainly instead of showing a text that shares a word.
+    FOREIGN_APPLICANT = re.compile(r'(?<!\w)гадаад(?:ын|аас)?\s+(?:оюутан|оюутн|иргэн|иргэд|хүн|хүүхэд|сурагч)', re.I)
+    # An enrolment verb; «бүртгэлийн хураамж» (a fee) keeps the router's own question about the scope.
+    ENROL = re.compile(r'(?<!\w)(?:элс|бүртгүүл|суралц|сурч|орж\s+бол)', re.I)
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
     # The stored question whose answer introduces the school (content v5, tools/build_content_v5.py).
@@ -1536,6 +1586,7 @@ class ChatRAG:
         encoder = getattr(retriever, '_encoder', None) if getattr(retriever, 'use_dense', False) else None
         self.faq_intents = FaqIntents.from_config(self.root, encoder=encoder, lock=getattr(retriever, '_lock', None))
         self._faq_texts = {}
+        self._sections = None       # page sections of the corpus being served, read at the first need
 
     def _office_place(self, name):
         """Floor, room and confirmed hours of an office, only from enabled, reviewed reception tables."""
@@ -1603,10 +1654,102 @@ class ChatRAG:
             self._faq_texts = {key: faqs}       # replaced whole: another thread keeps the dict it read
         return faqs
 
+    def _section_index(self):
+        """The stored page sections, only when they were cut from the corpus the retriever serves now."""
+        try:
+            corpus = self.retriever.status().get('corpus_id')
+        except Exception:
+            return SectionIndex()
+        with self._lock:
+            if self._sections is None or self._sections[0] != corpus:
+                self._sections = (corpus, SectionIndex.from_file(self.root, corpus) if corpus else SectionIndex())
+            return self._sections[1]
+
+    def _names_page_section(self, query):
+        """«Үйлдвэрлэлийн дадлага гэж юу вэ?» names a section of a page of the site word for word: that section
+        says what it is, a stored answer on the wider topic («Японд дадлага хийж болох уу?» — «Тийм. …») does
+        not. Only for «… гэж юу вэ / …-ийн талаар / тухай» and a bare name; never for a news item, and not when
+        the question names a whole page (its opening text): the stored overview of that topic is fuller."""
+        index = self._section_index()
+        named = index.find(query) if index and asks_what(query) else None
+        return named is not None and named['all_named'] and not named['news'] and not named['intro']
+
+    def _section_answer(self, result, query):
+        """The whole page section a describing question names, in the page's own words (website_sections.py).
+
+        Only for a reply that found nothing (SECTION_REASONS), and in place of a website extract: sentences picked
+        from several places are a poorer answer to «… гэж юу вэ?» than the section that carries that name.
+        Everything else is left."""
+        if not isinstance(result, dict) or not self.policy.enabled or result.get('exact_matches'):
+            return result
+        answer = result.get('answer')
+        unanswered = (not answer and result.get('route') in {'D', 'E'} and not result.get('clarification')
+                      and result.get('reason_code') in self.SECTION_REASONS)
+        extract = bool(answer) and result.get('answer_kind') == 'rag_generated'
+        if not (unanswered or extract):
+            return result
+        index = self._section_index()
+        found = index.find(query) if index else None
+        if found is None:
+            return result
+        section = found['section']
+        # An extract stays when the section is too long to show whole (the extract may hold the asked part of
+        # it), and a news item replaces an extract only when the extract is a part of that item.
+        if extract and (not found['whole'] or (found['news'] and not holds(
+                section, remove_rendered_citations(answer, len(result.get('citations') or []))))):
+            return result
+        replaced = dict(reason_code=result.get('reason_code'), answer_kind=result.get('answer_kind'))
+        result.update(route='C', answer=section_text(section), generated=False, answer_kind='website_section',
+                      reason_code='website_section', reason_codes=['website_section'], clarification=None,
+                      suggestions=[], related_sources=[], candidates=[],
+                      message='Асуултад нэрлэсэн хуудасны хэсгийг үг өөрчлөхгүй үзүүлэв.',
+                      citations=[dict(document_id='section:' + section.url + '#' + section.heading,
+                                      version=section.version, title=section.title,
+                                      source_url_or_filename=section.url, locator=section.heading,
+                                      extraction_method='html_heading_section', reviewer_kind=None,
+                                      retrieved_at=section.retrieved_at, source_accepted_for_project=True,
+                                      approval_status='draft', school_staff_approval=False)])
+        result.pop('withheld_answer', None)
+        rag = result.setdefault('rag', {})
+        rag.update(reason='website_section', llm_calls=rag.get('llm_calls', 0), corpus_id=index.corpus_id,
+                   section=dict(url=section.url, heading=section.heading, said=found['said'],
+                                all_named=found['all_named'], candidates=found['candidates'], replaced=replaced))
+        return result
+
+    def _office_card(self, result, query, now=None):
+        """«Сургалтын алба юу хийдэг вэ?» when no saved page describes the office: its recorded place, hours and
+        staff with their posts (the posts say what the office does). Only for an office the reception tables
+        name, and only when nothing else answered."""
+        if (not isinstance(result, dict) or result.get('answer') or result.get('route') not in {'D', 'E'}
+                or result.get('clarification') or not getattr(self.reception, 'enabled', False)
+                or result.get('reason_code') not in self.SECTION_REASONS | {'constraints_not_supported_together'}):
+            return result
+        asked = self.OFFICE_ABOUT.match(query or '')
+        if asked is None:
+            return result
+        try:
+            card = self.reception.answer(asked.group('name').strip() + ' хаана байдаг вэ?', now=now)
+        except Exception:
+            return result
+        if not card or not card.get('answer') or card.get('reason_code') != 'reception_service_lookup':
+            return result
+        asked_reason, asked_query = result.get('reason_code'), result.get('query')
+        result.update(route='C', citations=[], related_sources=[], suggestions=[], clarification=None, candidates=[],
+                      generated=False, answer_kind='reception_table_lookup')
+        result.update(card)
+        # The card was looked up under another wording; the reply stays the reply to the visitor's own question
+        # (listening to it recalls the reply by that question).
+        result.update(query=asked_query, reason_codes=[result['reason_code']], office_about=dict(replaced=asked_reason))
+        result['rag'] = dict(enabled=False, reason=result['reason_code'], llm_calls=0, answer_text_generated=False,
+                             source='reception_tables')
+        return result
+
     def _faq_intent_answer(self, database, query, result, allow_draft):
         """The stored FAQ a visitor's own wording names, answered through the router with all its guards, or None."""
         if (not getattr(self.faq_intents, 'enabled', False) or database is None or result.get('answer')
                 or result.get('exact_matches') or result.get('reason_code') not in self.FAQ_INTENT_REASONS):
+            return None
+        if self._names_page_section(query):
             return None
         try:
             faqs = self._stored_faqs(database, result.get('package_id'))
@@ -1689,6 +1832,16 @@ class ChatRAG:
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)
         # A website excerpt that is only menu or tile labels is no answer to an open question (11/25).
         result = withhold_fragment(result)
+        # A describing question that names a page section gets the whole section (website_sections.py, 11/25).
+        result = self._section_answer(result, search_query)
+        # «<алба> юу хийдэг вэ?» with nothing found: the office's recorded card (place, hours, staff and posts).
+        result = self._office_card(result, search_query,
+                                   now=self.reception_clock() if self.reception_clock is not None else None)
+        if (result.get('answer') and not result.get('response_id')
+                and (result.get('answer_kind') == 'website_section' or result.get('office_about'))):
+            # The router's own stops are not stored for recall; a reply made from one here must be, or «Сонсох»
+            # would read the router's message instead of the answer on the screen (found by listening, 11/25).
+            result = self._remember(result, allow_draft)
         result = attach_referral(result, self.referral, rules=self.topic_rules, locate=self._office_place)
         # Plain wording after every guard, before speech (answer_presentation.py, 11/22).
         tables = getattr(self.reception, 'tables', None) if getattr(self.reception, 'enabled', False) else None
@@ -1779,6 +1932,11 @@ class ChatRAG:
             result.update(route='E', answer=None, citations=[], candidates=[], clarification=None, related_sources=[],
                           suggestions=[], exact_matches=[], reason_code='future_admission_round_not_published',
                           message='Ирэх жилийн элсэлтийн мэдээлэл олдсонгүй.')
+            return self._remember(result, allow_draft)
+        if self.policy.enabled and self.FOREIGN_APPLICANT.search(query) and self.ENROL.search(query):
+            result.update(route='E', answer=None, citations=[], candidates=[], clarification=None, related_sources=[],
+                          suggestions=[], exact_matches=[], reason_code='foreign_applicant_admission_not_published',
+                          message='Гадаадын иргэн элсэх тухай мэдээлэл олдсонгүй.')
             return self._remember(result, allow_draft)
         mapped = self._faq_intent_answer(database, query, result, allow_draft)
         if mapped is not None:
@@ -2215,6 +2373,21 @@ class ChatRAG:
                             'Зөвхөн хураамжийн дүнгээр бүртгэлийн үйл явцыг орлуулахгүй. Доорх албан эхийг шалгана уу.')
                 result['rag']['reason'] = 'registration_process_not_supported'
                 return self._remember(result, allow_draft)
+            # A page about another event or department is no evidence for the open selection (named_scope_sources).
+            # It comes after the specialised extracts above: their own refusals are more specific and stay.
+            scoped = named_scope_sources(query, evidence)
+            if len(scoped) != len(evidence):
+                result['rag']['named_scope_filter'] = dict(before=[source['source_id'] for source in evidence],
+                    after=[source['source_id'] for source in scoped], mechanism='page_about_another_event_or_department')
+                if not scoped:
+                    # Nothing but pages about another thing was found: the plain «not found», without offering
+                    # those pages as related reading (80-question set U04, «Сургуулийн автобус хэдэн цагт явдаг вэ?»).
+                    result.update(reason_code='selection_not_relevant', suggestions=[], related_sources=[],
+                        message='Энэ асуултад хариулах мэдээлэл хадгалсан эх сурвалжаас олдсонгүй. '
+                                'Ойролцоо үгтэй хамааралгүй хэсгийг хариулт болгож харуулахгүй.')
+                    result['rag']['reason'] = 'selection_not_relevant'
+                    return self._remember(result, allow_draft)
+                evidence = scoped
             phase_start = time.perf_counter()
             result['rag']['generator_source_ids'] = [source['source_id'] for source in evidence[:5]]
             generated = self.generator.generate(query, evidence[:5])

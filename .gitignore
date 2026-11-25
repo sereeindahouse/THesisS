@@ -690,3 +690,13 @@ __pycache__/
 # centre, departments), each built from clauses copied word for word from the saved official pages.
 !/tools/build_content_v5.py
 !/data/content-draft-v5-20261125.json
+# 11/25 (2): whole page sections as answers to describing questions (website_sections.py and the tool that cuts
+# the saved pages; the cut sections themselves stay in runtime/, they are the school's page text), three scope
+# rules of the website path, the office card, and stored answers v6 (paths after graduation).
+!/website_sections.py
+!/tools/build_website_sections.py
+!/tests/test_website_sections.py
+!/tests/test_named_scope.py
+!/tools/build_content_v6.py
+!/data/content-draft-v6-20261125.json
+!/papers/56-page-sections-and-scope-rules-20261125.mn.md

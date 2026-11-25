@@ -32,7 +32,10 @@ CONFIG = ('answer-selection.json', 'content-use.json', 'faq-intents.json', 'know
           'retrieval-morphology.json', 'stt-audio-cleanup.json', 'stt-development.json',
           'stt-text-normalization.json', 'stt-vocabulary.json',
           'model-catalog/intfloat--multilingual-e5-small.json')
-OPTIONAL_FILES = ('data/stt-model-choice.json', 'requirements.txt', 'requirements-modeltools.txt')
+# runtime/website-sections.json: the saved pages cut into sections (website_sections.py); main() cuts it again
+# for the release being copied before the files are listed.
+OPTIONAL_FILES = ('data/stt-model-choice.json', 'requirements.txt', 'requirements-modeltools.txt',
+                  'runtime/website-sections.json')
 TREES = ('models/multilingual-e5-small', 'runtime/quality-media-20261021/teacher-media')
 KEY_FILE = 'runtime/gemini-credentials.dpapi'
 MANIFEST = '.build-files.json'
@@ -84,6 +87,7 @@ README = '''# ШМТК-ийн ухаалаг туслах — чат
 | `config/` | Тохиргоо: хариулт сонгох, асуулт ойлгох, хаана хандахыг заах, дуу таних үгийн жагсаалт |
 | `CORE/database/website.db` | Сургуулийн вэб сайтын хуулбар (хуудас, хэсэг) |
 | `runtime/content.db` | Хадгалсан асуулт, хариулт, баримт |
+| `runtime/website-sections.json` | Сайтын хуудсыг гарчгаар нь хэсэглэсэн хуулбар (нээлттэй асуултад бүтэн хэсгээр хариулна) |
 | `data/reception/` | Сургуулиас өгсөн хүснэгт: өрөө, ажилтан, анги, хуваарь |
 | `models/multilingual-e5-small/` | Утгын хайлтын загвар (multilingual-e5-small) |
 
@@ -254,9 +258,17 @@ def main():
     parser.add_argument('--no-key', action='store_true', help='do not copy the encrypted speech-service key')
     parser.add_argument('--dry-run', action='store_true')
     args = parser.parse_args()
+    sys.stdout.reconfigure(encoding='utf-8')
+    if not args.dry_run:
+        # The page sections belong to one website release: cut them from the release that is copied now.
+        try:
+            import build_website_sections
+            _, sections, _, corpus = build_website_sections.write(ROOT)
+            print(f'page sections: {len(sections)} (corpus {str(corpus)[:12]})')
+        except Exception as error:      # the copy still answers, only without whole-section answers
+            print('page sections were not cut:', type(error).__name__, error)
     report = build(args.target, with_model=not args.skip_model, with_key=not args.no_key, port=args.port,
                    dry_run=args.dry_run)
-    sys.stdout.reconfigure(encoding='utf-8')
     print(('Would build' if args.dry_run else 'Built') + f" {report['target']}: {report['files']} files, "
           f"{report['megabytes']} MB; copied {len(report['copied'])}, unchanged {report['kept']}, "
           f"removed {len(report['removed'])}; key copied: {report['key_copied']}")

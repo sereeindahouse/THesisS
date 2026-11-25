@@ -284,6 +284,54 @@ def direct_first(query, text):
     return text
 
 
+_YES_NO_ASKED = re.compile(r'(?<!\w)(?:уу|үү|юу|юү)\s*[?.!]*\s*$')
+_WHAT_IS = re.compile(r'^\s*(?P<name>\S.*?)\s+(?:гэж\s+юу|гэдэг\s+(?:нь\s+)?юу)(?!\w)|'
+                      r'^\s*(?P<about>\S.*?)\s+(?:талаар|тухай)(?!\w)')
+_NAME_END = re.compile(r'\s*(?:—|–|:|\s-\s)')
+
+
+def drop_yes(query, text):
+    """A stored answer written for a yes/no question opens with «Тийм.»; under another wording of the question
+    («Нийтийн хоолны газрын талаар») that word answers nothing, so it goes and the sentences stay."""
+    if not isinstance(text, str) or not isinstance(query, str) or _YES_NO_ASKED.search(query.casefold().strip()):
+        return text
+    opened = re.match(r'(?:Тийм|Үгүй)[.!]\s+(?=\S)', text)
+    return _cap(text[opened.end():]) if opened else text
+
+
+def named_first(query, text):
+    """«Гашшүкү хөтөлбөр гэж юу вэ?» — the line of a stored answer that opens with the asked name goes to the top:
+    a plain line is moved, a list item is repeated above its list (the list stays whole). Nothing is rewritten."""
+    if not isinstance(text, str) or not isinstance(query, str):
+        return text
+    asked = _WHAT_IS.search(query)
+    words = re.findall(r'[^\W\d_]{2,}', (asked.group('name') or asked.group('about') or '').casefold()) if asked else []
+    if not words or len(words) > 5:
+        return text
+    body, tail = _split_tail(text)
+    lines = body.split('\n')
+    if len(lines) < 2:
+        return text
+
+    def opens(line):
+        line = line.lstrip('•-– ').casefold()
+        end = _NAME_END.search(line)
+        if end is None or end.start() > 60:
+            return False
+        head = re.findall(r'[^\W\d_]{2,}', line[:end.start()])
+        # The line's own name opens as the asked name does, and every word of it is one of the asked words
+        # («JENESYS» for «JENESYS хөтөлбөр»; not «Хөтөлбөр» for «Япон улстай танилцах хөтөлбөр»).
+        return bool(head) and len(head) <= len(words) and head[0][:5] == words[0][:5] and all(
+            any(word[:5] == part[:5] for word in words) for part in head)
+    hit = next((index for index, line in enumerate(lines) if index and opens(line)), None)
+    if hit is None or opens(lines[0]):
+        return text
+    if lines[hit].lstrip().startswith('•'):
+        return lines[hit].lstrip('• ').rstrip() + '\n\n' + body + tail
+    lead = lines.pop(hit)
+    return lead + '\n\n' + '\n'.join(lines).strip('\n') + tail
+
+
 def _split_tail(text):
     tail = _SOURCE_TAIL.search(text)
     return (text[:tail.start()], tail.group(0)) if tail else (text, '')
@@ -575,6 +623,9 @@ def present(result, *, confirmed_school_hours=False):
         if result.get('answer_kind') in {'rag_generated', 'official_website_extract'}:
             shown = focus(result.get('query'), shown)
         shown = direct_first(result.get('query'), shown)
+        if result.get('answer_kind') == 'official_website_snapshot':
+            # A stored answer under another wording of its question: no stray «Тийм.», the asked name first.
+            shown = named_first(result.get('query'), drop_yes(result.get('query'), shown))
         if shown != answer:
             result['answer'] = shown
         if result.get('message') and result.get('answer_kind') not in {

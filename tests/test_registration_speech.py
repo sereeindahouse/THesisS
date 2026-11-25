@@ -125,7 +125,9 @@ class SpeechTextTests(unittest.TestCase):
         self.assertEqual(normalize_spoken_currency(text), text)
 
     def test_expanded_speech_over_budget_keeps_complete_display_and_citations(self):
-        text = ('20,000 ₮. ' * 60).strip()
+        # Sentences, not bare amounts: since 11/25 an excerpt of labels only («20,000 ₮. 20,000 ₮. …») is withheld
+        # as no answer to an open question (answer_presentation.withhold_fragment).
+        text = ' '.join(f'{number}-р хэсгийн хураамж 20,000 ₮.' for number in range(1, 31))
         retriever, generator = Retriever(), Generator()
         retriever.sources[0].update(text=text, excerpt=text)
         generator.generate = lambda query, sources: dict(generated=True, llm_calls=1,
