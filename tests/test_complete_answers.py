@@ -94,6 +94,54 @@ class PersonAnswerTests(unittest.TestCase):
         self.assertNotIn('Өнөөд', path().answer('З.Наран багш гэж хэн бэ?')['answer'])
 
 
+class MeetingAnswerTests(unittest.TestCase):
+    """«… багштай яаж уулзах вэ?»: the room, what the timetable says now, how to arrange it; presence never claimed."""
+    def test_the_meeting_card_of_a_teacher(self):
+        query = 'З.Наран багштай яаж уулзах вэ?'
+        self.assertTrue(path().recognizes(query))
+        result = path().answer(query, now=NOW)
+        self.assertEqual(result['reason_code'], 'reception_teacher_meet')
+        answer = result['answer']
+        self.assertTrue(answer.startswith('З.Наран — Зохиомол тэнхимийн эрхлэгч.'))
+        for expected in ('604', 'Хуваариар бол', 'naran@school.example', 'Өнөөдрийн хичээл'):
+            self.assertIn(expected, answer)
+        self.assertEqual(answer.count('мэдэх боломжгүй') + answer.count('батлахгүй'), 1)      # one sentence about presence
+
+    def test_a_stranger_named_as_a_teacher_is_not_answered_with_subject_teachers(self):
+        # «Мат» opened «Математик» when a short word was cut to three letters: a stranger got that subject's teachers.
+        result = path().answer('Мате багшийн өрөө хаана вэ?', now=NOW)
+        self.assertFalse(result and result.get('answer'))
+
+
+class UnrecordedRoomTests(unittest.TestCase):
+    def test_a_teacher_without_a_recorded_room_is_still_named_with_the_departments_room(self):
+        staff = tables().staff + (Staff(name='З.Номт', department='Зохиомол тэнхим', role='Зохиомол тэнхимийн багш',
+                                        email='nomt@school.example'),)
+        rooms = tables().rooms[1:] + (Room(floor=6, name='604', purpose='Багш нарын өрөө', department='Зохиомол тэнхим'),)
+        made = ReceptionAnswerPath(ReceptionTables(rooms=rooms, staff=staff, classes=tables().classes,
+                                                   timetable=tables().timetable, timetable_complete=True,
+                                                   dataset_label='FAKE only'), enabled=True, complete=True)
+        result = made.answer('З.Номт багшийн өрөө хаана вэ?', now=NOW)
+        self.assertEqual(result['reason_code'], 'reception_teacher_office_unrecorded')
+        answer = result['answer']
+        self.assertTrue(answer.startswith('З.Номт — Зохиомол тэнхимийн багш. Ажлын өрөө нь бүртгэлд алга.'))
+        self.assertIn('Тэнхимийн багш нарын өрөө: 604 тоот, 6-р давхар.', answer)
+        self.assertIn('nomt@school.example', answer)
+
+    def test_an_office_whose_name_holds_a_comma(self):
+        rooms = tables().rooms + (Room(floor=4, name='405', purpose='Алба',
+                                       services=(Service(name='Зохиомол хяналт, чанарын алба', office_hours='08:00–17:00',
+                                                         contact='—'),)),)
+        made = ReceptionAnswerPath(ReceptionTables(rooms=rooms, staff=tables().staff, classes=tables().classes,
+                                                   timetable=tables().timetable, timetable_complete=True,
+                                                   dataset_label='FAKE only'), enabled=True, complete=True)
+        query = 'Зохиомол хяналт, чанарын алба хаана байдаг вэ?'
+        self.assertTrue(made.recognizes(query))
+        self.assertTrue(made.answer(query, now=NOW)['answer'].startswith('Зохиомол хяналт, чанарын алба: 4-р давхар, 405 тоот.'))
+        # A list of two places is not an office's name.
+        self.assertFalse(made.recognizes('Зохиомол алба, номын сан хаана байдаг вэ?'))
+
+
 class PlaceAnswerTests(unittest.TestCase):
     def test_an_office_lists_its_staff_but_its_hours_stay_short(self):
         where = path().answer('Зохиомол алба хаана байдаг вэ?', now=NOW)['answer'].split('\n')

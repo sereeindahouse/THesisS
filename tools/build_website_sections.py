@@ -14,6 +14,7 @@ The file names the corpus it was cut from and is ignored for any other corpus: r
 website release is published (tools/build_chat_clone.py runs it before it copies the file).
 """
 import argparse
+import html as html_text
 from datetime import datetime, timezone
 import json
 import re
@@ -82,7 +83,8 @@ def clean_lines(text, headings=()):
         elif viewed:
             lines.append(viewed.group(1))
         elif NUMBER.match(line) and caption:
-            lines.append(line + ' ' + following)
+            if not MOBILE.search(following) and not MOBILE.search(line + ' ' + following):
+                lines.append(line + ' ' + following)
             index += 1
         elif line == 'NEW' and caption:
             index += 1
@@ -98,8 +100,7 @@ def html_headings(html):
         html = re.sub(r'<' + tag + r'\b.*?</' + tag + r'\s*>', ' ', html, flags=re.S | re.I)
     found = []
     for match in re.finditer(r'<h([1-4])\b[^>]*>(.*?)</h\1\s*>', html, flags=re.S | re.I):
-        text = flat(re.sub(r'<[^>]+>', ' ', match.group(2)).replace('&amp;', '&').replace('&nbsp;', ' ')
-                    .replace('&quot;', '"').replace('&#39;', "'"))
+        text = flat(html_text.unescape(re.sub(r'<[^>]+>', ' ', match.group(2))))
         if text:
             found.append((int(match.group(1)), text))
     return found
@@ -257,13 +258,20 @@ def build(website_database):
     return sections, report
 
 
-def write(root=ROOT):
-    """Cut the corpus the chat serves and store the sections; returns (path, sections, report, corpus ID)."""
+def served(root=ROOT):
+    """(website database, corpus ID) of the content the chat serves now."""
     from chat_server import content_databases
     from website_retrieval import WebsiteRetriever
+    _, website_database, _ = content_databases(Path(root))
+    return website_database, WebsiteRetriever(root=Path(root), database=website_database,
+                                              use_dense=False).status().get('corpus_id')
+
+
+def write(root=ROOT, website_database=None, corpus_id=None):
+    """Cut the corpus the chat serves and store the sections; returns (path, sections, report, corpus ID)."""
     root = Path(root)
-    _, website_database, _ = content_databases(root)
-    corpus_id = WebsiteRetriever(root=root, database=website_database, use_dense=False).status().get('corpus_id')
+    if website_database is None or corpus_id is None:
+        website_database, corpus_id = served(root)
     sections, report = build(website_database)
     target = root / SECTIONS_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -276,18 +284,17 @@ def write(root=ROOT):
 def refresh(root=ROOT):
     """Cut the sections again when the stored ones were cut from another corpus than the one served now;
     returns whether they were cut. Called before the main server starts (open_demo.py)."""
-    from chat_server import content_databases
-    from website_retrieval import WebsiteRetriever
     root = Path(root)
-    _, website_database, _ = content_databases(root)
-    corpus_id = WebsiteRetriever(root=root, database=website_database, use_dense=False).status().get('corpus_id')
+    website_database, corpus_id = served(root)
+    if not corpus_id:               # the corpus cannot be read: nothing to cut for
+        return False
     try:
         stored = json.loads((root / SECTIONS_PATH).read_text(encoding='utf-8')).get('corpus_id')
     except (OSError, ValueError, AttributeError):
         stored = None
-    if corpus_id and stored == corpus_id:
+    if stored == corpus_id:
         return False
-    write(root)
+    write(root, website_database, corpus_id)
     return True
 
 

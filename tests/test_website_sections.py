@@ -49,8 +49,9 @@ class WordKeyTests(unittest.TestCase):
                 self.assertTrue(same_word(stem(one), stem(other)))
 
     def test_different_words_do_not_meet(self):
+        # The last two share a stem key; the words as written tell them apart (code review, 11/25).
         for one, other in (('үйл', 'үйлдвэр'), ('компьютер', 'компани'), ('танилцах', 'танхим'), ('ном', 'номер'),
-                           ('чанар', 'чадвар')):
+                           ('чанар', 'чадвар'), ('зөвлөгөө', 'зөвлөл'), ('бэлтгэх', 'бэлтгэл')):
             with self.subTest(one=one, other=other):
                 self.assertFalse(same_word(stem(one), stem(other)))
 
@@ -112,6 +113,9 @@ class FindTests(unittest.TestCase):
         self.assertIsNone(self.found('Хамгаалалт байдаг уу?'))         # not «Хүүхэд хамгааллын ажил»
         self.assertIsNone(self.found('Лаборатори гэж юу вэ?'))
 
+    def test_a_label_must_be_said_whole(self):
+        self.assertIsNone(self.found('Сургалтын тухай'))                 # half of the label «I. СУРГАЛТЫН ОРЧИН»
+
     def test_a_question_that_names_only_the_page_gets_no_section_of_it(self):
         self.assertIsNone(self.found('Роботын тэнхимийн талаар'))
 
@@ -161,6 +165,13 @@ class CutterTests(unittest.TestCase):
         lines = cutter.clean_lines('Нүүр Тэнхимүүд Роботын тэнхим\nБуцах\nНэвтрэх\nУтас 99112233\nИмэйл robot@school.example\n'
                                    'Сургуулийн утас 7577-0000\n2026 оны есдүгээр сарын 12 92 үзсэн')
         self.assertEqual(lines, ['Имэйл robot@school.example', 'Сургуулийн утас 7577-0000', '2026 оны есдүгээр сарын 12'])
+
+    def test_a_mobile_under_a_figure_is_dropped_with_it(self):
+        self.assertEqual(cutter.clean_lines('3\nУтас: 99112233\nДараагийн мөр'), ['Дараагийн мөр'])
+
+    def test_headings_with_html_entities_are_read_as_text(self):
+        self.assertEqual(cutter.html_headings('<h2>Сургалт &ndash; судалгаа</h2><h3>&laquo;Нээлттэй&raquo; өдөр</h3>'),
+                         [(2, 'Сургалт – судалгаа'), (3, '«Нээлттэй» өдөр')])
 
     def test_a_figure_is_not_joined_to_a_heading(self):
         self.assertEqual(cutter.clean_lines('2014\nҮүсгэн байгуулагдсан\n' + PARAGRAPH, ['Үүсгэн байгуулагдсан']),
@@ -217,6 +228,21 @@ class StoredAnswerWordingTests(unittest.TestCase):
         self.assertEqual(named_first('Говь хөтөлбөр гэж юу вэ?', self.ANSWER), self.ANSWER)
         self.assertEqual(named_first('Хангай хөтөлбөр гэж юу вэ?', 'Нэг мөртэй хариулт.'), 'Нэг мөртэй хариулт.')
 
+    def test_a_no_always_stays_and_a_yes_stays_under_any_yes_or_no_wording(self):
+        no = 'Үгүй. Гэхдээ түрээсийн байр зуучилна.'
+        for query in ('Дотуур байрны талаар', 'Дотуур байр гэж юу вэ?', 'Дотуур байр бий юу, хэдэн төгрөг вэ?'):
+            with self.subTest(query=query):
+                self.assertEqual(drop_yes(query, no), no)
+        yes = 'Тийм. 400 м² талбай бүхий хоолны газар бий.'
+        for query in ('Хоолны газар бий юу, хэдэн суудалтай вэ?', 'Хоолны газар байгаа биз дээ?',
+                      'Хоолны газар байдаг уу? Баярлалаа', 'hoolnii gazar bga yu'):
+            with self.subTest(query=query):
+                self.assertEqual(drop_yes(query, yes), yes)
+
+    def test_a_header_that_only_opens_a_list_is_not_moved(self):
+        answer = 'Сургууль дараах хөтөлбөртэй.\nХангай хөтөлбөр:\n• 7–30 хоног\n• Зардлыг сургууль хариуцна'
+        self.assertEqual(named_first('Хангай хөтөлбөр гэж юу вэ?', answer), answer)
+
     def test_a_stray_yes_goes_only_under_a_question_that_is_not_yes_or_no(self):
         answer = 'Тийм. 400 м² талбай бүхий хоолны газар бий.'
         self.assertEqual(drop_yes('Хоолны газрын талаар', answer), '400 м² талбай бүхий хоолны газар бий.')
@@ -264,7 +290,7 @@ class ChatRouteTests(unittest.TestCase):
         from rag_runtime import ChatRAG
         chat = ChatRAG('.', self.Policy(reason), self.Retriever(), self.Generator(), reception=ReceptionAnswerPath())
         chat.faq_intents = FaqIntents(enabled=False)
-        chat._sections = ('corpus1', index() if sections is None else sections)
+        chat.sections = index() if sections is None else sections
         return chat
 
     def test_an_unanswered_describing_question_gets_the_named_section(self):
@@ -341,19 +367,33 @@ class ChatRouteTests(unittest.TestCase):
 
     def test_only_a_what_is_question_that_names_a_page_section_goes_before_a_mapped_stored_answer(self):
         chat = self.chat()
-        self.assertTrue(chat._names_page_section('Нийтийн хоолны газрын талаар'))
-        self.assertTrue(chat._names_page_section('Уншлагын танхим гэж юу вэ?'))
-        self.assertFalse(chat._names_page_section('Хоолны газар байдаг уу?'))                 # a stored «Тийм. …» is more direct
-        self.assertFalse(chat._names_page_section('Намрын наадмын талаар'))                   # a news item
-        self.assertFalse(chat._names_page_section('Od Internet компанитай хамтын ажиллагааны талаар'))   # one word outside the names
-        self.assertFalse(chat._names_page_section('Роботын тэнхимийн талаар'))                # names a page, not a section
-        self.assertFalse(chat._names_page_section('Суралцах орчны талаар'))                   # the page's opening text
+        self.assertEqual(chat._named_page_section('Нийтийн хоолны газрын талаар')['section'].heading, 'Нийтийн хоолны газар')
+        self.assertIsNotNone(chat._named_page_section('Уншлагын танхим гэж юу вэ?'))
+        self.assertIsNone(chat._named_page_section('Хоолны газар байдаг уу?'))                 # a stored «Тийм. …» is more direct
+        self.assertIsNone(chat._named_page_section('Намрын наадмын талаар'))                   # a news item
+        self.assertIsNone(chat._named_page_section('Od Internet компанитай хамтын ажиллагааны талаар'))   # one word outside the names
+        self.assertIsNone(chat._named_page_section('Роботын тэнхимийн талаар'))                # names a page, not a section
+        self.assertIsNone(chat._named_page_section('Суралцах орчны талаар'))                   # the page's opening text
+        self.assertIsNone(chat._named_page_section('Спорт, хоол, хөгжлийн талаар'))            # too long to show whole
+
+    def test_the_named_section_is_shown_at_once_instead_of_a_mapped_stored_answer(self):
+        # Not only «give up the stored answer»: the website path may end in a reply no later step replaces.
+        from faq_intent import FaqIntents
+        chat = self.chat()
+        chat.faq_intents = FaqIntents(enabled=True)
+        chat.faq_intents.enabled = True         # without intents of its own it switches itself off
+        unanswered = self.Policy('no_supported_question_match').route('content.db', 'Нийтийн хоолны газрын талаар')
+        shown = chat._faq_intent_answer('content.db', 'Нийтийн хоолны газрын талаар', unanswered, False)
+        self.assertEqual(shown['answer_kind'], 'website_section')
+        self.assertTrue(shown['response_id'])
+        self.assertIsNone(chat._faq_intent_answer('content.db', 'Хоолны газар байдаг уу?',
+                                                  self.Policy('no_supported_question_match').route('content.db', 'x'), False))
 
     def test_without_sections_for_the_served_corpus_nothing_changes(self):
         result = self.chat(sections=SectionIndex()).route('content.db', 'Нийтийн хоолны газрын талаар')
         self.assertIsNone(result['answer'])
         chat = self.chat()
-        chat._sections = ('another-corpus', index())        # cut from a corpus that is no longer served
+        chat.sections = None        # the stored file, if any, was cut from another corpus than the one served here
         self.assertIsNone(chat.route('content.db', 'Нийтийн хоолны газрын талаар')['answer'])
 
 

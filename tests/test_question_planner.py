@@ -296,6 +296,38 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(p.plan('Сургалтын албаны өрөө хаана вэ?')), ['Сургалтын алба хаана вэ?'])
         self.assertEqual(self.queries(p.plan('Сэтгэл зүйчийн өрөө хаана байдаг вэ?')), ['Сэтгэл зүйч хаана байдаг вэ?'])
 
+    def test_sentences_after_a_named_teacher_are_about_that_teacher(self):
+        # The user's example, 11/25: three short sentences, a particle after «багш», a department before the name.
+        p = planner()
+        plan = p.plan('Компьютерийн ухааны сэлмаа багш чинь хэн бэ? Хэдэн давхарт байдаг вэ? Яаж уулзах вэ?')
+        self.assertEqual(self.queries(plan), ['Б.Сэлмаа багш гэж хэн бэ?', 'Б.Сэлмаа багштай яаж уулзах вэ?'])
+        # The floor question is answered by the card: it is listed with the card's own question, not lost.
+        self.assertEqual(plan['parts'][0]['original'], 'Компьютерийн ухааны сэлмаа багш чинь хэн бэ? Хэдэн давхарт байдаг вэ?')
+        self.assertEqual(self.queries(p.plan('Сэлмаа гэдэг багш хаана суудаг вэ? Имэйл нь юу вэ?')),
+                         ['Б.Сэлмаа багшийн өрөө хаана вэ?', 'Б.Сэлмаа багшийн имэйл?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэн бэ? Хаана суудаг вэ? Имэйл нь юу вэ? Юу заадаг вэ?')),
+                         ['Б.Сэлмаа багш гэж хэн бэ?'])
+        # A sentence with a subject of its own is a question of its own.
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэн бэ? Сургалтын төлбөр хэд вэ?'))[1], 'Сургалтын төлбөр хэд вэ?')
+
+    def test_a_given_name_with_a_post_or_alone_before_a_question_about_a_person(self):
+        p = planner()
+        self.assertEqual(self.queries(p.plan('Сэлмаа эрхлэгч хаана суудаг вэ?')), ['Б.Сэлмаа багшийн өрөө хаана вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа хэдэн давхарт суудаг вэ?')), ['Б.Сэлмаа багшийн өрөө хаана вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаатай яаж уулзах вэ?')), ['Б.Сэлмаа багштай яаж уулзах вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш аль ангийн багш вэ?')), ['Б.Сэлмаа багш гэж хэн бэ?'])
+        unknown = p.plan('Байхгүй хаана суудаг вэ?')                            # not a name in the staff table
+        self.assertFalse(any(rewrite['rule'] == 'staff_name' for part in unknown['parts'] for rewrite in part['rewrites']))
+
+    def test_desk_wordings_for_a_room_a_subject_an_office_and_a_department_head(self):
+        p = planner()
+        self.assertEqual(self.queries(p.plan('604 тоотод хэн суудаг вэ?')), ['604 тоот хаана вэ?'])
+        self.assertEqual(self.queries(p.plan('Програмчлал хэн заадаг вэ?')), ['Програмчлал хичээлийг хэн заадаг вэ?'])
+        self.assertEqual(self.queries(p.plan('Оюутны албаны хүн хэн бэ?')), ['Оюутны албаны ажилтан хэн бэ?'])
+        self.assertEqual(self.queries(p.plan('Оюутны албанд хэн ажилладаг вэ?')), ['Оюутны албаны ажилтан хэн бэ?'])
+        self.assertEqual(self.queries(p.plan('Механик инженерийн тэнхимийн эрхлэгч хаана суудаг вэ?')),
+                         ['Механик инженерийн тэнхимийн эрхлэгчтэй яаж уулзах вэ?'])
+
     def test_class_teacher_contact_and_weekday_timetable(self):
         p = planner()
         self.assertEqual(self.queries(p.plan('КУ-2 ангийн багштай яаж холбогдох вэ?')), ['КУ-2 ангийн багшийн имэйл?'])
@@ -307,9 +339,14 @@ class QuestionPlannerTests(unittest.TestCase):
         p = planner()
         self.assertEqual(self.queries(p.plan('Сэлмаа багштай холбогдмоор байна')), ['Б.Сэлмаа багшийн имэйл?'])
         self.assertEqual(self.queries(p.plan('Б.Сэлмаа багшийн өрөө хэдэн тоот вэ?')), ['Б.Сэлмаа багшийн өрөө хаана вэ?'])
-        self.assertEqual(self.queries(p.plan('Сэлмаа багштай одоо уулзаж болох уу?')), ['Б.Сэлмаа багш одоо хичээлтэй юу?'])
-        self.assertEqual(self.queries(p.plan('Сэлмаа багштай хэзээ уулзаж болох вэ?')),
-                         ['Б.Сэлмаа багш хэзээ оюутантай уулздаг вэ?'])
+        # 11/25: every way of asking to meet a named teacher gets the meeting card (room, timetable now, recorded
+        # meeting hours or how to arrange it); before, «одоо» gave the timetable alone and «хэзээ» nothing.
+        for asked in ('Сэлмаа багштай одоо уулзаж болох уу?', 'Сэлмаа багштай хэзээ уулзаж болох вэ?',
+                      'Сэлмаа багштай яаж уулзах вэ?', 'сэлмаа багшийг хайж байна', 'Сэлмаа багш дээр очих гэсэн юм',
+                      'Сэлмаа багш одоо өрөөндөө байгаа юу?', 'Сэлмаа багш чинь хаана байгаа вэ?'):
+            with self.subTest(asked=asked):
+                self.assertEqual(self.queries(p.plan(asked)), ['Б.Сэлмаа багштай яаж уулзах вэ?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш одоо хичээлтэй юу?')), ['Б.Сэлмаа багш одоо хичээлтэй юу?'])
         # A full name not in the staff table stays for the website path.
         self.assertFalse(p.plan('Х.Хүрэлбаатар багштай холбогдох уу?')['changed'])
         # The timetable-status wording keeps its own (schedule-only) answer.
@@ -324,7 +361,12 @@ class QuestionPlannerTests(unittest.TestCase):
         self.assertEqual(self.queries(p.plan('Сэлмаа багштай холбоо барих утас хэд вэ?')), ['Б.Сэлмаа багшийн утас?'])
         self.assertEqual(self.queries(p.plan('КУ-2 ангийн багштай холбоо барих утас хэд вэ?')),
                          ['КУ-2 ангийн багшийн утас?'])
-        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэзээ хичээлтэй вэ?')), ['Б.Сэлмаа багш хэзээ хичээлтэй вэ?'])
+        # 11/25: «хэзээ / хэдэн цагт хичээлтэй» is today's lessons with their times, «хичээл нь хаана» their rooms
+        # (both were left as asked and found nothing).
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэзээ хичээлтэй вэ?')), ['Б.Сэлмаа багш өнөөдөр хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багш хэдэн цагт хичээлтэй вэ?')), ['Б.Сэлмаа багш өнөөдөр хичээлтэй юу?'])
+        self.assertEqual(self.queries(p.plan('Сэлмаа багшийн хичээл хаана ордог вэ?')),
+                         ['Б.Сэлмаа багш өнөөдөр хаана хичээл заах вэ?'])
         # 11/17 (5): a named day goes to that day's timetable wording, never to «now» or the office.
         self.assertEqual(self.queries(p.plan('Сэлмаа багш даваа гарагт хаана байна вэ?')),
                          ['Б.Сэлмаа багш даваа гарагт хичээлтэй юу?'])
@@ -332,8 +374,9 @@ class QuestionPlannerTests(unittest.TestCase):
                          ['Б.Сэлмаа багш өнөөдөр хичээлтэй юу?'])
         self.assertEqual(self.queries(p.plan('Сэлмаа багш 15:00 цагт хаана байна вэ?')),
                          ['Б.Сэлмаа багш 15:00 цагт хаана байна вэ?'])
-        # Review 11/17 (5): a teacher named like a weekday («А.Даваа») is not read as that day.
-        self.assertEqual(self.queries(p.plan('А.Даваа багштай уулзаж болох уу?')), ['А.Даваа багш одоо хичээлтэй юу?'])
+        # Review 11/17 (5): a teacher named like a weekday («А.Даваа») is not read as that day; since 11/25 the
+        # question gets the meeting card.
+        self.assertEqual(self.queries(p.plan('А.Даваа багштай уулзаж болох уу?')), ['А.Даваа багштай яаж уулзах вэ?'])
 
     def test_teacher_rewrite_uses_the_table_spelling(self):
         reception = FakeReception()

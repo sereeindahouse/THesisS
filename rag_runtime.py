@@ -25,7 +25,7 @@ from faq_intent import FaqIntents
 from privacy_filter import hide_mobiles
 from answer_presentation import present, withhold_fragment
 from speech_text import remove_rendered_citations
-from website_sections import SectionIndex, asks_what, holds, section_text
+from website_sections import SECTIONS_PATH, SectionIndex, asks_what, holds, section_text
 from rule_selector import default_generator
 from website_retrieval import WebsiteRetriever
 from evidence_contract import evidence_units, exact_field_units, resolve_evidence_selection
@@ -534,6 +534,9 @@ DEPARTMENT_PAGES = (('механик', 'mechanical'), ('хими', 'chemical'), 
                     ('электроник', 'electrical'), ('компьютер', 'computer-science'), ('ерөнхий эрдм', 'general-department'))
 # At the start of a word only: «хими» is also inside «тэнхимийн».
 DEPARTMENT_WORDS = tuple((re.compile(r'(?<!\w)' + word), page) for word, page in DEPARTMENT_PAGES)
+# «Барилга», «цахилгаан шат», «компьютерийн лаборатори» are also everyday words: they name a department only
+# beside one of these (code review, 11/25).
+DEPARTMENT_CONTEXT = re.compile(r'тэнхим|инженер|мэргэж|хөтөлбөр|(?<!\w)ухаан')
 EVENT_PAGES = (('/olympiad', re.compile(r'олимпиад|olympiad', re.I)),)
 
 
@@ -546,7 +549,7 @@ def named_scope_sources(query, sources):
     """
     q = query.casefold()
     kept = []
-    named = {page for word, page in DEPARTMENT_WORDS if word.search(q)}
+    named = {page for word, page in DEPARTMENT_WORDS if word.search(q)} if DEPARTMENT_CONTEXT.search(q) else set()
     for source in sources:
         page = urlsplit(source.get('url') or '').path
         if any(page.startswith(prefix) and not names.search(q) for prefix, names in EVENT_PAGES):
@@ -1518,9 +1521,21 @@ class ChatRAG:
                               r'үйлчилгээ\s+үзүүлдэг)|юуг?\s+хариуцдаг)(?:\s+(?:вэ|бэ))?\s*[?.!]*\s*$', re.I)
     # 11/25: «Гадаад оюутан элсэж болох уу?» got two tiles of the career page. No saved page speaks of applicants
     # from abroad; like the next round above, that is said plainly instead of showing a text that shares a word.
+    # «Цахилгааны тэнхимийн багш нар хэн бэ?» when the department's page lists nobody: the school's tables do.
+    DEPARTMENT_STAFF = re.compile(r'^\s*(?P<name>\S.{1,60}?)\s+тэнхим(?:ийн|д|ийнхэн)?\s+(?:(?:ямар\s+|ямар\s+ямар\s+)?багш(?:\s+нар)?|'
+                                  r'ажилтнууд|ажилчид|хэн\s+хэн)(?:\s+(?:хэн(?:\s+хэн)?|байдаг|ажилладаг|бий))*'
+                                  r'(?:\s+(?:вэ|бэ|уу))?\s*[?.!]*\s*$', re.I)
+    # 11/25: «Сургуулийн вэбсайт юу вэ?» showed tiles of the admission page. The school's site is the address every
+    # saved page comes from; that is the answer. A Facebook or other page is not this question.
+    WEBSITE_ASK = re.compile(r'^\s*(?:(?:сургуулийн|танай|шмтк(?:-ийн)?|коллежийн)\s+)?(?:албан\s+ёсны\s+)?'
+                             r'(?:(?:вэб|веб|web)\s*(?:сайт|site)|website|сайт|цахим\s+хуудас)(?:ын|ийн|ы)?'
+                             r'(?:\s+(?:хаяг|линк|холбоос))?(?:\s+нь)?\s+(?:юу|ямар|хаана|хэд)(?:\s+(?:вэ|бэ))?\s*[?.!]*\s*$', re.I)
+    SCHOOL_WEBSITE = 'https://nmct.edu.mn'
     FOREIGN_APPLICANT = re.compile(r'(?<!\w)гадаад(?:ын|аас)?\s+(?:оюутан|оюутн|иргэн|иргэд|хүн|хүүхэд|сурагч)', re.I)
-    # An enrolment verb; «бүртгэлийн хураамж» (a fee) keeps the router's own question about the scope.
-    ENROL = re.compile(r'(?<!\w)(?:элс|бүртгүүл|суралц|сурч|орж\s+бол)', re.I)
+    # Admission itself; «бүртгэлийн хураамж» (a fee) keeps the router's own question about the scope, and study
+    # in Japan, exchange and scholarship programmes are other questions the saved pages do cover (code review).
+    ENROL = re.compile(r'(?<!\w)(?:элсэ|элсү|элсд|бүртгүүл|орж\s+бол|суралцаж\s+бол|сурч\s+бол|суралцах\s+боломж)', re.I)
+    ABROAD_PROGRAMME = re.compile(r'япон|солилц|хөтөлбөр|дэвшин|тэтгэлэг', re.I)
     SUGGESTIONS = ["Ямар мэргэжлээр суралцах боломжтой вэ?", "Элсэхэд ямар шаардлагатай вэ?",
                    "Сургуультай яаж холбоо барих вэ?"]
     # The stored question whose answer introduces the school (content v5, tools/build_content_v5.py).
@@ -1586,7 +1601,8 @@ class ChatRAG:
         encoder = getattr(retriever, '_encoder', None) if getattr(retriever, 'use_dense', False) else None
         self.faq_intents = FaqIntents.from_config(self.root, encoder=encoder, lock=getattr(retriever, '_lock', None))
         self._faq_texts = {}
-        self._sections = None       # page sections of the corpus being served, read at the first need
+        self._sections = None       # (corpus ID, file time, page sections), read at the first need
+        self.sections = None        # a fixed SectionIndex instead of the stored file
 
     def _office_place(self, name):
         """Floor, room and confirmed hours of an office, only from enabled, reviewed reception tables."""
@@ -1656,23 +1672,31 @@ class ChatRAG:
 
     def _section_index(self):
         """The stored page sections, only when they were cut from the corpus the retriever serves now."""
+        if self.sections is not None:       # given directly (tests)
+            return self.sections
         try:
             corpus = self.retriever.status().get('corpus_id')
+            stamp = (self.root / SECTIONS_PATH).stat().st_mtime_ns
         except Exception:
             return SectionIndex()
+        # Read again when the corpus or the file changes: sections cut after a release was published are used
+        # without a restart, and a missing file is looked for again (code review, 11/25).
         with self._lock:
-            if self._sections is None or self._sections[0] != corpus:
-                self._sections = (corpus, SectionIndex.from_file(self.root, corpus) if corpus else SectionIndex())
-            return self._sections[1]
+            if self._sections is None or self._sections[:2] != (corpus, stamp):
+                self._sections = (corpus, stamp, SectionIndex.from_file(self.root, corpus) if corpus else SectionIndex())
+            return self._sections[2]
 
-    def _names_page_section(self, query):
-        """«Үйлдвэрлэлийн дадлага гэж юу вэ?» names a section of a page of the site word for word: that section
-        says what it is, a stored answer on the wider topic («Японд дадлага хийж болох уу?» — «Тийм. …») does
-        not. Only for «… гэж юу вэ / …-ийн талаар / тухай» and a bare name; never for a news item, and not when
-        the question names a whole page (its opening text): the stored overview of that topic is fuller."""
+    def _named_page_section(self, query):
+        """The section a «… гэж юу вэ / …-ийн талаар / тухай» question (or a bare name) names word for word, when
+        it is a section of a page of the site that can be shown whole; otherwise None. «Үйлдвэрлэлийн дадлага гэж
+        юу вэ?» is answered by the section of that name, not by a stored answer on the wider topic («Японд
+        дадлага хийж болох уу?» — «Тийм. …»). Never a news item, and not a whole page (its opening text): the
+        stored overview of that topic is fuller."""
         index = self._section_index()
         named = index.find(query) if index and asks_what(query) else None
-        return named is not None and named['all_named'] and not named['news'] and not named['intro']
+        if named is None or not named['all_named'] or named['news'] or named['intro'] or not named['whole']:
+            return None
+        return named
 
     def _section_answer(self, result, query):
         """The whole page section a describing question names, in the page's own words (website_sections.py).
@@ -1692,12 +1716,16 @@ class ChatRAG:
         found = index.find(query) if index else None
         if found is None:
             return result
-        section = found['section']
         # An extract stays when the section is too long to show whole (the extract may hold the asked part of
         # it), and a news item replaces an extract only when the extract is a part of that item.
         if extract and (not found['whole'] or (found['news'] and not holds(
-                section, remove_rendered_citations(answer, len(result.get('citations') or []))))):
+                found['section'], remove_rendered_citations(answer, len(result.get('citations') or []))))):
             return result
+        return self._as_section(result, found)
+
+    def _as_section(self, result, found):
+        """The reply turned into the found section's own text, with the page as its source."""
+        section = found['section']
         replaced = dict(reason_code=result.get('reason_code'), answer_kind=result.get('answer_kind'))
         result.update(route='C', answer=section_text(section), generated=False, answer_kind='website_section',
                       reason_code='website_section', reason_codes=['website_section'], clarification=None,
@@ -1711,7 +1739,8 @@ class ChatRAG:
                                       approval_status='draft', school_staff_approval=False)])
         result.pop('withheld_answer', None)
         rag = result.setdefault('rag', {})
-        rag.update(reason='website_section', llm_calls=rag.get('llm_calls', 0), corpus_id=index.corpus_id,
+        rag.update(reason='website_section', llm_calls=rag.get('llm_calls', 0),
+                   corpus_id=self._section_index().corpus_id,
                    section=dict(url=section.url, heading=section.heading, said=found['said'],
                                 all_named=found['all_named'], candidates=found['candidates'], replaced=replaced))
         return result
@@ -1722,16 +1751,22 @@ class ChatRAG:
         name, and only when nothing else answered."""
         if (not isinstance(result, dict) or result.get('answer') or result.get('route') not in {'D', 'E'}
                 or result.get('clarification') or not getattr(self.reception, 'enabled', False)
-                or result.get('reason_code') not in self.SECTION_REASONS | {'constraints_not_supported_together'}):
+                or result.get('reason_code') not in self.SECTION_REASONS | {'constraints_not_supported_together',
+                                                                            'staff_names_not_supported'}):
             return result
-        asked = self.OFFICE_ABOUT.match(query or '')
+        asked, wanted = self.OFFICE_ABOUT.match(query or ''), 'reception_service_lookup'
+        lookup = asked.group('name').strip() + ' хаана байдаг вэ?' if asked else None
+        if asked is None:
+            # A department's teachers: its recorded card names the head and the teachers with their rooms.
+            asked, wanted = self.DEPARTMENT_STAFF.match(query or ''), 'reception_department_rooms'
+            lookup = asked.group('name').strip() + ' тэнхим хаана байдаг вэ?' if asked else None
         if asked is None:
             return result
         try:
-            card = self.reception.answer(asked.group('name').strip() + ' хаана байдаг вэ?', now=now)
+            card = self.reception.answer(lookup, now=now)
         except Exception:
             return result
-        if not card or not card.get('answer') or card.get('reason_code') != 'reception_service_lookup':
+        if not card or not card.get('answer') or card.get('reason_code') != wanted:
             return result
         asked_reason, asked_query = result.get('reason_code'), result.get('query')
         result.update(route='C', citations=[], related_sources=[], suggestions=[], clarification=None, candidates=[],
@@ -1749,8 +1784,11 @@ class ChatRAG:
         if (not getattr(self.faq_intents, 'enabled', False) or database is None or result.get('answer')
                 or result.get('exact_matches') or result.get('reason_code') not in self.FAQ_INTENT_REASONS):
             return None
-        if self._names_page_section(query):
-            return None
+        named = self._named_page_section(query)
+        if named is not None:
+            # Shown here, not left to a later step: the website path may end in a reply no later step replaces,
+            # and then the visitor would get neither the stored answer nor the section (code review, 11/25).
+            return self._remember(self._as_section(result, named), allow_draft)
         try:
             faqs = self._stored_faqs(database, result.get('package_id'))
         except (OSError, ValueError, KeyError):
@@ -1874,6 +1912,11 @@ class ChatRAG:
             result = self.policy.route(database, query, allow_draft=allow_draft)
         timings['policy'] = (time.perf_counter() - phase_start) * 1000
         result.update(related_sources=[], suggestions=[])
+        if self.policy.enabled and self.WEBSITE_ASK.match(query or ''):
+            result.update(route='A', answer='Сургуулийн албан ёсны вэб сайт: ' + self.SCHOOL_WEBSITE, citations=[],
+                          candidates=[], clarification=None, exact_matches=[], generated=False, llm_calls=0,
+                          answer_kind='school_website', reason_code='school_website_address', message='')
+            return self._remember(result, allow_draft)
         if (self.policy.enabled and not result.get('answer') and not result.get('exact_matches')
                 and result.get('reason_code') in self.EXTEND | {'missing_entity',
                     'constrained_wording_not_exact', 'constraints_not_supported_together',
@@ -1933,7 +1976,8 @@ class ChatRAG:
                           suggestions=[], exact_matches=[], reason_code='future_admission_round_not_published',
                           message='Ирэх жилийн элсэлтийн мэдээлэл олдсонгүй.')
             return self._remember(result, allow_draft)
-        if self.policy.enabled and self.FOREIGN_APPLICANT.search(query) and self.ENROL.search(query):
+        if (self.policy.enabled and self.FOREIGN_APPLICANT.search(query) and self.ENROL.search(query)
+                and not self.ABROAD_PROGRAMME.search(query)):
             result.update(route='E', answer=None, citations=[], candidates=[], clarification=None, related_sources=[],
                           suggestions=[], exact_matches=[], reason_code='foreign_applicant_admission_not_published',
                           message='Гадаадын иргэн элсэх тухай мэдээлэл олдсонгүй.')

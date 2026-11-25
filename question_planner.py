@@ -37,7 +37,7 @@ from reception_tables import (NUMBER_UNITS, PERSON_NAME, last_vowel, normalize_w
                               strip_fillers)
 
 CONFIG_PATH = 'config/question-planner.json'
-MAX_PARTS = 3
+MAX_PARTS = 4
 # «юм» alone ends a statement («Багштай уулзах гэсэн юм, имэйл нь юу вэ?» is one request); only
 # «юм бэ» asks, and «бэ» is here already (11/17 (5)).
 QUESTION_WORD = re.compile(r'(?<!\w)(?:вэ|бэ|уу|үү|юу|хэн|хэнд|хэнээс|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|'
@@ -71,7 +71,26 @@ PERSON_COVERED = re.compile(PERSON_NAME + r'\s+багш(?:ийн\s+(?:(?:ажл�
 # зурагтай танилцуулгыг үзье» (the website introduction with its picture), so only directly after the name.
 WHO = re.compile(r'(?:\s+гэж)?\s+(?:хэн|ямар\s+хүн)\s+(?:бэ|вэ)(?!\w)|\s+гэж\s+хэн(?!\w)|(?:ийн)?\s+(?:талаар|тухай)(?!\w)|'
                  r'(?:ийг|ыг)?\s+танилцуул', re.I)
-ROOM_ASK = re.compile(r'өрөө|тоот|хаана\s+(?:суудаг|байдаг|ажилладаг|байна)', re.I)
+ROOM_ASK = re.compile(r'өрөө|тоот|давхар|хаана\s+(?:суудаг|байдаг|ажилладаг|байна|байрладаг)|хаашаа\s+оч', re.I)
+# 11/25 (the user's example): words between a teacher's name and the question that change nothing —
+# «Соронзонболд багш чинь хэн бэ?», «… багш маань …», «… гэдэг багш …».
+NAME_PARTICLE = r'(?:чинь|маань|минь|гэдэг|гэгч|гэх)'
+# A sentence after one that names a person, with no subject of its own, asks about that person: the room or
+# floor, how or when to meet, the e-mail or phone, what they teach.
+# After a named teacher: looking for them, going to them, whether they are in — all ask how to meet them.
+MEET_ASK = re.compile(r'уулз|хайж|хайгаад|дээр\s+оч|руу\s+оч|очих\s+гэсэн|очмоор|өрөөндөө\s+(?:байгаа|байна)|'
+                      r'одоо\s+(?:хаана|байгаа|байна|өрөөндөө)|хаана\s+байгаа|завтай|чөлөөтэй', re.I)
+LESSON_TIME_ASK = re.compile(r'(?:хэдэн\s+цагт|хэзээ)\s+хичээл|хичээл\w*\s+(?:нь\s+)?(?:хэдэн\s+цагт|хэзээ)', re.I)
+LESSON_ROOM_ASK = re.compile(r'хичээл\w*\s+(?:нь\s+)?хаана|хаана\s+хичээл|аль\s+(?:анги|өрөө|танхим)\w*\s+хичээл', re.I)
+OWN_CLASS_ASK = re.compile(r'(?:аль|ямар|хэддүгээр)\s+анги\w*\s+(?:багш|даа)|анги\s+даа|даасан\s+анги', re.I)
+# A post said after a given name instead of «багш»: «Оюунжаргал захирал хаана суудаг вэ?»
+POST_WORD = r'(?:захирал|эрхлэгч|менежер|мэргэжилтэн|эмч|нягтлан(?:\s+бодогч)?|номын\s+санч|сэтгэл\s+зүйч|ажилтан|гуай)'
+PERSON_FOLLOWUP = re.compile(
+    r'(?:(?:тэр|энэ)\s+(?:багш|хүн)\s+)?(?:нь\s+)?(?:'
+    r'(?:хэдэн|хэддүгээр|аль|ямар)\s+(?:давхар|өрөө|тоот)|хаана\s+(?:суудаг|байдаг|ажилладаг|байна|байрладаг|вэ)|'
+    r'хаашаа\s+оч|өрөө\s+нь|(?:(?:яаж|хэрхэн|хэзээ|хаана|хэдэн\s+цагт|одоо|өнөөдөр|маргааш)\s+)?(?:уулз|холбогд|холбоо\s+бар)|'
+    r'(?:юу|ямар(?:\s+ямар)?\s+хичээл)\s+заадаг|(?:и-?мэйл|имэйл|мэйл|цахим\s+шуудан|утас|утасны\s+дугаар)(?!\w)|'
+    r'(?:одоо|өнөөдөр|маргааш)\s+(?:хичээлтэй|чөлөөтэй|завтай|байгаа|байна))', re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
@@ -107,6 +126,12 @@ REQUEST = re.compile(r'(.{0,60}?(?:тодорхойлолт|хуудас|үнэ�
                      r'гэрээ|өргөдөл|хуулбар)\w*)\s+ав(?:ах\s+гэсэн(?:\s+юм)?|маар\s+байна|ъя|ах\s+хэрэгтэй\s+байна)'
                      r'\s*[.!?]*', re.I)
 COURSE = re.compile(r'(?<!\d)([1-5])\s*(?:-?\s*(?:р|дугаар|дүгээр|дахь|дэх)\b)?\s*курс\w*', re.I)
+
+
+def other_time_but_clock(text):
+    """A named other day («маргааш», «даваа») in a lesson-time question; «хэдэн цагт» itself is no other time."""
+    return re.search(r'маргааш|өчигдөр|нөгөөдөр|(?<!\w)(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)|\d{1,2}:\d{2}',
+                     text, re.I) is not None
 
 
 def _words(text):
@@ -233,9 +258,43 @@ class QuestionPlanner:
         match = QUESTION_WORD.search(part)
         return part[:match.start()].strip(' ,') if match else ''
 
+    def _person(self, text):
+        """The teacher or staff member a part names («Н.Соронзонболд багш»), or None."""
+        coded = self._class_code(text)[0]
+        group = GROUP.search(coded)
+        if group and re.match(r'\s+ангийн\s+багш', coded[group.end():]):
+            return group.group(1) + ' ангийн багш'          # «КУ-2 ангийн багш хэн бэ? Хаана суудаг вэ? Имэйл нь?»
+        named = self._named(coded)
+        return named if named and named.endswith(' багш') and not group else None
+
     def _inherit(self, parts):
         result = [parts[0]]
         for part in parts[1:]:
+            # 11/25 (the user's example): «… соронзонболд багш чинь хэн бэ? Хэдэн давхарт байдаг вэ? Яаж уулзах
+            # вэ?» — a sentence about a room, a meeting, an e-mail or lessons that names nobody is about the
+            # person an earlier sentence named, also when two sentences stand between them.
+            person = next((found for found in map(self._person, reversed(result)) if found), None)
+            bare = strip_context_clause(part).strip()
+            if person and self._named(bare) is None and PERSON_FOLLOWUP.match(bare):
+                if person.endswith(' ангийн багш'):
+                    # The class teacher's own room or e-mail, in the wordings the tables read.
+                    mail = re.match(r'(?:нь\s+)?(?:и-?мэйл|имэйл|мэйл|цахим|утас|(?:яаж|хэрхэн)\s+холбогд|холбоо\s+бар)', bare, re.I)
+                    result.append(person + ('ийн имэйл?' if mail else 'ийн өрөө хаана вэ?'))
+                else:
+                    result.append(person + ' ' + bare[:1].lower() + bare[1:])
+                continue
+            if self._named(bare) is None and PERSON_FOLLOWUP.match(bare):
+                # The same after a post or an office («Захирал хэн бэ? Хэдэн давхарт суудаг вэ?»): the follow-up
+                # rule reads it against the latest earlier sentence that has a subject.
+                anchor = next((earlier for earlier in reversed(result)
+                               if self._named(earlier) or self._subject(earlier)), None)
+                # «Хэдэн давхарт суудаг вэ?» after a post asks where its holder sits.
+                asked = ('хаана суудаг вэ?' if re.match(r'(?:нь\s+)?(?:хэдэн|хэддүгээр|аль|ямар)\s+(?:давхар|өрөө|тоот)', bare, re.I)
+                         else bare)
+                followup = self._followup(asked, anchor) if anchor else None
+                if followup:
+                    result.append(followup['rewritten'])
+                    continue
             # «…хэн бэ? Уулзах гэсэн юм, хаана суудаг вэ?» (11/23, check set Q32): the reason before a place question is no
             # topic of its own; without it the part asks where the person before is.
             part = strip_context_clause(part)
@@ -364,12 +423,42 @@ class QuestionPlanner:
                        + r')(?=\s+анги))', code, text, flags=re.I)
         return (fixed, dict(rule='class_code', text=text, value=fixed)) if fixed != text else (text, None)
 
+    @staticmethod
+    def _desk_wording(text):
+        """«604 тоотод хэн суудаг вэ?», «Програмчлал хэн заадаг вэ?», «Оюутны албаны хүн хэн бэ?» in the wordings
+        the tables read (the room's card, the subject's teachers, the office's staff)."""
+        stripped = text.strip()
+        room = re.fullmatch(r'([A-Za-zА-ЯӨҮЁа-яөүё]?\d{2,4}[A-Za-zА-ЯӨҮЁа-яөүё]?)\s*(?:тоот(?:од|\s+өрөөнд)?|өрөөнд)\s+'
+                            r'(?:хэн|юу|хэний\s+өрөө|хэн\s+хэн)\s*(?:суудаг|байдаг|ажилладаг|байна|байгаа)?\s*(?:вэ|бэ)?\s*\??',
+                            stripped, re.I)
+        if room:
+            return room.group(1) + ' тоот хаана вэ?', dict(rule='desk_wording', text=text, value='room')
+        head = re.fullmatch(r'(.{2,60}?тэнхимийн\s+эрхлэгч)\s+(?:нь\s+)?(?:хаана\s+(?:суудаг|байдаг|байна|байрладаг)|'
+                            r'(?:хэдэн|хэддүгээр|аль)\s+(?:давхар|өрөө|тоот)\w*(?:\s+(?:суудаг|байдаг|байна))?)\s*(?:вэ|бэ)?\s*\??',
+                            stripped, re.I)
+        if head:
+            return head.group(1) + 'тэй яаж уулзах вэ?', dict(rule='desk_wording', text=text, value='department_head')
+        subject = re.fullmatch(r'(.{2,40}?)(?:ийг|ыг|г)?\s+хэн\s+(?:заадаг|ордог|заах)\s+(?:вэ|бэ)\s*\??', stripped, re.I)
+        if subject and not re.search(r'хичээл|(?<!\w)анги|тэнхим', subject.group(1), re.I):
+            return subject.group(1) + ' хичээлийг хэн заадаг вэ?', dict(rule='desk_wording', text=text, value='subject')
+        office = re.fullmatch(r'(.{2,60}?(?:алба|төв|сан|хэлтэс))(?:ны|ний|гийн|ийн|ын)\s+(?:хүн|хүмүүс|ажилчид|ажилтнууд|'
+                              r'мэргэжилтэн|мэргэжилтнүүд)(?:\s+нь)?\s+хэн(?:\s+хэн)?\s+(?:бэ|вэ)\s*\??', stripped, re.I)
+        if office is None:
+            office = re.fullmatch(r'(.{2,60}?(?:алба|төв|сан|хэлтэс))(?:нд|д|т)\s+хэн(?:\s+хэн)?\s+'
+                                  r'(?:ажилладаг|байдаг|суудаг)\s+(?:вэ|бэ)\s*\??', stripped, re.I)
+        if office:
+            name = office.group(1)
+            suffix = 'гийн' if name.endswith('сан') else ('ийн' if name.endswith(('төв', 'хэлтэс')) else 'ны')
+            return name + suffix + ' ажилтан хэн бэ?', dict(rule='desk_wording', text=text, value='office_staff')
+        return text, None
+
     def _staff_name(self, text):
         # A given name typed in lower case («сэлмаа багш») is the same teacher (round 8); only names in
         # the staff table are read, so ordinary words before «багш» are not.
-        for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?=\s+багш)', text):
+        for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+' + NAME_PARTICLE + r')?(?=\s+багш)', text, re.I):
             full = self.given_names.get(match.group(1).casefold())
             if full:
+                # «соронзонболд гэдэг багш» is «Н.Соронзонболд багш»: the word between goes with the given name.
                 return text[:match.start()] + full + text[match.end():], dict(rule='staff_name',
                     text=match.group(1), value=full)
         # «Сэлмаагийн өрөө хаана вэ?» (a given name in the genitive, round 13) is that teacher's office.
@@ -379,10 +468,18 @@ class QuestionPlanner:
             if full:
                 return (text[:match.start()] + full + ' багшийн' + text[match.end():],
                         dict(rule='staff_name', text=match.group(0), value=full))
+        # 11/25: «Оюунжаргал захирал хаана суудаг вэ?» (the post instead of «багш»), and a given name followed by a
+        # question about a person («Оюунжаргал хаана суудаг вэ?», «Хандсүрэнтэй яаж уулзах вэ?»).
+        match = re.match(r'\s*([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,}?)(?:(тай|тэй|той)|\s+' + POST_WORD + r'(тай|тэй|той)?)?\s+(\S.*)$', text, re.I)
+        full = self.given_names.get(match.group(1).casefold()) if match else None
+        if full and (PERSON_FOLLOWUP.match(match.group(4)) or MEET_ASK.match(match.group(4))):
+            with_them = 'тай' if (match.group(2) or match.group(3)) else ''
+            return (full + ' багш' + with_them + ' ' + match.group(4),
+                    dict(rule='staff_name', text=match.group(1), value=full))
         # 11/25: «Оюунжаргал гэж хэн бэ?», «Хандсүрэн гэдэг хүн хэн бэ?» or the given name alone asks who the
         # person is; a staff member who is no teacher is named without «багш».
-        match = re.fullmatch(r'\s*([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+(?:гэж|гэдэг\s+хүн|гэдэг\s+багш|гуай))?'
-                             r'(?:\s+хэн\s+(?:бэ|вэ))?\s*[?.!]*\s*', text)
+        match = re.fullmatch(r'\s*([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+(?:гэж|гэдэг\s+хүн|гэдэг\s+багш|гэдэг|гуай))?'
+                             r'(?:\s+(?:чинь|маань))?(?:\s+хэн\s+(?:бэ|вэ))?\s*[?.!]*\s*', text)
         full = self.given_names.get(match.group(1).casefold()) if match else None
         if full:
             return full + ' гэж хэн бэ?', dict(rule='staff_name', text=match.group(1), value=full)
@@ -409,10 +506,23 @@ class QuestionPlanner:
                      r'багш\s+одоо\s+хичээлтэй\s+юу|багш\s+хэзээ\s+оюутантай\s+уулздаг|'
                      r'багш\s+(?:одоо\s+)?хаана(?:\s+байна)?\s*(?:вэ)?\s*\??$', text, re.I):
             return text, None
-        if WHO.match(text[match.end():]) and not re.search(r'ангийн\s+багш|зураг', text, re.I):
+        # «… багш чинь хэн бэ?», «… багш маань хаана суудаг вэ?»: the particle after «багш» changes nothing.
+        after = re.sub(r'^(?:\s+' + NAME_PARTICLE + r')+(?=\s)', '', text[match.end():], flags=re.I)
+        if WHO.match(after) and not re.search(r'ангийн\s+багш|зураг', text, re.I):
             # 11/25: «Соронзонболд багш гэж хэн бэ хаана байдаг вэ» asks who the teacher is; that answer holds the
             # room, the e-mail and the lessons too, so the room question after it is not asked separately.
             canonical = full + ' багш гэж хэн бэ?'
+        elif OWN_CLASS_ASK.search(after):
+            canonical = full + ' багш гэж хэн бэ?'       # the card names the class the teacher is in charge of
+        elif LESSON_TIME_ASK.search(rest) and not day and not other_time_but_clock(rest):
+            canonical = full + ' багш өнөөдөр хичээлтэй юу?'
+        elif LESSON_ROOM_ASK.search(rest) and not day:
+            canonical = full + ' багш өнөөдөр хаана хичээл заах вэ?'
+        elif (MEET_ASK.search(rest) and not day and not PHONE.search(text) and not CONTACT.search(text)
+              and not re.search(r'хичээлтэй|\d{1,2}:\d{2}', rest, re.I)):
+            # «… багштай яаж уулзах вэ?», «… багшийг хайж байна», «… багш одоо өрөөндөө байгаа юу?»: where the
+            # teacher sits, what the timetable says now, and how to arrange a meeting.
+            canonical = full + ' багштай яаж уулзах вэ?'
         elif PHONE.search(text):
             # «холбоо барих утас»: phones are never shown; the phone wording says so and gives
             # the school e-mail instead (not a silent e-mail answer).
@@ -570,7 +680,7 @@ class QuestionPlanner:
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             if self.staff_names:
-                for rule in (self._staff_name, self._teacher_intent):
+                for rule in (self._staff_name, self._teacher_intent, self._desk_wording):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             parts.append(dict(original=original, query=text, rewrites=rewrites))
@@ -582,8 +692,18 @@ class QuestionPlanner:
                      for match in [PERSON_CARD.fullmatch(part['query'].strip())] if match}
         if described and len(parts) > 1:
             covered = [PERSON_COVERED.match(part['query'].strip()) for part in parts]
-            parts = [part for part, match in zip(parts, covered)
-                     if not (match and match.group(1).replace(' ', '').casefold() in described)]
+            kept = []
+            for part, match in zip(parts, covered):
+                name = match.group(1).replace(' ', '').casefold() if match else None
+                if name in described:
+                    # Answered by the card: shown as one of the questions above it, not dropped from the reply.
+                    card = next(item for item in parts if (PERSON_CARD.fullmatch(item['query'].strip()) or [None, ''])[1]
+                                .replace(' ', '').casefold() == name)
+                    if card is not part and part['original'].strip() not in card['original']:
+                        card['original'] = card['original'].strip() + ' ' + part['original'].strip()
+                    continue
+                kept.append(part)
+            parts = kept
         result = dict(enabled=self.enabled, compound=len(parts) > 1, parts=parts,
                       changed=len(parts) > 1 or any(p['query'] != query.strip() for p in parts))
         if followup:
@@ -605,7 +725,7 @@ def compose(query, plan, results):
     answered = [bool((r.get('answer') or '').strip()) for r in results]
     base = deepcopy(results[answered.index(True)] if any(answered) else results[0])
     lines, citations, related, seen = [], [], [], set()
-    previous = None
+    previous, shown = None, set()
     for part, result, ok in zip(plan['parts'], results, answered):
         asked = part['original'].strip()
         asked = asked[:1].upper() + asked[1:]  # «…, хэсэгчлэн төлж болох уу?» was echoed in lower case
@@ -614,7 +734,20 @@ def compose(query, plan, results):
             header, _, body = lines[-1].partition('\n')
             lines[-1] = header + ' ' + asked + '\n' + body
         elif ok:
-            lines.append(asked + '\n' + result['answer'].strip())
+            # A line an earlier part already showed (the room, the e-mail, «Хуваарь өөрчлөгдөж болно.») is not
+            # shown a second time under the next question (11/25); what is left is that part's own answer.
+            fresh = [line for line in result['answer'].strip().split('\n')
+                     if not (len(line.strip()) >= 12 and line.strip() in shown)]
+            while fresh and not fresh[-1].strip():
+                fresh.pop()
+            if any(line.strip() for line in fresh):
+                lines.append(asked + '\n' + '\n'.join(fresh).strip())
+            elif previous is not None:      # everything was said just above: the question joins that block
+                header, _, body = lines[-1].partition('\n')
+                lines[-1] = header + ' ' + asked + '\n' + body
+            else:
+                lines.append(asked + '\n' + result['answer'].strip())
+            shown.update(line.strip() for line in result['answer'].split('\n'))
         else:
             # The page shows no note under a compound answer, so where to ask goes with the part (11/22).
             where = (result.get('referral') or {}).get('office')

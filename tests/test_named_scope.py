@@ -41,6 +41,12 @@ class NamedScopeTests(unittest.TestCase):
         self.assertIn('/departments/mechanical', kept('Роботикийн тэнхимийн нийт суралцагчийн тоог хэлж өгөөч.'))
         self.assertNotIn('/departments/mechanical', kept('Химийн инженерийн хөтөлбөрийн талаар'))
 
+    def test_an_everyday_word_names_no_department(self):
+        # «барилга», «цахилгаан шат», «компьютерийн лаборатори»: a department only beside «тэнхим», «инженер» …
+        for query in ('Сургуулийн барилга ямар вэ?', 'Цахилгаан шат байдаг уу?', 'Компьютерийн лаборатори байдаг уу?'):
+            with self.subTest(query=query):
+                self.assertIn('/departments/mechanical', kept(query))
+
     def test_no_department_or_two_departments_keep_every_department_page(self):
         for query in ('Сургууль хэдэн лабораторитой вэ?', 'Механик болон цахилгааны тэнхимийн ялгаа юу вэ?'):
             with self.subTest(query=query):
@@ -78,7 +84,7 @@ def chat(reception=None, reason='no_supported_question_match', retriever=None):
     made = ChatRAG('.', Policy(reason), retriever or Retriever(), Generator(), reception=reception or ReceptionAnswerPath(),
                    reception_clock=lambda: NOW)
     made.faq_intents = FaqIntents(enabled=False)
-    made._sections = ('corpus1', SectionIndex())
+    made.sections = SectionIndex()
     return made
 
 
@@ -98,6 +104,22 @@ class OnlyAnotherThingsPageTests(unittest.TestCase):
         self.assertNotIn('холбогдох хуудсыг доор', result['message'])
 
 
+class WebsiteAddressTests(unittest.TestCase):
+    def test_the_schools_website_address(self):
+        for query in ('Сургуулийн вэбсайт юу вэ?', 'Вэб сайтын хаяг юу вэ?', 'Танай сайт ямар вэ?',
+                      'Сургуулийн албан ёсны вэб сайт хаана вэ?'):
+            with self.subTest(query=query):
+                result = chat().route('content.db', query)
+                self.assertEqual(result['answer'], 'Сургуулийн албан ёсны вэб сайт: https://nmct.edu.mn')
+                self.assertEqual(result['reason_code'], 'school_website_address')
+
+    def test_other_pages_and_questions_about_the_site_are_not_this_question(self):
+        for query in ('Сургуулийн фэйсбүүк хуудас юу вэ?', 'Сайтад элсэлтийн мэдээлэл байна уу?',
+                      'Вэб сайт хөгжүүлэх хичээл байдаг уу?'):
+            with self.subTest(query=query):
+                self.assertNotEqual(chat().route('content.db', query).get('reason_code'), 'school_website_address')
+
+
 class ForeignApplicantTests(unittest.TestCase):
     def test_admission_of_an_applicant_from_abroad_is_said_to_be_on_no_page(self):
         for query in ('Гадаад оюутан элсэж болох уу?', 'Гадаадын иргэн танай сургуульд суралцаж болох уу?'):
@@ -108,7 +130,9 @@ class ForeignApplicantTests(unittest.TestCase):
                 self.assertIn('Гадаадын иргэн элсэх тухай мэдээлэл олдсонгүй.', result['message'])
 
     def test_other_questions_with_the_word_abroad_are_not_stopped(self):
-        for query in ('Гадаад харилцааны алба хаана вэ?', 'Гадаадад суралцах боломж бий юу?'):
+        for query in ('Гадаад харилцааны алба хаана вэ?', 'Гадаадад суралцах боломж бий юу?',
+                      'Төгсөөд Японд гадаад оюутан болж суралцаж болох уу?',
+                      'Гадаад оюутан солилцооны хөтөлбөрөөр суралцдаг уу?'):
             with self.subTest(query=query):
                 self.assertNotEqual(chat().route('content.db', query)['reason_code'],
                                     'foreign_applicant_admission_not_published')

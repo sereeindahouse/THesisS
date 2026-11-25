@@ -700,3 +700,6 @@ __pycache__/
 !/tools/build_content_v6.py
 !/data/content-draft-v6-20261125.json
 !/papers/56-page-sections-and-scope-rules-20261125.mn.md
+# 11/25 (3): stored answers v7 — admission overview, documents, departments.
+!/tools/build_content_v7.py
+!/data/content-draft-v7-20261125.json

@@ -982,6 +982,8 @@ class ReceptionAnswerPath:
             ('teacher_email', r'(.{1,120}?) багшийн (?:и-?мэйл|имэйл|мэйл|цахим шуудан)(?:ийн)?(?: хаяг)?(?: (?:юу|хэд|ямар) (?:вэ|бэ))?'),
             ('teacher_room', r'(.{1,120}?) багшийн өрөө хаана (?:байдаг |байна )?вэ'),
             ('teacher_hours', r'(.{1,120}?) багш хэзээ оюутантай уулздаг вэ'),
+            # 11/25: «… багштай яаж уулзах вэ?» — where the teacher sits, the timetable now, how to arrange it.
+            ('teacher_meet', r'(.{1,120}?) багштай (?:(?:яаж|хэрхэн|хаана|хэзээ|одоо) )?уулз(?:ах|аж болох|аж болно) (?:вэ|бэ|уу)'),
             # 11/17 (5): a named day («маргааш», «даваа гарагт»); the published timetable only.
             ('teacher_day', r'(.{1,120}?) багш (өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)'
                             r'(?: гарагт)? хичээлтэй юу'),
@@ -1067,7 +1069,8 @@ class ReceptionAnswerPath:
                 if match:
                     # An office's own name may hold a comma («Дотоод хяналт, чанарын алба»); an unknown name is
                     # left to the website path by the office answers themselves.
-                    if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[;?!/]' + ('' if intent.startswith('office_') else '|,'),
+                    if re.search(r'\b(?:болон|ба|мөн|эсвэл|and|or)\b|[;?!/]'
+                                 + ('' if intent.startswith('office_') or intent in ('place_where', 'place_exists') else '|,'),
                                  match[1], re.I):
                         return None
                     # A day question carries its group or teacher and its day.
@@ -1362,13 +1365,19 @@ class ReceptionAnswerPath:
         for word in re.findall(r'[а-яөүёa-z]+', _key(value)):
             stem = re.sub(r'(?:ийн|ын|ний|ны|н)$', '', word) if len(word) > 4 else word
             if len(stem) >= 3:   # an initial («Б.») or a short word matches nearly every subject (review)
-                stems.append(stem[:max(3, len(stem) - 1)])
+                # A word of four letters or fewer is compared whole: «Болд» cut to «бол» opened «Боловсрол»
+                # and «Боловсруулалт», and a stranger's name listed those subjects' teachers (11/25).
+                stems.append(stem[:max(3, len(stem) - 1)] if len(stem) > 4 else stem)
         if not stems or len(stems) > 4:
             return {}
         found = {}
         for lesson in self.tables.timetable:
             words = re.findall(r'[а-яөүёa-z]+', _key(lesson.subject))
-            if lesson.subject and lesson.teacher and all(any(word.startswith(stem) for word in words) for stem in stems):
+            # A word of four letters or fewer may take only an ending (up to three letters): «хими» → «химийн», but
+            # «мате» is not «математик» and a stranger's name does not open a subject (11/25).
+            if lesson.subject and lesson.teacher and all(
+                    any(word.startswith(stem) and (len(stem) > 4 or len(word) - len(stem) <= 3) for word in words)
+                    for stem in stems):
                 found.setdefault(lesson.subject, set()).add(lesson.teacher)
         self._subjects[value] = {subject: sorted(teachers) for subject, teachers in found.items()}
         return self._subjects[value]
@@ -1669,6 +1678,8 @@ class ReceptionAnswerPath:
             person = self._staff_named(teacher[1])
         if reason == 'reception_person' and person is not None:
             lines = self._person_lines(person, now, role=False)
+        elif reason == 'reception_teacher_office_unrecorded' and person is not None:
+            lines = self._person_lines(person, now, role=False, room=False, groups=False, subjects=False)
         elif reason == 'reception_teacher_office' and person is not None:
             lines = self._person_lines(person, now, room=False, groups=False, subjects=False)
         elif reason in ('reception_teacher_email', 'reception_teacher_phone') and person is not None:
@@ -1678,6 +1689,8 @@ class ReceptionAnswerPath:
             lines = self._person_lines(person, now, groups=False, subjects=False, today=False)
         elif reason == 'reception_teacher_timetable' and person is not None:
             lines = self._person_lines(person, now, groups=False, subjects=False)
+        elif reason == 'reception_teacher_meet' and person is not None:
+            lines = self._person_lines(person, now, role=False, room=False, email=False, groups=False, subjects=False)
         elif reason == 'reception_role_holder':
             holders = self._role_holders(name) if isinstance(name, str) else []
             if len(holders) == 1:
@@ -2104,6 +2117,23 @@ class ReceptionAnswerPath:
                     # Avoid "Хуваариар бол Хуваарийн дагуу …" (same qualifier twice).
                     result['answer'] = 'Хуваариар бол ' + re.sub(r'^Хуваарийн дагуу\s*', '', result['answer'])
                 return result
+            if intent == 'teacher_meet':
+                text = person.name + ' — ' + (person.role or 'багш') + '.' + self._workplace(person)
+                status = self._answer_legacy(value + ' багш хаана вэ?', now=now)
+                if isinstance(status, dict) and status.get('answer'):
+                    # Only what the timetable says; the card ends with its own sentence about presence.
+                    said = [part for part in re.split(r'(?<=[.!?])\s+', re.sub(r'^Хуваарийн дагуу\s*', '', status['answer']))
+                            if not re.search(r'мэдэх боломжгүй|батлахгүй', part)]
+                    if said:
+                        text += ' Хуваариар бол ' + ' '.join(said)
+                if _recorded(person.office_hours):
+                    text += ' Бүртгэсэн уулзах цаг: ' + person.office_hours + '.'
+                else:
+                    # Meeting hours and presence are not recorded: never confirm them.
+                    text += ' Уулзах цаг хүснэгтэд бүртгэгдээгүй тул өрөөндөө байгааг батлахгүй.'
+                if person.email:
+                    text += ' Уулзах цагаа сургуулийн имэйлээр тохирно уу: ' + person.email + '.'
+                return reply(text, 'staff', 'reception_teacher_meet')
             if intent == 'teacher_hours':
                 if not _recorded(person.office_hours):
                     return missing('reception_hours_unknown')
@@ -2116,7 +2146,16 @@ class ReceptionAnswerPath:
                              'staff', 'reception_teacher_email')
             room = next((room for room in self.tables.rooms if _key(room.name) == _key(person.room)), None)
             if not person.room or room is None:
-                return missing('reception_room_unknown')
+                # 11/25 (sweep of every teacher): who the person is, that the office room is not recorded, and the
+                # department's teachers' room as the department's; the e-mail and today's lessons follow.
+                text = person.name + ' — ' + (person.role or 'багш') + '. Ажлын өрөө нь бүртгэлд алга.'
+                unit = re.sub(r'\s*тэнхим\w*$', '', person.department or '', flags=re.I).strip()
+                shared = next((row for row in (self._department_rooms(unit) if unit else ())
+                               if 'багш нарын өрөө' in (row.purpose or '').casefold()), None)
+                if shared is not None:
+                    text += (' Тэнхимийн багш нарын өрөө: ' + shared.name + ' тоот, ' + floor_text(shared.floor)
+                             + '.')
+                return reply(text, 'staff', 'reception_teacher_office_unrecorded')
             return reply(person.name + ' — бүртгэлд заасан ажлын өрөө: ' + room.name + ', '
                          + floor_text(room.floor) + '. Одоо тэнд байгааг батлахгүй.', 'staff', 'reception_teacher_office')
         if intent == 'class_teacher_room':

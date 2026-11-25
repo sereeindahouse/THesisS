@@ -17,11 +17,14 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
   .teacher-cards{display:grid;gap:14px;margin:18px 0;max-width:100%}.teacher-card{display:flex;flex-wrap:wrap;gap:16px;padding:16px;border:1px solid var(--line);border-radius:16px;background:#f7faf6;min-width:0}.teacher-card img{width:180px;max-width:100%;height:236px;object-fit:contain;background:white;border-radius:10px}.teacher-card-info{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}.teacher-card-info h3{font-size:17px;margin-bottom:4px}.teacher-card-info p{font-size:13px;color:var(--muted);margin:6px 0}.teacher-card-info a{font-size:13px}
   /* Reception screen (/kiosk): large type, topic buttons, no staff tools, idle reset. */
   .kiosk-only{display:none!important}body.kiosk .kiosk-only{display:flex!important}body.kiosk .default-only,body.kiosk #openTools,body.kiosk #localAdminLink,body.kiosk #localQualityLink,body.kiosk .input-lineage{display:none!important}
+  /* «Зөвхөн чат» (11/25): no link or panel that leads to another part of the system; back with /?all */
+  body.chat-only a[href^="/"]:not([href^="/api/"]),body.chat-only #chatOnlyOn,body.chat-only #localAdminLink,body.chat-only #localQualityLink,body.chat-only #publicListeningLink,body.chat-only #toolsDialog .tool-panel,body.chat-only #sttDetails{display:none!important}
   body.kiosk{font-size:18px}body.kiosk .chat-header{height:92px}body.kiosk .brand strong{font-size:20px}body.kiosk .brand small{font-size:14px}body.kiosk .chat-content{width:min(100%,1100px)}body.kiosk .welcome h1{font-size:44px}body.kiosk .welcome>p{font-size:20px}body.kiosk .suggestions{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}body.kiosk .suggestions button{font-size:19px;min-height:76px;border-radius:16px;padding:14px 18px;color:#2f4a24}body.kiosk .chat-answer{font-size:22px;line-height:1.75}body.kiosk .user-message{font-size:20px}body.kiosk .composer textarea{font-size:20px}body.kiosk .chat-sources,body.kiosk .chat-sources ul{font-size:14px}body.kiosk .chat-options button,body.kiosk .play-message{font-size:16px;padding:10px 14px}body.kiosk #recordStart{width:64px;height:64px;background:#e6eee7}body.kiosk .send-button{width:56px;height:56px}body.kiosk .kiosk-help{justify-content:center;font-size:16px;color:#5b6b55;margin-top:22px}
   </style>
 </head>
 <body>
 <script>if(location.pathname==="/kiosk"||new URLSearchParams(location.search).has("kiosk"))document.body.classList.add("kiosk")</script>
+<script>(function(){var q=new URLSearchParams(location.search),on=q.has("chat");try{if(q.has("all"))localStorage.removeItem("chatOnly");else if(on)localStorage.setItem("chatOnly","1");on=!q.has("all")&&(on||localStorage.getItem("chatOnly")==="1")}catch(e){}if(on)document.body.classList.add("chat-only")})()</script>
 <a class="skip-link" href="#routeQuery">Асуулт бичих</a>
 <main class="chat-app" id="mainContent">
   <header class="chat-header">
@@ -31,6 +34,7 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
     </a>
     <div class="header-actions">
       <a class="quiet-button default-only" href="/data#tree" title="Мэдлэгийн мод, эх сурвалж ба төслийн явц">Мэдлэгийн мод</a>
+      <button id="chatOnlyOn" class="quiet-button default-only" type="button" title="Бусад хэсгийн холбоосыг нууж, зөвхөн чатыг үлдээнэ. Буцаахдаа хаягийн ард /?all гэж бичнэ.">Зөвхөн чат</button>
       <a id="localAdminLink" class="quiet-button" href="/admin" title="Мэдээлэл шинэчлэх" aria-label="Мэдээлэл шинэчлэх" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M4 15v5h16v-5"/></svg><span>Шинэчлэх</span></a>
       <button id="voiceReset" class="quiet-button" type="button" title="Чатыг цэвэрлэж, шинээр эхлэх" aria-label="Шинэ чат">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Шинэ чат</span>
@@ -152,6 +156,7 @@ dialog{border:1px solid #dce4d4;border-radius:20px;background:#fdfefb;color:var(
 const $=id=>document.getElementById(id);
 $("localAdminLink").hidden=!["localhost","127.0.0.1","[::1]"].includes(location.hostname);
 $("localQualityLink").hidden=true;
+$("chatOnlyOn").addEventListener("click",()=>{try{localStorage.setItem("chatOnly","1")}catch(error){}document.body.classList.add("chat-only")});
 $("openTools").addEventListener("click",()=>$("toolsDialog").showModal());
 $("closeTools").addEventListener("click",()=>$("toolsDialog").close());
 $("toolsDialog").addEventListener("click",e=>{if(e.target===$("toolsDialog")){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close()}});

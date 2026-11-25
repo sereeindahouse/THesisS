@@ -13,15 +13,17 @@ It is a navigation step, not a ranking of similar text, and it is strict on purp
 2. every content word of the question must be in the section's names — page title, heading, the label printed
    above the heading, the heading it stands under. A question of four or more content words may have one of them
    in the section's text instead. So «Номын сан ямар цагаар ажилладаг вэ?» does not get the library's section;
-3. the question must say at least half of the section's own name (its heading, or its label), and a question of
-   one word all of it: «Хамгаалалт байдаг уу?» is not «Хүүхэд хамгааллын ажил», and «Механик инженерийн тэнхимийн
-   талаар» names a page, not one of its sections (the stored overview answers that);
+3. the question must say at least half of the section's own heading, and a question of one word all of it; a
+   section meant by the label above its heading must have that label said whole. So «Хамгаалалт байдаг уу?» is
+   not «Хүүхэд хамгааллын ажил», and «Механик инженерийн тэнхимийн талаар» names a page, not one of its sections
+   (the stored overview answers that);
 4. of the sections that pass, the one whose own name the question says most fully is meant; when sections of two
    pages are equally named the question does not say which, and nothing is shown. A page of the site itself is
    preferred to a news item about the same thing.
 
-Words are compared by a key of their stem (stem() below), so «газрын» meets «газар». Nothing is generated, and
-every question this step does not match is left as it was.
+Two words are the same word when both the keys of their stems and the words as written agree (same_word below):
+«газрын» meets «газар», but «зөвлөгөө» is not «зөвлөл». Nothing is generated, and every question this step does
+not match is left as it was.
 
 The sections are cut by tools/build_website_sections.py from the saved HTML (its heading tags) and stored in
 runtime/website-sections.json (not in Git: it is the school's page text) with the corpus ID they were cut from;
@@ -72,22 +74,31 @@ def _words(text):
     return re.findall(r'[^\W\d_]{2,}', unicodedata.normalize('NFC', text or '').casefold())
 
 
+def _skeleton(text):
+    """The first two letters, then the consonants: a vowel falls out before an ending («газар» / «газрын»)."""
+    return text[:2] + ''.join(letter for letter in text[2:] if letter not in _VOWELS)
+
+
 def stem(word):
-    """A key under which a word's forms meet: the light stem's first two letters, then its consonants. A stem
-    alone does not do it, because a vowel falls out before an ending: «газар» / «газрын» (both «газр»),
-    «тэнхим» / «тэнхмийн», «оюутан» / «оюутны», «орчин» / «орчны»."""
-    base = light_stem(word)
-    return (base[:2] + ''.join(letter for letter in base[2:] if letter not in _VOWELS))[:6]
+    """What a word is compared by: (key of its light stem, skeleton of the word as written)."""
+    word = word.casefold()
+    return _skeleton(light_stem(word))[:6], _skeleton(word)
 
 
 def same_word(one, other):
-    """Two keys of one word: equal, or one opens the other («дадл» from «дадлагын», «дадлг» from «дадлага»).
-    Keys under four letters must be equal: «үйл» is not «үйлдвэр»."""
-    return one == other or (len(one) >= 4 and len(other) >= 4 and (one.startswith(other) or other.startswith(one)))
+    """Two forms of one word. The stem keys must be equal or, from four letters on, one must open the other
+    («дадл» from «дадлагын», «дадлг» from «дадлага»; «үйл» is not «үйлдвэр»). And the words as written must
+    agree the same way, because the stemmer also cuts what is no ending: «зөвлөгөө» and «зөвлөл» share the
+    stem key «зөвл», but «зөвлг» and «зөвлл» do not open one another (code review, 11/25)."""
+    key, other_key = one[0], other[0]
+    if key != other_key and not (len(key) >= 4 and len(other_key) >= 4
+                                 and (key.startswith(other_key) or other_key.startswith(key))):
+        return False
+    return one[1].startswith(other[1]) or other[1].startswith(one[1])
 
 
 def content_stems(text):
-    """The keys of the words that name something, in order, each once."""
+    """What the words that name something are compared by (see stem), in order, each once."""
     return list(dict.fromkeys(stem(word) for word in _words(text) if word not in _GENERIC))
 
 
@@ -150,8 +161,9 @@ class SectionIndex:
             outside = [term for term in terms if not _held(term, names)]
             if outside and (len(terms) < 4 or len(outside) > 1 or not _held(outside[0], self._body[index])):
                 continue
-            # How fully the question says the section's own name: its heading, or the label above it.
-            said = max(_said(self._heading[index], wanted), _said(self._label[index], wanted))
+            # How fully the question says the section's own name: its heading, or the whole label above it.
+            said = max(_said(self._heading[index], wanted),
+                       1.0 if self._label[index] and _said(self._label[index], wanted) == 1.0 else 0.0)
             if said < (1.0 if len(terms) == 1 else 0.5):
                 continue
             passed.append((said, not outside, -len(section.text), -index))

@@ -284,7 +284,10 @@ def direct_first(query, text):
     return text
 
 
-_YES_NO_ASKED = re.compile(r'(?<!\w)(?:уу|үү|юу|юү)\s*[?.!]*\s*$')
+# A yes/no question, anywhere in the wording: its particle (a «юу» that is not «юу вэ / юу бэ»), a tag («биз»), or
+# Latin letters only (the particle cannot be read). Under these a leading «Тийм.» is the answer and stays.
+_YES_NO_ASKED = re.compile(r'(?<!\w)(?:уу|үү|юү|биз)(?!\w)|(?<!\w)юу(?!\s+(?:вэ|бэ)(?!\w))(?!\w)')
+_CYRILLIC = re.compile(r'[а-яөүё]', re.I)
 _WHAT_IS = re.compile(r'^\s*(?P<name>\S.*?)\s+(?:гэж\s+юу|гэдэг\s+(?:нь\s+)?юу)(?!\w)|'
                       r'^\s*(?P<about>\S.*?)\s+(?:талаар|тухай)(?!\w)')
 _NAME_END = re.compile(r'\s*(?:—|–|:|\s-\s)')
@@ -292,10 +295,12 @@ _NAME_END = re.compile(r'\s*(?:—|–|:|\s-\s)')
 
 def drop_yes(query, text):
     """A stored answer written for a yes/no question opens with «Тийм.»; under another wording of the question
-    («Нийтийн хоолны газрын талаар») that word answers nothing, so it goes and the sentences stay."""
-    if not isinstance(text, str) or not isinstance(query, str) or _YES_NO_ASKED.search(query.casefold().strip()):
+    («Нийтийн хоолны газрын талаар») that word answers nothing, so it goes and the sentences stay. «Үгүй.»
+    always stays: without it the rest would read as a yes (code review, 11/25)."""
+    if (not isinstance(text, str) or not isinstance(query, str) or not _CYRILLIC.search(query)
+            or _YES_NO_ASKED.search(query.casefold())):
         return text
-    opened = re.match(r'(?:Тийм|Үгүй)[.!]\s+(?=\S)', text)
+    opened = re.match(r'Тийм[.!]\s+(?=\S)', text)
     return _cap(text[opened.end():]) if opened else text
 
 
@@ -316,8 +321,8 @@ def named_first(query, text):
     def opens(line):
         line = line.lstrip('•-– ').casefold()
         end = _NAME_END.search(line)
-        if end is None or end.start() > 60:
-            return False
+        if end is None or end.start() > 60 or not line[end.end():].strip():
+            return False        # no name, or a header that only opens the list under it
         head = re.findall(r'[^\W\d_]{2,}', line[:end.start()])
         # The line's own name opens as the asked name does, and every word of it is one of the asked words
         # («JENESYS» for «JENESYS хөтөлбөр»; not «Хөтөлбөр» for «Япон улстай танилцах хөтөлбөр»).
