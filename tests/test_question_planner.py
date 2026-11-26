@@ -370,8 +370,10 @@ class QuestionPlannerTests(unittest.TestCase):
         # 11/17 (5): a named day goes to that day's timetable wording, never to «now» or the office.
         self.assertEqual(self.queries(p.plan('Сэлмаа багш даваа гарагт хаана байна вэ?')),
                          ['Б.Сэлмаа багш даваа гарагт хичээлтэй юу?'])
+        # 11/26: a meeting on a named day is answered with that day's lessons and free stretches (teacher_time_parts),
+        # so the words stay as asked, the name first.
         self.assertEqual(self.queries(p.plan('Сэлмаа багштай өнөөдөр уулзаж болох уу?')),
-                         ['Б.Сэлмаа багш өнөөдөр хичээлтэй юу?'])
+                         ['Б.Сэлмаа багш өнөөдөр уулзаж болох уу?'])
         self.assertEqual(self.queries(p.plan('Сэлмаа багш 15:00 цагт хаана байна вэ?')),
                          ['Б.Сэлмаа багш 15:00 цагт хаана байна вэ?'])
         # Review 11/17 (5): a teacher named like a weekday («А.Даваа») is not read as that day; since 11/25 the

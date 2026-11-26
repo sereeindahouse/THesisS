@@ -326,6 +326,46 @@ def _interval(value):
     return start, end
 
 
+# ---- a teacher asked about at a day and an hour (2026-11-26) ---------------------------------------------------------
+# One parser for the question planner and the tables, so they cannot disagree (code review). «rest» is the question
+# without the teacher's name. Read as a clock hour: «14 цагт», «2 цагаас», «14:30», «11:30-д». Not read: a calendar date
+# («12 сарын 4-д», «11/27-д»), a duration or a relative time («2 цагийн дараа»), «одоо» (the now-status answers), and
+# the office-hours wording «хэзээ оюутантай уулздаг вэ».
+_TT_HOUR = re.compile(r'(?<![\d:/.])(?P<h>\d{1,2})(?:[:.](?P<m>\d{2}))?\s*цаг(?:т|аас|ээс)?(?!\w)|'
+                      r'(?<![\d:/.])(?P<h2>\d{1,2}):(?P<m2>\d{2})(?![\d:])')
+_TT_DAY = re.compile(r'(?<!\w)(өнөөдөр|маргааш|нөгөөдөр|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)')
+_TT_LESSON = re.compile(r'хичээлтэй|хичээлгүй|хичээл\s+(?:орох|ордог|байгаа|байна|заах)')
+_TT_FREE = re.compile(r'завтай|чөлөөтэй|(?<!\w)сул(?!\w)|хичээлгүй')
+_TT_MEET = re.compile(r'уулз(?:аж\s+болох|ах|ъя|маар)')
+_TT_NOT = re.compile(r'(?<!\w)одоо(?!\w)|\d{1,2}\s*(?:-?\s*р\s+)?сарын|\d{1,2}\s*/\s*\d{1,2}|цагийн\s+(?:дараа|өмнө)|'
+                     r'минутын\s+(?:дараа|өмнө)|оюутантай\s+уулз')
+
+
+def teacher_time_parts(rest):
+    """(day word or None, minute of the day or None, asks free time) when the rest of a question about one teacher
+    names an hour with a lesson / free-time word, asks when the teacher is free, or names a day with a free-time word;
+    None otherwise (the other wordings answer)."""
+    rest = ' '.join((rest or '').casefold().split())
+    if not rest or _TT_NOT.search(rest):
+        return None
+    lesson, free = _TT_LESSON.search(rest) is not None, _TT_FREE.search(rest) is not None
+    meet = _TT_MEET.search(rest) is not None        # with a day or an hour only: «хэзээ уулзаж болох вэ» is the card
+    if not lesson and not free and not meet:
+        return None
+    day = _TT_DAY.search(rest)
+    minute = None
+    for hour in _TT_HOUR.finditer(rest):
+        h, m = int(hour['h'] or hour['h2']), int(hour['m'] or hour['m2'] or 0)
+        if h <= 23 and m <= 59:
+            # «2 цагт» at a school is the afternoon: no lesson starts between one and seven in the morning.
+            minute = (h + 12 if 1 <= h <= 7 else h) * 60 + m
+            break
+    when_free = free and re.search(r'хэдэн\s+цагт|хэзээ|хэдээс', rest) is not None
+    if minute is None and not when_free and not (day and (free or meet)):
+        return None          # «… маргааш хичээлтэй юу», «… завтай юу», «… хэзээ уулзаж болох вэ» keep their answers
+    return (day[1] if day else None), minute, free or meet
+
+
 @dataclass(frozen=True)
 class Service:
     name: str
@@ -1095,6 +1135,8 @@ class ReceptionAnswerPath:
             return False
         if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
+        if self.complete and self._teacher_time_slots(query) is not None:
+            return True
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'person_about':
             # Only a person in the staff table; another name goes on to the website's teacher introductions.
@@ -1214,33 +1256,10 @@ class ReceptionAnswerPath:
                     'дараагийн хичээлийн өдрийн хуваарь бүртгэгдээгүй.'
             start = window[0]
             label = 'дараагийн хичээлийн өдөр — ' + _MN_DAYS[day.weekday()] + ' (' + day.strftime('%m/%d') + ')'
-        slots = {}
-        for lesson in self.tables.timetable:
-            if _key(lesson.teacher) == _key(person.name) and lesson.day == _DAYS[day.weekday()]:
-                slot = slots.setdefault(lesson.interval, dict(groups=[], rooms=[]))
-                for field, value in (('groups', lesson.group), ('rooms', lesson.room)):
-                    if value and value not in slot[field]:
-                        slot[field].append(value)
-        busy = [(span, slot) for span, slot in sorted(slots.items()) if span[1] > start]
-        if not busy:
+        plan = self._day_plan(person, day, start, window)
+        if plan == 'хичээлгүй':
             return intro + 'Хуваариар ' + label + ' хичээлгүй.'
-        text = intro + 'Хуваариар ' + label + ': хичээлтэй — ' + '; '.join(
-            _clock(span[0]) + '–' + _clock(span[1]) + ' ' + ', '.join(slot['groups'])
-            + (' (' + ', '.join(slot['rooms']) + ' тоот)' if slot['rooms'] else '') for span, slot in busy)
-        if window:     # always set here; kept as one block with its lunch note
-            free, cursor = [], start
-            for (begin, end), _ in busy:
-                if min(begin, window[1]) - cursor >= 30:
-                    free.append((cursor, min(begin, window[1])))
-                cursor = max(cursor, end)
-            if window[1] - cursor >= 30:
-                free.append((cursor, window[1]))
-            if free:
-                text += '; хичээлгүй — ' + ', '.join(_clock(begin) + '–' + _clock(end) for begin, end in free)
-                lunch = _range_minutes(self.tables.lunch_break)
-                if lunch and any(begin < lunch[1] and lunch[0] < end for begin, end in free):
-                    text += ' (сургуулийн цайны цаг ' + self.tables.lunch_break + ')'
-        return text + '.'
+        return intro + 'Хуваариар ' + label + ': ' + plan + '.'
 
     def _schedule_reply(self, query, person, schedule, prefix=''):
         """A teacher asked about outside the school day: the person, the office and the day a visitor can come."""
@@ -1690,7 +1709,11 @@ class ReceptionAnswerPath:
             lines.append('Заадаг хичээл: ' + '; '.join(
                 subject + ' (' + ', '.join(sorted(names)[:4]) + (', …' if len(names) > 4 else '') + ')'
                 for subject, names in shown[:8]) + (' гэх мэт ' + str(len(shown)) + ' хичээл' if len(shown) > 8 else ''))
-        weekday = self._today(now) if today else None
+        schedule = self._teacher_schedule(person, now) if today and taught and self.complete else None
+        if schedule:
+            # 11/26: the lessons and free stretches of today or, on a holiday or after hours, of the next school day.
+            lines.append(schedule.rstrip('.'))
+        weekday = self._today(now) if today and not schedule else None
         if weekday is not None and taught:
             lessons = self._day_lessons(weekday, teacher=person.name)
             if lessons:
@@ -1847,7 +1870,8 @@ class ReceptionAnswerPath:
             if caveat in text:
                 text = text.replace(caveat, '').strip()
                 closing.append(caveat)
-        if any(line.startswith(('Өнөөдрийн хичээл', 'Заадаг хичээл')) for line in lines) and _CAVEATS[0] not in closing:
+        if (any(line.startswith(('Өнөөдрийн хичээл', 'Заадаг хичээл')) or 'Хуваариар ' in line for line in lines)
+                and _CAVEATS[0] not in closing):
             closing.insert(0, _CAVEATS[0])
         if (any(line.startswith('Ажлын өрөө') for line in lines) or reason == 'reception_teacher_office') \
                 and _CAVEATS[1] not in closing and _CAVEATS[2] not in closing:
@@ -1865,9 +1889,142 @@ class ReceptionAnswerPath:
         except (AttributeError, IndexError, KeyError, TypeError, ValueError):
             return result      # the short answer stands when the extra lines cannot be built
 
+    # ---- a teacher at a day and an hour (2026-11-26) -------------------------------------------------------------
+    # The user: «хичээлийн хуваарь хараад тэр асуусан цагт хичээлтэй үгүйг хэл». The planner writes the question as
+    # «<нэр> багш <бусад үг>»; the slots come from teacher_time_parts (shared with the planner).
+    _TT_NAME = re.compile(r'\s*(?P<name>[А-ЯӨҮЁ]\.\s?[А-ЯӨҮЁа-яөүё-]+)\s+багш[а-яөүё]*(?=\s)(?P<rest>.*)', re.S)
+
+    def _teacher_time_slots(self, query):
+        """(person, day word or None, minute or None, asks free time) for a timetable question about one teaching
+        staff member at a day or an hour; None for anything else."""
+        if self.tables is None or not isinstance(query, str) or len(query) > 300:
+            return None
+        named = self._TT_NAME.match(query)
+        if not named:
+            return None
+        person = self._staff_named(named['name'].replace(' ', ''))
+        if person is None or not any(_key(lesson.teacher) == _key(person.name) for lesson in self.tables.timetable):
+            return None
+        parts = teacher_time_parts(named['rest'])
+        return None if parts is None else (person,) + parts
+
+    def _teacher_time_reply(self, query, slots, now):
+        """«Н.Соронзонболд — маргааш (баасан, 11/27) 14:00-д хуваариар хичээлгүй. Тэр өдөр: хичээлтэй — …; хичээлгүй — ….»"""
+        person, day_word, minute, _ = slots
+        prefix = '[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else ''
+        if not isinstance(now, datetime):
+            return self._result(query, None, 'reception_date_required')
+        window = self._school_window()
+        if window is None or not self.tables.timetable_complete:
+            return None
+        today, this_minute = now.date(), now.hour * 60 + now.minute
+        intro = ''
+        if day_word in (None, 'өнөөдөр', 'маргааш', 'нөгөөдөр'):
+            target = today + timedelta(days={'маргааш': 1, 'нөгөөдөр': 2}.get(day_word, 0))
+        else:
+            ahead = (_DAY_LOOKUP[day_word] - today.weekday()) % 7
+            # The same weekday today counts while the school day lasts; afterwards it is next week's.
+            if ahead == 0 and this_minute >= window[1]:
+                ahead = 7
+            target = today + timedelta(days=ahead)
+        reason = self._calendar_reason(now, target)
+        if reason not in (None, 'reception_holiday'):
+            return self._result(query, None, reason)
+        tail = (' Албан тушаал: ' + person.role + '.' if person.role else '') + self._workplace(person) + \
+            ' Хуваарь өөрчлөгдөж болно; өрөөндөө байгааг батлахгүй.' + \
+            (' Уулзах цагаа сургуулийн имэйлээр тохирно уу: ' + person.email + '.' if person.email else '')
+
+        def label(day):
+            said = {0: 'өнөөдөр', 1: 'маргааш', 2: 'нөгөөдөр'}.get((day - today).days)
+            return (said + ' (' + _MN_DAYS[day.weekday()] + ', ' if said else _MN_DAYS[day.weekday()] + ' (') \
+                + day.strftime('%m/%d') + ')'
+        closed = ('бүртгэсэн амралтын өдөр' if reason == 'reception_holiday'
+                  else 'хичээлийн өдөр биш' if target.weekday() >= 5 else '')
+        # No day named and the school day is over: the asked hour is the next school day's (code review — today's past
+        # hours were told as free).
+        over = day_word is None and not closed and this_minute >= window[1]
+        if closed or over:
+            following = self._next_school_day(target, now)
+            text = prefix + person.name + ' — ' + (
+                'өнөөдрийн ажлын цаг (' + self.tables.school_hours + ') дууссан.' if over
+                else label(target) + ' нь ' + closed + '; хуваарьт хичээлгүй.')
+            if following is None:
+                return self._result(query, text + tail, 'reception_teacher_at', source_table='timetable')
+            if minute is None or closed:
+                text += (' Дараагийн хичээлийн өдөр — ' + label(following) + ': '
+                         + self._day_plan(person, following, window[0], window) + '.')
+                return self._result(query, text + tail, 'reception_teacher_at', source_table='timetable')
+            intro, target = text + ' ', following
+        slots_of_day = self._day_slots(person, target)
+        start = max(this_minute, window[0]) if target == today else window[0]
+        plan = self._day_plan(person, target, start, window)
+        rest_of_day = ('Одооноос (' + _clock(this_minute) + '): ' if target == today and start > window[0] else 'Тэр өдөр: ')
+        head = intro or (prefix + person.name + ' — ')
+
+        def first(words):          # a sentence of its own after the intro starts with a capital letter
+            return words[:1].upper() + words[1:] if intro else words
+        if minute is None:
+            text = head + first(label(target) + ' хуваариар: ' if not rest_of_day.startswith('Одооноос')
+                                else label(target) + ', ' + _clock(this_minute) + '-аас хойш хуваариар: ') + plan + '.'
+        else:
+            current = next(((span, slot) for span, slot in slots_of_day if span[0] <= minute < span[1]), None)
+            at = first(label(target) + ' ' + _clock(minute) + '-д')
+            if current is not None:
+                span, slot = current
+                text = (head + at + ' хуваариар хичээлтэй: ' + _clock(span[0]) + '–' + _clock(span[1]) + ' '
+                        + ', '.join(slot['groups']) + (' (' + ', '.join(slot['rooms']) + ' тоот)' if slot['rooms'] else ''))
+            else:
+                text = head + at + ' хуваариар хичээлгүй'
+                if not window[0] <= minute < window[1]:
+                    text += ' (сургуулийн ажлын цаг ' + self.tables.school_hours + ')'
+            if target == today and minute < this_minute:
+                text += ' — энэ цаг өнгөрсөн'
+            text += '. ' + rest_of_day + plan + '.'
+        return self._result(query, text + tail, 'reception_teacher_at', source_table='timetable')
+
+    def _day_slots(self, person, day):
+        """One teacher's lessons of a day in time order, a joint lesson once with all its groups and rooms."""
+        slots = {}
+        for lesson in self.tables.timetable:
+            if _key(lesson.teacher) == _key(person.name) and lesson.day == _DAYS[day.weekday()]:
+                slot = slots.setdefault(lesson.interval, dict(groups=[], rooms=[]))
+                for field, value in (('groups', lesson.group), ('rooms', lesson.room)):
+                    if value and value not in slot[field]:
+                        slot[field].append(value)
+        return sorted(slots.items())
+
+    def _day_plan(self, person, day, start, window):
+        """«хичээлтэй — 11:10–12:40 КУ-1 (613 тоот); хичээлгүй — 08:00–11:10, 12:40–17:00 (сургуулийн цайны цаг …)» for
+        one teacher's day from ``start``: the lessons not over yet and the free stretches of the school day, 30 minutes
+        or longer, naming the lunch break when one falls in them; «хичээлгүй» when no lesson is left."""
+        busy = [(span, slot) for span, slot in self._day_slots(person, day) if span[1] > start]
+        if not busy:
+            return 'хичээлгүй'
+        text = 'хичээлтэй — ' + '; '.join(
+            _clock(span[0]) + '–' + _clock(span[1]) + ' ' + ', '.join(slot['groups'])
+            + (' (' + ', '.join(slot['rooms']) + ' тоот)' if slot['rooms'] else '') for span, slot in busy)
+        free, cursor = [], start
+        for (begin, end), _ in busy:
+            if min(begin, window[1]) - cursor >= 30:
+                free.append((cursor, min(begin, window[1])))
+            cursor = max(cursor, end)
+        if window[1] - cursor >= 30:
+            free.append((cursor, window[1]))
+        if free:
+            text += '; хичээлгүй — ' + ', '.join(_clock(begin) + '–' + _clock(end) for begin, end in free)
+            lunch = _range_minutes(self.tables.lunch_break)
+            if lunch and any(begin < lunch[1] and lunch[0] < end for begin, end in free):
+                text += ' (сургуулийн цайны цаг ' + self.tables.lunch_break + ')'
+        return text
+
     def _answer_core(self, query, *, now=None):
         if not self.enabled:
             return None
+        slots = self._teacher_time_slots(query) if self.complete else None
+        if slots is not None:
+            made = self._teacher_time_reply(query, slots, now)
+            if made is not None:
+                return made
         if self._asks_lunch_break(query):
             return self._result(query, ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '')
                                 + 'Сургуулийн цайны цаг: ' + self.tables.lunch_break + '.',

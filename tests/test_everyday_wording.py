@@ -133,6 +133,17 @@ class EverydayWordingTests(unittest.TestCase):
         self.assertNotEqual(self.read('КУ-2 өнөөдөр хичээлтэй юу'), 'Өнөөдөр хичээлтэй юу?')
         self.assertNotIn('түвшингээр', self.read('Япон хэл хэн заадаг вэ?'))
 
+    def test_the_users_spoken_admission_example(self):
+        # 11/26 (3): «Энэ хэддүгээр ангиасаа ордог сургууль вэ? 10-р ангиасаа ордог юм уу? Орохдоо юу юу бүртгүүлэх
+        # хэрэгтэй вэ?» got «not found» for all three.
+        # The project's own planner configuration: how a question is split depends on its topic keywords.
+        own = QuestionPlanner.from_config(Path(__file__).resolve().parents[1], FakeReception())
+        parts = [part['query'] for part in own.plan(
+            'Энэ хэддүгээр ангиасаа ордог сургууль вэ? 10-р ангиасаа ордог юм уу? Орохдоо юу юу бүртгүүлэх хэрэгтэй вэ?')['parts']]
+        self.assertEqual(parts, [ADMISSION_QUESTION, ADMISSION_QUESTION, 'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?'])
+        # What is needed in general stays the full admission answer.
+        self.assertNotEqual(self.read('элсэхэд юу хэрэгтэй вэ'), 'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?')
+
     def test_compound_questions_read_each_part(self):
         parts = self.planner.plan('Энэ яадаг сургууль вэ? Төлбөр хэд вэ?')['parts']
         self.assertEqual(parts[0]['query'], SCHOOL_OVERVIEW_QUESTION)

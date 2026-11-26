@@ -189,6 +189,78 @@ class MeetingScheduleTests(unittest.TestCase):
         self.assertIn('temuulen@school.example', result['answer'])
 
 
+class TeacherAtATimeTests(unittest.TestCase):
+    """11/26 (3), the user: «хичээлийн хуваарь хараад тэр асуусан цагт хичээлтэй үгүйг хэл»."""
+    NOW = datetime(2026, 11, 25, 8, 30)      # a Wednesday morning; З.Наран teaches Wed 09:35–11:05 and Fri 13:30–15:00
+
+    def ask(self, question, now=None):
+        asked = planner().plan(question)['parts'][0]['query']
+        return calendar_path().answer(asked, now=now or self.NOW)
+
+    def test_an_hour_inside_and_outside_a_lesson(self):
+        busy = self.ask('З.Наран багш 10 цагт хичээлтэй юу')
+        self.assertEqual(busy['reason_code'], 'reception_teacher_at')
+        self.assertTrue(busy['answer'].startswith('З.Наран — өнөөдөр (лхагва, 11/25) 10:00-д хуваариар хичээлтэй: '
+                                                  '09:35–11:05 ЗА-1 (612 тоот). Одооноос (08:30): '), busy['answer'])
+        free = self.ask('З.Наран багш 14:30-д хичээлтэй юу')['answer']
+        self.assertTrue(free.startswith('З.Наран — өнөөдөр (лхагва, 11/25) 14:30-д хуваариар хичээлгүй. Одооноос (08:30): '
+                                        'хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот); хичээлгүй — 08:30–09:35, 11:05–17:00'), free)
+        # «2 цагт» at a school is the afternoon; the name need not come first, the day may stand anywhere.
+        for wording in ('Наран багштай баасан гарагт 2 цагт уулзаж болох уу', 'Баасан гарагт 2 цагт Наран багш хичээлтэй юу'):
+            friday = self.ask(wording)['answer']
+            self.assertTrue(friday.startswith('З.Наран — нөгөөдөр (баасан, 11/27) 14:00-д хуваариар хичээлтэй: '
+                                              '13:30–15:00 ЗА-1 (612 тоот). Тэр өдөр: '), friday)
+        for answer in (busy['answer'], free, friday):
+            self.assertEqual(answer.count('мэдэх боломжгүй') + answer.count('батлахгүй'), 1)
+
+    def test_a_holiday_a_weekend_and_when_free(self):
+        holiday = self.ask('З.Наран багш маргааш 10 цагт завтай юу')['answer']       # 11/26 is the fixture's holiday
+        self.assertIn('маргааш (пүрэв, 11/26) нь амралтын өдөр; хуваарьт хичээлгүй. Дараагийн хичээлийн өдөр — нөгөөдөр '
+                      '(баасан, 11/27): хичээлтэй — 13:30–15:00 ЗА-1 (612 тоот)', holiday)
+        weekend = self.ask('З.Наран багш бямба гарагт 10 цагт хичээлтэй юу')['answer']
+        self.assertIn('бямба (11/28) нь хичээлийн өдөр биш; хуваарьт хичээлгүй. Дараагийн хичээлийн өдөр — даваа (11/30): '
+                      'хичээлгүй.', weekend)
+        when = self.ask('З.Наран багш хэзээ чөлөөтэй вэ')['answer']
+        self.assertIn('өнөөдөр (лхагва, 11/25), 08:30-аас хойш хуваариар: хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот); '
+                      'хичээлгүй — 08:30–09:35, 11:05–17:00', when)
+
+    def test_time_that_has_passed_is_said(self):
+        past = self.ask('З.Наран багш 10 цагт хичээлтэй юу', datetime(2026, 11, 25, 16, 0))['answer']
+        self.assertIn('10:00-д хуваариар хичээлтэй: 09:35–11:05 ЗА-1 (612 тоот) — энэ цаг өнгөрсөн. Одооноос (16:00): хичээлгүй.',
+                      past)
+        evening = self.ask('З.Наран багш 14 цагт завтай юу', datetime(2026, 11, 25, 18, 0))['answer']
+        self.assertTrue(evening.startswith('З.Наран — өнөөдрийн ажлын цаг (08:00–17:00) дууссан. Нөгөөдөр (баасан, 11/27) '
+                                           '14:00-д хуваариар хичээлтэй: 13:30–15:00 ЗА-1 (612 тоот).'), evening)
+
+    def test_a_date_a_duration_and_office_hours_are_no_clock_hour(self):
+        from reception_tables import teacher_time_parts
+        for rest in ('12 сарын 4-д завтай юу', '11/27-д 14 цагт хичээлтэй юу', '2 цагийн дараа завтай юу',
+                     'хэзээ оюутантай уулздаг вэ', 'одоо хичээлтэй юу', 'завтай юу', 'маргааш хичээлтэй юу',
+                     'хэзээ уулзаж болох вэ'):
+            self.assertIsNone(teacher_time_parts(rest), rest)
+        self.assertEqual(teacher_time_parts('маргааш 10 цагт хичээлтэй юу'), ('маргааш', 600, False))
+        self.assertEqual(teacher_time_parts('2 цагт завтай юу'), (None, 840, True))
+        # Those questions keep their earlier answers.
+        self.assertEqual(self.ask('Наран багш завтай юу')['reason_code'], 'reception_teacher_meet')
+        self.assertEqual(self.ask('Наран багштай хэзээ уулзаж болох вэ')['reason_code'], 'reception_teacher_meet')
+        self.assertEqual(self.ask('З.Наран багш маргааш хичээлтэй юу')['reason_code'], 'reception_holiday')
+        self.assertIsNone(calendar_path()._teacher_time_slots('З.Тэмүүлэн багш 10 цагт хичээлтэй юу'))   # teaches nothing
+
+    def test_a_joint_lesson_names_all_its_groups(self):
+        made = calendar_path()
+        made.tables = ReceptionTables(**{**made.tables.__dict__, 'timetable': made.tables.timetable + (
+            Lesson(day='wed', time='09:35-11:05', group='ЗА-2', room='612', teacher='З.Наран', subject='Алгоритм'),)})
+        answer = made.answer('З.Наран багш 10 цагт хичээлтэй юу', now=self.NOW)['answer']
+        self.assertIn('10:00-д хуваариар хичээлтэй: 09:35–11:05 ЗА-1, ЗА-2 (612 тоот).', answer)
+
+    def test_the_cards_show_the_day_a_visitor_can_come_with_the_caveat(self):
+        card = self.ask('З.Наран багш гэж хэн бэ', datetime(2026, 11, 26, 9, 0))['answer']
+        self.assertIn('Хуваариар дараагийн хичээлийн өдөр — баасан (11/27): хичээлтэй — 13:30–15:00 ЗА-1 (612 тоот)', card)
+        office = self.ask('З.Наран багшийн өрөө хаана вэ')['answer']
+        self.assertIn('Хуваариар өнөөдөр (лхагва, 11/25), 08:30-аас хойш: хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот)', office)
+        self.assertIn('Хуваарь өөрчлөгдөж болно.', office)
+
+
 class UnrecordedRoomTests(unittest.TestCase):
     def test_a_teacher_without_a_recorded_room_is_still_named_with_the_departments_room(self):
         staff = tables().staff + (Staff(name='З.Номт', department='Зохиомол тэнхим', role='Зохиомол тэнхимийн багш',

@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import (NUMBER_UNITS, PERSON_NAME, last_vowel, normalize_wording, spoken_form, strip_context_clause,
+from reception_tables import (NUMBER_UNITS, PERSON_NAME, teacher_time_parts, last_vowel, normalize_wording, spoken_form, strip_context_clause,
                               strip_fillers)
 
 CONFIG_PATH = 'config/question-planner.json'
@@ -225,6 +225,17 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
     (_THIS + r'(?:сургууль\s+)?япон(?:той|\s+улстай)\s+(?:ямар\s+)?(?:холбоотой|хамааралтай)' + _END, SCHOOL_OVERVIEW_QUESTION),
     # Only the admission exam named as such: a student's «шалгалт хэзээ эхлэх вэ» is about term exams (code review).
     (r'элсэлтийн\s+шалгалт\s+хэзээ\s+(?:болох|болдог|авах|авдаг|эхлэх)' + _END, 'Элсэлтийн шалгалт хэзээ болдог вэ?'),
+    # 11/26 (3), the user's spoken example: «Энэ хэддүгээр ангиасаа ордог сургууль вэ? 10-р ангиасаа ордог юм уу?
+    # Орохдоо юу юу бүртгүүлэх хэрэгтэй вэ?»
+    (_THIS + r'(?:сургууль(?:д)?\s+)?(?:хэддүгээр|хэдэн|ямар|аль)\s+анги(?:ас|аас|иас)(?:аа)?\s+'
+     r'(?:ордог|элсдэг|авдаг|орох|элсэх|элсүүлдэг)(?:\s+(?:сургууль|газар))?' + _END, ADMISSION_QUESTION),
+    (_THIS + r'\d{1,2}(?:\s*-?\s*р)?\s+анги(?:ас|аас|иас)(?:аа)?\s+(?:ордог|элсдэг|авдаг|орох|элсэх|элсүүлдэг|орж\s+болох)' + _END,
+     ADMISSION_QUESTION),
+    (r'(?:орохдоо|ороход|элсэхдээ|элсэхэд|бүртгүүлэхэд|бүртгүүлэхдээ)\s+(?:'
+     r'юу(?:\s+юу)?\s+(?:бүртгүүлэх|бүрдүүлэх|авчрах|өгөх|авч\s+ирэх)'
+     r'|ямар\s+(?:ямар\s+)?(?:бичиг\s+)?(?:баримт|материал)(?:\s+(?:бүртгүүлэх|бүрдүүлэх|авчрах|өгөх|авч\s+ирэх))?'
+     r')(?:\s+(?:хэрэгтэй|шаардлагатай))?' + _END,
+     'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?'),
     # Where the teachers sit, Wi-Fi, how to get to the school.
     (r'багш\s+нар(?:ын)?(?:\s+өрөө)?\s+хаана(?:\s+(?:суудаг|байдаг|байна|байрладаг))?' + _END, 'Багш нарын өрөө хаана вэ?'),
     (r'(?:(?:сургуульд|анги(?:\s+танхим)?д|энд)\s+)?(?:wi-?fi|вай\s*фай|утасгүй\s+интернэт|интернэт)'
@@ -698,6 +709,13 @@ class QuestionPlanner:
         full = self.staff[key]
         # Day and time words are looked for outside the teacher's own name («Г.Баасан», «А.Даваа»).
         rest = text[:match.start()] + ' ' + text[match.end():]
+        # 11/26: a day or an hour with a lesson / free-time word is answered from the timetable for that time. The
+        # tables' own parser decides (one rule for both, code review); the name goes first, every other word stays.
+        said = re.sub(r'^[а-яөүё]*', '', text[match.end():], flags=re.I)        # «багш|тай», «багш|ийн», «багш|аас»
+        others = ' '.join((text[:match.start()] + ' ' + said).split())
+        if teacher_time_parts(others) is not None:
+            canonical = full + ' багш ' + others
+            return (canonical, dict(rule='teacher_time', text=text, value=canonical)) if canonical != text else (text, None)
         day = DAY_WORD.search(rest)
         other_time = OTHER_TIME.search(rest)
         # Already the closed wording (e.g. «…багшийн имэйл юу вэ?»): leave it as asked.
