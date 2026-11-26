@@ -33,6 +33,7 @@ ROOT_TOPIC, REVIEW_TOPIC = 'nmct', 'review-needed'
 REASON_TOPICS = {
     'reception_person': 'staff.directory', 'reception_name_shared': 'staff.directory', 'reception_role_holder': 'staff.directory',
     'reception_role_list': 'staff.directory', 'reception_role_name': 'staff.directory',
+    'reception_post_shared': 'staff.directory', 'reception_staff_at': 'staff.availability',
     'reception_subject_teachers': 'staff.directory', 'reception_teacher_subjects': 'staff.directory',
     'reception_office_staff': 'staff.directory', 'reception_class_teacher': 'classes.groups',
     'reception_teacher_office': 'staff.offices', 'reception_teacher_office_unrecorded': 'staff.offices',
@@ -43,7 +44,7 @@ REASON_TOPICS = {
     'reception_class_teacher_email': 'classes.groups',
     'reception_teacher_day': 'staff.availability', 'reception_teacher_day_rooms': 'staff.availability',
     'reception_teacher_timetable': 'staff.availability',
-    'reception_service_lookup': 'location.services', 'reception_service_exists': 'location.services',
+    'reception_office_at': 'location.services', 'reception_service_lookup': 'location.services', 'reception_service_exists': 'location.services',
     'reception_room_lookup': 'location.floors', 'reception_floor_rooms': 'location.floors',
     'reception_purpose_lookup': 'location.floors', 'reception_department_rooms': 'location.departments',
     'reception_class_room': 'classes.groups', 'reception_class_now': 'classes.timetable',

@@ -84,6 +84,10 @@ NAME_PARTICLE = r'(?:чинь|маань|минь|гэдэг|гэгч|гэх)'
 # After a named teacher: looking for them, going to them, whether they are in — all ask how to meet them.
 MEET_ASK = re.compile(r'уулз|хайж|хайгаад|дээр\s+оч|руу\s+оч|очих\s+гэсэн|очмоор|өрөөндөө\s+(?:байгаа|байна)|'
                       r'одоо\s+(?:хаана|байгаа|байна|өрөөндөө)|хаана\s+байгаа|завтай|чөлөөтэй', re.I)
+# 11/26 (7): the whole question after the name — «… багш байна уу», «… багш ирсэн үү», «… багшид яаж хандах вэ».
+# Only the whole rest, so «… багшийн зураг байна уу» stays the website's introduction.
+IN_ASK = re.compile(r'(?:(?:энд|сургууль\s+дээрээ?|ажил\s+дээрээ|ажилдаа)\s+)?(?:байна|байгаа|ирсэн)\s+(?:уу|юу|үү)|'
+                    r'(?:яаж|хэрхэн)\s+ханд(?:ах|даг)(?:\s+(?:вэ|бэ))?', re.I)
 LESSON_TIME_ASK = re.compile(r'(?:хэдэн\s+цагт|хэзээ)\s+хичээл|хичээл\w*\s+(?:нь\s+)?(?:хэдэн\s+цагт|хэзээ)', re.I)
 LESSON_ROOM_ASK = re.compile(r'хичээл\w*\s+(?:нь\s+)?хаана|хаана\s+хичээл|аль\s+(?:анги|өрөө|танхим)\w*\s+хичээл', re.I)
 OWN_CLASS_ASK = re.compile(r'(?:аль|ямар|хэддүгээр)\s+анги\w*\s+(?:багш|даа)|анги\s+даа|даасан\s+анги', re.I)
@@ -113,7 +117,7 @@ SPOKEN_DIGITS = NUMBER_UNITS
 # …») before the question; its comma kept the desk's lookups from reading «номын сан хаана байдаг вэ».
 COURTESY = re.compile(r'(?:\s*(?:уучлаарай|өршөөгөөрэй|сайн\s+(?:байна\s+|байцгаана\s+)?уу|байна\s+уу|надад\s+тусална\s+уу|'
                       r'туслаач|нэг\s+юм\s+асууя|асуух\s+юм\s+байна|би\s+(?:шинэ\s+)?(?:оюутан|элсэгч|эцэг\s+эх|зочин)|'
-                      r'би\s+элсэх\s+гэсэн\s+юм)\s*[,!.]+)+\s*(?=\S)', re.I)
+                      r'би\s+элсэх\s+гэсэн\s+юм)\s*[,!.]+|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу\s*[?？]+)+\s*(?=\S)', re.I)
 
 
 def _without_courtesy(text):
@@ -269,6 +273,10 @@ DEPARTMENT_INTRO = (('механик', 'Механик инженерийн тэ
 # Only before «эрхлэгч»: «Цахилгааны тэнхимийн багш нар» is answered from the tables.
 DEPARTMENT_HEAD = re.compile(r'(?<!\w)цахилгаан(?:ы)?\s+(?=тэнхимийн\s+эрхлэгч)', re.I)
 DEPARTMENT_HEAD_NAME = 'Цахилгаан электроникийн инженерийн '
+# Only the whole word with a case ending, not «дарга нар» or «даргын зөвлөл», and not another school's head
+# («ерөнхий боловсролын сургуулийн дарга») — code review.
+SCHOOL_HEAD = re.compile(r'(?<!боловсролын\s)(?<!\w)(?:сургуулийн|коллежийн)\s+дарга(тай|д|аас|ыг)?(?!\w)(?!\s+нар)', re.I)
+SCHOOL_HEAD_FORMS = {None: 'захирал', 'тай': 'захиралтай', 'д': 'захиралд', 'аас': 'захирлаас', 'ыг': 'захирлыг'}
 # A question of one topic word: the question a visitor at the desk means by it.
 TOPIC_WORDS = {
     'төлбөр': 'Сургалтын төлбөр хэд вэ?', 'сургалтын төлбөр': 'Сургалтын төлбөр хэд вэ?', 'төлбөр хэд': 'Сургалтын төлбөр хэд вэ?',
@@ -316,8 +324,11 @@ def skeleton(word):
 
 class QuestionPlanner:
     def __init__(self, *, enabled=False, split_compound=False, class_groups=False, staff_names=False,
-                 groups=None, given_names=None, topic_keywords=(), offices=(), staff=(), class_names=(), rooms=()):
+                 groups=None, given_names=None, topic_keywords=(), offices=(), staff=(), class_names=(), rooms=(),
+                 posts=None):
         self.enabled = enabled is True
+        # 11/26 (7): the tables' reader of a post said instead of a name («захирал маргааш 10 цагт завтай юу»).
+        self.posts = posts if callable(posts) else None
         self.split_compound = self.enabled and split_compound is True
         self.class_groups = self.enabled and class_groups is True
         self.staff_names = self.enabled and staff_names is True
@@ -379,7 +390,8 @@ class QuestionPlanner:
             pass
         return cls(enabled=True, split_compound=config.get('split_compound'), class_groups=config.get('class_groups'),
                    staff_names=config.get('staff_names'), groups=groups, given_names=names, topic_keywords=keywords,
-                   offices=offices, staff=staff, class_names=class_names, rooms=rooms)
+                   offices=offices, staff=staff, class_names=class_names, rooms=rooms,
+                   posts=getattr(reception, 'post_question', None) if tables is not None else None)
 
     # -- rules ---------------------------------------------------------------
     @staticmethod
@@ -671,6 +683,11 @@ class QuestionPlanner:
     def _department_head(text):
         """«цахилгааны тэнхимийн эрхлэгч» -> «Цахилгаан электроникийн инженерийн тэнхимийн эрхлэгч»."""
         changed = DEPARTMENT_HEAD.sub(DEPARTMENT_HEAD_NAME, text)
+        # 11/26 (7): «сургуулийн дарга» is the school's «захирал» (the recorded post).
+        def head(match):
+            word = SCHOOL_HEAD_FORMS[(match.group(1) or '').casefold() or None]
+            return word[:1].upper() + word[1:] if match.group(0)[:1].isupper() else word
+        changed = SCHOOL_HEAD.sub(head, changed)
         return (changed, dict(rule='department_head', text=text, value=changed)) if changed != text else (text, None)
 
     def _everyday(self, text, sentences_only=False):
@@ -702,6 +719,21 @@ class QuestionPlanner:
             if office:
                 return office + ' хаана байдаг вэ?'
         return None
+
+    def _post_subject(self, text):
+        """«захирал маргааш 10 цагт завтай юу» -> «Т.Оюунжаргал багш маргааш 10 цагт завтай юу» (2026-11-26 (7)): a post
+        one person holds, asked about a day, an hour, now or being in, is that person asked by name. A post several
+        people hold stays as asked: the tables list them."""
+        found = self.posts(text) if self.posts else None
+        if not found or len(found[0]) != 1:
+            return text, None
+        people, together, rest = found[:3]
+        full = people[0].name
+        if re.sub(r'\s+', '', full.casefold()) not in self.staff:
+            return text, None
+        # «сэтгэл зүйч одоо хаана байна вэ»: the name wording has no particle («… багш одоо хаана байна»).
+        canonical = full + ' багш' + ('тай ' if together else ' ') + rest
+        return canonical, dict(rule='post_holder', text=text, value=canonical)
 
     def _staff_name(self, text):
         # A given name typed in lower case («сэлмаа багш») is the same teacher (round 8); only names in
@@ -779,8 +811,8 @@ class QuestionPlanner:
             canonical = full + ' багш өнөөдөр хичээлтэй юу?'
         elif LESSON_ROOM_ASK.search(rest) and not day:
             canonical = full + ' багш өнөөдөр хаана хичээл заах вэ?'
-        elif (MEET_ASK.search(rest) and not day and not PHONE.search(text) and not CONTACT.search(text)
-              and not re.search(r'хичээлтэй|\d{1,2}:\d{2}', rest, re.I)):
+        elif ((MEET_ASK.search(rest) or IN_ASK.fullmatch(others.rstrip('?？.! '))) and not day and not PHONE.search(text)
+              and not CONTACT.search(text) and not re.search(r'хичээлтэй|\d{1,2}:\d{2}', rest, re.I)):
             # «… багштай яаж уулзах вэ?», «… багшийг хайж байна», «… багш одоо өрөөндөө байгаа юу?»: where the
             # teacher sits, what the timetable says now, and how to arrange a meeting.
             canonical = full + ' багштай яаж уулзах вэ?'
@@ -960,7 +992,7 @@ class QuestionPlanner:
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             if self.staff_names:
-                for rule in (self._staff_name, self._teacher_intent, self._desk_wording):
+                for rule in (self._post_subject, self._staff_name, self._teacher_intent, self._desk_wording):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
             parts.append(dict(original=original, query=text, rewrites=rewrites))

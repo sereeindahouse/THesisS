@@ -303,6 +303,140 @@ class TeacherAtATimeTests(unittest.TestCase):
         self.assertIn('Хуваарь өөрчлөгдөж болно.', office)
 
 
+class PostInsteadOfNameTests(unittest.TestCase):
+    """11/26 (7), the user: «захирал гэх мэт нэргүй үед ажиллахгүй гэдэг маш том сул тал»."""
+    NOW = datetime(2026, 11, 25, 10, 0)      # a Wednesday; 11/26 is the fixture's holiday, 11/28 a Saturday
+
+    def setUp(self):
+        made = calendar_path()
+        extra = (Staff(name='З.Одон', department='Захиргаа', room='406', role='Захирал', email='odon@school.example'),
+                 Staff(name='З.Уул', department='Захиргаа', room='406', role='Захирлын туслах'),
+                 Staff(name='З.Гэрэл', department='Зохиомол тэнхим', room='604', role='Физикийн багш'),
+                 Staff(name='З.Туяа', department='Зохиомол тэнхим', room='604', role='Физикийн багш'))
+        made.tables = ReceptionTables(**{**made.tables.__dict__, 'staff': made.tables.staff + extra})
+        self.reception = made
+        names = {person.name.split('.')[1].casefold(): person.name for person in made.tables.staff}
+        self.planner = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                                       given_names=names, staff=names.values(), class_names=['ЗА-1'],
+                                       offices=['Зохиомол алба'], posts=made.post_question)
+
+    def ask(self, question, now=None):
+        asked = self.planner.plan(question)['parts'][0]['query']
+        self.assertTrue(self.reception.recognizes(asked), asked)
+        return self.reception.answer(asked, now=now or self.NOW)
+
+    def test_a_post_one_person_holds_is_that_person(self):
+        director = self.ask('захирал 14 цагт завтай юу')
+        self.assertEqual(director['reason_code'], 'reception_staff_at')
+        self.assertEqual(director['answer'], 'З.Одон — Захирал. Өнөөдөр (лхагва, 11/25) 14:00 нь сургуулийн ажлын цагт '
+                         '(08:00–17:00) багтана. Ажлын өрөө: 406 тоот, 4-р давхар. Уулзах цагаа сургуулийн имэйлээр тохирно уу: '
+                         'odon@school.example.')
+        # The head noun is the post's own: «захирлын туслах» is another person, «захиргаа» no post.
+        self.assertTrue(self.ask('захирлын туслах 14 цагт завтай юу')['answer'].startswith('З.Уул — Захирлын туслах.'))
+        self.assertIsNone(self.reception.post_question('захиргаа 14 цагт завтай юу'))
+        # A teaching post holder is answered from the timetable, like the name.
+        head = self.ask('Зохиомол тэнхимийн эрхлэгч одоо хаана байна вэ')
+        self.assertEqual(head['reason_code'], 'reception_teacher_at')
+        self.assertTrue(head['answer'].startswith('З.Наран — одоо (10:00) хуваариар хичээлтэй: 09:35–11:05 ЗА-1 (612 тоот).'))
+        self.assertEqual(self.ask('ЗА-1 ангийн багштай даваа гарагт 8 цагт уулзаж болох уу')['reason_code'],
+                         'reception_teacher_at')
+
+    def test_lunch_closing_time_a_holiday_and_a_weekend(self):
+        self.assertIn('12:50 нь сургуулийн цайны цагт (12:40–13:20) таарна.', self.ask('захирал 12:50-д завтай юу')['answer'])
+        self.assertIn('19:00 нь сургуулийн ажлын цагаас (08:00–17:00) гадуур.', self.ask('захирал 19 цагт байх уу')['answer'])
+        self.assertIn('Маргааш (пүрэв, 11/26) нь амралтын өдөр. Дараагийн ажлын өдөр — нөгөөдөр (баасан, 11/27)',
+                      self.ask('захирал маргааш 10 цагт завтай юу')['answer'])
+        weekend = self.ask('захиралтай бямба гарагт 10 цагт уулзаж болох уу')['answer']
+        self.assertIn('бямба, ням гарагийн ажлын цагийн мэдээлэл алга', weekend)       # neither open nor closed is said
+        self.assertNotIn('багтана', weekend)
+
+    def test_being_in_is_never_stated(self):
+        for question in ('захирал одоо өрөөндөө байгаа юу', 'захирал байна уу', 'захирал өнөөдөр байгаа юу',
+                         'захирал хэзээ ирэх вэ', 'захиралд яаж хандах вэ'):
+            answer = self.ask(question)['answer']
+            self.assertTrue(answer.startswith('З.Одон — Захирал.'), answer)
+            self.assertIn('406 тоот', answer)
+            self.assertNotRegex(answer, r'өрөөндөө байна|ирсэн|завтай\b')
+
+    def test_a_post_several_people_hold_lists_them(self):
+        shared = self.ask('физикийн багш маргааш 10 цагт завтай юу')
+        self.assertEqual(shared['reason_code'], 'reception_post_shared')
+        self.assertTrue(shared['answer'].startswith('Физикийн багш — 2 хүн байна:\n• З.Гэрэл — Физикийн багш'), shared['answer'])
+        self.assertIn('«З.Гэрэл багш маргааш 10 цагт завтай юу»', shared['answer'])
+
+    def test_the_other_post_questions_are_not_read_here(self):
+        for question in ('захирал хэн бэ', 'захирлын өрөө хаана вэ', 'захиралтай яаж уулзах вэ', 'З.Одон багш 14 цагт завтай юу',
+                         'багш маргааш завтай юу', 'математик маргааш 10 цагт ордог уу'):
+            self.assertIsNone(self.reception.post_question(question), question)
+        self.assertEqual(self.reception.answer('Захирал гэж хэн бэ?', now=self.NOW)['reason_code'], 'reception_role_holder')
+
+    def test_an_office_at_a_day_and_an_hour(self):
+        inside = self.reception.answer('Зохиомол алба одоо ажиллаж байгаа юу', now=self.NOW)
+        self.assertEqual(inside['reason_code'], 'reception_office_at')
+        self.assertEqual(inside['answer'], 'Зохиомол алба: 4-р давхар, 406 тоот. Одоо (10:00) нь албаны ажлын цагт '
+                         '(08:00–17:00) багтана.')
+        lunch = self.reception.answer('Зохиомол алба баасан гарагт 13 цагт ажиллах уу', now=self.NOW)['answer']
+        self.assertTrue(lunch.endswith('13:00 нь сургуулийн цайны цагт (12:40–13:20) таарна. Цайны цагаар ажилладаг эсэх '
+                                       'мэдээлэл алга.'), lunch)
+        school = self.reception.answer('Сургууль даваа гарагт 19 цагт ажиллах уу', now=self.NOW)
+        self.assertEqual(school['reason_code'], 'reception_school_hours')
+        self.assertIn('19:00 нь сургуулийн ажлын цагаас (08:00–17:00) гадуур.', school['answer'])
+        # Without a day or an hour the office-hours wordings answer as before.
+        self.assertIsNone(self.reception._office_at('Зохиомол алба хэдэн цагт ажилладаг вэ'))
+        self.assertIsNone(self.reception._office_at('Дотуур байр одоо нээлттэй юу'))
+
+    def test_who_works_in_an_office_said_as_a_post(self):
+        self.assertTrue(self.ask('Зохиомол албаны хүн маргааш 10 цагт байх уу')['answer'].startswith('З.Тэмүүлэн — Мэргэжилтэн.'))
+        # Code review: an office without a recorded head names nobody as its «дарга».
+        self.assertIsNone(self.reception.post_question('Зохиомол албаны дарга маргааш 10 цагт байх уу'))
+        self.assertEqual(self.reception._office_heads('Зохиомол албаны дарга'), [])
+
+    def test_code_review_cases(self):
+        from reception_tables import teacher_time_parts
+        # A lesson or a place question about a named teacher is not read as «is the teacher in».
+        for rest in ('маргааш хичээл байгаа юу', 'өнөөдөр хичээл байна уу', 'даваа гарагт хаана байдаг вэ'):
+            self.assertIsNone(teacher_time_parts(rest), rest)
+        self.assertEqual(teacher_time_parts('маргааш байгаа юу'), ('маргааш', None, True))
+        # A day without an hour is that day, not this minute.
+        tomorrow = self.reception.answer('З.Одон багш маргааш хичээлтэй юу', now=self.NOW)
+        self.assertNotIn('Одоо (10:00)', (tomorrow or {}).get('answer') or '')
+        # A qualifier must be the post's own word: «технологийн» is not «техникийн»; a Latin word is not dropped.
+        made = self.reception
+        made.tables = ReceptionTables(**{**made.tables.__dict__, 'staff': made.tables.staff + (
+            Staff(name='З.Төмөр', department='Зохиомол тэнхим', role='Техникийн багш'),)})
+        self.assertIsNone(made.post_question('технологийн багш маргааш завтай юу'))
+        self.assertIsNone(made.post_question('IT багш маргааш завтай юу'))
+        self.assertEqual([one.name for one in made.post_question('техникийн багш маргааш завтай юу')[0]], ['З.Төмөр'])
+        # A post that is not recorded, or two posts at once, is not the nearest recorded post with words left over.
+        for near in ('захирлын орлогч маргааш завтай юу', 'захирал болон мэргэжилтэн маргааш завтай юу',
+                     'проректор маргааш 10 цагт завтай юу'):
+            self.assertIsNone(made.post_question(near), near)
+        # The same weekday with an hour already past is next week's.
+        monday = self.reception.answer('Зохиомол алба даваа гарагт 9 цагт ажиллах уу', now=datetime(2026, 11, 30, 15, 0))['answer']
+        self.assertIn('Даваа (12/07) 09:00 нь албаны ажлын цагт', monday)
+
+    def test_wordings_found_by_the_comparison_with_the_schools_chat(self):
+        hours = self.reception.answer('Сургуулийн ажлын цаг хэдээс хэд хүртэл вэ?', now=self.NOW)
+        self.assertEqual(hours['reason_code'], 'reception_school_hours')
+        where = self.reception.answer('Зохиомол алба хэдэн тоот өрөөнд байдаг вэ?', now=self.NOW)
+        self.assertIn('4-р давхар, 406 тоот', where['answer'])
+        # «Сайн байна уу? …»: the greeting is no question of its own.
+        parts = self.planner.plan('Сайн байна уу? Зохиомол алба хаана байдаг вэ?')['parts']
+        self.assertEqual([part['query'] for part in parts], ['Зохиомол алба хаана байдаг вэ?'])
+        self.assertEqual(self.planner.plan('Сайн байна уу?')['parts'][0]['query'], 'Сайн байна уу?')
+        # A department head's office is the staff table's.
+        head = self.reception.answer('Зохиомол тэнхимийн эрхлэгчийн өрөө хаана вэ?', now=self.NOW)
+        self.assertEqual(head['reason_code'], 'reception_role_room')
+        self.assertIn('604 тоот', head['answer'])
+
+    def test_the_schools_head_is_the_director(self):
+        self.assertEqual(self.planner.plan('сургуулийн дарга хэн бэ')['parts'][0]['query'], 'захирал хэн бэ')
+        self.assertEqual(self.planner.plan('сургуулийн даргатай яаж уулзах вэ')['parts'][0]['query'], 'захиралтай яаж уулзах вэ')
+        for kept in ('сургуулийн даргын зөвлөл гэж юу вэ', 'сургуулийн дарга нар хэн бэ',
+                     'ерөнхий боловсролын сургуулийн дарга хэн бэ'):
+            self.assertNotIn('захирал', self.planner.plan(kept)['parts'][0]['query'], kept)
+
+
 class UnrecordedRoomTests(unittest.TestCase):
     def test_a_teacher_without_a_recorded_room_is_still_named_with_the_departments_room(self):
         staff = tables().staff + (Staff(name='З.Номт', department='Зохиомол тэнхим', role='Зохиомол тэнхимийн багш',
