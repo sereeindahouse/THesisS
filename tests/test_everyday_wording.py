@@ -108,6 +108,31 @@ class EverydayWordingTests(unittest.TestCase):
         # An upper-case abbreviation and a class code stay as typed.
         self.assertEqual(self.read('ШМТК хаана байдаг вэ'), 'ШМТК хаана байдаг вэ')
 
+    def test_second_sweep_of_random_questions(self):
+        # 11/26 (2): wordings of questions the tables and the stored answers already hold.
+        for question, read in (
+                ('өнөөдөр хичээл байгаа юу', 'Өнөөдөр хичээлтэй юу?'),
+                ('хичээл хэдэн минут ордог вэ', 'Нэг хичээл хэдэн минут үргэлжилдэг вэ?'),
+                ('эхний цаг хэдээс вэ', 'Хичээл хэдэн цагт эхэлдэг вэ?'),
+                ('баасан гарагт сургууль ажиллах уу', 'Сургууль хэдэн цагт ажилладаг вэ?'),
+                ('коосэн төгсөөд юу болох вэ', '5-р курс төгссөний дараа ямар зам байдаг вэ?'),
+                ('төгсөөд их сургуульд орж болох уу', '5-р курс төгссөний дараа ямар зам байдаг вэ?'),
+                ('манай хүүхэд 9-р ангид сурдаг, элсүүлмээр байна', ADMISSION_QUESTION),
+                ('япон хэл заадаг уу', 'Япон хэл, Англи хэлний хичээл түвшингээр ордог уу?'),
+                ('хэдэн төгрөгөөр сурах вэ', 'Сургалтын төлбөр хэд вэ?'),
+                ('хэдэн ангитай вэ', 'Сургалтын орчин ямар вэ?'),
+                ('хэдэн лабораторитой вэ', 'Сургалтын орчин ямар вэ?')):
+            self.assertEqual(self.read(question), read, question)
+        # Another question is not read as a near one (code review): term exams, the school open today, a dormitory.
+        self.assertNotEqual(self.read('шалгалт хэзээ эхлэх вэ'), 'Элсэлтийн шалгалт хэзээ болдог вэ?')
+        self.assertEqual(self.read('элсэлтийн шалгалт хэзээ болох вэ'), 'Элсэлтийн шалгалт хэзээ болдог вэ?')
+        self.assertNotEqual(self.read('өнөөдөр сургууль ажиллах уу'), 'Өнөөдөр хичээлтэй юу?')
+        self.assertNotEqual(self.read('манай байр ямар вэ'), 'Сургалтын орчин ямар вэ?')
+        self.assertNotEqual(self.read('цайны цагаар алба ажилладаг уу'), 'Цайны цаг хэзээ вэ?')
+        # A class's own day and a subject's teacher stay as asked.
+        self.assertNotEqual(self.read('КУ-2 өнөөдөр хичээлтэй юу'), 'Өнөөдөр хичээлтэй юу?')
+        self.assertNotIn('түвшингээр', self.read('Япон хэл хэн заадаг вэ?'))
+
     def test_compound_questions_read_each_part(self):
         parts = self.planner.plan('Энэ яадаг сургууль вэ? Төлбөр хэд вэ?')['parts']
         self.assertEqual(parts[0]['query'], SCHOOL_OVERVIEW_QUESTION)
@@ -122,6 +147,20 @@ class OtherSchoolTests(unittest.TestCase):
         for question in ('ШУТИС хаана байдаг вэ?', 'ШУТИС ямар мэргэжилтэй вэ?', 'Отгонтэнгэр их сургууль хаана байдаг вэ?',
                          'МУИС-ийн төлбөр хэд вэ?'):
             self.assertTrue(self.out_of_scope(question), question)
+        # General knowledge and things to write are outside the school too (11/26 (2)).
+        for question in ('Монгол улсын нийслэл хаана вэ?', 'Надад шүлэг бичээд өг'):
+            self.assertTrue(self.out_of_scope(question), question)
+        self.assertTrue(any(pattern.fullmatch('за ойлголоо') for pattern, _ in ChatRAG.CONVERSATION))
+        # «утас хэрэглэж болох уу» and «утасгүй интернэт» are not the school's phone number; a visitor without a
+        # phone, or asking to be reached by e-mail, still asks for the contact (the intent's exclude phrases).
+        intents = FaqIntents.from_config(Path(__file__).resolve().parents[1])
+        def contact(question):
+            return 'faq.contact' in [intent['faq_id'] for intent, _ in intents.gated(question)]
+        self.assertFalse(contact('утас хэрэглэж болох уу'))
+        self.assertFalse(contact('анги танхимд утасгүй интернэт байдаг уу'))
+        for question in ('сургуулийн утас хэд вэ', 'Би утасгүй, сургуультай яаж холбогдох вэ?',
+                         'Имэйл ашиглаж холбогдож болох уу?'):
+            self.assertTrue(contact(question), question)
         # This school, a contest held together, or a person named like a school, stays a school question.
         for question in ('ШУТИС-тэй хамтран олимпиад зохион байгуулдаг уу?', 'МУИС-ийн төлбөрөөс манайх хямд уу?',
                          'Сургууль хаана байдаг вэ?', 'Отгонтэнгэр хаана байдаг вэ?', 'Отгонтэнгэр ямар тэнхимд ажилладаг вэ?'):
@@ -156,6 +195,27 @@ class OutOfScopeBeforeStoredAnswerTests(unittest.TestCase):
         chat.policy = AnsweringPolicy()
         kept = chat._route('db', 'Сургууль хаана байдаг вэ?')
         self.assertEqual((kept['route'], kept['answer_faq_id']), ('B', 'faq.contact.location'))
+
+
+class LabelLineTests(unittest.TestCase):
+    """11/26 (2): a page's own labels between the sentences are not shown; the source's sentences stay."""
+    def test_card_captions_and_repeated_headings_go_real_lines_stay(self):
+        from answer_presentation import clean_text
+        self.assertEqual(clean_text('25 анги танхим\n教室\n01\nСургалтын анги танхимууд\nАнги танхим тус бүр хангагдсан.'),
+                         '25 анги танхим\nСургалтын анги танхимууд\nАнги танхим тус бүр хангагдсан.')
+        self.assertEqual(clean_text('Эрхэм зорилго\nзорилго\nИнженер бэлтгэнэ.'), 'Эрхэм зорилго\nИнженер бэлтгэнэ.')
+        # Code review: list items, a repeated period, Japanese text without a card number, phone lines and values stay.
+        for kept in ('Органик хими\nХими\nФизик\nФизик\nТөгсгөл.', 'Сургуулийн япон нэр:\n新モンゴル高専\nТайлбар.',
+                     'Утас 7577-7799 Утас 7000-0001', 'Математик 40 оноо\nФизик 20 оноо', 'Албан тушаал: багш\nБагш\nӨрөө: 301'):
+            self.assertEqual(clean_text(kept), kept)
+
+    def test_a_lab_named_in_full_finds_the_short_record(self):
+        from reception_tables import ReceptionAnswerPath
+        tables = ReceptionTables(rooms=(Room(1, '103Б', 'Туршилтын өрөө/Гагнуур лаб'), Room(6, '601', 'Физикийн лаборатори')),
+                                 staff=(), classes=(), timetable=())
+        made = ReceptionAnswerPath(tables, enabled=True)
+        self.assertEqual([room.name for room in made._purpose_rooms('гагнуурын лаборатори')], ['103Б'])
+        self.assertEqual([room.name for room in made._purpose_rooms('Физикийн лаборатори')], ['601'])
 
 
 class StemEncoder:

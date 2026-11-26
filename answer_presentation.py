@@ -167,6 +167,37 @@ def _stat_cards(text):
     return '\n'.join(out) if cards >= 2 else text
 
 
+_CJK_LINE = re.compile(r'[\s぀-ヿ㐀-鿿·・]+')
+
+
+def _drop_labels(text):
+    """A page's own labels between the sentences (11/26, a sweep of random questions): a card's caption in Japanese
+    with its number («教室» then «01»), a lone «Дэлгэрэнгүй», a heading said again in small letters, whole or by its
+    last word («Эрхэм зорилго» / «зорилго» — the page's alternative text). Narrow on purpose (code review): Japanese
+    text without a card number, a list item said twice («Физик», «Физик») and a capitalised line («Хими» after
+    «Органик хими») stay, and so do the source's sentences and values."""
+    lines, out, skip = text.split('\n'), [], False
+    for index, line in enumerate(lines):
+        bare = line.strip()
+        if skip:
+            skip = False
+            continue
+        following = lines[index + 1].strip() if index + 1 < len(lines) else ''
+        if bare and _CJK_LINE.fullmatch(bare) and re.fullmatch(r'0\d', following):
+            skip = True              # the caption and its card number go together
+            continue
+        if bare == 'Дэлгэрэнгүй':
+            continue
+        previous = out[-1].strip() if out else ''
+        if (bare and previous and bare[:1].islower() and previous[:1].isupper() and len(bare.split()) <= 3
+                and not re.search(r'\d', bare) and (bare.casefold() == previous.casefold() or (
+                    len(bare.split()) == 1 and len(previous.split()) <= 4
+                    and previous.casefold().split()[-1:] == [bare.casefold()]))):
+            continue
+        out.append(line)
+    return '\n'.join(out)
+
+
 def clean_text(text, *, keep_website_hours=True):
     """Website menu/form fragments, citation markers and shouting out; the source's words stay."""
     if not isinstance(text, str) or not text.strip():
@@ -190,6 +221,7 @@ def clean_text(text, *, keep_website_hours=True):
     text = _sentence_case(text)
     text = _numbered(text)
     text = _stat_cards(text)
+    text = _drop_labels(text)
     text = re.sub(r'[ \t]{2,}', ' ', text)
     text = re.sub(r'[ \t]+\n', '\n', text)
     text = re.sub(r'\n{3,}', '\n\n', text)
@@ -477,7 +509,13 @@ _LIVE_NOTE = 'Өнөөдрийн байдлыг (нээлттэй ажлын б�
 # «… анкет өгөх гэсэн юм, хаана очих вэ?», «Хэдэн давхарт гарах вэ?», «… хэнд хэлэх вэ?» ask where to go or whom to
 # tell: the office the question itself names (referral.py) is the reply, so no «not found» sentence leads it
 # (check set Q28, Q34, Q35, 11/23).
+# 11/26: «тодорхойлолт хаанаас авах вэ», «дүнгийн хуулбар авах гэсэн юм» ask where to go too: the place, without
+# «not found» before it.
 _WHERE_TO_GO = re.compile(r'хаана\s+(?:очи|оч(?:но|оо)|өгө|өгн|хандах|бөглө)|хаашаа|хэд(?:эн|дүгээр)\s+давхарт?\s+гар'
+                          # only a paper the school issues, asked where to get it (code review: «тэтгэлэг авмаар
+                          # байна», «… хаанаас авсан бэ» are other questions)
+                          r'|(?:тодорхойлолт|үнэмлэх|хуулбар|лавлагаа|гэрчилгээ|карт|маягт|анкет)\w*\s+(?:хаанаас\s+)?'
+                          r'(?:авах|авна|авдаг|авмаар|гаргуулах)(?!\w)'
                           r'|хэнд\s+(?:хандах|хандана|хэлэх|хэлнэ|өгөх|мэдэгдэх)', re.I)
 _BY_REASON = {
     'credential_not_shared': 'Нууц үг, пин кодыг энд өгдөггүй. Хариуцсан ажилтнаас биечлэн асууна уу.',

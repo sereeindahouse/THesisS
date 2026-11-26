@@ -1377,6 +1377,15 @@ class ReceptionAnswerPath:
         words = re.findall(r'[а-яөүё]+', _key(value))
         found = [room for room in self.tables.rooms
                  if words and re.findall(r'[а-яөүё]+', _key(room.purpose or ''))[-len(words):] == words]
+        if not found and len(words) >= 2:
+            # 11/26: «гагнуурын лаборатори» is «Туршилтын өрөө/Гагнуур лаб» — each part of a joined purpose, «лаб» as
+            # «лаборатори», a genitive ending aside; two words or more, so «лаборатори» alone names none.
+            def plain(text):
+                return [re.sub(r'(?:ийн|ын|ний|ны)$', '', 'лаборатори' if word == 'лаб' else word)
+                        for word in re.findall(r'[а-яөүё]+', _key(text))]
+            asked = plain(value)
+            found = [room for room in self.tables.rooms
+                     if any(plain(part)[-len(asked):] == asked for part in (room.purpose or '').split('/'))]
         # Round 19: «Багш нарын өрөө хаана вэ?» — seven rooms, most of them a department's; up to eight when
         # the rooms name at least two departments, which then tell them apart («Анги» names none).
         return (found if 1 <= len(found) <= 3 or len(found) <= 8 and len({room.department for room in found if room.department}) >= 2
