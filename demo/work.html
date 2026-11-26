@@ -123,7 +123,13 @@ function weekday(iso){const [y,m,d]=iso.split('-').map(Number);return DAYS[new D
 function say(text,error){const box=$('msg');box.textContent=text;box.className='msg'+(error?' error':'');box.hidden=false;clearTimeout(say.timer);say.timer=setTimeout(()=>{box.hidden=true;},error?9000:3500);}
 function pill(status){const [icon,label]=STATUS[status]||['',status];return el('span','pill '+status,`${icon} ${label}`);}
 function button(cls,text,onClick){const node=el('button',cls,text);node.type='button';node.addEventListener('click',onClick);return node;}
-function pathNode(path){if(/^(https?:\/\/127\.0\.0\.1|\/)/.test(path)){const link=el('a','',path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,''));link.href=path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,'');return link;}return el('code','',path);}
+// 11/26: a note or report in papers/ or reports/ opens as a page in /reports, not as raw text in VS Code.
+function reportRoute(path){let m=path.match(/^papers\/(\d{2}-[0-9A-Za-z._-]+?)(?:\.md)?$/);if(m)return '/reports/'+m[1];
+  m=path.match(/^papers\/(\d{2}-[0-9A-Za-z._-]+)\/(.+)\.md$/);if(m)return '/reports/'+m[1]+(m[2].startsWith('0-')?'':'/'+encodeURIComponent(m[2]));
+  m=path.match(/^papers\/(\d{2}-[0-9A-Za-z._-]+)\/?$/);if(m)return '/reports/'+m[1];
+  m=path.match(/^reports\/([^/]+)\.md$/);if(m)return '/reports/r/'+encodeURIComponent(m[1]);return null;}
+function pathNode(path){const route=reportRoute(path||'');if(route){const link=el('a','',path);link.href=route;return link;}
+  if(/^(https?:\/\/127\.0\.0\.1|\/)/.test(path)){const link=el('a','',path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,''));link.href=path.replace(/^https?:\/\/127\.0\.0\.1:\d+/,'');return link;}return el('code','',path);}
 
 async function load(){
   const response=await fetch('/api/work',{headers:{Accept:'application/json'}});

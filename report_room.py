@@ -10,6 +10,7 @@ import html
 from pathlib import Path
 import re
 import sys
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT / 'tools') not in sys.path:
@@ -17,7 +18,12 @@ if str(ROOT / 'tools') not in sys.path:
 from build_paper_reader import Renderer  # noqa: E402
 
 PAPERS = 'papers'
+# 11/26, the user: «those works … show in 127 … when I read it in VS Code it shows raw text». Besides papers/NN-*.md:
+# the research reports in reports/*.md (route /reports/r/<name>) and the Markdown files of a papers/NN-*/ folder (route
+# /reports/<folder> opens its «0-*.md» summary, /reports/<folder>/<file> any other .md in it).
+REPORTS = 'reports'
 NAME = re.compile(r'\d{2}-[0-9A-Za-z._-]+')
+REPORT_NAME = re.compile(r'[^/\\:*?"<>|]{1,120}')
 DATE = re.compile(r'(20\d{2})(\d{2})(\d{2})')
 GUIDE_CODE = re.compile(r'\b([A-Z]{3}\d{2})\b')
 LINK = re.compile(r'\[([^\]]+)\]\(([^)\s]+)\)')
@@ -33,15 +39,72 @@ def report_files(root):
     return sorted(found, key=lambda path: (path.name[:2], path.name), reverse=True)
 
 
+def research_reports(root):
+    """reports/*.md (the deep-research reports and other plain reports), newest first."""
+    folder = Path(root) / REPORTS
+    found = [path for path in folder.glob('*.md') if path.is_file()] if folder.is_dir() else []
+    return sorted(found, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def report_folders(root):
+    """papers/NN-*/ folders that hold a «0-*.md» summary for the reader, newest number first."""
+    folder = Path(root) / PAPERS
+    found = [path for path in folder.iterdir()
+             if path.is_dir() and NAME.fullmatch(path.name) and _summary_file(path) is not None] if folder.is_dir() else []
+    return sorted(found, key=lambda path: path.name, reverse=True)
+
+
+def _summary_file(folder):
+    return next(iter(sorted(folder.glob('0-*.md'))), None)
+
+
 def report_path(root, name):
-    """The file for a /reports/<name> route, or KeyError; <name> is the file name without «.md»."""
-    if not NAME.fullmatch(name or ''):
+    """The file for a /reports/<name> route, or KeyError. <name> is a papers/ file name without «.md», a papers/NN-*/
+    folder (its «0-*.md»), «<folder>/<file>» for another .md in that folder, or «r/<name>» for reports/<name>.md."""
+    name = name or ''
+    if name.startswith('r/'):
+        stem = name[2:]
+        folder = (Path(root) / REPORTS).resolve()
+        if not REPORT_NAME.fullmatch(stem) or stem.startswith('.'):
+            raise KeyError(name)
+        path = (folder / (stem + '.md')).resolve()
+        if path.parent != folder or not path.is_file():
+            raise KeyError(name)
+        return path
+    papers = (Path(root) / PAPERS).resolve()
+    head, _, tail = name.partition('/')
+    if not NAME.fullmatch(head) or '..' in name:
         raise KeyError(name)
-    folder = (Path(root) / PAPERS).resolve()
-    path = (folder / (name + '.md')).resolve()
-    if path.parent != folder or not path.is_file() or 'hotoch' in path.name:
+    if tail:
+        if not REPORT_NAME.fullmatch(tail) or tail.startswith('.'):
+            raise KeyError(name)
+        path = (papers / head / (tail + '.md')).resolve()
+        if path.parent != (papers / head).resolve() or not path.is_file():
+            raise KeyError(name)
+        return path
+    path = (papers / (name + '.md')).resolve()
+    if path.parent == papers and path.is_file() and 'hotoch' not in path.name:
+        return path
+    folder = (papers / name).resolve()
+    summary = _summary_file(folder) if folder.parent == papers and folder.is_dir() else None
+    if summary is None:
         raise KeyError(name)
-    return path
+    return summary
+
+
+def route_of(root, path):
+    """The /reports route of a file report_path accepts, or None."""
+    path, root = Path(path).resolve(), Path(root).resolve()
+    papers, reports = root / PAPERS, root / REPORTS
+    if path.parent == reports and path.suffix == '.md':
+        return '/reports/r/' + quote(path.stem)
+    if path.parent == papers and path.suffix == '.md':
+        return '/reports/' + path.name[:-3]
+    if path.parent.parent == papers and path.suffix == '.md':
+        if _summary_file(path.parent) == path:
+            return '/reports/' + path.parent.name
+        return '/reports/' + path.parent.name + '/' + quote(path.stem)
+    return None
 
 
 def _target(root, target, names):
@@ -171,23 +234,41 @@ def _summary(lines):
     return ''
 
 
-def reports_index(root):
-    renderer, rows, files = Renderer(), [], report_files(root)
-    names = {path.name[:-3] for path in files}
-    for path in files:
-        markdown = path.read_text(encoding='utf-8')
-        title, head, sections = split_page(markdown)
-        web, notes = sources(linked_markdown(root, markdown, names))
-        summary = _summary(head or (sections[0][1] if sections else []))
-        rows.append(
-            f'<li><a class="title" href="/reports/{html.escape(path.name[:-3])}">{renderer.inline(title or path.name)}</a>'
-            f'<span class="meta">{html.escape(path.name[:2])} · {_date(path.name)} · вэб эх сурвалж {len(web)}'
+def _row(root, path, route, label, renderer, names):
+    markdown = path.read_text(encoding='utf-8')
+    title, head, sections = split_page(markdown)
+    web, notes = sources(linked_markdown(root, markdown, names))
+    summary = _summary(head or (sections[0][1] if sections else []))
+    return (f'<li><a class="title" href="{html.escape(route)}">{renderer.inline(title or path.name)}</a>'
+            f'<span class="meta">{html.escape(label)} · вэб эх сурвалж {len(web)}'
             f' · төслийн тэмдэглэл {len(notes)}</span><p>{html.escape(summary)}</p></li>')
-    body = f'<ol class="reports">{"".join(rows)}</ol>' if rows else '<p class="empty">Тайлан олдсонгүй.</p>'
+
+
+def reports_index(root):
+    renderer, files = Renderer(), report_files(root)
+    names = {path.name[:-3] for path in files}
+    research = [_row(root, path, route_of(root, path), 'Судалгааны тайлан · ' + _mtime(path), renderer, names)
+                for path in research_reports(root)]
+    entries = [(path.name, _row(root, path, '/reports/' + path.name[:-3],
+                                path.name[:2] + ' · ' + _date(path.name), renderer, names)) for path in files]
+    entries += [(folder.name, _row(root, _summary_file(folder), '/reports/' + folder.name,
+                                   folder.name[:2] + ' · ' + _date(folder.name) + ' · хавтас', renderer, names))
+                for folder in report_folders(root)]
+    rows = [row for _, row in sorted(entries, key=lambda entry: (entry[0][:2], entry[0]), reverse=True)]
+    body = ''
+    if research:
+        body += f'<h2 class="group">Судалгааны тайлан</h2><ol class="reports">{"".join(research)}</ol>'
+    body += ((f'<h2 class="group">Тэмдэглэл</h2>' if research else '') + f'<ol class="reports">{"".join(rows)}</ol>'
+             if rows else '<p class="empty">Тайлан олдсонгүй.</p>')
     return PAGE.replace('@@TITLE@@', 'Тайлан ба эх сурвалж').replace('@@BODY@@', (
         '<p class="lead">Миний (AI туслахын) бичсэн судалгааны тэмдэглэл, тайлан. Хуудас бүрийн баруун талд тэр '
         'тайлангийн иш татсан эх сурвалж бий — дарж шалгана уу. Өгүүллийн Монгол хөтөч <a href="/reader">Өгүүлэл '
         'унших</a> хэсэгт.</p>' + body))
+
+
+def _mtime(path):
+    import datetime
+    return datetime.datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y.%m.%d')
 
 
 def report_page(root, name):
@@ -205,10 +286,18 @@ def report_page(root, name):
         f'<small>{html.escape(url.split("/")[2])}</small></li>' for url, text in web.items())
     note_items = ''.join(f'<li><a href="{html.escape(target)}">{html.escape(text)}</a></li>'
                          for target, text in notes.items())
+    siblings = ''
+    if path.parent.parent.resolve() == (Path(root) / PAPERS).resolve():
+        # A papers/NN-*/ folder: its other Markdown files open here too (the full English letter, the reports).
+        others = [item for item in sorted(path.parent.glob('*.md')) if item != path]
+        siblings = (f'<h3>Энэ хавтасны бусад файл ({len(others)})</h3><ol>'
+                    + ''.join(f'<li><a href="{html.escape(route_of(root, item))}">{html.escape(item.name)}</a></li>'
+                              for item in others) + '</ol>') if others else ''
+    relative = path.resolve().relative_to(Path(root).resolve()).as_posix()
     side = ('<aside><h2>Эх сурвалж</h2>'
             + (f'<h3>Вэб ({len(web)})</h3><ol>{web_items}</ol>' if web else '<p>Вэб холбоос алга.</p>')
             + (f'<h3>Төслийн бусад тэмдэглэл ({len(notes)})</h3><ol>{note_items}</ol>' if notes else '')
-            + f'<p class="file">Эх файл: <code>papers/{html.escape(path.name)}</code></p></aside>')
+            + siblings + f'<p class="file">Эх файл: <code>{html.escape(relative)}</code></p></aside>')
     body = (f'<p class="back"><a href="/reports">← Бүх тайлан</a></p><div class="layout"><article>'
             f'<h1>{renderer.inline(title or path.name)}</h1>{"".join(parts)}</article>{side}</div>')
     return PAGE.replace('@@TITLE@@', html.escape(re.sub(r'[*`]', '', title or path.name))).replace('@@BODY@@', body)
@@ -239,6 +328,7 @@ aside{position:sticky;top:14px;background:#fff;border:1px solid var(--line);bord
 aside h2{font-size:16px;margin:0 0 8px}aside h3{font-size:13px;color:var(--muted);margin:14px 0 6px;text-transform:uppercase;letter-spacing:.03em}
 aside ol{margin:0;padding-left:20px}aside li{margin:6px 0;line-height:1.4;word-break:break-word}aside small{display:block;color:var(--muted)}
 .file{color:var(--muted);margin-top:14px}.back{margin:0 0 12px}.empty{color:var(--muted)}
+.group{font-size:17px;margin:22px 0 10px}
 @media(max-width:900px){.layout{grid-template-columns:1fr}aside{position:static;max-height:none}}
 @media print{.top,.back,aside{display:none}article{border:0;padding:0}}
 </style></head>

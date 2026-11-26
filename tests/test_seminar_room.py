@@ -154,6 +154,29 @@ class ReportRoomTests(unittest.TestCase):
             with self.assertRaises(KeyError):
                 report_room.report_page(self.root, bad)
 
+    def test_research_reports_and_review_folders_open_as_pages(self):
+        # 11/26, the user: reports in reports/ and a papers/NN-*/ folder read as raw text in VS Code.
+        (self.root / 'reports').mkdir(exist_ok=True)
+        (self.root / 'reports' / 'Төстэй систем.md').write_text('# Төстэй систем\n\n| A | B |\n|---|---|\n| 1 | 2 |\n',
+                                                               encoding='utf-8')
+        folder = self.root / 'papers' / '65-review-20261126'
+        folder.mkdir()
+        (folder / '0-шийдвэр.mn.md').write_text('# Шийдвэр\n\nТомоохон засвар.\n', encoding='utf-8')
+        (folder / 'synthesis.md').write_text('# Letter\n\nMajor revision.\n', encoding='utf-8')
+        index = report_room.reports_index(self.root)
+        self.assertIn('Судалгааны тайлан', index)
+        self.assertIn('href="/reports/r/%D0%A2', index)
+        self.assertIn('href="/reports/65-review-20261126"', index)
+        self.assertIn('<table', report_room.report_page(self.root, 'r/Төстэй систем'))
+        summary = report_room.report_page(self.root, '65-review-20261126')
+        self.assertIn('Томоохон засвар', summary)
+        self.assertIn('href="/reports/65-review-20261126/synthesis"', summary)
+        self.assertIn('Major revision', report_room.report_page(self.root, '65-review-20261126/synthesis'))
+        for bad in ('r/../CLAUDE', 'r/', '65-review-20261126/../../CLAUDE', '65-review-20261126/../41-x',
+                    '66-missing', 'r/missing'):
+            with self.assertRaises(KeyError):
+                report_room.report_page(self.root, bad)
+
     def test_real_reports_load(self):
         root = Path(__file__).resolve().parents[1]
         files = report_room.report_files(root)
