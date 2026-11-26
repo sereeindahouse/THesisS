@@ -84,6 +84,12 @@ def planned_copies(root: Path):
         add('04_Унших', source)
     # 11/16: багшийн зөвлөгөөгөөр хийсэн Монгол эрдэм шинжилгээний хэллэгийн тайлан (дипломын найруулгад баримтална).
     add('04_Унших', root / 'reports/Монгол эрдэм шинжилгээний бичвэрийн хэллэг.md')
+    # 11/26: the teacher's question «төстэй системийг туршсан уу» — the full survey and the 8-question comparison.
+    add('04_Унших', root / 'reports/Төстэй системүүдийн судалгаа.md')
+    add('04_Унших', _newest(root.glob('papers/*similar-systems*.mn.md')), 'Төстэй_систем_8_асуултын_туршилт.mn.md')
+    # 11/26: the five-reviewer check of the supervisor draft (plain-Mongolian decision and fixes).
+    add('01_Диплом', _newest(root.glob('papers/*teacher-draft-review*/0-шийдвэр-ба-засвар.mn.md')),
+        'Нооргийн_5_хянагчийн_шалгалт.mn.md')
     add('05_Дэвтэр', _newest(p for folder in seminars for p in folder.glob('*Дэвтэр*.md')))
     # 11/17: системийн шалгах асуултын хянах хуудас (сургуулийн өгөгдөлтэй тул git-д ордоггүй) ба тайлан.
     add('06_Систем', _newest(root.glob('CORE/eval-review/*хянах*.mn.md')))
