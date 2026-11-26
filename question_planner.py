@@ -33,13 +33,17 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import (NUMBER_UNITS, PERSON_NAME, teacher_time_parts, last_vowel, normalize_wording, spoken_form, strip_context_clause,
+from reception_tables import (NUMBER_UNITS, PERSON_NAME, teacher_asked_now, teacher_time_parts, last_vowel, normalize_wording, spoken_form, strip_context_clause,
                               strip_fillers)
 
 CONFIG_PATH = 'config/question-planner.json'
 MAX_PARTS = 4
 # «юм» alone ends a statement («Багштай уулзах гэсэн юм, имэйл нь юу вэ?» is one request); only
 # «юм бэ» asks, and «бэ» is here already (11/17 (5)).
+# For a cut inside a sentence without question marks (QuestionPlanner._unpunctuated).
+WH_WORD = re.compile(r'юу|хэн\w*|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|ямар|яаж|яах|яагаад|аль')
+NO_SECOND_QUESTION = frozenset(('үгүй', 'эсвэл', 'эсхүл', 'гэж', 'гэдэг', 'гэдгийг', 'гэсэн', 'гээд', 'гэвэл', 'гэхээр',
+                                'гэхэд', 'та', 'мэдэх', 'мэдэх', 'хэлж', 'хэлээд', 'хэлээч', 'зааж', 'заагаад'))
 QUESTION_WORD = re.compile(r'(?<!\w)(?:вэ|бэ|уу|үү|юу|хэн|хэнд|хэнээс|хэд\w*|хаана|хаашаа|хаанаас|хэзээ|'
                            r'ямар|яаж|яах|аль|болох\s+уу|байдаг\s+уу)(?!\w)', re.I)
 # «Төлбөр нь хэд вэ?», «Төлбөр нь?»: one noun with «нь» (its) asks about the thing just named, even when
@@ -228,7 +232,8 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
     # 11/26 (3), the user's spoken example: «Энэ хэддүгээр ангиасаа ордог сургууль вэ? 10-р ангиасаа ордог юм уу?
     # Орохдоо юу юу бүртгүүлэх хэрэгтэй вэ?»
     (_THIS + r'(?:сургууль(?:д)?\s+)?(?:хэддүгээр|хэдэн|ямар|аль)\s+анги(?:ас|аас|иас)(?:аа)?\s+'
-     r'(?:ордог|элсдэг|авдаг|орох|элсэх|элсүүлдэг)(?:\s+(?:сургууль|газар))?' + _END, ADMISSION_QUESTION),
+     r'(?:ордог|элсдэг|авдаг|орох|элсэх|элсүүлдэг|орж\s+болох|элсэж\s+болох)(?:\s+боломжтой)?(?:\s+(?:сургууль|газар))?'
+     + _END, ADMISSION_QUESTION),
     (_THIS + r'\d{1,2}(?:\s*-?\s*р)?\s+анги(?:ас|аас|иас)(?:аа)?\s+(?:ордог|элсдэг|авдаг|орох|элсэх|элсүүлдэг|орж\s+болох)' + _END,
      ADMISSION_QUESTION),
     (r'(?:орохдоо|ороход|элсэхдээ|элсэхэд|бүртгүүлэхэд|бүртгүүлэхдээ)\s+(?:'
@@ -236,6 +241,11 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
      r'|ямар\s+(?:ямар\s+)?(?:бичиг\s+)?(?:баримт|материал)(?:\s+(?:бүртгүүлэх|бүрдүүлэх|авчрах|өгөх|авч\s+ирэх))?'
      r')(?:\s+(?:хэрэгтэй|шаардлагатай))?' + _END,
      'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?'),
+    # 11/26 (4), the user's own test: «энд сурснаар ямар давуу талуудтай вэ» found nothing.
+    (r'(?:(?:энд|танайд|энэ\s+сургуульд|танай\s+сургуульд|шмтк-д)\s+)?(?:сурснаар|сурвал|суралцсанаар|суралцвал|элсвэл|орвол)\s+'
+     r'(?:ямар\s+)?(?:давуу\s+тал\w*|ашиг\s*тус\w*|ашигтай|онцлог\w*)(?:\s+(?:байдаг|байна))?' + _END
+     + r'|' + _THIS + r'(?:сургуулийн|коллежийн|сургууль|коллеж)\s+(?:нь\s+)?(?:ямар\s+)?давуу\s+тал\w*(?:\s+(?:нь\s+)?юу)?' + _END,
+     SCHOOL_OVERVIEW_QUESTION),
     # Where the teachers sit, Wi-Fi, how to get to the school.
     (r'багш\s+нар(?:ын)?(?:\s+өрөө)?\s+хаана(?:\s+(?:суудаг|байдаг|байна|байрладаг))?' + _END, 'Багш нарын өрөө хаана вэ?'),
     (r'(?:(?:сургуульд|анги(?:\s+танхим)?д|энд)\s+)?(?:wi-?fi|вай\s*фай|утасгүй\s+интернэт|интернэт)'
@@ -372,8 +382,35 @@ class QuestionPlanner:
                    offices=offices, staff=staff, class_names=class_names, rooms=rooms)
 
     # -- rules ---------------------------------------------------------------
+    @staticmethod
+    def _unpunctuated(sentence):
+        """«сургуульд яаж орох вэ хэддүгээр ангиас орох боломжтой вэ» -> two questions (11/26): speech and quick
+        typing leave the question marks out. A cut after a question particle only when a second question follows:
+        after «вэ / бэ» three words, or two with a question word; after «уу / үү» a question word before the last
+        word («хувийн уу улсын уу», «бэлнээр төлөх үү дансаар шилжүүлэх үү» are one either-or question). A tail
+        («… вэ мэдэх үү», «… вэ гэвэл …», «… уу үгүй юу») is no second question (code review 11/26)."""
+        words = sentence.split()
+        if len(words) < 5 or words[-1].casefold().strip('.!') not in ('вэ', 'бэ', 'уу', 'үү', 'юу', 'юү'):
+            return [sentence]
+        pieces, current = [], []
+        for index, word in enumerate(words):
+            current.append(word)
+            rest = words[index + 1:]
+            particle = word.casefold().rstrip('.!')
+            if particle not in ('вэ', 'бэ', 'уу', 'үү') or len(current) < 2 or len(rest) < 2:
+                continue
+            if rest[0].casefold().strip('.!,') in NO_SECOND_QUESTION:
+                continue
+            asks = any(WH_WORD.fullmatch(other.casefold().strip('.!,')) for other in rest[:-1])
+            if asks or (particle in ('вэ', 'бэ') and len(rest) >= 3):
+                pieces.append(' '.join(current).rstrip('.!'))
+                current = []
+        if current:
+            pieces.append(' '.join(current))
+        return pieces
+
     def _split(self, query):
-        sentences = [s.strip() for s in re.split(r'[?？;]+', query) if s.strip()]
+        sentences = [piece for s in re.split(r'[?？;]+', query) if s.strip() for piece in self._unpunctuated(s.strip())]
         parts = []
         for sentence in sentences:
             pieces = [p.strip() for p in re.split(r',\s*', sentence) if p.strip()]
@@ -636,16 +673,19 @@ class QuestionPlanner:
         changed = DEPARTMENT_HEAD.sub(DEPARTMENT_HEAD_NAME, text)
         return (changed, dict(rule='department_head', text=text, value=changed)) if changed != text else (text, None)
 
-    def _everyday(self, text):
-        """The question an everyday wording of a whole sentence means, or None (2026-11-26)."""
+    def _everyday(self, text, sentences_only=False):
+        """The question an everyday wording of a whole sentence means, or None (2026-11-26). ``sentences_only``: the
+        sentence patterns alone — no one-word topic, room, office or department reading."""
         plain = ' '.join(re.sub(r'[?!.,;]+', ' ', text or '').casefold().split())
         if not plain or len(plain) > 120:
             return None
-        if plain in TOPIC_WORDS:
+        if plain in TOPIC_WORDS and not sentences_only:
             return TOPIC_WORDS[plain]
         for pattern, question in EVERYDAY_QUESTIONS:
             if pattern.fullmatch(plain):
                 return question
+        if sentences_only:
+            return None
         about = DEPARTMENT_ABOUT.fullmatch(plain)
         if about:
             return next(intro for stem, intro in DEPARTMENT_INTRO if about.group(1).startswith(stem))
@@ -713,6 +753,9 @@ class QuestionPlanner:
         # tables' own parser decides (one rule for both, code review); the name goes first, every other word stays.
         said = re.sub(r'^[а-яөүё]*', '', text[match.end():], flags=re.I)        # «багш|тай», «багш|ийн», «багш|аас»
         others = ' '.join((text[:match.start()] + ' ' + said).split())
+        if teacher_asked_now(others):               # «яг одоо хаана байгаа вэ»: the timetable at this minute
+            canonical = full + ' багш одоо хаана байна'
+            return (canonical, dict(rule='teacher_time', text=text, value=canonical)) if canonical != text else (text, None)
         if teacher_time_parts(others) is not None:
             canonical = full + ' багш ' + others
             return (canonical, dict(rule='teacher_time', text=text, value=canonical)) if canonical != text else (text, None)
@@ -892,7 +935,15 @@ class QuestionPlanner:
                 for rule in (self._unvowelled, self._department_head):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
+                # Also the part's own words when the subject it inherited is the school itself («сургуульд энд
+                # сурснаар …», the user's test, 11/26). Any other inherited subject stays: «Дотуур байр байдаг уу?
+                # Орохдоо юу бүрдүүлэх вэ?» asks about the dormitory (code review 11/26).
                 everyday = self._everyday(text)
+                if everyday is None and text != original and len(original.split()) >= 3:
+                    own = set(_words(original))
+                    added = [word for word in _words(text) if word not in own]
+                    if added and all(word.startswith(('сургуул', 'коллеж', 'шмтк')) for word in added):
+                        everyday = self._everyday(normalize_wording(original), sentences_only=True)
                 if everyday is not None:
                     rewrites.append(dict(rule='everyday_wording', text=text, value=everyday))
                     parts.append(dict(original=original, query=everyday, rewrites=rewrites))

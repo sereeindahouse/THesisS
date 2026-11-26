@@ -331,7 +331,8 @@ def _interval(value):
 # without the teacher's name. Read as a clock hour: «14 цагт», «2 цагаас», «14:30», «11:30-д». Not read: a calendar date
 # («12 сарын 4-д», «11/27-д»), a duration or a relative time («2 цагийн дараа»), «одоо» (the now-status answers), and
 # the office-hours wording «хэзээ оюутантай уулздаг вэ».
-_TT_HOUR = re.compile(r'(?<![\d:/.])(?P<h>\d{1,2})(?:[:.](?P<m>\d{2}))?\s*цаг(?:т|аас|ээс)?(?!\w)|'
+_TT_HOUR = re.compile(r'(?<![\d:/.])(?P<h>\d{1,2})(?:[:.](?P<m>\d{2}))?\s*цаг'
+                      r'(?:ийн\s+(?:үед|үеэр|орчимд?|хавьд|алдад)|т|аас|ээс)?(?!\w)|'
                       r'(?<![\d:/.])(?P<h2>\d{1,2}):(?P<m2>\d{2})(?![\d:])')
 _TT_DAY = re.compile(r'(?<!\w)(өнөөдөр|маргааш|нөгөөдөр|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)')
 _TT_LESSON = re.compile(r'хичээлтэй|хичээлгүй|хичээл\s+(?:орох|ордог|байгаа|байна|заах)')
@@ -339,6 +340,17 @@ _TT_FREE = re.compile(r'завтай|чөлөөтэй|(?<!\w)сул(?!\w)|хич
 _TT_MEET = re.compile(r'уулз(?:аж\s+болох|ах|ъя|маар)')
 _TT_NOT = re.compile(r'(?<!\w)одоо(?!\w)|\d{1,2}\s*(?:-?\s*р\s+)?сарын|\d{1,2}\s*/\s*\d{1,2}|цагийн\s+(?:дараа|өмнө)|'
                      r'минутын\s+(?:дараа|өмнө)|оюутантай\s+уулз')
+
+
+# «… багш одоо хаана байна вэ», «… яг одоо аль ангид байгаа вэ» (the staff sweep, 11/26):
+# answered from the timetable at this minute — in a lesson (group, room) or no lesson (the office).
+_TEACHER_NOW = re.compile(r'(?:яг\s+)?одоо\s+(?:хаана|аль\s+(?:өрөөнд|ангид|танхимд))'
+                          r'(?:\s+(?:байдаг|байна|байгаа|яваа|сууж\s+байна|зааж\s+байна))?(?:\s+юм)?(?:\s+(?:вэ|бэ))?', re.I)
+
+
+def teacher_asked_now(rest):
+    """True when the words after «<нэр> багш» ask where the teacher is at this minute."""
+    return isinstance(rest, str) and _TEACHER_NOW.fullmatch(' '.join(rest.split()).rstrip('?？.! ')) is not None
 
 
 def teacher_time_parts(rest):
@@ -791,6 +803,10 @@ PERSON_NAME = r'([А-ЯӨҮЁ]\.\s?[А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})'
 # What a completed answer says once, at its end (see ReceptionAnswerPath._completed).
 _CAVEATS = ('Хуваарь өөрчлөгдөж болно.', 'Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.',
             'Яг одоо хаана байгааг мэдэх боломжгүй.')
+# The sentences the user asked not to show (11/26; config ``presence_caveats``: false): the answer says «хуваариар»
+# already. One list: the closing sentences above, the one of an asked hour, and the two a message ends with.
+_UNSAID = re.compile(r'[ \t]*(?:' + '|'.join(re.escape(sentence) for sentence in _CAVEATS + (
+    'Тэр цагт өрөөндөө байгаа эсэхийг мэдэх боломжгүй.', 'Бодит байршлыг батлахгүй.', 'Байршлыг батлахгүй.')) + ')')
 
 
 def _corrected(tables, corrections):
@@ -836,12 +852,16 @@ def _corrected(tables, corrections):
 
 class ReceptionAnswerPath:
     """Exact-name, closed-intent reception lookup. Disabled unless configured."""
-    def __init__(self, tables=None, *, enabled=False, error=None, complete=False):
+    def __init__(self, tables=None, *, enabled=False, error=None, complete=False, caveats=True):
         self.tables, self.enabled, self.error = tables, enabled is True, error
         self._subjects = {}   # _subject_teachers by asked value: one timetable scan per question (review)
         # 11/25: an answer about a person, an office, a room or a class also says the other recorded facts a
         # visitor needs (post, room, school e-mail, lessons today): config ``complete_answers``.
         self.complete = complete is True
+        # 11/26, the user after testing: «Хуваарь өөрчлөгдөж болно. Яг одоо өрөөндөө байгаа эсэхийг мэдэх боломжгүй.»
+        # is not to be said (config ``presence_caveats``: false). The answers still say «хуваариар» and never state
+        # where a person is; without a lesson they name the office.
+        self.caveats = caveats is not False
 
     @classmethod
     def from_config(cls, root):
@@ -882,7 +902,7 @@ class ReceptionAnswerPath:
             return cls(_corrected(load_tables(path, timetable_complete=value.get('timetable_complete', False),
                 dataset_label=value.get('dataset_label', 'Reception tables'),
                 is_fake=value.get('is_fake', False)), value.get('corrections')), enabled=True,
-                complete=value.get('complete_answers') is True)
+                complete=value.get('complete_answers') is True, caveats=value.get('presence_caveats') is not False)
         except FileNotFoundError:
             return cls()
         except (OSError, ValueError, TypeError, AttributeError):
@@ -1135,7 +1155,8 @@ class ReceptionAnswerPath:
             return False
         if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
-        if self.complete and self._teacher_time_slots(query) is not None:
+        if self.complete and (self._teacher_time_slots(query) is not None or self._unscheduled_staff(query) is not None
+                              or self._shared_given_name(query)):
             return True
         extra = self._extra_match(query)
         if extra is not None and extra[0] == 'person_about':
@@ -1882,12 +1903,23 @@ class ReceptionAnswerPath:
 
     def answer(self, query, *, now=None):
         result = self._answer_core(query, now=now)
-        if not self.complete or result is None or not result.get('answer') or self.tables is None:
-            return result
-        try:
-            return self._completed(result, query, now)
-        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
-            return result      # the short answer stands when the extra lines cannot be built
+        if self.complete and (result is None or not result.get('answer')):
+            result = self._instead(query, now) or result
+        if self.complete and result is not None and result.get('answer') and self.tables is not None:
+            try:
+                result = self._completed(result, query, now)
+            except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+                pass               # the short answer stands when the extra lines cannot be built
+        if not self.caveats and isinstance(result, dict):
+            for field in ('answer', 'message'):
+                shown = result.get(field)
+                if isinstance(shown, str) and _UNSAID.search(shown):
+                    # Only a text that held such a sentence is touched; the line it stood on alone goes with it.
+                    lines = [' '.join(_UNSAID.sub('', line).split()) if _UNSAID.search(line) else line
+                             for line in shown.split('\n')]
+                    result[field] = '\n'.join(line for line, was in zip(lines, shown.split('\n'))
+                                              if line or not _UNSAID.search(was)).strip()
+        return result
 
     # ---- a teacher at a day and an hour (2026-11-26) -------------------------------------------------------------
     # The user: «хичээлийн хуваарь хараад тэр асуусан цагт хичээлтэй үгүйг хэл». The planner writes the question as
@@ -1906,7 +1938,64 @@ class ReceptionAnswerPath:
         if person is None or not any(_key(lesson.teacher) == _key(person.name) for lesson in self.tables.timetable):
             return None
         parts = teacher_time_parts(named['rest'])
+        if parts is None and teacher_asked_now(named['rest']):
+            parts = (None, 'now', False)        # «одоо хаана байна»: the timetable at this minute
         return None if parts is None else (person,) + parts
+
+    def _unscheduled_staff(self, query):
+        """The staff member without lessons a day-or-hour question names («Т.Оюунжаргал багш маргааш 11 цагт завтай
+        юу» — the director), else None."""
+        if self.tables is None or not isinstance(query, str) or len(query) > 300:
+            return None
+        named = self._TT_NAME.match(query)
+        person = self._staff_named(named['name'].replace(' ', '')) if named else None
+        if person is None or any(_key(lesson.teacher) == _key(person.name) for lesson in self.tables.timetable):
+            return None
+        return person if teacher_time_parts(named['rest']) is not None or teacher_asked_now(named['rest']) else None
+
+    _NAME_ASKED = re.compile(r'(?<!\w)(?:багш\w*|гэж\s+хэн|гэдэг\s+хүн|хаана|уулз\w*|имэйл\w*|өрөө\w*|хичээлтэй|завтай)', re.I)
+
+    def _shared_given_name(self, query):
+        """The staff who share a given name the question says without an initial («Уянга багш гэж хэн бэ» — two
+        people), else []."""
+        if self.tables is None or not isinstance(query, str) or len(query) > 300 or not self._NAME_ASKED.search(query):
+            return []
+        given = {}
+        for person in self.tables.staff:
+            given.setdefault(person.name.split('.')[-1].casefold(), []).append(person)
+        shared = {name: people for name, people in given.items() if len(people) > 1 and len(name) >= 3}
+        for match in re.finditer(r'(?<![\w.])[А-ЯӨҮЁа-яөүё-]{3,}', query):
+            if re.search(r'[А-ЯӨҮЁ]\.\s*$', query[:match.start()]):
+                continue                               # «Б. Уянга»: one person is named
+            word = match.group(0).casefold()
+            for name, people in shared.items():
+                if word.startswith(name) and len(word) - len(name) <= 4:
+                    return people
+        return []
+
+    def _instead(self, query, now):
+        """What is said when the tables gave no answer although they know who is meant: the meeting card of a staff
+        member without lessons, or the people who share the given name."""
+        person = self._unscheduled_staff(query)
+        if person is not None:
+            card = self._answer_core(person.name + ' багштай яаж уулзах вэ', now=now)
+            if card is not None and card.get('answer'):
+                card['query'] = query
+                card['answer'] = card['answer'].replace('. ', '. Хичээлийн хуваарьт хичээлгүй. ', 1)
+                return card
+        people = self._shared_given_name(query)
+        if people:
+            lines = []
+            for one in people:
+                place = self._room_of(one)
+                lines.append('• ' + one.name + (' — ' + one.role if one.role else '')
+                             + (', ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor) if place is not None else ''))
+            given = people[0].name.split('.')[-1]
+            text = ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '') + given + ' нэртэй ' + str(len(people)) \
+                + ' ажилтан байна:\n' + '\n'.join(lines) + '\nАль нь болохыг овгийн эхний үсэгтэй нь бичиж асууна уу (жишээ: «' \
+                + people[0].name + ' багш хаана суудаг вэ»).'
+            return self._result(query, text, 'reception_name_shared', source_table='staff')
+        return None
 
     def _teacher_time_reply(self, query, slots, now):
         """«Н.Соронзонболд — маргааш (баасан, 11/27) 14:00-д хуваариар хичээлгүй. Тэр өдөр: хичээлтэй — …; хичээлгүй — ….»"""
@@ -1918,6 +2007,9 @@ class ReceptionAnswerPath:
         if window is None or not self.tables.timetable_complete:
             return None
         today, this_minute = now.date(), now.hour * 60 + now.minute
+        asked_now = minute == 'now'
+        if asked_now:          # inside the school day: this minute; before or after it: the day's plan
+            minute = this_minute if window[0] <= this_minute < window[1] else None
         intro = ''
         if day_word in (None, 'өнөөдөр', 'маргааш', 'нөгөөдөр'):
             target = today + timedelta(days={'маргааш': 1, 'нөгөөдөр': 2}.get(day_word, 0))
@@ -1968,7 +2060,8 @@ class ReceptionAnswerPath:
                                 else label(target) + ', ' + _clock(this_minute) + '-аас хойш хуваариар: ') + plan + '.'
         else:
             current = next(((span, slot) for span, slot in slots_of_day if span[0] <= minute < span[1]), None)
-            at = first(label(target) + ' ' + _clock(minute) + '-д')
+            at = first('одоо (' + _clock(minute) + ')' if asked_now and target == today
+                       else label(target) + ' ' + _clock(minute) + '-д')
             if current is not None:
                 span, slot = current
                 text = (head + at + ' хуваариар хичээлтэй: ' + _clock(span[0]) + '–' + _clock(span[1]) + ' '
@@ -1977,6 +2070,19 @@ class ReceptionAnswerPath:
                 text = head + at + ' хуваариар хичээлгүй'
                 if not window[0] <= minute < window[1]:
                     text += ' (сургуулийн ажлын цаг ' + self.tables.school_hours + ')'
+                elif not (target == today and minute < this_minute):
+                    # Not in a lesson, the hour still ahead: where the office is and when the next lesson of that
+                    # day begins (the user, 11/26: «in room or in lesson»). The school's lunch break is named.
+                    lunch = _range_minutes(self.tables.lunch_break)
+                    if lunch is not None and lunch[0] <= minute < lunch[1]:
+                        text += ' (сургуулийн цайны цаг ' + self.tables.lunch_break + ')'
+                    place = self._room_of(person)
+                    if place is not None:
+                        text += ' — ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor)
+                        tail = tail.replace(self._workplace(person), '', 1)        # said once
+                    following_lesson = next((span for span, _ in slots_of_day if span[0] > minute), None)
+                    if following_lesson is not None:
+                        text += ' (дараагийн хичээл ' + _clock(following_lesson[0]) + '-д)'
             if target == today and minute < this_minute:
                 text += ' — энэ цаг өнгөрсөн'
             text += '. ' + rest_of_day + plan + '.'

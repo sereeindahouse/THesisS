@@ -203,8 +203,14 @@ class TeacherAtATimeTests(unittest.TestCase):
         self.assertTrue(busy['answer'].startswith('З.Наран — өнөөдөр (лхагва, 11/25) 10:00-д хуваариар хичээлтэй: '
                                                   '09:35–11:05 ЗА-1 (612 тоот). Одооноос (08:30): '), busy['answer'])
         free = self.ask('З.Наран багш 14:30-д хичээлтэй юу')['answer']
-        self.assertTrue(free.startswith('З.Наран — өнөөдөр (лхагва, 11/25) 14:30-д хуваариар хичээлгүй. Одооноос (08:30): '
-                                        'хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот); хичээлгүй — 08:30–09:35, 11:05–17:00'), free)
+        # Not in a lesson: the office is named, once (the user, 11/26: «in room or in lesson»).
+        self.assertTrue(free.startswith('З.Наран — өнөөдөр (лхагва, 11/25) 14:30-д хуваариар хичээлгүй — ажлын өрөө: 604 тоот, '
+                                        '6-р давхар. Одооноос (08:30): хичээлтэй — 09:35–11:05 ЗА-1 (612 тоот); хичээлгүй — '
+                                        '08:30–09:35, 11:05–17:00'), free)
+        self.assertEqual(free.count('604 тоот'), 1)
+        early = self.ask('З.Наран багш 9 цагийн үед завтай юу')['answer']             # «цагийн үед» is an hour
+        self.assertTrue(early.startswith('З.Наран — өнөөдөр (лхагва, 11/25) 09:00-д хуваариар хичээлгүй — ажлын өрөө: 604 тоот, '
+                                         '6-р давхар (дараагийн хичээл 09:35-д).'), early)
         # «2 цагт» at a school is the afternoon; the name need not come first, the day may stand anywhere.
         for wording in ('Наран багштай баасан гарагт 2 цагт уулзаж болох уу', 'Баасан гарагт 2 цагт Наран багш хичээлтэй юу'):
             friday = self.ask(wording)['answer']
@@ -245,6 +251,42 @@ class TeacherAtATimeTests(unittest.TestCase):
         self.assertEqual(self.ask('Наран багштай хэзээ уулзаж болох вэ')['reason_code'], 'reception_teacher_meet')
         self.assertEqual(self.ask('З.Наран багш маргааш хичээлтэй юу')['reason_code'], 'reception_holiday')
         self.assertIsNone(calendar_path()._teacher_time_slots('З.Тэмүүлэн багш 10 цагт хичээлтэй юу'))   # teaches nothing
+
+    def test_the_two_sentences_are_not_shown_when_switched_off(self):
+        made = calendar_path()
+        made.caveats = False
+        for question in ('З.Наран багш 14:30-д хичээлтэй юу', 'З.Наран багштай яаж уулзах вэ', 'З.Наран багш гэж хэн бэ',
+                         'З.Наран багшийн өрөө хаана вэ'):
+            answer = made.answer(question, now=self.NOW)['answer']
+            self.assertNotIn('Хуваарь өөрчлөгдөж болно', answer, question)
+            self.assertNotIn('мэдэх боломжгүй', answer, question)
+            self.assertIn('604', answer, question)
+            self.assertNotIn('  ', answer, question)
+
+    def test_a_past_hour_gets_no_office_or_next_lesson(self):
+        late = datetime(2026, 11, 25, 15, 0)
+        answer = self.ask('З.Наран багш 9 цагт завтай юу', now=late)['answer']
+        self.assertIn('09:00-д хуваариар хичээлгүй — энэ цаг өнгөрсөн.', answer)
+        self.assertNotIn('дараагийн хичээл', answer)
+
+    def test_only_a_text_with_such_a_sentence_is_touched(self):
+        made = calendar_path()
+        made.caveats = False
+        kept = made.answer('З.Наран багш гэж хэн бэ', now=self.NOW)['answer']
+        self.assertNotIn('мэдэх боломжгүй', kept)
+        self.assertNotIn('\n\n', kept)
+        self.assertFalse(any(not line.strip() for line in kept.split('\n')), kept)
+
+    def test_where_a_teacher_is_now_is_read_from_the_timetable(self):
+        in_lesson = self.ask('З.Наран багш одоо хаана байна', now=datetime(2026, 11, 25, 10, 0))['answer']
+        self.assertTrue(in_lesson.startswith('З.Наран — одоо (10:00) хуваариар хичээлтэй: 09:35–11:05 ЗА-1 (612 тоот).'), in_lesson)
+        free = self.ask('З.Наран багш яг одоо хаана байгаа вэ', now=datetime(2026, 11, 25, 14, 0))
+        self.assertEqual(free['reason_code'], 'reception_teacher_at')
+        self.assertTrue(free['answer'].startswith('З.Наран — одоо (14:00) хуваариар хичээлгүй — ажлын өрөө: 604 тоот, 6-р давхар.'),
+                        free['answer'])
+        after = self.ask('З.Наран багш одоо хаана байна', now=datetime(2026, 11, 25, 18, 0))['answer']
+        self.assertIn('ажлын цаг', after)
+        self.assertNotIn('одоо (18:00)', after)
 
     def test_a_joint_lesson_names_all_its_groups(self):
         made = calendar_path()

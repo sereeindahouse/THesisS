@@ -31,7 +31,7 @@ ROOT_TOPIC, REVIEW_TOPIC = 'nmct', 'review-needed'
 
 # A reply from the school's tables: its reason code names what was looked up.
 REASON_TOPICS = {
-    'reception_person': 'staff.directory', 'reception_role_holder': 'staff.directory',
+    'reception_person': 'staff.directory', 'reception_name_shared': 'staff.directory', 'reception_role_holder': 'staff.directory',
     'reception_role_list': 'staff.directory', 'reception_role_name': 'staff.directory',
     'reception_subject_teachers': 'staff.directory', 'reception_teacher_subjects': 'staff.directory',
     'reception_office_staff': 'staff.directory', 'reception_class_teacher': 'classes.groups',

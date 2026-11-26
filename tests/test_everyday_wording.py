@@ -144,6 +144,31 @@ class EverydayWordingTests(unittest.TestCase):
         # What is needed in general stays the full admission answer.
         self.assertNotEqual(self.read('элсэхэд юу хэрэгтэй вэ'), 'Элсэхэд ямар бичиг баримт хэрэгтэй вэ?')
 
+    def test_what_studying_here_gives(self):
+        # 11/26 (4), the user's own test: «энд сурснаар ямар давуу талуудтай вэ» found nothing.
+        for question in ('энд сурснаар ямар давуу талуудтай вэ', 'танай сургуулийн давуу тал юу вэ',
+                         'танайд сурвал ямар давуу талтай вэ'):
+            self.assertEqual(self.read(question), SCHOOL_OVERVIEW_QUESTION, question)
+
+    def test_questions_said_without_question_marks(self):
+        # 11/26 (4), the user's own test, spoken: no question mark between the first two questions.
+        own = QuestionPlanner.from_config(Path(__file__).resolve().parents[1], FakeReception())
+        parts = [part['query'] for part in own.plan(
+            'сургуульд яаж орох вэ хэддүгээр ангиас орох боломжтой вэ? энд сурснаар ямар давуу талуудтай вэ, төлбөр нь хэд вэ')['parts']]
+        self.assertEqual(parts[1], ADMISSION_QUESTION)
+        self.assertIn(SCHOOL_OVERVIEW_QUESTION, parts)
+        self.assertEqual(len(parts), 4)
+        # One question stays one: an either-or, a quoted question, a short one.
+        for whole in ('Сургууль хувийн уу эсвэл улсын уу', 'Энэ сургууль хувийн уу улсын уу', 'ШМТК гэж юу вэ гэдгийг хэлж өгөөч',
+                      'Захирал хэн бэ', 'Төлбөрөө бэлнээр төлөх үү дансаар шилжүүлэх үү', 'Сургалтын алба хаана байдаг вэ мэдэх үү',
+                      'Төлбөр хэд вэ гэвэл хэнээс асуух вэ'):
+            self.assertEqual(len(own.plan(whole)['parts']), 1, whole)
+        # A full stop after the particle is a cut too.
+        self.assertEqual(len(own.plan('Номын сан хэдэн цагт онгойдог вэ. Хаана байдаг вэ')['parts']), 2)
+        # A subject other than the school stays with the follow-up (code review 11/26).
+        follow = own.plan('Дотуур байр байдаг уу? Орохдоо юу бүрдүүлэх вэ?')['parts'][1]['query']
+        self.assertIn('отуур байр', follow)
+
     def test_compound_questions_read_each_part(self):
         parts = self.planner.plan('Энэ яадаг сургууль вэ? Төлбөр хэд вэ?')['parts']
         self.assertEqual(parts[0]['query'], SCHOOL_OVERVIEW_QUESTION)
