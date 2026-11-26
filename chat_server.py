@@ -364,16 +364,36 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
                 rag.question_planner = planner
             plan = (planner.plan(conversation['resolved_query'], previous=context_query)
                     if planner.enabled and 'clarification_id' not in body else None)
+            # An optional local module (question_understanding.py, when present and switched on) may read a question
+            # nothing answered as one the system knows; that question goes through the same route and guards.
+            reader = getattr(rag, 'question_reader', False)
+            if reader is False:
+                try:
+                    from question_understanding import QuestionReader
+                    reader = QuestionReader.from_config(root)
+                except Exception:
+                    reader = None
+                rag.question_reader = reader
+            first_answer = answer_one
+
+            def answer_one(text, asked=None):
+                one = first_answer(text)
+                if reader is None or 'clarification_id' in body:
+                    return one
+                try:
+                    return reader.retry(one, asked or text, first_answer, planner, rag, database)
+                except Exception:
+                    return one
             if plan is None or not plan['changed']:
                 result = answer_one(conversation['resolved_query'])
             elif not plan['compound']:
-                result = answer_one(plan['parts'][0]['query'])
+                result = answer_one(plan['parts'][0]['query'], conversation['resolved_query'])
                 result['query'] = conversation['resolved_query']
                 # Stored again under the visitor's own wording, which the page sends back to be spoken.
                 result = rag._remember(result, False)
             else:
                 result = compose_parts(conversation['resolved_query'], plan,
-                                       [answer_one(part['query']) for part in plan['parts']])
+                                       [answer_one(part['query'], part.get('original')) for part in plan['parts']])
                 result = rag._remember(result, False)
             if plan is not None and plan['changed']:
                 result['question_plan'] = plan

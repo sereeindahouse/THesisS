@@ -35,7 +35,7 @@ CONFIG = ('answer-selection.json', 'content-use.json', 'faq-intents.json', 'know
 # runtime/website-sections.json: the saved pages cut into sections (website_sections.py); main() cuts it again
 # for the release being copied before the files are listed.
 OPTIONAL_FILES = ('data/stt-model-choice.json', 'requirements.txt', 'requirements-modeltools.txt',
-                  'runtime/website-sections.json')
+                  'runtime/website-sections.json', 'question_understanding.py', 'config/question-understanding.json')
 TREES = ('models/multilingual-e5-small', 'runtime/quality-media-20261021/teacher-media')
 KEY_FILE = 'runtime/gemini-credentials.dpapi'
 MANIFEST = '.build-files.json'

@@ -349,6 +349,7 @@ function renderTurn(turn, result) {
   if (result.conversation?.applied && result.conversation.resolved_query !== turn.query) target.append(el("p", "Тодруулсан асуулт: " + result.conversation.resolved_query, "notice"));
   if (typeof result.question_plan?.followup?.rewritten === "string") target.append(el("p", "Өмнөх асуулттай холбож ойлгосон нь: " + result.question_plan.followup.rewritten, "notice"));
   if (typeof result.latin_script?.read_as === "string") target.append(el("p", "Ингэж ойлголоо: «" + result.latin_script.read_as + "»", "notice"));
+  if (typeof result.read_as === "string") target.append(el("p", "Ингэж ойлголоо: «" + result.read_as + "»", "notice"));
   // 11/26: an everyday wording or a word typed without vowels was read as another question — show which one.
   const readAs = result.question_plan?.compound ? [] : (result.question_plan?.parts || []).filter(part => (part.rewrites || []).some(rewrite => rewrite.rule === "everyday_wording" || rewrite.rule === "vowelless_typing"));
   if (readAs.length === 1 && typeof readAs[0].query === "string" && typeof result.latin_script?.read_as !== "string") target.append(el("p", "Ингэж ойлголоо: «" + readAs[0].query + "»", "notice"));
