@@ -194,6 +194,14 @@ def strip_context_clause(text):
                         r'(?:тэд|тэр|тэр\s+хүн|түүнийг)?\s*(?P<ask>' + _LOCATION_ASK + r'.*)', text, re.I | re.S)
     if meet:
         return meet.group('who').strip() + ' ' + meet.group('ask')
+    # 11/27: «Сэтгэл зүйчтэй уулзмаар байна, хаашаа очих вэ?» (only the planner's referral line before) — an office or a
+    # post to meet, then where to go, asks where it is: the service card with its staff. A teacher («… багштай уулзмаар
+    # байна, …») stays the planner's meeting question with the day's timetable.
+    wish = re.fullmatch(r'\s*(?P<who>[^?!.]{2,60}?)(?:тай|тэй|той)\s+уулз(?:маар(?:\s+байна)?|ах\s+гэсэн(?:\s+юм)?|ъя)'
+                        r'\s*[,.]?\s*(?:тэгэхээр\s+|тэгвэл\s+)?(?:хаашаа|хаана)\s+(?:очих|явах|очвол\s+болох)\s+(?:вэ|бэ)'
+                        r'(?P<end>\s*[?!.]*)\s*', text, re.I)
+    if wish and not re.search(r'багш', wish.group('who'), re.I):
+        return wish.group('who').strip() + ' хаана байдаг вэ' + wish.group('end').strip()
     return re.sub(r'^\s*уулз\w*\s+гэсэн\s+юм(?:\s+аа)?\s*[,.]\s*(?=' + _LOCATION_ASK + r')', '', text, count=1, flags=re.I)
 
 
@@ -229,6 +237,12 @@ def normalize_wording(text):
     # «… аль өрөөнд байдаг вэ?» ask where it is; «… ажлын цаг хэдээс хэд хүртэл вэ?» asks the working hours.
     text = re.sub(r'(?<!\w)(?:хэдэн\s+тоот(?:од|\s+өрөөнд)?|аль\s+(?:өрөөнд|тоотод)|хэддүгээр\s+өрөөнд|ямар\s+өрөөнд)\s+'
                   r'(?:байдаг|байна|байрладаг|суудаг)(?!\w)', 'хаана байдаг', text, flags=re.I)
+    # 11/27: without a verb too — «Сургалтын алба хэдэн тоот вэ?» was «олдсонгүй». Only after a named thing that is no
+    # class: «ХИ-3 анги хэдэн тоот вэ» asks where the class studies (the planner's), a bare «Хэдэн тоот вэ?» follows up.
+    text = re.sub(r'(?<!\w)(?P<before>[^\W\d_][\w-]*)(?P<gap>\s+)хэдэн\s+тоот(?:\s+өрөө)?(?=\s+(?:вэ|бэ)\s*[?!.]*$)',
+                  lambda m: m.group(0) if (m['before'].casefold().startswith('анги')
+                                           or re.fullmatch(r'[А-ЯӨҮЁа-яөүё]{2,3}-\d+', m['before']))
+                  else m['before'] + m['gap'] + 'хаана байдаг', text, flags=re.I)
     text = re.sub(r'(?<!\w)(ажлын\s+цаг)\s+(?:хэдээс\s+хэд(?:эн\s+цаг)?\s+хүртэл|хэдэн\s+цагаас\s+хэдэн\s+цаг\s+хүртэл|хэдээс)'
                   r'(?=\s+(?:вэ|бэ)(?!\w)|\s*[?!.]*$)', r'\1 хэд', text, flags=re.I)
     # 11/23: a floor or a room does not move: «…хэддүгээр давхарт байгаа вэ», «… өрөө хаана байгаа вэ» ask where it
@@ -414,6 +428,17 @@ def post_rest_asks(rest):
         return False
     return (teacher_time_parts(rest) is not None or teacher_asked_now(rest)
             or _POST_REST.fullmatch(rest) is not None or _POST_LESSON.fullmatch(rest) is not None)
+
+
+# 11/27: «Сургалтын албаны мэргэжилтэнтэй яаж холбогдох вэ?», «… хаана байдаг вэ?» — how to reach or where to find the
+# people who share a post («олдсонгүй» before). A post one person holds keeps its own answers (role contact, service
+# lookup), so post_question reads these wordings only for a post several people hold.
+_POST_REACH = re.compile(r'(?:(?:яаж|хэрхэн)\s+(?:холбогдох|уулзах)|хаана\s+(?:байдаг|байна|байрладаг))(?:\s+(?:вэ|бэ))?')
+
+
+def post_reach_asks(rest):
+    """True when the words after a post ask how to reach the people who hold it or where they sit."""
+    return _POST_REACH.fullmatch(' '.join((rest or '').casefold().split()).rstrip('?？.! ')) is not None
 
 
 _POST_REST_WORD = re.compile(
@@ -2150,7 +2175,9 @@ class ReceptionAnswerPath:
         self._post_read = ((query, id(self.tables)), found)
         return found
 
-    def _read_post(self, query):
+    def _read_post(self, query, single_reach=False):
+        """``single_reach``: also how to reach or where to find a post one person holds — only when the tables gave no
+        other answer (_instead); the planner keeps reading such a post's own wordings (role contact, service lookup)."""
         text = normalize_wording(query.strip().rstrip('?!？.').strip())
         lead = _POST_LEAD.match(text.casefold())
         words = (text[lead.end():] if lead else text).split()
@@ -2158,25 +2185,27 @@ class ReceptionAnswerPath:
             return None                                     # a person named with the initial is not a post
         for count in range(min(len(words) - 1, 7), 0, -1):
             rest = ' '.join(words[count:])
-            if not post_rest_asks(rest):
+            asks = post_rest_asks(rest)
+            if not asks and not post_reach_asks(rest):
                 continue
             head = words[:count]
             if len(head) > 1 and _key(head[-1]).startswith('багш') and not _key(head[-2]).startswith('анги'):
                 # «захирал багш», «эрхлэгч багштай»: the post before «багш» when it names somebody.
                 people, _ = self._post_people(head[:-1])
-                if people:
+                if people and (asks or single_reach or len(people) > 1):
                     return people, _COMITATIVE.search(_key(head[-1])) is not None, rest, ' '.join(head)
             people, together = self._post_people(head)
-            if people:
+            if people and (asks or single_reach or len(people) > 1):
                 return people, together, rest, ' '.join(head)
         return None
 
-    def _people_list(self, query, people, intro, closing, reason):
+    def _people_list(self, query, people, intro, closing, reason, email=False):
         lines = []
         for one in people:
             place = self._room_of(one)
             lines.append('• ' + one.name + (' — ' + one.role if one.role else '')
-                         + (', ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor) if place is not None else ''))
+                         + (', ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor) if place is not None else '')
+                         + (', имэйл: ' + one.email if email and one.email else ''))
         text = ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '') + intro + '\n' + '\n'.join(lines) + '\n' + closing
         return self._result(query, text, reason, source_table='staff')
 
@@ -2339,12 +2368,21 @@ class ReceptionAnswerPath:
             if made is not None:
                 return made
         post = self.post_question(query)
+        if post is None and self.tables is not None and isinstance(query, str) and 0 < len(query) <= 200:
+            post = self._read_post(query, single_reach=True)
+            if post is not None and len(post[0]) == 1:
+                one = post[0][0]
+                # Only what the tables can say: where — a recorded office; how to reach — an office or an e-mail
+                # («Ресепшн хаана байдаг вэ?» is not answered with a card that names no place).
+                if self._room_of(one) is None and ('хаана' in post[2].casefold() or not one.email):
+                    post = None
         if post is not None:
             people, together, rest, said = post
             if len(people) == 1:
                 # The planner asks by name; without it (or with a wording only it reads) the same question here.
                 one, again = people[0], None
-                if not re.search(r'ханд', rest):
+                # How to reach or where to find the one holder (11/27): the meeting card says the office and the e-mail.
+                if not re.search(r'ханд', rest) and not post_reach_asks(rest):
                     again = self.answer(one.name + ' багш ' + rest, now=now)
                     if (again is None or not again.get('answer')) and not any(
                             _key(lesson.teacher) == _key(one.name) for lesson in self.tables.timetable):
@@ -2357,11 +2395,16 @@ class ReceptionAnswerPath:
                     again.setdefault('reception', {})['completed'] = True
                     return again
             else:
+                at = self._people_at(query, people, said, rest, together, now)
+                if at is not None:
+                    return at
                 said = _COMITATIVE.sub('', said) if together else said
                 return self._people_list(
                     query, people, said[:1].upper() + said[1:] + ' — ' + str(len(people)) + ' хүн байна:',
                     'Аль нь болохыг нэрээр нь бичиж асууна уу (жишээ: «' + people[0].name + ' багш' + ('тай ' if together else ' ')
-                    + rest + '»).', 'reception_post_shared')
+                    + rest + '»).', 'reception_post_shared',
+                    # How to reach them (11/27): the school e-mail of each, as when one is asked by name.
+                    email=post_reach_asks(rest) or re.search(r'уулз|ханд', rest) is not None)
         people = self._shared_given_name(query)
         if people:
             given = people[0].name.split('.')[-1]
@@ -2385,14 +2428,7 @@ class ReceptionAnswerPath:
         if asked_now:          # inside the school day: this minute; before or after it: the day's plan
             minute = this_minute if window[0] <= this_minute < window[1] else None
         intro = ''
-        if day_word in (None, 'өнөөдөр', 'маргааш', 'нөгөөдөр'):
-            target = today + timedelta(days={'маргааш': 1, 'нөгөөдөр': 2}.get(day_word, 0))
-        else:
-            ahead = (_DAY_LOOKUP[day_word] - today.weekday()) % 7
-            # The same weekday today counts while the school day lasts; afterwards it is next week's.
-            if ahead == 0 and this_minute >= window[1]:
-                ahead = 7
-            target = today + timedelta(days=ahead)
+        target = self._teacher_target(day_word, today, this_minute, window)
         reason = self._calendar_reason(now, target)
         if reason not in (None, 'reception_holiday'):
             return self._result(query, None, reason)
@@ -2433,34 +2469,126 @@ class ReceptionAnswerPath:
             text = head + first(label(target) + ' хуваариар: ' if not rest_of_day.startswith('Одооноос')
                                 else label(target) + ', ' + _clock(this_minute) + '-аас хойш хуваариар: ') + plan + '.'
         else:
-            current = next(((span, slot) for span, slot in slots_of_day if span[0] <= minute < span[1]), None)
             at = first('одоо (' + _clock(minute) + ')' if asked_now and target == today
                        else label(target) + ' ' + _clock(minute) + '-д')
-            if current is not None:
-                span, slot = current
-                text = (head + at + ' хуваариар хичээлтэй: ' + _clock(span[0]) + '–' + _clock(span[1]) + ' '
-                        + ', '.join(slot['groups']) + (' (' + ', '.join(slot['rooms']) + ' тоот)' if slot['rooms'] else ''))
-            else:
-                text = head + at + ' хуваариар хичээлгүй'
-                if not window[0] <= minute < window[1]:
-                    text += ' (сургуулийн ажлын цаг ' + self.tables.school_hours + ')'
-                elif not (target == today and minute < this_minute):
-                    # Not in a lesson, the hour still ahead: where the office is and when the next lesson of that
-                    # day begins (the user, 11/26: «in room or in lesson»). The school's lunch break is named.
-                    lunch = _range_minutes(self.tables.lunch_break)
-                    if lunch is not None and lunch[0] <= minute < lunch[1]:
-                        text += ' (сургуулийн цайны цаг ' + self.tables.lunch_break + ')'
-                    place = self._room_of(person)
-                    if place is not None:
-                        text += ' — ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor)
-                        tail = tail.replace(self._workplace(person), '', 1)        # said once
-                    following_lesson = next((span for span, _ in slots_of_day if span[0] > minute), None)
-                    if following_lesson is not None:
-                        text += ' (дараагийн хичээл ' + _clock(following_lesson[0]) + '-д)'
+            status, office_named = self._status_at(person, target, minute, today, this_minute, window, slots_of_day)
+            text = head + at + ' хуваариар ' + status
+            if office_named:
+                tail = tail.replace(self._workplace(person), '', 1)        # said once
             if target == today and minute < this_minute:
                 text += ' — энэ цаг өнгөрсөн'
             text += '. ' + rest_of_day + plan + '.'
         return self._result(query, text + tail, 'reception_teacher_at', source_table='timetable')
+
+    @staticmethod
+    def _teacher_target(day_word, today, this_minute, window):
+        """The date a teacher's day-or-hour question asks about: today, tomorrow, the day after, or the coming weekday —
+        the same weekday today while the school day lasts, afterwards next week's."""
+        if day_word in (None, 'өнөөдөр', 'маргааш', 'нөгөөдөр'):
+            return today + timedelta(days={'маргааш': 1, 'нөгөөдөр': 2}.get(day_word, 0))
+        ahead = (_DAY_LOOKUP[day_word] - today.weekday()) % 7
+        if ahead == 0 and this_minute >= window[1]:
+            ahead = 7
+        return today + timedelta(days=ahead)
+
+    def _status_at(self, person, target, minute, today, this_minute, window, slots_of_day=None):
+        """(«хичээлтэй: 09:35–11:05 МИ-4 (610 тоот)» or «хичээлгүй — ажлын өрөө: 509 тоот, 5-р давхар (дараагийн хичээл
+        11:10-д)», whether the office was named) — one teacher at one minute of a day, from the timetable only."""
+        slots_of_day = self._day_slots(person, target) if slots_of_day is None else slots_of_day
+        current = next(((span, slot) for span, slot in slots_of_day if span[0] <= minute < span[1]), None)
+        if current is not None:
+            span, slot = current
+            return ('хичээлтэй: ' + _clock(span[0]) + '–' + _clock(span[1]) + ' ' + ', '.join(slot['groups'])
+                    + (' (' + ', '.join(slot['rooms']) + ' тоот)' if slot['rooms'] else '')), False
+        text, office_named = 'хичээлгүй', False
+        if not window[0] <= minute < window[1]:
+            text += ' (сургуулийн ажлын цаг ' + self.tables.school_hours + ')'
+        elif not (target == today and minute < this_minute):
+            # Not in a lesson, the hour still ahead: where the office is and when the next lesson of that
+            # day begins (the user, 11/26: «in room or in lesson»). The school's lunch break is named.
+            lunch = _range_minutes(self.tables.lunch_break)
+            if lunch is not None and lunch[0] <= minute < lunch[1]:
+                text += ' (сургуулийн цайны цаг ' + self.tables.lunch_break + ')'
+            place = self._room_of(person)
+            if place is not None:
+                text += ' — ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor)
+                office_named = True
+            following_lesson = next((span for span, _ in slots_of_day if span[0] > minute), None)
+            if following_lesson is not None:
+                text += ' (дараагийн хичээл ' + _clock(following_lesson[0]) + '-д)'
+        return text, office_named
+
+    def _people_at(self, query, people, said, rest, together, now):
+        """11/27 «Математикийн багш маргааш 10 цагт завтай юу?»: everybody who holds the post at the asked hour (or day),
+        read from the timetable the same way as for one named teacher; a holder without lessons gets the office and
+        whether the hour is within the school's working hours. None when the hour cannot be read (no clock, no complete
+        timetable, a closed day or the school day over) — the plain list answers then."""
+        parts = teacher_time_parts(rest)
+        if parts is None and (teacher_asked_now(rest) or re.fullmatch(r'(?:яг\s+)?одоо\s+хичээлтэй\s+(?:юу|уу)',
+                                                                     ' '.join(rest.casefold().split()).rstrip('?!. '))):
+            parts = (None, 'now', False)
+        window = self._school_window()
+        if parts is None or not isinstance(now, datetime) or window is None or not self.tables.timetable_complete:
+            return None
+        day_word, minute, _ = parts
+        today, this_minute = now.date(), now.hour * 60 + now.minute
+        asked_now = minute == 'now'
+        if asked_now:
+            minute = this_minute if window[0] <= this_minute < window[1] else None
+            if minute is None:
+                return None
+        target = self._teacher_target(day_word, today, this_minute, window)
+        reason = self._calendar_reason(now, target)
+        if reason not in (None, 'reception_holiday'):
+            return None
+        intro = ''
+        # A day without lessons, or no day named after the school day: the same hour of the next school day, as for
+        # one named teacher.
+        closed = ('бүртгэсэн амралтын өдөр' if reason == 'reception_holiday'
+                  else 'хичээлийн өдөр биш' if target.weekday() >= 5 else '')
+        over = day_word is None and not closed and this_minute >= window[1]
+        if closed or over:
+            following = self._next_school_day(target, now)
+            if following is None:
+                return None
+            if closed and asked_now:
+                minute = None          # «одоо» on a day without lessons: the next school day's plan, not this minute
+            label = self._day_label(target, today)
+            intro = ('Өнөөдрийн ажлын цаг (' + self.tables.school_hours + ') дууссан. ' if over
+                     else label[:1].upper() + label[1:] + ' нь ' + closed + '. ') + 'Дараагийн хичээлийн өдөр — '
+            target = following
+        teaching = {_key(lesson.teacher) for lesson in self.tables.timetable}
+        prefix = '[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else ''
+        # «одоо» only for today's school day; after a closed day or the school day over, the next school day's hour.
+        when = ('одоо (' + _clock(minute) + ')' if asked_now and not intro else self._day_label(target, today)
+                + (' ' + _clock(minute) + '-д' if minute is not None else ''))
+        when = intro + when if intro else when[:1].upper() + when[1:]
+        lines, office_only = [], False
+        for one in people:
+            if _key(one.name) in teaching:
+                if minute is None:
+                    status = self._day_plan(one, target, max(this_minute, window[0]) if target == today else window[0],
+                                            window)
+                else:
+                    status, _ = self._status_at(one, target, minute, today, this_minute, window)
+                    if target == today and minute < this_minute:
+                        status += ' — энэ цаг өнгөрсөн'
+            else:
+                place, office_only = self._room_of(one), True
+                status = ((one.role + ', ' if one.role else '') + 'хуваарьт хичээлгүй'
+                          + (' — ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor) if place is not None else ''))
+            lines.append('• ' + one.name + ' — ' + status + ('; имэйл: ' + one.email if one.email else ''))
+        said = _COMITATIVE.sub('', said) if together else said
+        text = (prefix + said[:1].upper() + said[1:] + ' — ' + str(len(people)) + ' хүн байна. '
+                + when + ' хуваариар:\n' + '\n'.join(lines))
+        # The working hours of the asked hour, for those without lessons (never whether they are in); after a closed day
+        # the intro has already named the next school day.
+        hours = self._hours_at((day_word, minute, None), now, self.tables.school_hours) if office_only and not intro else ''
+        if hours:
+            text += '\n' + hours
+        text += ('\nНэг хүний өдрийн хуваарийг нэрээр нь асууна уу (жишээ: «' + people[0].name + ' багш'
+                 + ('тай ' if together else ' ') + rest + '»).')
+        return self._result(query, text, 'reception_post_shared_at', source_table='timetable')
 
     def _day_slots(self, person, day):
         """One teacher's lessons of a day in time order, a joint lesson once with all its groups and rooms."""

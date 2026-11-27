@@ -360,9 +360,75 @@ class PostInsteadOfNameTests(unittest.TestCase):
 
     def test_a_post_several_people_hold_lists_them(self):
         shared = self.ask('физикийн багш маргааш 10 цагт завтай юу')
-        self.assertEqual(shared['reason_code'], 'reception_post_shared')
-        self.assertTrue(shared['answer'].startswith('Физикийн багш — 2 хүн байна:\n• З.Гэрэл — Физикийн багш'), shared['answer'])
+        # 11/27: each holder at the asked hour. Tomorrow (11/26) is the fixture's holiday: the next school day's 10:00.
+        # Neither physics teacher has lessons: the post and the office, never «завтай».
+        self.assertEqual(shared['reason_code'], 'reception_post_shared_at')
+        self.assertTrue(shared['answer'].startswith(
+            'Физикийн багш — 2 хүн байна. Маргааш (пүрэв, 11/26) нь амралтын өдөр. Дараагийн хичээлийн өдөр — '
+            'нөгөөдөр (баасан, 11/27) 10:00-д хуваариар:\n• З.Гэрэл — Физикийн багш, хуваарьт хичээлгүй — ажлын өрөө: 604 тоот, '
+            '6-р давхар'), shared['answer'])
         self.assertIn('«З.Гэрэл багш маргааш 10 цагт завтай юу»', shared['answer'])
+        self.assertNotIn('завтай —', shared['answer'])
+        # Without an hour or a day the plain list answers as before.
+        plain = self.ask('физикийн багш байна уу')
+        self.assertEqual(plain['reason_code'], 'reception_post_shared')
+        self.assertTrue(plain['answer'].startswith('Физикийн багш — 2 хүн байна:\n• З.Гэрэл — Физикийн багш'), plain['answer'])
+
+    def test_teachers_who_share_a_post_at_an_hour_from_the_timetable(self):
+        # 11/27: «Математикийн багш маргааш 10 цагт завтай юу?» listed five teachers and said nothing about 10:00.
+        made = self.reception
+        made.tables = ReceptionTables(**{**made.tables.__dict__,
+            'staff': made.tables.staff + (Staff(name='З.Бат', department='Зохиомол тэнхим', room='604', role='Математикийн багш',
+                                                email='bat@school.example'),),
+            'timetable': made.tables.timetable + (Lesson(day='wed', time='13:20-14:50', group='ЗА-1', room='612',
+                                                         teacher='З.Бат', subject='Математик'),)})
+        answer = made.answer('Математикийн багш 14 цагт завтай юу', now=self.NOW)
+        self.assertEqual(answer['reason_code'], 'reception_post_shared_at')
+        self.assertEqual(answer['answer'].split('\n')[:3], [
+            'Математикийн багш — 2 хүн байна. Өнөөдөр (лхагва, 11/25) 14:00-д хуваариар:',
+            '• З.Саран — хичээлгүй — ажлын өрөө: 604 тоот, 6-р давхар; имэйл: saran@school.example',
+            '• З.Бат — хичээлтэй: 13:20–14:50 ЗА-1 (612 тоот); имэйл: bat@school.example'])
+        self.assertNotRegex(answer['answer'], r'өрөөндөө байна|батлахгүй')
+        # A day without an hour: each teacher's plan of that day.
+        day = made.answer('Математикийн багш лхагва гарагт завтай юу', now=datetime(2026, 11, 25, 8, 0))['answer']
+        self.assertIn('• З.Бат — хичээлтэй — 13:20–14:50 ЗА-1 (612 тоот); хичээлгүй — 08:00–13:20, 14:50–17:00', day)
+        # «одоо» on a Saturday: the next school day's plans, never «одоо» for another day.
+        weekend = made.answer('Математикийн багш одоо хаана байна', now=datetime(2026, 11, 28, 10, 0))['answer']
+        self.assertIn('Өнөөдөр (бямба, 11/28) нь хичээлийн өдөр биш. Дараагийн хичээлийн өдөр — нөгөөдөр (даваа, 11/30) '
+                      'хуваариар:', weekend)
+        self.assertNotIn('одоо (', weekend.casefold())
+
+    def test_how_to_reach_people_who_share_a_post(self):
+        # 11/27: «Сургалтын албаны мэргэжилтэнтэй яаж холбогдох вэ?» was «олдсонгүй».
+        made = self.reception
+        made.tables = ReceptionTables(**{**made.tables.__dict__, 'staff': made.tables.staff + (
+            Staff(name='З.Бат', department='Зохиомол тэнхим', room='604', role='Математикийн багш', email='bat@school.example'),)})
+        # («Математикийн багш хаана байдаг вэ?» keeps its timetable answer: who teaches mathematics and their rooms.)
+        for question in ('Математикийн багштай яаж холбогдох вэ?', 'Математикийн багштай яаж уулзах вэ?',
+                         'Физикийн багш хаана байдаг вэ?'):
+            answer = made.answer(question, now=self.NOW)
+            self.assertEqual(answer['reason_code'], 'reception_post_shared', question)
+            self.assertIn('ажлын өрөө: 604 тоот, 6-р давхар', answer['answer'], question)
+            if 'Математик' in question:
+                self.assertIn('• З.Саран — Математикийн багш, ажлын өрөө: 604 тоот, 6-р давхар, имэйл: saran@school.example',
+                              answer['answer'], question)
+        # A post one person holds keeps its own answers; the contact wording is not read as a post question for it.
+        self.assertIsNone(made.post_question('Захиралтай яаж холбогдох вэ'))
+        self.assertIsNone(made.post_question('Захирал хаана байдаг вэ'))
+
+    def test_a_room_number_without_a_verb_and_a_wish_to_meet_an_office(self):
+        from reception_tables import normalize_wording
+        self.assertEqual(normalize_wording('Зохиомол алба хэдэн тоот вэ?'), 'Зохиомол алба хаана байдаг вэ?')
+        self.assertIn('406 тоот', self.reception.answer('Зохиомол алба хэдэн тоот вэ?', now=self.NOW)['answer'])
+        # A class, a class code and a bare follow-up keep their own readings.
+        for kept in ('ЗА-1 анги хэдэн тоот вэ', 'ЗА-1 хэдэн тоот вэ', 'Хэдэн тоот вэ?'):
+            self.assertEqual(normalize_wording(kept), kept, kept)
+        self.assertEqual(normalize_wording('Зохиомол албатай уулзмаар байна, хаашаа очих вэ?'), 'Зохиомол алба хаана байдаг вэ?')
+        self.assertIn('406 тоот', self.reception.answer('Зохиомол албатай уулзмаар байна, хаашаа очих вэ?',
+                                                        now=self.NOW)['answer'])
+        # A teacher to meet stays the planner's meeting question with the timetable.
+        self.assertEqual(normalize_wording('З.Наран багштай уулзмаар байна, хаашаа очих вэ?'),
+                         'З.Наран багштай уулзмаар байна, хаашаа очих вэ?')
 
     def test_the_other_post_questions_are_not_read_here(self):
         for question in ('захирал хэн бэ', 'захирлын өрөө хаана вэ', 'захиралтай яаж уулзах вэ', 'З.Одон багш 14 цагт завтай юу',

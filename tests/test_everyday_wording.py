@@ -92,6 +92,18 @@ class EverydayWordingTests(unittest.TestCase):
         self.assertEqual(self.read('Захирал'), 'Захирал хэн бэ?')
         self.assertEqual(self.read('wifi байдаг уу'), 'Сургалтын орчин ямар вэ?')
 
+    def test_a_wish_to_know_about_a_topic(self):
+        # 11/27: «Би элсэлтийн талаар мэдмээр байна» found nothing.
+        for question, expected in (('Би элсэлтийн талаар мэдмээр байна', ADMISSION_QUESTION),
+                                   ('Төлбөрийн талаар мэдэхийг хүсэж байна', 'Сургалтын төлбөр хэд вэ?'),
+                                   ('Танай сургуулийн мэргэжлийн талаар мэдээлэл авмаар байна', 'Ямар мэргэжлээр сургадаг вэ?'),
+                                   ('Дотуур байрны тухай асуумаар байна', 'Дотуур байр байдаг уу?'),
+                                   ('тэтгэлгийн талаар мэдээлэл өгнө үү', 'Тэтгэлэг байдаг уу?')):
+            self.assertEqual(self.read(question), expected, question)
+        # A bare «… талаар» (a page section may answer it) and an unknown topic stay as asked.
+        for kept in ('Элсэлтийн талаар', 'Сургуулийн талаар мэдээлэл өгнө үү', 'Олимпиадын талаар мэдмээр байна'):
+            self.assertEqual(self.read(kept), kept, kept)
+
     def test_rooms_offices_and_the_way_here(self):
         self.assertEqual(self.read('604 хаана байдаг вэ'), '604 тоот хаана вэ?')
         self.assertEqual(self.read('999 хаана байдаг вэ'), '999 хаана байдаг вэ')       # no such room: as asked

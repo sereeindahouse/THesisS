@@ -17,6 +17,7 @@ import re
 import secrets
 import shutil
 import sqlite3
+import stat
 import time
 
 from content_store import ContentStore, canonical, shape_errors
@@ -166,13 +167,35 @@ class ContentReleaseManager:
         code_root = Path(__file__).resolve().parent
         return {name: snapshots.sha(snapshots.contained(code_root, name)) for name in CODE_FILES}
 
+    @staticmethod
+    def _files_under(data_root):
+        """Return (resolved root, files below it in sorted order), rejecting links.
+
+        Same guarantee as no_links() on every rglob() entry, but the root's
+        ancestors are checked once and each entry below the root is checked as
+        the walk reaches it (a link is never entered). Re-statting every
+        ancestor of all ~1000 files made each request take about 3 seconds.
+        """
+        root = snapshots.no_links(data_root)
+        reparse = getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 1024)
+        files, pending = [], [root]
+        while pending:
+            with os.scandir(pending.pop()) as entries:
+                for entry in entries:
+                    if (entry.is_symlink() or getattr(entry.stat(follow_symlinks=False),
+                                                      'st_file_attributes', 0) & reparse):
+                        raise ValueError('Symlinks and reparse points are not snapshot paths.')
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(Path(entry.path))
+                    elif entry.is_file(follow_symlinks=False):
+                        files.append(Path(entry.path))
+        return root, sorted(files)
+
     def _inventory(self, data_root, *, digest=True):
         records, total, folded = [], 0, set()
-        for path in sorted(data_root.rglob('*')):
-            path = snapshots.no_links(path)
-            if not path.is_file():
-                continue
-            name = path.relative_to(data_root).as_posix()
+        root, paths = self._files_under(data_root)
+        for path in paths:
+            name = path.relative_to(root).as_posix()
             if not snapshots.allowed(name) or name.casefold() in folded:
                 raise ReleaseInvalid('Unknown or case-colliding file in release data.')
             folded.add(name.casefold())

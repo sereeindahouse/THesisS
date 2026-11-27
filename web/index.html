@@ -191,6 +191,7 @@ dialog::backdrop{background:rgba(20,30,26,.35)}
         <button id="micStop" class="round stop" type="button" hidden aria-label="Бичлэг дуусгах"><span aria-hidden="true">■</span> Дуусгах</button>
         <button id="send" class="round send" type="submit" disabled aria-label="Илгээх" title="Илгээх · Enter"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
       </form>
+      <p id="micNotice" class="foot" hidden>Микрофоноор асуухад таны яриаг текст болгохоор Google-ийн үйлчилгээ рүү илгээнэ.</p>
       <p class="foot">Хариулт бүр сургуулийн вэб сайт болон сургуулиас өгсөн мэдээллээс, эх сурвалжтайгаа гарна.</p>
     </div>
   </section>
@@ -646,6 +647,7 @@ function refresh() {
   $("micStart").hidden = recording; $("micStop").hidden = !recording;
   $("micStart").disabled = !sttReady() || busy || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder;
   $("micStart").title = sttReady() ? "Микрофоноор асуух" : "Дуу таних үйлчилгээ бэлэн биш (Тохиргоо)";
+  $("micNotice").hidden = !sttReady();
   $("query").disabled = voiceBusy || active;
   $("send").disabled = busy || !$("query").value.trim();
   document.querySelectorAll("[data-example],[data-pick]").forEach(button => { button.disabled = busy; });

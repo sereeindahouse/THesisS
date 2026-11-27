@@ -297,6 +297,24 @@ TOPIC_WORDS = {
     'wifi': 'Сургалтын орчин ямар вэ?', 'wi-fi': 'Сургалтын орчин ямар вэ?', 'шмтк': SCHOOL_OVERVIEW_QUESTION,
     'коосэн': SCHOOL_OVERVIEW_QUESTION,
 }
+# 11/27: «Би элсэлтийн талаар мэдмээр байна» found nothing. A wish to know about a topic word asks the same as the word
+# alone; the word is said in the genitive before «талаар / тухай». A wish verb is required: a bare «… талаар» may name
+# a website page section (website_sections.py).
+ABOUT_WISH = re.compile(
+    r'(?:(?:би|надад|та|танаас)\s+)?(?:(?:энэ|танай|манай)\s+)?(?:(?:сургуулийн|коллежийн)\s+)?(?P<topic>.+?)\s+(?:талаар|тухай)\s+'
+    r'(?:(?:дэлгэрэнгүй|илүү|сайн)\s+)?(?:мэдээлэл\s+)?(?:'
+    r'мэдмээр|мэдэхийг\s+(?:хүсч|хүсэж|хүсээд)|мэдэх\s+гэсэн|асуумаар|асуух\s+гэсэн|асуух\s+юм|сонирхож|сонирхсон|'
+    r'авмаар|авах\s+гэсэн|сонсмоор|хэлж\s+өгөөч|хэлж\s+өгнө\s+үү|ярьж\s+өгөөч|тайлбарлаж\s+өгөөч|өгнө\s+үү|өгөөч|хэрэгтэй)'
+    r'(?:\s+(?:байна|байгаа|байсан))?(?:\s+(?:юм|аа|л))*(?:\s+(?:уу|юу))?')
+# The genitive of the topic words a visitor names before «талаар».
+TOPIC_GENITIVE = {
+    'элсэлтийн': 'элсэлт', 'төлбөрийн': 'төлбөр', 'сургалтын төлбөрийн': 'сургалтын төлбөр', 'мэргэжлийн': 'мэргэжил',
+    'мэргэжлүүдийн': 'мэргэжлүүд', 'хөтөлбөрийн': 'хөтөлбөр', 'тэтгэлгийн': 'тэтгэлэг', 'дадлагын': 'дадлага',
+    'дотуур байрны': 'дотуур байр', 'тэнхимийн': 'тэнхим', 'тэнхимүүдийн': 'тэнхимүүд', 'түүхийн': 'түүх',
+    'бүртгэлийн': 'бүртгэл', 'элсэлтийн шалгалтын': 'элсэлтийн шалгалт', 'элсэлтийн шаардлагын': 'элсэлтийн шаардлага',
+    'карьерын төвийн': 'карьерын төв', 'оюутны зөвлөлийн': 'оюутны зөвлөл', 'хоолны газрын': 'хоолны газар',
+    'спорт заалны': 'спорт заал', 'хичээлийн хуваарийн': 'хичээлийн хуваарь', 'эрхэм зорилгын': 'эрхэм зорилго',
+}
 # «<алба/өрөө> байна уу», «… бий юу», «… байдаг уу»: whether an office exists is answered by where it is.
 EXISTS_ASK = re.compile(r'(?:сургуульд\s+|энд\s+)?(.+?)\s+(?:байна|байдаг|бий)\s+(?:уу|юу)')
 # «гадаад харилцааны алба хаана байдаг вэ»: the office the table names «Гадаад харилцаа, карьер хөгжлийн төв».
@@ -698,6 +716,11 @@ class QuestionPlanner:
             return None
         if plain in TOPIC_WORDS and not sentences_only:
             return TOPIC_WORDS[plain]
+        about = ABOUT_WISH.fullmatch(plain)
+        if about:
+            topic = TOPIC_GENITIVE.get(about.group('topic'), about.group('topic'))
+            if topic in TOPIC_WORDS:
+                return TOPIC_WORDS[topic]
         for pattern, question in EVERYDAY_QUESTIONS:
             if pattern.fullmatch(plain):
                 return question

@@ -33,7 +33,7 @@ ROOT_TOPIC, REVIEW_TOPIC = 'nmct', 'review-needed'
 REASON_TOPICS = {
     'reception_person': 'staff.directory', 'reception_name_shared': 'staff.directory', 'reception_role_holder': 'staff.directory',
     'reception_role_list': 'staff.directory', 'reception_role_name': 'staff.directory',
-    'reception_post_shared': 'staff.directory', 'reception_staff_at': 'staff.availability',
+    'reception_post_shared': 'staff.directory', 'reception_post_shared_at': 'staff.availability', 'reception_staff_at': 'staff.availability',
     'reception_subject_teachers': 'staff.directory', 'reception_teacher_subjects': 'staff.directory',
     'reception_office_staff': 'staff.directory', 'reception_class_teacher': 'classes.groups',
     'reception_teacher_office': 'staff.offices', 'reception_teacher_office_unrecorded': 'staff.offices',

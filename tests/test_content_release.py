@@ -55,6 +55,28 @@ class ReleaseTests(unittest.TestCase):
         self.manager.validate(value['release_id'])
         return value['release_id']
 
+    def test_inventory_walk_matches_rglob_and_rejects_a_junction(self):
+        # 11/27: the per-request seal check re-statted every ancestor of ~1000
+        # files (3 s). The scandir walk must list the same files in the same
+        # order and still refuse a link anywhere below the release data.
+        release_id = self.sealed()
+        data = self.manager._path(release_id) / 'data'
+        expected = [path for path in sorted(data.rglob('*')) if path.is_file()]
+        root, files = self.manager._files_under(data)
+        self.assertEqual([p.relative_to(root) for p in files], [p.relative_to(data) for p in expected])
+        self.assertEqual(self.manager._inventory(data), self.manager.verify(release_id)['files'])
+        import os, subprocess
+        if os.name != 'nt':
+            self.skipTest('junctions are a Windows feature')
+        outside = Path(self.temp.name) / 'outside'; outside.mkdir()
+        link = data / 'CORE' / 'linked'
+        made = subprocess.run(['cmd', '/c', 'mklink', '/J', str(link), str(outside)], capture_output=True)
+        if made.returncode != 0:
+            self.skipTest('could not create a junction here')
+        self.addCleanup(os.rmdir, link)
+        with self.assertRaises(ValueError):
+            self.manager._files_under(data)
+
     def test_stage_and_seal_never_activate_or_modify_originals(self):
         release_id = self.sealed()
         self.assertIsNone(self.manager.resolve())
