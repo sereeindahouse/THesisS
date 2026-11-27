@@ -62,6 +62,8 @@ def planned_copies(root: Path):
     # 11/16: нэг эх бичвэр, хоёр PDF — багшид үзүүлэх богино ноорог ба бүтэн ажлын ноорог.
     add('01_Диплом', root / 'thesis/main_teacher.pdf', 'Диплом_1_багшид_үзүүлэх.pdf')
     add('01_Диплом', root / 'thesis/main.pdf', 'Диплом_2_бүтэн_ноорог.pdf')
+    # 11/27: which files are K (the teacher sees them, the user edits) and which are KS (agent notes).
+    add('01_Диплом', root / 'thesis/K-KS-ЗААВАР.mn.md', '00_K_ба_KS_засах_заавар.md')
     # 11/20: найруулгын туршилтын өмнө/дараа хуудас — хэрэглэгч уншаад таалагдаагүй мөрийг буцаалгана.
     add('01_Диплом', _newest(root.glob('reports/Хэллэгийн туршилт *.md')), 'Хэллэгийн_туршилт_өмнө_дараа.md')
     # 11/16: docs/diagrams/*.pdf (11/06-ны хуучин зураг) хуулахгүй — диаграммууд одоо хоёр PDF-ийн дотор.
