@@ -29,6 +29,6 @@
       "statusBar.foreground": "#FFFFFF",
       "activityBar.activeBorder": "#C6A8EF"
     },
-    "window.title": "[THesisS · III] III/I · 12/01 Үзлэг №1: чатын хэсгийг үзүүлнэ. Чатын тусдаа хуулбар; багш, өрөө, алба, … ${separator} ${dirty}${activeEditorShort}"
+    "window.title": "[THesisS · III] III · 12/01 Үзлэг №1: тэнхимийн заавраар 6 слайд + арга зүйн бүлэгтэй Word файл; арга з… ${separator} ${dirty}${activeEditorShort}"
   }
 }
