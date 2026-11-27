@@ -1,0 +1,6 @@
+{
+  "name": "thesis-docx",
+  "private": true,
+  "description": "Word copy of the supervisor draft (Үзлэг №1 asks for a Word file)",
+  "dependencies": { "docx": "^9" }
+}

@@ -17,7 +17,8 @@ CHAPTERS = ['Chapter1_Introduction', 'Chapter2_Literature', 'Chapter3_Methodolog
             'Chapter4_Results', 'Chapter5_Conclusion']
 
 
-FULL_DRAFT = True   # False: follow the short teacher draft (main_teacher.tex)
+FULL_DRAFT = True
+LIST_STACK = []   # False: follow the short teacher draft (main_teacher.tex)
 
 
 def printed(tex):
@@ -217,10 +218,17 @@ def convert():
                     index += 1
                 index += 1
                 out.append('$$' + ' '.join(b for b in block if not b.startswith('\\label')) + '$$')
-            elif re.match(r'\\(begin|end)\{(enumerate|itemize)\}', line) or re.match(r'\\label\{', line):
+            elif m_list := re.match(r'\\(begin|end)\{(enumerate|itemize)\}', line):
+                if m_list.group(1) == 'begin':
+                    LIST_STACK.append(m_list.group(2))
+                elif LIST_STACK:
+                    LIST_STACK.pop()
+                continue
+            elif re.match(r'\\label\{', line):
                 continue
             elif match := re.match(r'\s*\\item\s+(.*)', line):
-                out.append('- ' + inline(refs(match.group(1))))
+                mark = '1. ' if LIST_STACK and LIST_STACK[-1] == 'enumerate' else '- '
+                out.append(mark + inline(refs(match.group(1))))
             else:
                 out.append(inline(refs(line)))
     text = '\n'.join(out)
