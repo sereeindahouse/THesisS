@@ -721,3 +721,4 @@ __pycache__/
 /tools/thesis_docx/*
 !/tools/thesis_docx/build.js
 !/tools/thesis_docx/package.json
+!/tools/thesis_docx/reception_log.js

@@ -8,7 +8,10 @@ slides. New slides are drawn as editable PowerPoint shapes (user 11/20: «диа
 only horizontal and vertical lines (Canva draws rotated lines differently), and no numbers inside the diagrams
 (teacher 11/23).
 
-    python tools/nmct_slides/build_exam1_v110.py <pylibs> <base v109.pptx> <out.pptx>
+    python tools/nmct_slides/build_exam1_v110.py <pylibs> <base v109.pptx> <out.pptx> [system_structure.png]
+
+The optional PNG (tools/export_thesis_figure.py system_structure ...) replaces the v109 system-structure picture, so the
+slide shows the same figure as the thesis (11/27: stored answers added to Figure 3.3).
 """
 import copy
 import sys
@@ -23,6 +26,7 @@ from pptx.oxml.ns import qn                                      # noqa: E402
 from pptx.util import Emu, Pt                                    # noqa: E402
 
 BASE, OUT = sys.argv[2:4]
+SYSTEM_PNG = sys.argv[4] if len(sys.argv) > 4 else None
 FONT = 'Times New Roman'
 BLACK = RGBColor(0, 0, 0)
 NAVY = RGBColor(0x1F, 0x3A, 0x93)
@@ -422,15 +426,27 @@ notes(s_plan, 'Төлөвлөгөөг 5-р сар хүртэл сар бүрээ
 # ---------------------------------------------------------------- order: keep cover, goal, objectives, system, tree, thanks
 goal, objectives, system_slide, tree_slide, thanks = slides[1], slides[2], slides[7], slides[8], slides[14]
 set_title(system_slide, 'АРГА ЗҮЙ: СИСТЕМИЙН БҮТЭЦ')
+if SYSTEM_PNG:
+    old_figure = next(s for s in system_slide.shapes if s.name == 'Group 17')
+    box = (old_figure.left, old_figure.top, old_figure.width, old_figure.height)
+    old_figure._element.getparent().remove(old_figure._element)
+    from PIL import Image
+    pw, ph = Image.open(SYSTEM_PNG).size
+    scale = min(box[2] * 1.12 / pw, (R_LIMIT := 9_250_000 - box[1]) / ph)
+    w, h = int(pw * scale), int(ph * scale)
+    picture = system_slide.shapes.add_picture(SYSTEM_PNG, Emu((18_288_000 - w) // 2), Emu(box[1]), Emu(w), Emu(h))
+    picture.name = 'System structure (thesis Figure 3.3)'
+
 set_title(tree_slide, 'АРГА ЗҮЙ: МЭДЛЭГИЙН МОД')
 notes(goal, 'Миний ажлын зорилго бол сургуулийн албан мэдээллийг Монгол хэлээр бичиж эсвэл ярьж асуухад сургуулийн баримтаас хариулт өгч, '
       'дуугаар уншдаг систем хөгжүүлэх. Хариулт бүр аль баримтаас авсан нь харагдана. (25 сек)')
 notes(objectives, 'Үүний тулд дөрвөн зорилт тавьсан: мэдээлэл цуглуулж сан бүрдүүлэх, эх сурвалжтай хариулт гаргах, яриаг текст болгож хариултыг '
       'дуугаар унших, бүгдийг нэг систем болгох. Зорилт бүр хүлээгдэж буй үр дүнгийн хүснэгтэд нэг мөртэй. (25 сек)')
 notes(system_slide, 'Системийн бүтэц: асуулт бичгээр эсвэл дуугаар орж ирнэ. Өрөө, анги, багш, хуваарийн асуултыг сургуулийн хүснэгтээс, '
-      'бусдыг вэб сайтаас үгээр болон утгаар хайж, дүрмээр сонгоод эх сурвалжтай нь харуулна. Олдохгүй бол ягаан хэсэг: хандах алба, өрөөг заана. (50 сек)')
+      'олон асуудаг сэдвийг сайтаас бүрдүүлсэн хадгалсан хариултаас, бусдыг вэб сайтаас үгээр болон утгаар хайж, дүрмээр сонгоод эх сурвалжтай нь харуулна. Олдохгүй бол ягаан хэсэг: хандах алба, өрөөг заана. (50 сек)')
 notes(tree_slide, 'Мэдээллийг мэдлэгийн модонд хүрээ, дэд сэдвээр ангилсан. Мод нь дутуу мэдээллийг харуулж, сургуульд хүсэх жагсаалт гаргахад тусалсан, '
-      'хариулт бүр аль хүрээнээс гарсныг дэлгэцэнд харуулдаг. Хайлтад нэмэлт оноо өгөх алхмыг бодит асуултаар хэмжиж байж асаана. (40 сек)')
+      'хариулт бүр аль хүрээнээс гарсныг дэлгэцэнд харуулдаг. Өөрөөр хэлбэл мод системийн хамрах хүрээг тодорхойлдог. Хайлтад нэмэлт оноо өгөх алхмыг '
+      'хэмжихэд 76 асуултаас зөв хуудас эхэнд гарсан нь 55-аас 56 болсон, бараг ялгаагүй тул асаагаагүй. (40 сек)')
 order = [cover, s_reason, goal, objectives, s_research, s_method, system_slide, tree_slide, s_results, s_plan, thanks]
 sld_ids = prs.slides._sldIdLst
 by_part = {}
