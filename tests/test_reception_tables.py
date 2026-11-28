@@ -673,5 +673,25 @@ class DepartmentStaffTests(unittest.TestCase):
         self.assertIn('Т.Оюун', answer)
 
 
+
+class BigBankTableTests(unittest.TestCase):
+    """11/28 (6): the labs asked alone, and an office by the stems of its words."""
+
+    def test_labs_and_an_office_by_stems(self):
+        from reception_tables import ReceptionTables, Room, Staff
+        path = ReceptionAnswerPath(tables=ReceptionTables(
+            rooms=(Room(floor=6, name='601', purpose='Физикийн лаборатори'), Room(floor=3, name='301', purpose='Химийн лаборатори'),
+                   Room(floor=6, name='603', purpose='Цахилгааны лаборатори'), Room(floor=6, name='604', purpose='Компьютерын лаборатори'),
+                   Room(floor=10, name='1007', purpose='Гадаад харилцаа, карьер хөгжлийн төв')),
+            timetable=(), classes=(),
+            staff=(Staff(name='Б.Мөнх', department='Гадаад харилцаа, карьер хөгжлийн төв', room='1007', role='Мэргэжилтэн'),)),
+            enabled=True, complete=True)
+        labs = path.answer('лаборатори хаана байдаг вэ')
+        self.assertIsNotNone(labs)
+        for room in ('301', '601', '603', '604'):
+            self.assertIn(room, labs['answer'])
+        self.assertIn('Б.Мөнх', path.answer('карьерын төвийн ажилтан хэн бэ')['answer'])
+
+
 if __name__ == '__main__':
     unittest.main()

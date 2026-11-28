@@ -139,7 +139,9 @@ COURTESY = re.compile(r'(?:\s*(?:уучлаарай|өршөөгөөрэй|са�
                       r'туслаач|нэг\s+юм\s+асууя|асуух\s+юм\s+байна|би\s+(?:шинэ\s+)?(?:оюутан|элсэгч|эцэг\s+эх|зочин)|'
                       r'би\s+элсэх\s+гэсэн\s+юм|'
                       # 11/28 (3), long chats: an answer acknowledged before the next question («за ойлголоо, …»).
-                      r'ойлголоо|ойлгосон|ойлгомжтой|баярлалаа|за\s+тэгье|тийм\s+үү|за\s+за|болж\s+байна)\s*[,!.]+|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу\s*[?？]+)+\s*(?=\S)', re.I)
+                      r'ойлголоо|ойлгосон|ойлгомжтой|баярлалаа|за\s+тэгье|тийм\s+үү|за\s+за|болж\s+байна)\s*[,!.]+|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу\s*[?？]+'
+                      # 11/28 (6) sweep: «сайн байна уу Зоригт багш хаана байдаг вэ» — no comma, two words or more after it.
+                      r'|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу(?=\s+\S+\s+\S))+\s*(?=\S)', re.I)
 
 
 def _without_courtesy(text):
@@ -243,7 +245,10 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
     (r'(?:даваа|мягмар|лхагва|пүрэв|баасан)\s+гараг(?:т)?\s+(?:сургууль\s+)?(?:ажиллах|ажилладаг|нээлттэй)' + _END,
      'Сургууль хэдэн цагт ажилладаг вэ?'),
     (r'(?:(?:коосэн|сургуулиа|сургууль|энд|шмтк)\s+)?төгсөөд\s+юу\s+(?:болох|болдог|хийх|хийдэг)' + _END
-     + r'|төгсөөд\s+(?:их\s+)?сургуульд\s+(?:орж|дэвшиж|үргэлжлүүлэн\s+суралцаж)\s+(?:болох|болно)' + _END,
+     + r'|төгсөөд\s+(?:их\s+)?сургуульд\s+(?:орж|дэвшиж|үргэлжлүүлэн\s+суралцаж)\s+(?:болох|болно)' + _END
+     # 11/28 (6) sweep: «энд сурвал ямар ажилд орох вэ»
+     + r'|(?:(?:энд|танайд|энэ\s+сургуульд)\s+)?(?:сурвал|суралцвал|төгсвөл|сурснаар|төгссөнөөр)\s+(?:ямар\s+){1,2}(?:ажил(?:д|тай)?|мэргэжилтэй)\s+'
+       r'(?:орох|ордог|болох|болдог|ажиллах|ажилладаг)' + _END,
      '5-р курс төгссөний дараа ямар зам байдаг вэ?'),
     (r'(?:манай|миний)\s+(?:хүүхэд|охин|хүү|дүү)\s+\d{1,2}(?:\s*-?\s*р)?\s+ангид\s+сурдаг\s+'
      r'(?:элсүүлмээр|оруулмаар|элсүүлэх|оруулах)(?:\s+(?:байна|гэсэн\s+юм|гэж\s+байна))?'
@@ -288,6 +293,8 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
      SCHOOL_OVERVIEW_QUESTION),
     (r'(?:энд\s+|энэ\s+сургуульд\s+)?ямар\s+(?:ямар\s+)?хичээл(?:үүд)?\s+(?:ордог|заадаг|үздэг|судалдаг|сурдаг)' + _END,
      SCHOOL_OVERVIEW_QUESTION),
+    # 11/28 (6) sweep: «би шинэ оюутан» said alone showed a quality-survey line; it is a greeting that asks for help.
+    (r'би\s+(?:шинэ\s+)?(?:оюутан|элсэгч|эцэг\s+эх|зочин|ажилтан)(?:\s+(?:байна|юм))?' + _END, 'Надад тусална уу?'),
     # Where the teachers sit, Wi-Fi, how to get to the school.
     (r'багш\s+нар(?:ын)?(?:\s+өрөө)?\s+хаана(?:\s+(?:суудаг|байдаг|байна|байрладаг))?' + _END, 'Багш нарын өрөө хаана вэ?'),
     (r'(?:(?:сургуульд|анги(?:\s+танхим)?д|энд)\s+)?(?:wi-?fi|вай\s*фай|утасгүй\s+интернэт|интернэт)'
@@ -969,6 +976,25 @@ class QuestionPlanner:
                 return short
         return None
 
+    # 11/28 (6) sweep: «оюутны алба руу яаж очих вэ», «сургалтын албаны өрөөний дугаар хэд вэ», «эмнэлэг хаана байдаг вэ».
+    _OFFICE_PLACE = re.compile(r'\s*(?P<office>.{2,60}?)(?:(?P<to>\s+(?:руу|рүү|луу|лүү))\s+(?:яаж|хэрхэн)\s+(?:очих|явах|орох)'
+                               r'|(?P<gen>гийн|ийн|ний|ны|ын)\s+(?:өрөөний\s+дугаар\s+(?:хэд|хэдэн)|өрөө\s+(?:хэдэн|хэддүгээр)\s+тоот|'
+                               r'өрөө\s+хаана(?:\s+(?:байдаг|байна))?))\s+(?:вэ|бэ)\s*[?？.!]*\s*', re.I)
+
+    def _office_place(self, text):
+        """«<алба> хаана байдаг вэ?» for a recorded office asked the way to or its room number; None otherwise."""
+        if re.fullmatch(r'\s*эмнэлэг(?:ийн\s+өрөө)?\s+хаана(?:\s+(?:байдаг|байна))?\s+(?:вэ|бэ)\s*[?？.!]*\s*', text, re.I):
+            return 'Эмч хаана байдаг вэ?'
+        asked = self._OFFICE_PLACE.fullmatch(text)
+        if not asked:
+            return None
+        said = asked['office'].strip().casefold()
+        for office in self.offices:
+            name = office.rsplit(',', 1)[-1].strip()
+            if name and name.casefold() == said:
+                return name + ' хаана байдаг вэ?'
+        return None
+
     def _statement_about(self, original, text):
         """The class, teacher or office a sentence with no question names («хүүхэд маань КУ-2 ангид сурдаг», «Сэлмаа
         багш манай ангийн багш»), or None. A request («… харуулаач», «… өгнө үү»), a wish to meet or to get a paper, and a
@@ -981,7 +1007,7 @@ class QuestionPlanner:
                 or re.search(r'(?:аач|ээч|ооч|өөч|аарай|ээрэй|оорой|өөрэй|(?<!\w)өгнө|(?<!\w)хэлнэ|харуул\w*|'
                              r'мэдмээр|мэдэх\s+гэсэн|асуух\s+гэсэн|асуумаар|гэсэн\s+юм|байх\s+ёстой|'
                              # a wish or a thing asked for: «… холбогдмоор байна», «… хуваарь авмаар байна», «… багшийн имэйл»
-                             r'маар|моор|мөөр|хүс|хэрэгтэй|имэйл|мэйл|утас|утсы|өрөө|давхар|хуваар|хичээл|цаг|хаяг|тоот|байршил|'
+                             r'маар|моор|мөөр|хүс|хэрэгтэй|имэйл|имейл|мэйл|майл|утас|утсы|өрөө|давхар|хуваар|хичээл|цаг|хаяг|тоот|байршил|'
                              # «… зурагтай танилцуулгыг үзье» (a request in the first person: -ъя, -ье, -ъё, -ая)
                              r'зураг|танилцуул|\w(?:ъя|ье|ъё|ая|оё|ёё)(?!\w))',
                              said, re.I)):
@@ -1147,6 +1173,15 @@ class QuestionPlanner:
                              self._office):
                     text, rewrite = rule(text)
                     rewrites += [rewrite] if rewrite else []
+                # 11/28 (6) sweep: «ку2 ийн хуваарь» — the ending written apart from the class code.
+                joined = re.sub(r'([А-ЯӨҮЁ]{2}-\d)\s+(?:ийн|ын|ний)(?!\w)', r'\1 ангийн', text)
+                if joined != text:
+                    rewrites.append(dict(rule='class_ending', text=text, value=joined))
+                    text = joined
+            office_place = self._office_place(text)
+            if office_place:
+                rewrites.append(dict(rule='office_place', text=text, value=office_place))
+                text = office_place
             if self.staff_names:
                 for rule in (self._post_subject, self._staff_name, self._teacher_intent, self._desk_wording):
                     text, rewrite = rule(text)

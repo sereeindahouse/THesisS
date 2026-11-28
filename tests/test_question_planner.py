@@ -590,5 +590,32 @@ class SchoolGeneralWordingTests(unittest.TestCase):
             self.assertEqual([part['query'] for part in planner().plan(said)['parts']], [SCHOOL_OVERVIEW_QUESTION], said)
 
 
+
+class BigBankWordingTests(unittest.TestCase):
+    """11/28 (6): a bank of 230 messages typed the way visitors type them."""
+
+    def plan(self):
+        return QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'зоригт': 'Т.Зоригт', 'ганбаяр': 'Ц.Ганбаяр'},
+                               offices=['Оюутны алба', 'Сургалтын алба', 'Эмч'], topic_keywords=[],
+                               staff=['Т.Зоригт', 'Ц.Ганбаяр'], class_names=['КУ-2'])
+
+    def ask(self, text):
+        return [part['query'] for part in self.plan().plan(text)['parts']]
+
+    def test_greeting_without_comma_and_typed_email(self):
+        self.assertEqual(len(self.ask('сайн байна уу Зоригт багш хаана байдаг вэ')), 1)
+        self.assertNotIn('юу мэдэх', self.ask('ганбаяр багшийн имейл')[0])
+
+    def test_the_way_to_an_office_and_its_room_number(self):
+        self.assertEqual(self.ask('оюутны алба руу яаж очих вэ'), ['Оюутны алба хаана байдаг вэ?'])
+        self.assertEqual(self.ask('сургалтын албаны өрөөний дугаар хэд вэ'), ['Сургалтын алба хаана байдаг вэ?'])
+        self.assertEqual(self.ask('эмнэлэг хаана байдаг вэ'), ['Эмч хаана байдаг вэ?'])
+
+    def test_class_ending_apart_and_a_self_introduction(self):
+        self.assertEqual(self.ask('ку2 ийн хуваарь')[0], 'КУ-2 ангийн хуваарь')
+        self.assertEqual(self.ask('би шинэ оюутан'), ['Надад тусална уу?'])
+
+
 if __name__ == '__main__':
     unittest.main()

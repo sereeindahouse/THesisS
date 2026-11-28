@@ -228,6 +228,8 @@ def spoken_form(text):
     text = weekday_words(strip_fillers(text))
     # «магадлал нь итгэмжлэл», «магадлалын итгэмжлэл» are typed for «магадлан итгэмжлэл» (accreditation), 11/28 (3).
     text = re.sub(r'(?<!\w)магадла(?:л(?:ын)?|н)\s+(?:нь\s+)?итгэмжлэл', 'магадлан итгэмжлэл', text, flags=re.I)
+    # «имейл», «майл» are typed for «имэйл» (11/28 (6) sweep: «… багшийн имейл» was read as a sentence with no question).
+    text = re.sub(r'(?<!\w)(?:имейл|имеил|майл)(?=\w*)', 'имэйл', text, flags=re.I)
     # «даавуу тал» (fabric) typed for «давуу тал» (advantage), 11/28 (5).
     text = re.sub(r'(?<!\w)даавуу(?=\s+тал)', 'давуу', text, flags=re.I)
     # «нөгөө … билээ» (that … again?) recalls a thing: «нөгөө» is a filler there, not «the other» (review).
@@ -1657,6 +1659,10 @@ class ReceptionAnswerPath:
         if self.tables is None or re.search(r'\d', value):
             return []
         words = re.findall(r'[а-яөүё]+', _key(value))
+        if words in (['лаборатори'], ['лаб'], ['лабораториуд']):
+            # 11/28 (6) sweep: «лаборатори хаана байдаг вэ» named none (too many); every lab, at most twelve.
+            labs = [room for room in self.tables.rooms if re.search(r'лаб', _key(room.purpose or ''))]
+            return sorted(labs, key=lambda room: (room.floor, room.name))[:12]
         found = [room for room in self.tables.rooms
                  if words and re.findall(r'[а-яөүё]+', _key(room.purpose or ''))[-len(words):] == words]
         if not found and len(words) >= 2:
@@ -1830,6 +1836,14 @@ class ReceptionAnswerPath:
             whole = re.compile(r'(?<!\w)' + re.escape(key + 'н') + r'(?!\w)')
             people = [person for person in self.tables.staff
                       if person.department and whole.search(re.sub(r'\s+', ' ', _key(person.department)))]
+        if not people:
+            # 11/28 (6) sweep: «карьерын төв» names «Гадаад харилцаа, карьер хөгжлийн төв» — every said word is a word of the
+            # unit (the first five letters for a long word, the whole of a short one).
+            said = re.findall(r'[а-яөүё]+', key)
+            def holds(unit):
+                own = re.findall(r'[а-яөүё]+', _key(unit))
+                return said and all(any(word == part or (len(word) >= 5 and part[:5] == word[:5]) for part in own) for word in said)
+            people = [person for person in self.tables.staff if person.department and holds(person.department)]
         return people if len({_key(person.department) for person in people}) == 1 else []
 
     def _common_slots(self):
