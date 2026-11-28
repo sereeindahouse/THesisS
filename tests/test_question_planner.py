@@ -458,5 +458,14 @@ class TimedFollowupTests(unittest.TestCase):
             self.assertTrue(parts[-1]['query'].startswith('Б.Сэлмаа багш'), (later, parts[-1]['query']))
 
 
+
+class HyphenatedNameTests(unittest.TestCase):
+    def test_a_hyphenated_given_name_alone(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'цэнд-очир': 'Т.Цэнд-Очир'}, offices=[], topic_keywords=[], staff=[],
+                               class_names=[])
+        self.assertEqual(plan.plan('Цэнд-Очир гэж хэн бэ?')['parts'][0]['query'], 'Т.Цэнд-Очир гэж хэн бэ?')
+
+
 if __name__ == '__main__':
     unittest.main()

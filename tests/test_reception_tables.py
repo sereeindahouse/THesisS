@@ -581,5 +581,46 @@ class WeekdayAndMeetingWordingTests(unittest.TestCase):
             self.assertFalse(asks_meeting_nobody(named), named)
 
 
+
+class SweepSingleQuestionTests(unittest.TestCase):
+    """11/28 sweep of every single question: a post said as recorded, a room's purpose, staff without lessons."""
+
+    def path(self):
+        from reception_tables import ReceptionTables, Room, Service, Staff
+        tables = ReceptionTables(
+            rooms=(Room(floor=5, name='508', purpose='Захирал, захирлын туслах', services=(Service('Захирал', '', ''),)),
+                   Room(floor=10, name='1007', purpose='Гадаад харилцаа, карьер хөгжлийн төв'),
+                   Room(floor=-1, name='В3', purpose='Робокон клуб')),
+            timetable=(),
+            staff=(Staff(name='Т.Оюунжаргал', department='Захиргаа', room='508', role='Захирал', email='oyunjargal@nmct.edu.mn'),
+                   Staff(name='Б.Мөнхчимэг', department='Төв', room='1007', role='Гадаад харилцаа карьерын мэргэжилтэн'),
+                   Staff(name='Х.Жаргалсүрэн', department='Төв', room='1007', role='Гадаад харилцаа карьерын мэргэжилтэн'),
+                   Staff(name='Ж.Уранчимэг', department='Алба', role='Дотоод хяналт, чанарын менежер'),
+                   Staff(name='Ч.Дагвадулам', department='Захиргаа', role='Ресепшн')),
+            classes=())
+        path = ReceptionAnswerPath(tables=tables, enabled=True, complete=True)
+        return path
+
+    def test_room_purpose(self):
+        path = self.path()
+        self.assertTrue(path.recognizes('508 тоот ямар өрөө вэ?'))
+        answer = path.answer('508 тоот ямар өрөө вэ?')['answer']
+        self.assertIn('Захирал, захирлын туслах', answer)
+        self.assertIn('Т.Оюунжаргал', answer)
+        self.assertIn('Робокон клуб', path.answer('В3 тоот ямар өрөө вэ?')['answer'])
+        self.assertIsNone(path._room_what('999 тоот ямар өрөө вэ?'))
+
+    def test_post_said_as_recorded(self):
+        path = self.path()
+        people, _ = path._exact_post_people('Гадаад харилцаа карьерын мэргэжилтэн хэн бэ?')
+        self.assertEqual([one.name for one in people], ['Б.Мөнхчимэг', 'Х.Жаргалсүрэн'])
+        self.assertEqual([one.name for one in path._exact_post_people('Дотоод хяналт, чанарын менежер хэн бэ?')[0]],
+                         ['Ж.Уранчимэг'])
+        # Where, with no recorded room, is not answered with a card that names no place.
+        self.assertIsNone(path._exact_post_people('Ресепшн хаана байдаг вэ?'))
+        # Who heads a department stays with its website page.
+        self.assertIsNone(path._exact_post_people('Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?'))
+
+
 if __name__ == '__main__':
     unittest.main()

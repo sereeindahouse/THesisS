@@ -773,7 +773,7 @@ class QuestionPlanner:
                     text=match.group(1), value=full)
         # «Сэлмаагийн өрөө хаана вэ?» (a given name in the genitive, round 13) is that teacher's office.
         for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,}?)(?:гийн|ийн|ын)(?=\s+(?:өрөө|ажлын\s+өрөө|имэйл))',
-                                 text):
+                                 text, re.I):
             full = self.given_names.get(match.group(1).casefold())
             if full:
                 return (text[:match.start()] + full + ' багшийн' + text[match.end():],
@@ -789,7 +789,7 @@ class QuestionPlanner:
         # 11/25: «Оюунжаргал гэж хэн бэ?», «Хандсүрэн гэдэг хүн хэн бэ?» or the given name alone asks who the
         # person is; a staff member who is no teacher is named without «багш».
         match = re.fullmatch(r'\s*([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+(?:гэж|гэдэг\s+хүн|гэдэг\s+багш|гэдэг|гуай))?'
-                             r'(?:\s+(?:чинь|маань))?(?:\s+хэн\s+(?:бэ|вэ))?\s*[?.!]*\s*', text)
+                             r'(?:\s+(?:чинь|маань))?(?:\s+хэн\s+(?:бэ|вэ))?\s*[?.!]*\s*', text, re.I)
         full = self.given_names.get(match.group(1).casefold()) if match else None
         if full:
             return full + ' гэж хэн бэ?', dict(rule='staff_name', text=match.group(1), value=full)
