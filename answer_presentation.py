@@ -571,6 +571,12 @@ def plain_note(result, referral_text=''):
         q = str(result.get('query') or '').casefold()
         lead = ('Ажилтны гар утасны дугаарыг энд өгдөггүй.' if re.search(r'утас|дугаар', q)
                 else 'Хүний регистр, иргэний үнэмлэхийн дугаарыг энд өгдөггүй.')
+    elif reason in _BY_REASON and result.get('note_kept') and result.get('message'):
+        # 11/28 sweep: the tables' own note names the person and where they sit («Х.Ганчимэг — сургуулийн имэйл
+        # бүртгэгдээгүй. Ажлын өрөө: …»); the stock sentence «Энэ хүний …» named nobody.
+        lead = str(result.get('audit_message', result['message'])).strip()
+        if referral_text and lead.endswith(referral_text):
+            lead = lead[:-len(referral_text)].strip()
     elif reason in _BY_REASON:
         lead = _BY_REASON[reason]
     else:

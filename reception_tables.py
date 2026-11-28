@@ -2467,13 +2467,16 @@ class ReceptionAnswerPath:
             return None
         people = [person for person in self.tables.staff if person.role and '(' not in person.role
                   and re.findall(r'[а-яөүё]+', _key(person.role)) == words]
+        if not 1 <= len(people) <= 8:
+            return None
         if asked['ask'].casefold().startswith('хаана') and not any(self._room_of(person) is not None for person in people):
-            return None      # «Ресепшн хаана байдаг вэ?»: a card that names no place is no answer to where
-        return (people, asked['post'].strip()) if 1 <= len(people) <= 8 else None
+            return (people, asked['post'].strip(), False)   # «Ресепшн хаана байдаг вэ?»: no place to say — a note
+        return (people, asked['post'].strip(), True)
 
     # «508 тоот ямар өрөө вэ?», «1005 тоотод юу байдаг вэ?» — every room answered «олдсонгүй».
     _ROOM_WHAT = re.compile(r'\s*(?P<room>[0-9А-ЯӨҮЁа-яөүёA-Za-z]{1,6})\s+(?:тоот(?:\s+өрөө)?|тоот\s+нь|тоотод|өрөө)\s+'
-                            r'(?:(?:ямар|юуны|ямар\s+зориулалттай)\s+өрөө|юу|юу\s+байдаг|ямар\s+зориулалттай)\s+(?:вэ|бэ)\s*[?？.!]*\s*', re.I)
+                            r'(?:(?:ямар|юуны|ямар\s+зориулалттай)\s+өрөө|юу|юу\s+байдаг|ямар\s+зориулалттай'
+                            r'|(?P<who>хэн(?:\s+хэн)?\s+(?:суудаг|байдаг|ажилладаг)))\s+(?:вэ|бэ)\s*[?？.!]*\s*', re.I)
 
     def _room_what(self, query):
         """The recorded room a «what is room N» question names, or None."""
@@ -2483,12 +2486,16 @@ class ReceptionAnswerPath:
         if not asked:
             return None
         name = asked['room'].replace('B', 'В').replace('b', 'в')
+        if asked['who'] and name[:1].isdigit():
+            return None      # a numbered room's «who sits there» keeps its own answer
         return next((room for room in self.tables.rooms if _key(room.name) == _key(name)), None)
 
     def _room_what_reply(self, query, room):
         prefix = '[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else ''
         text = room.name + ' тоот — ' + (room.purpose or 'зориулалт нь бүртгэгдээгүй өрөө') + ', ' + floor_text(room.floor) + '.'
         seated = [person for person in self.tables.staff if _key(person.room) == _key(room.name)]
+        if not seated and self._ROOM_WHAT.fullmatch(query)['who']:
+            text += ' Энэ өрөөнд суудаг ажилтан бүртгэгдээгүй.'
         if seated:
             text += ' Энд суудаг: ' + '; '.join(person.name + (' (' + person.role + ')' if person.role else '')
                                                for person in seated[:8]) + ('…' if len(seated) > 8 else '') + '.'
@@ -2542,8 +2549,14 @@ class ReceptionAnswerPath:
                     # How to reach them (11/27): the school e-mail of each, as when one is asked by name.
                     email=post_reach_asks(rest) or re.search(r'уулз|ханд', rest) is not None)
         exact = self._exact_post_people(query)
+        if exact is not None and not exact[2]:
+            people, said, _ = exact
+            noted = self._result(query, None, 'reception_post_no_room', source_table='staff')
+            noted['message'] = ('; '.join(one.name + ' — ' + one.role + (', сургуулийн имэйл: ' + one.email if one.email else '')
+                                          for one in people) + '. Ажлын өрөө нь бүртгэгдээгүй.')
+            return noted
         if exact is not None:
-            people, said = exact
+            people, said, _ = exact
             if len(people) == 1:
                 again = self.answer(people[0].name + ' гэж хэн бэ?', now=now)
                 if again is not None and again.get('answer'):
@@ -3205,6 +3218,7 @@ class ReceptionAnswerPath:
                 if not person.email:
                     # 11/28 sweep: which person, and where to find them, with the note that no e-mail is recorded.
                     noted = missing('reception_email_unknown')
+                    noted['note_kept'] = True       # answer_presentation keeps this note instead of its stock sentence
                     noted['message'] = (person.name + ' — сургуулийн имэйл бүртгэгдээгүй.' + self._workplace(person)).strip()
                     return noted
                 return reply(person.name + ' — сургуулийн имэйл: ' + person.email + '.' + self._workplace(person),

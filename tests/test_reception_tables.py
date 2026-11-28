@@ -612,12 +612,15 @@ class SweepSingleQuestionTests(unittest.TestCase):
 
     def test_post_said_as_recorded(self):
         path = self.path()
-        people, _ = path._exact_post_people('Гадаад харилцаа карьерын мэргэжилтэн хэн бэ?')
+        people, _, placed = path._exact_post_people('Гадаад харилцаа карьерын мэргэжилтэн хэн бэ?')
+        self.assertTrue(placed)
         self.assertEqual([one.name for one in people], ['Б.Мөнхчимэг', 'Х.Жаргалсүрэн'])
         self.assertEqual([one.name for one in path._exact_post_people('Дотоод хяналт, чанарын менежер хэн бэ?')[0]],
                          ['Ж.Уранчимэг'])
         # Where, with no recorded room, is not answered with a card that names no place.
-        self.assertIsNone(path._exact_post_people('Ресепшн хаана байдаг вэ?'))
+        self.assertFalse(path._exact_post_people('Ресепшн хаана байдаг вэ?')[2])
+        self.assertIn('Ч.Дагвадулам', path.answer('Ресепшн хаана байдаг вэ?')['message'])
+        self.assertIn('бүртгэгдээгүй', path.answer('В3 тоотод хэн суудаг вэ?')['answer'])
         # Who heads a department stays with its website page.
         self.assertIsNone(path._exact_post_people('Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?'))
 
