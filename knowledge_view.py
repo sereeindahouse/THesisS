@@ -14,7 +14,13 @@ Read-only, no search, no model, no change to any answer:
 
 Pages, sections, stored answers and facts are placed by the tree's own rules (URL rules, fact rules, labelled
 references — the same rules as tools/build_knowledge_tree.py); the school's tables by what they hold (rooms,
-offices, staff, classes, timetable). Counts only: no person, e-mail or room list leaves this module.
+offices, staff, classes, timetable). tree(), datasets() and place() carry counts only.
+
+- full(kind):  11/28, the user: «show our all dataset … now it's just their names, I want to see it full» — every row of
+               one data set for the «Бүгдийг харах» view: the school's tables (rooms, staff with post, office and school
+               e-mail, classes, the timetable), the stored questions and answers with their sources, the saved website
+               pages with their text, and the tree. Staff mobiles never leave it (privacy_filter.hide_mobiles); a staff
+               e-mail is shown only on the school's own domain.
 """
 from collections import Counter
 from contextlib import closing
@@ -28,6 +34,7 @@ TOPICS_PATH = 'config/knowledge-topics.json'
 DOMAINS_PATH = 'config/knowledge-domains.json'
 SECTIONS_PATH = 'runtime/website-sections.json'
 ROOT_TOPIC, REVIEW_TOPIC = 'nmct', 'review-needed'
+WEEKDAYS_MN = dict(mon='Даваа', tue='Мягмар', wed='Лхагва', thu='Пүрэв', fri='Баасан', sat='Бямба', sun='Ням')
 
 # A reply from the school's tables: its reason code names what was looked up.
 REASON_TOPICS = {
@@ -98,6 +105,8 @@ class KnowledgeView:
         self.sizes = Counter()
         self.as_of = ''
         self.faq_topics, self.fact_topics = {}, {}
+        self.website_database, self.content_database, self.tables = website_database, content_database, tables
+        self._faqs, self._sources = [], {}
         self._pages(website_database)
         self._sections()
         self._content(content_database)
@@ -167,6 +176,8 @@ class KnowledgeView:
                        for prefix in rule['key_prefixes'] if (fact.get('key') or '').startswith(prefix)]
             self.fact_topics[fact['fact_id']] = max(matches)[1] if matches else first_known([t for t in refs if t])
             self._add(self.fact_topics[fact['fact_id']], 'facts')
+        self._faqs = list(content.get('faqs', []))
+        self._sources = {(item['document_id'], item['version']): item for item in content.get('sources', [])}
         for faq in content.get('faqs', []):
             linked = [self.fact_topics[f] for f in faq.get('fact_ids') or [] if f in self.fact_topics]
             refs = [sources.get((ref['document_id'], ref['version'])) for ref in faq.get('source_refs') or []]
@@ -236,6 +247,97 @@ class KnowledgeView:
                      feeds=[])]
         return [item for item in sets if item['kind'] == 'tree' or any(sizes[key] for key in (
             {'site': ('pages',), 'stored': ('answers',), 'school': ('rooms', 'staff')}[item['kind']]))]
+
+    # -- the whole data set, for reading (11/28) -------------------------------------------------------------------
+    FULL_KINDS = ('school', 'stored', 'site', 'tree')
+
+    def _label(self, topic_id):
+        domain = self.domain_of(topic_id)
+        if domain is None:
+            return ''
+        topic = self.topics.get(topic_id, {})
+        return self.topics[domain]['label_mn'] + (' › ' + topic['label_mn'] if topic_id != domain and topic else '')
+
+    def full(self, kind):
+        """{title, note, tables: [{name, columns, rows, long}]} for one data set; None for an unknown kind."""
+        from privacy_filter import hide_mobiles
+        if kind not in self.FULL_KINDS:
+            return None
+        if kind == 'school':
+            made = self._full_school()
+        elif kind == 'stored':
+            made = self._full_stored()
+        elif kind == 'site':
+            made = self._full_site()
+        else:
+            made = dict(title='Мэдлэгийн мод', note='Сургуулийн мэдээллийг зохион байгуулсан 11 хүрээ ба дэд хэсгүүд.',
+                        tables=[dict(name='Хүрээ ба дэд хэсэг', columns=['Хүрээ', 'Дэд хэсэг', 'Сайтын хуудас', 'Хэсэг',
+                                                                          'Бэлэн хариулт', 'Хүснэгтийн мөр'],
+                                     rows=[[domain['label'], child['label']] + [child['counts'].get(key, 0) for key in
+                                                                                 ('pages', 'sections', 'answers', 'rows')]
+                                           for domain in self.tree() for child in domain['children']])])
+        return hide_mobiles(made)
+
+    def _full_school(self):
+        tables = self.tables
+        if tables is None:
+            return dict(title='Сургуулиас өгсөн хүснэгт', note='Хүснэгт ачаалагдаагүй.', tables=[])
+        school_mail = re.compile(r'^[^@\s]+@nmct\.(?:edu\.)?mn$', re.I)
+        rooms = sorted(getattr(tables, 'rooms', ()), key=lambda room: (room.floor, room.name))
+        floor = lambda value: 'хонгил' if value < 0 else str(value)
+        return dict(
+            title='Сургуулиас өгсөн хүснэгт',
+            note='Сургуулийн ажилтнуудаас авсан өрөө, ажилтан, анги, хичээлийн хуваарь. Ажилтны гар утас энд байхгүй, '
+                 'зөвхөн сургуулийн имэйл.',
+            tables=[
+                dict(name='Өрөө (' + str(len(rooms)) + ')', columns=['Давхар', 'Өрөө', 'Зориулалт', 'Тэнхим, алба'],
+                     rows=[[floor(room.floor), room.name, room.purpose, room.department] for room in rooms]),
+                dict(name='Ажилтан (' + str(len(tables.staff)) + ')',
+                     columns=['Нэр', 'Албан тушаал', 'Тэнхим, алба', 'Ажлын өрөө', 'Сургуулийн имэйл'],
+                     rows=[[person.name, person.role, person.department, person.room,
+                            person.email if school_mail.match(person.email or '') else '']
+                           for person in sorted(tables.staff, key=lambda one: (one.department, one.name))]),
+                dict(name='Анги (' + str(len(tables.classes)) + ')',
+                     columns=['Анги', 'Курс', 'Тэнхим', 'Үндсэн өрөө', 'Ангийн багш'],
+                     rows=[[group.group, group.course, group.department, group.room, group.teacher]
+                           for group in sorted(tables.classes, key=lambda one: one.group)]),
+                dict(name='Хичээлийн хуваарь (' + str(len(tables.timetable)) + ')',
+                     columns=['Гараг', 'Цаг', 'Анги', 'Өрөө', 'Багш', 'Хичээл'],
+                     rows=[[WEEKDAYS_MN.get(lesson.day, lesson.day), lesson.time, lesson.group, lesson.room, lesson.teacher,
+                            lesson.subject] for lesson in tables.timetable]),
+            ])
+
+    def _full_stored(self):
+        rows = []
+        for faq in sorted(self._faqs, key=lambda one: (self._label(self.faq_topics.get(one['faq_id'], '')), one['question'])):
+            urls = []
+            for ref in faq.get('source_refs') or []:
+                source = self._sources.get((ref.get('document_id'), ref.get('version')))
+                if source and source.get('source_url_or_filename') not in urls:
+                    urls.append(source.get('source_url_or_filename'))
+            rows.append([self._label(self.faq_topics.get(faq['faq_id'], '')), faq['question'],
+                         str(faq.get('answer') or ''), '\n'.join(url for url in urls if url)])
+        return dict(title='Сайтын үгээр бэлдсэн асуулт, хариулт',
+                    note='Хариулт бүрийн өгүүлбэрийг сайтын хуудаснаас үгчлэн авсан; эх сурвалжийн хуудсыг хамт харуулав.',
+                    tables=[dict(name='Асуулт, хариулт (' + str(len(rows)) + ')',
+                                 columns=['Модны хүрээ', 'Асуулт', 'Хариулт', 'Эх сурвалж'], rows=rows, long=[2])])
+
+    def _full_site(self):
+        rows = []
+        database = self.website_database
+        if database is not None and Path(database).is_file():
+            uri = 'file:' + Path(database).resolve().as_posix() + '?mode=ro'
+            with closing(sqlite3.connect(uri, uri=True)) as connection:
+                found = connection.execute(
+                    'select p.url, p.title, p.text, p.retrieved_at from pages p join '
+                    '(select url, max(version) as version from pages group by url) last '
+                    'on p.url = last.url and p.version = last.version order by p.url').fetchall()
+            for url, title, text, retrieved_at in found:
+                rows.append([self._label(url_topic(url, self.config)), title, url, str(retrieved_at or '')[:10], text or ''])
+        return dict(title='Сургуулийн вэб сайт (nmct.edu.mn)',
+                    note='Хадгалсан хуудас бүр, хадгалсан өдөр ба хуудасны текст.',
+                    tables=[dict(name='Хуудас (' + str(len(rows)) + ')',
+                                 columns=['Модны хүрээ', 'Гарчиг', 'Хаяг', 'Хадгалсан', 'Текст'], rows=rows, long=[4])])
 
     def asked(self, query):
         """The domains whose words the question uses."""

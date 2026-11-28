@@ -467,5 +467,53 @@ class HyphenatedNameTests(unittest.TestCase):
         self.assertEqual(plan.plan('Цэнд-Очир гэж хэн бэ?')['parts'][0]['query'], 'Т.Цэнд-Очир гэж хэн бэ?')
 
 
+
+class LongFollowupTests(unittest.TestCase):
+    """11/28 (2), the user's test: a follow-up of several questions after a teacher lost the teacher, glued the first
+    part's hour and verb into the later parts and answered «олдсонгүй»."""
+
+    def plan(self):
+        return QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'соронзонболд': 'Н.Соронзонболд'}, offices=['Номын сан'],
+                               topic_keywords=['төлбөр', 'имэйл', 'өрөө', 'давхар', 'анги', 'багш', 'хаяг'],
+                               staff=['Н.Соронзонболд', 'И.Уянга', 'Б.Уянга'], class_names=['КУ-2'])
+
+    def parts(self, text, previous):
+        return [part['query'] for part in self.plan().plan(text, previous=previous)['parts']]
+
+    def test_every_part_of_a_long_followup_is_about_the_teacher(self):
+        parts = self.parts('2 дахь өдөр 11 цагийн үед уулзвал өрөөндөө байх уу, өрөө нь хаана байдаг вэ, бусад багш нар нь хэн бэ',
+                           'соронзонболд багш гэж хэн бэ,')
+        self.assertEqual(len(parts), 3, parts)
+        self.assertTrue(all(part.startswith('Н.Соронзонболд багш') for part in parts), parts)
+        self.assertIn('мягмар', parts[0])
+        self.assertNotIn('11 цаг', parts[1])                     # the first part's hour stays in the first part
+        self.assertEqual(parts[2], 'Н.Соронзонболд багшийн тэнхимийн бусад багш нар хэн бэ?')
+        self.assertEqual(self.parts('бусад багш нар нь хэн бэ', 'соронзонболд багш гэж хэн бэ?'),
+                         ['Н.Соронзонболд багшийн тэнхимийн бусад багш нар хэн бэ?'])
+
+    def test_no_hour_or_verb_is_carried_as_a_subject(self):
+        parts = self.parts('Маргааш 10 цагт уулзаж болох уу, имэйл нь юу вэ', 'Соронзонболд багш хаана суудаг вэ?')
+        self.assertEqual(parts[1], 'Н.Соронзонболд багшийн имэйл?')
+
+    def test_unpunctuated_yes_no_with_ju_is_cut(self):
+        parts = self.parts('даваа гарагт завтай юу ямар хичээл заадаг вэ', 'Соронзонболд багш гэж хэн бэ?')
+        self.assertEqual(len(parts), 2, parts)
+
+    def test_a_shared_given_name_is_kept(self):
+        parts = self.parts('ямар хичээл заадаг вэ, хэдэн давхарт суудаг вэ?', 'Уянга багш гэж хэн бэ?')
+        self.assertTrue(all(part.startswith('Уянга багш') for part in parts), parts)
+
+    def test_a_new_question_after_a_teacher_keeps_its_own_subject(self):
+        for text in ('Сургуулийн хаяг хаана вэ', '604 тоот хаана байдаг вэ', 'Сургуулийн төлбөр хэд вэ, хэсэгчлэн төлж болох уу'):
+            for part in self.parts(text, 'соронзонболд багш гэж хэн бэ?'):
+                self.assertNotIn('Соронзонболд', part, (text, part))
+
+    def test_an_office_named_before_reaches_every_part(self):
+        self.assertEqual(self.parts('Хэдэн цагт ажилладаг вэ, хэн ажилладаг вэ', 'Номын сан хаана байдаг вэ?'),
+                         ['Номын сан хэдэн цагт ажилладаг вэ?', 'Номын сан хэн ажилладаг вэ?'])
+        self.assertEqual(len(self.parts('Өрөө нь хаана вэ, имэйл нь?', 'КУ-2 ангийн багш хэн бэ?')), 2)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -22,6 +22,7 @@ from listening_review import ListeningReview
 from project_policy import ContentUsePolicy
 from llm_runtime import LLMRuntime
 from rag_runtime import ChatRAG
+from referral import attach_referral
 from rule_selector import answer_selection
 from data_explorer import SourceExplorer
 from clarification_context import ClarificationContext, ClarificationConflict
@@ -811,6 +812,10 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                         else:
                             result = compose_parts(conversation['resolved_query'], plan,
                                                    [answer_one(part['query']) for part in plan['parts']])
+                            if not result.get('answer') and not result.get('referral'):
+                                # Nothing answered: where to ask, never an empty reply (11/28 (2)).
+                                result = attach_referral(result, rag.referral, rules=rag.topic_rules,
+                                                         locate=rag._office_place)
                             result = rag._remember(result, allow_draft)
                         if plan is not None and plan['changed']:
                             result['question_plan'] = plan

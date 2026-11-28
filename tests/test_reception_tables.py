@@ -625,5 +625,41 @@ class SweepSingleQuestionTests(unittest.TestCase):
         self.assertIsNone(path._exact_post_people('Компьютерын ухааны тэнхимийн эрхлэгч хэн бэ?'))
 
 
+
+class DepartmentStaffTests(unittest.TestCase):
+    """11/28 (2): a department's teachers from the staff table (the website shows only some); «бусад багш нар» after a
+    teacher are that teacher's department colleagues."""
+
+    def path(self):
+        from reception_tables import ReceptionTables, Room, Staff
+        tables = ReceptionTables(
+            rooms=(Room(floor=6, name='604', purpose='Багш нарын өрөө'),),
+            timetable=(),
+            staff=(Staff(name='Н.Наран', department='Зохиомол ухааны тэнхим', room='604', role='Зохиомол ухааны тэнхимийн эрхлэгч',
+                         email='naran@nmct.edu.mn'),
+                   Staff(name='Б.Саран', department='Зохиомол ухааны тэнхим', room='604', role='Багш', email='saran@gmail.com'),
+                   Staff(name='Д.Дорж', department='Механик инженерийн тэнхим', role='Багш')),
+            classes=())
+        return ReceptionAnswerPath(tables=tables, enabled=True, complete=True)
+
+    def test_department_roster_and_colleagues(self):
+        path = self.path()
+        for query in ('Зохиомол ухааны тэнхимийн багш нар хэн бэ?', 'Зохиомол тэнхимийн багш нарын нэрсийг жагсааж өгөөч.',
+                      'Зохиомол ухааны тэнхим хэдэн багштай вэ?'):
+            with self.subTest(query=query):
+                self.assertTrue(path.recognizes(query))
+                result = path.answer(query)
+                self.assertEqual(result['reason_code'], 'reception_department_staff')
+                self.assertIn('Н.Наран', result['answer'])
+                self.assertIn('Б.Саран', result['answer'])
+                self.assertNotIn('Д.Дорж', result['answer'])
+                self.assertNotIn('gmail', result['answer'])          # only a school e-mail is shown
+        others = path.answer('Н.Наран багшийн тэнхимийн бусад багш нар хэн бэ?')
+        self.assertEqual(others['reason_code'], 'reception_department_staff')
+        self.assertIn('Б.Саран', others['answer'])
+        self.assertNotIn('• Н.Наран', others['answer'])
+        self.assertFalse(path.recognizes('Мэдээллийн технологийн тэнхимийн багш нар хэн бэ?'))
+
+
 if __name__ == '__main__':
     unittest.main()

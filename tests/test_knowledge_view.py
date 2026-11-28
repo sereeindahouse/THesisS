@@ -101,5 +101,35 @@ class PlaceTests(unittest.TestCase):
         self.assertEqual([item['domain_id'] for item in place['asked']], ['student'])     # «анги» inside «сангийн» is no class
 
 
+
+class FullDataSetTests(unittest.TestCase):
+    """11/28: «Бүгдийг харах» — every row of a data set; no mobile, only school e-mails."""
+
+    def test_school_tables_in_full(self):
+        made = KnowledgeView(ROOT, tables=ReceptionTables(
+            rooms=(Room(floor=-1, name='В3', purpose='Клуб'), Room(floor=4, name='406', purpose='Алба')),
+            staff=(Staff(name='З.Наран', department='Тэнхим', room='406', role='Багш', email='naran@nmct.edu.mn'),
+                   Staff(name='З.Саран', department='Тэнхим', role='Багш', email='saran@gmail.com')),
+            classes=(ClassGroup(group='ЗА-1', room='406', teacher='З.Наран'),),
+            timetable=(Lesson(day='mon', time='08:00-09:30', group='ЗА-1', room='406', teacher='З.Наран', subject='Алгоритм'),),
+            timetable_complete=True, dataset_label='FAKE only')).full('school')
+        names = [table['name'] for table in made['tables']]
+        self.assertEqual(len(names), 4)
+        rooms, staff = made['tables'][0]['rows'], made['tables'][1]['rows']
+        self.assertEqual(rooms[0][:3], ['хонгил', 'В3', 'Клуб'])
+        self.assertIn('naran@nmct.edu.mn', staff[0])
+        self.assertEqual(staff[1][4], '')                      # a private e-mail is not shown
+        self.assertEqual(made['tables'][3]['rows'][0][0], 'Даваа')
+        self.assertEqual(made['tables'][3]['rows'][0][-1], 'Алгоритм')
+
+    def test_unknown_kind_and_mobiles(self):
+        view = KnowledgeView(ROOT, tables=ReceptionTables(
+            rooms=(Room(floor=4, name='406', purpose='Утас 99112233'),), staff=(), classes=(), timetable=(),
+            timetable_complete=True, dataset_label='FAKE only'))
+        self.assertIsNone(view.full('anything'))
+        self.assertNotIn('99112233', json.dumps(view.full('school'), ensure_ascii=False))
+        self.assertEqual(len(view.full('tree')['tables'][0]['rows']), 31)
+
+
 if __name__ == '__main__':
     unittest.main()

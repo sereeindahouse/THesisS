@@ -131,6 +131,25 @@ dialog::backdrop{background:rgba(20,30,26,.35)}
 .k-set.school{border-left-color:#2f855a}
 .k-set.tree{border-left-color:var(--accent)}
 .k-set h4{margin:0 0 4px;font-size:14.5px}
+.k-all{margin-top:8px;padding:5px 12px;border:1px solid var(--accent);border-radius:8px;background:#fff;color:var(--accent-dark);font-size:13.5px;font-weight:600}
+.k-all:hover{background:var(--soft)}
+.dv{position:fixed;inset:0;z-index:60;display:flex;align-items:stretch;justify-content:center;padding:24px;background:rgba(20,30,26,.45)}
+.dv-box{display:flex;flex-direction:column;width:min(1280px,100%);max-height:100%;border-radius:14px;background:#fff;box-shadow:0 18px 50px rgba(0,0,0,.25);overflow:hidden}
+.dv-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.dv-head h3{margin:0;font-size:17px;flex:1}
+.dv-head input{width:min(320px,45vw);padding:7px 10px;border:1px solid var(--line);border-radius:8px}
+.dv-note{margin:0;padding:8px 16px;color:var(--muted);font-size:13px;border-bottom:1px solid var(--line)}
+.dv-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px;border-bottom:1px solid var(--line)}
+.dv-tabs button{padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:13.5px}
+.dv-tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dv-body{overflow:auto;padding:0 16px 16px}
+.dv-body table{width:100%;border-collapse:collapse;font-size:13.5px}
+.dv-body th{position:sticky;top:0;z-index:1;padding:8px 6px;background:var(--soft);text-align:left;font-weight:600;border-bottom:1px solid var(--line)}
+.dv-body td{padding:6px;vertical-align:top;border-bottom:1px solid var(--line);white-space:pre-line}
+.dv-body tr:hover td{background:#f8fbf9}
+.dv-body details summary{cursor:pointer;color:var(--accent-dark)}
+.dv-count{padding:8px 0;color:var(--muted);font-size:13px}
+@media (max-width:700px){.dv{padding:0}.dv-box{border-radius:0}.dv-head{flex-wrap:wrap}.dv-head input{width:100%}}
 .k-set ul{margin:0;padding-left:18px;font-size:13.5px}
 .k-set li{margin:2px 0}
 .k-feeds{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}
@@ -210,6 +229,14 @@ dialog::backdrop{background:rgba(20,30,26,.35)}
       <div id="kData" role="tabpanel" aria-labelledby="kTabData" hidden></div>
     </div>
   </aside>
+  <div id="dataView" class="dv" role="dialog" aria-modal="true" aria-labelledby="dvTitle" hidden>
+    <div class="dv-box">
+      <div class="dv-head"><h3 id="dvTitle"></h3><input id="dvSearch" type="search" placeholder="Хайх (нэр, өрөө, хичээл…)" aria-label="Хүснэгтээс хайх"><button id="dvClose" class="ghost" type="button" aria-label="Хаах" title="Хаах">×</button></div>
+      <p id="dvNote" class="dv-note"></p>
+      <div id="dvTabs" class="dv-tabs" role="tablist"></div>
+      <div id="dvBody" class="dv-body"></div>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -422,9 +449,63 @@ function drawData() {
     const card = el("article", undefined, "k-set " + set.kind); card.append(el("h4", set.title));
     const list = el("ul"); for (const line of set.lines || []) list.append(el("li", line)); card.append(list);
     if (set.feeds?.length) { const feeds = el("div", undefined, "k-feeds"); for (const name of set.feeds) feeds.append(el("span", name, "k-chip")); card.append(el("p", "Модны хүрээ:", "small"), feeds); }
+    const all = el("button", "Бүгдийг харах", "k-all"); all.type = "button";
+    all.addEventListener("click", () => openDataView(set.kind)); card.append(all);
     box.append(card);
   }
 }
+// ---- every row of one data set (11/28: «show our all dataset … now it's just their names») -----------------
+const dataCache = {};
+let dataShown = null, dataTable = 0;
+async function openDataView(kind) {
+  $("dataView").hidden = false; $("dvTitle").textContent = "Ачаалж байна…"; $("dvNote").textContent = "";
+  $("dvTabs").replaceChildren(); $("dvBody").replaceChildren(); $("dvSearch").value = "";
+  try { dataCache[kind] = dataCache[kind] || await api("/api/dataset/" + encodeURIComponent(kind)); }
+  catch { $("dvTitle").textContent = "Мэдээллийн санг ачаалж чадсангүй."; return; }
+  dataShown = dataCache[kind]; dataTable = 0;
+  $("dvTitle").textContent = dataShown.title; $("dvNote").textContent = dataShown.note || "";
+  drawDataTabs(); drawDataTable(); $("dvSearch").focus();
+}
+function drawDataTabs() {
+  const tabs = $("dvTabs"); tabs.replaceChildren();
+  if ((dataShown.tables || []).length < 2) return;
+  dataShown.tables.forEach((table, index) => {
+    const button = el("button", table.name, index === dataTable ? "on" : ""); button.type = "button";
+    button.addEventListener("click", () => { dataTable = index; drawDataTabs(); drawDataTable(); });
+    tabs.append(button);
+  });
+}
+function drawDataTable() {
+  const body = $("dvBody"); body.replaceChildren();
+  const table = (dataShown.tables || [])[dataTable];
+  if (!table) { body.append(el("p", "Мэдээлэл алга.", "dv-count")); return; }
+  const words = $("dvSearch").value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  const rows = table.rows.filter(row => { const text = row.join(" ").toLocaleLowerCase(); return words.every(word => text.includes(word)); });
+  body.append(el("div", rows.length + " / " + table.rows.length + " мөр", "dv-count"));
+  const grid = el("table"), head = el("tr");
+  for (const name of table.columns) head.append(el("th", name));
+  const thead = el("thead"); thead.append(head); grid.append(thead);
+  const tbody = el("tbody"), long = new Set(table.long || []);
+  for (const row of rows.slice(0, 1000)) {
+    const line = el("tr");
+    row.forEach((value, index) => {
+      const cell = el("td"), text = value === null || value === undefined ? "" : String(value);
+      if (long.has(index) && text.length > 220) {
+        const more = el("details"); more.append(el("summary", text.replace(/\s+/g, " ").slice(0, 200) + "…"), el("div", text)); cell.append(more);
+      } else if (/^https?:\/\//.test(text) && !text.includes("\n")) {
+        const link = el("a", text); link.href = text; link.target = "_blank"; link.rel = "noopener"; cell.append(link);
+      } else cell.textContent = text;
+      line.append(cell);
+    });
+    tbody.append(line);
+  }
+  grid.append(tbody); body.append(grid);
+}
+function closeDataView() { $("dataView").hidden = true; }
+$("dvClose").addEventListener("click", closeDataView);
+$("dataView").addEventListener("click", event => { if (event.target === $("dataView")) closeDataView(); });
+document.addEventListener("keydown", event => { if (event.key === "Escape" && !$("dataView").hidden) closeDataView(); });
+$("dvSearch").addEventListener("input", () => { if (dataShown) drawDataTable(); });
 function showTab(tab) {
   const tree = tab === "tree";
   $("kTree").hidden = !tree; $("kData").hidden = tree;

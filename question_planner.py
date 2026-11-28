@@ -103,6 +103,15 @@ PERSON_FOLLOWUP = re.compile(
 # sentence that starts with a day or an hour and asks to meet, whether the person is free, has a lesson or is in, is
 # about the person named before (it went to the website and showed an entrance-exam time).
 TIMED_FOLLOWUP = re.compile(TIME_LEAD + MEET_OR_FREE, re.I)
+# 11/28 (2), the user's test: «… бусад багш нар нь хэн бэ» after a teacher asks who else works in that teacher's
+# department.
+COLLEAGUES = re.compile(r'(?:нь\s+)?(?:(?:тэр|энэ)\s+тэнхимийн\s+|тэнхимийн\s+)?(?:бусад|хамт\s+ажилладаг)\s+'
+                        r'(?:багш(?:\s*нар)?|ажилтн(?:ууд|ы)|хүмүүс)(?:\s+нь)?\s+'
+                        r'(?:хэн(?:\s+хэн)?|хэд|хэдэн|нэрс|жагсаалт)', re.I)
+# A subject carried to a later part is a noun phrase: «Маргааш 10 цагт уулзаж болох уу, имэйл нь юу вэ» carried
+# «Маргааш 10 цагт уулзаж» into the e-mail part (11/28 (2)). No number, day, hour or verb form.
+NOT_A_SUBJECT = re.compile(r'\d|(?<!\w)(?:өнөөдөр|маргааш|нөгөөдөр|одоо|цаг\w*|гараг\w*|даваа|мягмар|лхагва|пүрэв|'
+                           r'баасан|бямба|ням|уулз\w*|холбогд\w*|байх|байна|байгаа|болох|болно|ирэх|очих|\w+(?:вал|вэл|вол|вөл|бал|бэл|бол|бөл))(?!\w)', re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
@@ -431,7 +440,9 @@ class QuestionPlanner:
             current.append(word)
             rest = words[index + 1:]
             particle = word.casefold().rstrip('.!')
-            if particle not in ('вэ', 'бэ', 'уу', 'үү') or len(current) < 2 or len(rest) < 2:
+            # «… завтай юу ямар хичээл заадаг вэ» (11/28 (2) sweep): «юу» after «-тай / -гүй» asks yes or no.
+            yes_no = particle == 'юу' and len(current) >= 2 and re.search(r'(?:тай|тэй|той|гүй)$', current[-2].casefold())
+            if (particle not in ('вэ', 'бэ', 'уу', 'үү') and not yes_no) or len(current) < 2 or len(rest) < 2:
                 continue
             if rest[0].casefold().strip('.!,') in NO_SECOND_QUESTION:
                 continue
@@ -450,7 +461,8 @@ class QuestionPlanner:
             pieces = [p.strip() for p in re.split(r',\s*', sentence) if p.strip()]
             current = pieces[0]
             for piece in pieces[1:]:
-                if QUESTION_WORD.search(current) and QUESTION_WORD.search(piece):
+                ends_ny = re.search(r'(?<!\w)нь\s*$', piece, re.I) and len(piece.split()) <= 3
+                if QUESTION_WORD.search(current) and (QUESTION_WORD.search(piece) or ends_ny):
                     parts.append(current)
                     current = piece
                 else:
@@ -498,16 +510,30 @@ class QuestionPlanner:
         if group and re.match(r'\s+ангийн\s+багш', coded[group.end():]):
             return group.group(1) + ' ангийн багш'          # «КУ-2 ангийн багш хэн бэ? Хаана суудаг вэ? Имэйл нь?»
         named = self._named(coded)
+        if named is None and not group:
+            # «Уянга багш гэж хэн бэ?» — two staff share the name: the follow-up keeps it, and the tables ask which one
+            # (11/28 (2) sweep: the follow-up lost the person and was asked about nobody).
+            for match in re.finditer(r'(?<![\w.])([А-ЯӨҮЁа-яөүё][а-яөүё-]{2,})(?:\s+' + NAME_PARTICLE + r')?(?=\s+багш)', coded, re.I):
+                given = match.group(1).casefold()
+                if sum(1 for full in self.staff.values() if full.split('.', 1)[-1].casefold() == given) > 1:
+                    return given[:1].upper() + given[1:] + ' багш'
         return named if named and named.endswith(' багш') and not group else None
 
-    def _inherit(self, parts):
-        result = [parts[0]]
-        for part in parts[1:]:
+    def _inherit(self, parts, seed=None):
+        """Later parts that name nobody take the person or thing named before. ``seed``: the visitor's previous
+        question — 11/28 (2), the user's test: «Соронзонболд багш гэж хэн бэ?» then «2 дахь өдөр 11 цагийн үед уулзвал
+        өрөөндөө байх уу, өрөө нь хаана байдаг вэ, бусад багш нар нь хэн бэ» lost the teacher, because only a short
+        whole follow-up took the previous question's person; now every part of a longer one does."""
+        result = [seed] if seed else [parts[0]]
+        for part in (parts if seed else parts[1:]):
             # 11/25 (the user's example): «… соронзонболд багш чинь хэн бэ? Хэдэн давхарт байдаг вэ? Яаж уулзах
             # вэ?» — a sentence about a room, a meeting, an e-mail or lessons that names nobody is about the
             # person an earlier sentence named, also when two sentences stand between them.
             person = next((found for found in map(self._person, reversed(result)) if found), None)
             bare = strip_context_clause(part).strip()
+            if person and not person.endswith(' ангийн багш') and self._named(bare) is None and COLLEAGUES.match(bare):
+                result.append(person[:-len(' багш')] + ' багшийн тэнхимийн бусад багш нар хэн бэ?')
+                continue
             if person and self._named(bare) is None and (PERSON_FOLLOWUP.match(bare) or TIMED_FOLLOWUP.match(bare)):
                 if person.endswith(' ангийн багш'):
                     # The class teacher's own room or e-mail, in the wordings the tables read.
@@ -532,7 +558,24 @@ class QuestionPlanner:
             # topic of its own; without it the part asks where the person before is.
             part = strip_context_clause(part)
             subject = self._subject(result[-1])
+            if NOT_A_SUBJECT.search(subject):
+                subject = ''
             possessive = re.search(r'(?<!\w)нь(?!\w)', part.casefold())
+            if (seed and len(result) == 1) or not subject:
+                # The thing named before — the previous question or an earlier part — for a part with no subject of its
+                # own: «Номын сан хаана байдаг вэ?» then «Хэдэн цагт ажилладаг вэ, хэн ажилладаг вэ» (11/28 (2) sweep:
+                # the school's hours and a website search). The follow-up rule keeps its guards (a name, a topic, a
+                # room number or the school of its own is a new question).
+                anchor = next((earlier for earlier in reversed(result) if self._named(earlier)
+                               or (self._subject(earlier) and not NOT_A_SUBJECT.search(self._subject(earlier)))), None)
+                followup = (self._followup(part, anchor) if anchor is not None and (possessive or not self._has_topic(part))
+                            else None)
+                if followup:
+                    result.append(followup['rewritten'])
+                    continue
+                if seed and len(result) == 1:
+                    result.append(part)        # «Сургуулийн хаяг хаана вэ» after a teacher is a question of its own
+                    continue
             if subject and (possessive or not self._has_topic(part)):
                 # «Захирал хэн бэ, өрөө нь хаана вэ?» (round 20): the later part as a follow-up of the one before
                 # («Захирал хаана вэ?»), as when it is asked on its own; one with a topic of its own («…, багш
@@ -547,7 +590,7 @@ class QuestionPlanner:
                     subject_words = subject_words[:-1]     # "КУ-2 анги" + "ангийн багш" -> "КУ-2 ангийн багш"
                 part = ' '.join(subject_words + [part])
             result.append(part)
-        return result
+        return result[1:] if seed else result
 
     def _class_group(self, text):
         course = COURSE.search(text)
@@ -675,7 +718,7 @@ class QuestionPlanner:
         if subject and not re.search(r'хичээл|(?<!\w)анги|тэнхим', subject.group(1), re.I):
             return subject.group(1) + ' хичээлийг хэн заадаг вэ?', dict(rule='desk_wording', text=text, value='subject')
         office = re.fullmatch(r'(.{2,60}?(?:алба|төв|сан|хэлтэс))(?:ны|ний|гийн|ийн|ын)\s+(?:хүн|хүмүүс|ажилчид|ажилтнууд|'
-                              r'мэргэжилтэн|мэргэжилтнүүд)(?:\s+нь)?\s+хэн(?:\s+хэн)?\s+(?:бэ|вэ)\s*\??', stripped, re.I)
+                              r'мэргэжилтнүүд)(?:\s+нь)?\s+хэн(?:\s+хэн)?\s+(?:бэ|вэ)\s*\??', stripped, re.I)
         if office is None:
             office = re.fullmatch(r'(.{2,60}?(?:алба|төв|сан|хэлтэс))(?:нд|д|т)\s+хэн(?:\s+хэн)?\s+'
                                   r'(?:ажилладаг|байдаг|суудаг)\s+(?:вэ|бэ)\s*\??', stripped, re.I)
@@ -918,12 +961,14 @@ class QuestionPlanner:
         entity = self._named(previous)
         if entity is None:
             subject = self._subject(previous)
-            if not subject or len(subject.split()) > 4 or QUESTION_WORD.search(subject):
+            if not subject or len(subject.split()) > 4 or QUESTION_WORD.search(subject) or NOT_A_SUBJECT.search(subject):
                 return None
             entity = subject
         # «тэнд» (there) points at the previous thing, which takes its place (round 13); «энд» (here) is
-        # the school itself and starts a new question (review).
-        if re.search(r'(?<!\w)энд(?!\w)', text, re.I):
+        # the school itself and starts a new question (review). So does a room number or the school by name
+        # («604 тоот хаана байдаг вэ», «Сургуулийн хаяг хаана вэ» after a teacher, 11/28 (2) sweep).
+        if (re.search(r'(?<!\w)энд(?!\w)', text, re.I) or re.search(r'(?<!\w)(?:сургуул|коллеж|шмтк)', text, re.I)
+                or re.search(r'(?<![\w-])[0-9]{3,4}(?:\s*(?:тоот|тоотод|тоотын|-?р\s+өрөө))?(?!\w)', text, re.I)):
             return None
         rest = re.sub(r'\s+(?=[?!.])', '', re.sub(r'(?<!\w)(?:нь|тэнд)(?!\w)\s*', '', text, flags=re.I)).strip()
         # «Түүнтэй уулзаж болох уу?» (round 20): «түүнтэй» (with them) is the thing just named, which then takes
@@ -973,14 +1018,22 @@ class QuestionPlanner:
         stripped = spoken_form(_without_courtesy(strip_fillers(query))[0])
         # The previous question's opening is no subject either («Сайн байна уу, сэтгэл зүйч хаана суудаг вэ?»), review.
         previous = spoken_form(_without_courtesy(strip_fillers(previous))[0]) if previous else previous
-        followup = self._followup(stripped, previous) if previous else None
+        followup = (self._followup(stripped, previous)
+                    if previous and not (COLLEAGUES.match(stripped.strip()) and self._person(previous))
+                    and not (self.split_compound and len(self._split(stripped)) > 1) else None)
         asked = followup['rewritten'] if followup else stripped
         originals = self._split(asked) if self.split_compound else [asked.strip()]
         routed = list(originals)
+        # The previous question's person or thing for a follow-up too long for the rule above (11/28 (2)); a
+        # message that names someone or something of its own starts afresh.
+        seed = (previous if previous and not followup and self._named(stripped) is None
+                and (self._person(previous) or self._named(previous)) else None)
         if len(originals) > 1:
             # Distributed parallel parts already carry the subject; others may inherit it.
             distributed = self._distribute(originals)
-            routed = distributed if distributed != originals else self._inherit(originals)
+            routed = distributed if distributed != originals else self._inherit(originals, seed)
+        elif seed:
+            routed = self._inherit(originals, seed)
         parts = []
         for original, text in zip(originals, routed):
             rewrites = []

@@ -1362,6 +1362,8 @@ class ReceptionAnswerPath:
             return True
         if self._room_what(query) is not None or (self.complete and self._exact_post_people(query) is not None):
             return True
+        if self.complete and self._department_staff(query) is not None:
+            return True
         if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
         if self.complete and (self._teacher_time_slots(query) is not None or self._unscheduled_staff(query) is not None
@@ -1578,7 +1580,7 @@ class ReceptionAnswerPath:
             return []
         exact = [person for person in self.tables.staff if _key(person.role) == ' '.join(words)]
         if exact:
-            return exact if len(exact) == 1 else []
+            return exact if len(exact) <= 8 else []
         found = []
         for person in self.tables.staff:
             if not person.role.strip():
@@ -2451,7 +2453,8 @@ class ReceptionAnswerPath:
     # «ажилтан» in the post), and «Нийгмийн ухааны нэгдлийн багш» got another department's website list.
     _EXACT_POST_ASK = re.compile(
         r'\s*(?:(?:манай|танай|сургуулийн|коллежийн)\s+)?(?P<post>[^?!.]{3,90}?)\s+(?:(?:гэж|гэдэг(?:\s+хүн)?)\s+)?(?:нь\s+)?'
-        r'(?P<ask>хэн(?:\s+хэн)?\s+(?:бэ|вэ)|хаана\s+(?:суудаг|байдаг|байна|байрладаг|ажилладаг)(?:\s+(?:вэ|бэ))?|хаана\s+(?:вэ|бэ))'
+        r'(?P<ask>хэн(?:\s+хэн)?\s+(?:бэ|вэ)|хаана\s+(?:суудаг|байдаг|байна|байрладаг|ажилладаг)(?:\s+(?:вэ|бэ))?|хаана\s+(?:вэ|бэ)|'
+        r'юу\s+(?:хийдэг|хариуцдаг)\s+(?:вэ|бэ))'
         r'\s*[?？.!]*\s*', re.I)
 
     def _exact_post_people(self, query):
@@ -2472,6 +2475,69 @@ class ReceptionAnswerPath:
         if asked['ask'].casefold().startswith('хаана') and not any(self._room_of(person) is not None for person in people):
             return (people, asked['post'].strip(), False)   # «Ресепшн хаана байдаг вэ?»: no place to say — a note
         return (people, asked['post'].strip(), True)
+
+    # 11/28 (2), the user's test: «… бусад багш нар нь хэн бэ» after a teacher, and «<тэнхим> тэнхимийн багш нар хэн бэ?»
+    # showed the website's four introduced teachers («бүрэн жагсаалт биш»), though the staff table records every
+    # member's department. The table answers: the department's people with post, room and school e-mail.
+    _DEPARTMENT_STAFF = re.compile(
+        r'\s*(?:(?P<name>[А-ЯӨҮЁ]\.\s*[А-ЯӨҮЁа-яөүё-]{2,})\s+багш(?:ийн|тай)\s+(?P<unit>(?:тэнхимийн|хамт\s+ажилладаг)\s+)?'
+        r'|(?P<dept>[А-ЯӨҮЁа-яөүё][А-ЯӨҮЁа-яөүё, ]*?)\s+тэнхим(?:ийн)?\s+)(?P<others>бусад\s+)?'
+        r'(?:багш(?:\s*нар(?:ын)?)?|ажилтн(?:ууд|ы)|ажилчид|хүмүүс)\s+(?:нь\s+)?'
+        r'(?:хэн(?:\s+хэн)?(?:\s+(?:байдаг|байна|ажилладаг))?\s+(?:вэ|бэ)|нэрс(?:ийг)?(?:\s+[а-яөүё]+){0,3}'
+        r'|жагсаалт(?:ыг)?(?:\s+[а-яөүё]+){0,3}|хэд(?:эн(?:\s+(?:хүн|багш))?)?(?:\s+(?:байдаг|байна|ажилладаг))?\s+(?:вэ|бэ))'
+        r'\s*[?？.!]*\s*'
+        r'|\s*(?P<counted>[А-ЯӨҮЁа-яөүё][А-ЯӨҮЁа-яөүё, ]*?)\s+тэнхим(?:д)?\s+хэдэн\s+(?:багш|ажилтан|хүн)(?:тай)?'
+        r'(?:\s+(?:байдаг|байна|ажилладаг))?\s+(?:вэ|бэ)\s*[?？.!]*\s*', re.I)
+
+    def _department_named(self, said):
+        """The one department of the staff table a said name points at («компьютерийн ухааны», «механик», «хими»), or None."""
+        def own(text):
+            return [word for word in re.findall(r'[а-яөүё]+', _key(text)) if not word.startswith(('тэнхим', 'инженер'))]
+        words = own(said)
+        if not words:
+            return None
+        found = [unit for unit in sorted({person.department for person in self.tables.staff
+                                          if person.department and 'тэнхим' in _key(person.department)})
+                 for names in [own(unit)]
+                 if names and _same_stem(words[0], names[0]) and all(any(_same_stem(word, name) for name in names) for word in words)]
+        return found[0] if len(found) == 1 else None
+
+    def _department_staff(self, query):
+        """(department, people, the person asked about or None) for a department-roster question; None otherwise."""
+        if self.tables is None or not isinstance(query, str) or len(query) > 160:
+            return None
+        asked = self._DEPARTMENT_STAFF.fullmatch(query)
+        if not asked:
+            return None
+        if asked['name']:
+            person = self._staff_named(asked['name'].replace(' ', ''))
+            if person is None or not person.department or not (asked['others'] or asked['unit']):
+                return None
+            department = person.department
+        else:
+            person = None
+            department = self._department_named(asked['dept'] or asked['counted'])
+            if department is None:
+                return None
+        people = [one for one in self.tables.staff if _key(one.department or '') == _key(department) and one is not person]
+        if not people:
+            return None
+        heads = [one for one in people if 'эрхлэгч' in _key(one.role or '')]
+        return department, heads + sorted((one for one in people if one not in heads), key=lambda one: one.name), person
+
+    def _department_staff_reply(self, query, department, people, person):
+        lines = []
+        for one in people:
+            place = self._room_of(one)
+            role = re.sub(r'\s*\(хуваариас\)', '', one.role or '').strip()
+            lines.append('• ' + one.name + (' — ' + role if role else '')
+                         + (', ажлын өрөө: ' + place.name + ' тоот, ' + floor_text(place.floor) if place is not None else '')
+                         + (', имэйл: ' + one.email if re.fullmatch(r'[^@\s]+@nmct\.(?:edu\.)?mn', one.email or '', re.I) else ''))
+        intro = ((person.name + ' — ' + department + '. Тэнхимийн бусад ' + str(len(people)) + ' хүн'
+                  if person is not None else department + ': ' + str(len(people)) + ' хүн')
+                 + ' (сургуулийн ажилтны хүснэгтээс):')
+        text = ('[FAKE / ЗОХИОМОЛ ЖИШЭЭ] ' if self.tables.is_fake else '') + intro + '\n' + '\n'.join(lines)
+        return self._result(query, text, 'reception_department_staff', source_table='staff')
 
     # «508 тоот ямар өрөө вэ?», «1005 тоотод юу байдаг вэ?» — every room answered «олдсонгүй».
     _ROOM_WHAT = re.compile(r'\s*(?P<room>[0-9А-ЯӨҮЁа-яөүёA-Za-z]{1,6})\s+(?:тоот(?:\s+өрөө)?|тоот\s+нь|тоотод|өрөө)\s+'
@@ -2794,6 +2860,9 @@ class ReceptionAnswerPath:
         room = self._room_what(query)
         if room is not None:
             return self._room_what_reply(query, room)
+        roster = self._department_staff(query) if self.complete else None
+        if roster is not None:
+            return self._department_staff_reply(query, *roster)
         slots = self._teacher_time_slots(query) if self.complete else None
         if slots is not None:
             made = self._teacher_time_reply(query, slots, now)

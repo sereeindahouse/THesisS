@@ -25,6 +25,7 @@ from privacy_filter import hide_mobiles
 from project_policy import ContentUsePolicy
 from question_planner import QuestionPlanner, compose as compose_parts
 from rag_runtime import ChatRAG
+from referral import attach_referral
 from sqlite_retrieval import ReadOnlyContentStore
 from teacher_media import TeacherMedia, TeacherMediaError
 from voice_runtime import MAX_AUDIO_BYTES, VoiceRuntime, VoiceRuntimeError
@@ -250,6 +251,12 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
                     'retrieval': rag.status().get('retrieval', {}), 'generated': False, 'llm_calls': 0})
             if path == '/api/knowledge':
                 return self.send_json(200, knowledge_payload)
+            if path.startswith('/api/dataset/'):
+                # 11/28: every row of one data set for the «Бүгдийг харах» view (read-only; no mobiles).
+                made = knowledge.full(path.removeprefix('/api/dataset/')) if knowledge is not None else None
+                if made is None:
+                    return self.error(404, 'Ийм мэдээллийн сан алга.')
+                return self.send_json(200, made)
             if path == '/api/voice/gemini/session':
                 return self.send_json(200, dict(**voice.gemini.status(), csrf_token=gemini_token))
             if path.startswith('/api/teacher-media/'):
@@ -394,6 +401,8 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
             else:
                 result = compose_parts(conversation['resolved_query'], plan,
                                        [answer_one(part['query'], part.get('original')) for part in plan['parts']])
+                if not result.get('answer') and not result.get('referral'):
+                    result = attach_referral(result, rag.referral, rules=rag.topic_rules, locate=rag._office_place)
                 result = rag._remember(result, False)
             if plan is not None and plan['changed']:
                 result['question_plan'] = plan
