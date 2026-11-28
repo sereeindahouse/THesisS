@@ -228,6 +228,8 @@ def spoken_form(text):
     text = weekday_words(strip_fillers(text))
     # «магадлал нь итгэмжлэл», «магадлалын итгэмжлэл» are typed for «магадлан итгэмжлэл» (accreditation), 11/28 (3).
     text = re.sub(r'(?<!\w)магадла(?:л(?:ын)?|н)\s+(?:нь\s+)?итгэмжлэл', 'магадлан итгэмжлэл', text, flags=re.I)
+    # «даавуу тал» (fabric) typed for «давуу тал» (advantage), 11/28 (5).
+    text = re.sub(r'(?<!\w)даавуу(?=\s+тал)', 'давуу', text, flags=re.I)
     # «нөгөө … билээ» (that … again?) recalls a thing: «нөгөө» is a filler there, not «the other» (review).
     if re.search(r'\sбилээ\s*[?!.]*\s*$', text, re.I):
         text = re.sub(r'^\s*нөгөө\s+(?=\S)', '', text, flags=re.I)

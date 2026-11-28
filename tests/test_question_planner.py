@@ -575,5 +575,20 @@ class StatementTests(unittest.TestCase):
             self.assertNotIn('юу мэдэх вэ', ask(kept), kept)
 
 
+
+class SchoolGeneralWordingTests(unittest.TestCase):
+    """11/28 (5), the user: «энэ сургуульд сурвал ямар ямар даавуу талуудтай вэ хичээлийн онцлог нь юу вэ, …» — the first
+    part found nothing (a repeated «ямар», «даавуу» for «давуу») and «хичээлийн онцлог» had no wording."""
+
+    def test_advantages_and_teaching_features(self):
+        from question_planner import SCHOOL_OVERVIEW_QUESTION
+        parts = [part['query'] for part in planner().plan(
+            'энэ сургуульд сурвал ямар ямар даавуу талуудтай вэ хичээлийн онцлог нь юу вэ, лаборторын өрөөнүүд хэр олон бэ')['parts']]
+        self.assertEqual(parts[:2], [SCHOOL_OVERVIEW_QUESTION, SCHOOL_OVERVIEW_QUESTION])
+        self.assertEqual(len(parts), 3)
+        for said in ('энд сурах ямар ашигтай вэ', 'шмткийн онцлог юу вэ', 'сургалт нь ямар байдаг вэ', 'ямар хичээлүүд ордог вэ'):
+            self.assertEqual([part['query'] for part in planner().plan(said)['parts']], [SCHOOL_OVERVIEW_QUESTION], said)
+
+
 if __name__ == '__main__':
     unittest.main()
