@@ -560,5 +560,20 @@ class LongChatTests(unittest.TestCase):
         self.assertIsNone(context_for({}, None))
 
 
+
+class StatementTests(unittest.TestCase):
+    """11/28 (4), the user: a sentence with no question («хүүхэд маань КУ-2 ангид сурдаг») asks back what they want to know."""
+
+    def test_a_sentence_naming_a_class_or_teacher(self):
+        plan = QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'сэлмаа': 'Б.Сэлмаа'}, offices=['Номын сан'], topic_keywords=[],
+                               staff=['Б.Сэлмаа'], class_names=['КУ-2'])
+        ask = lambda text: plan.plan(text)['parts'][0]['query']
+        self.assertEqual(ask('сайн байна уу хүүхэд маань КУ-2 ангид сурдаг'), 'КУ-2 анги — юу мэдэх вэ?')
+        self.assertEqual(ask('Сэлмаа багш манай ангийн багш'), 'Б.Сэлмаа багш — юу мэдэх вэ?')
+        for kept in ('Номын сан', 'КУ-2 ангийн хуваарийг харуулаач', 'сургуулийн тодорхойлолт авах гэсэн юм', 'баярлалаа'):
+            self.assertNotIn('юу мэдэх вэ', ask(kept), kept)
+
+
 if __name__ == '__main__':
     unittest.main()

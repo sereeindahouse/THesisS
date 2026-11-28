@@ -955,6 +955,33 @@ class QuestionPlanner:
                 return short
         return None
 
+    def _statement_about(self, original, text):
+        """The class, teacher or office a sentence with no question names («хүүхэд маань КУ-2 ангид сурдаг», «Сэлмаа
+        багш манай ангийн багш»), or None. A request («… харуулаач», «… өгнө үү»), a wish to meet or to get a paper, and a
+        greeting or thanks are no such sentence."""
+        # A greeting said without a comma («сайн байна уу хүүхэд маань …») is no question; a bare name («Номын сан», «КУ-2»)
+        # keeps its own card.
+        said = re.sub(r'^\s*сайн\s+(?:байна|байцгаана)\s+уу\s*[,!.?？]*\s*', '', (original or '').strip(), flags=re.I)
+        if (len(said.split()) < 3 or '?' in said or '？' in said or QUESTION_WORD.search(said) or MEET_ASK.search(said)
+                or REQUEST.fullmatch(text.strip()) or GREETING.fullmatch(said.casefold().strip(' !.'))
+                or re.search(r'(?:аач|ээч|ооч|өөч|аарай|ээрэй|оорой|өөрэй|(?<!\w)өгнө|(?<!\w)хэлнэ|харуул\w*|'
+                             r'мэдмээр|мэдэх\s+гэсэн|асуух\s+гэсэн|асуумаар|гэсэн\s+юм|байх\s+ёстой|'
+                             # a wish or a thing asked for: «… холбогдмоор байна», «… хуваарь авмаар байна», «… багшийн имэйл»
+                             r'маар|моор|мөөр|хүс|хэрэгтэй|имэйл|мэйл|утас|утсы|өрөө|давхар|хуваар|хичээл|цаг|хаяг|тоот|байршил|'
+                             # «… зурагтай танилцуулгыг үзье» (a request in the first person: -ъя, -ье, -ъё, -ая)
+                             r'зураг|танилцуул|\w(?:ъя|ье|ъё|ая|оё|ёё)(?!\w))',
+                             said, re.I)):
+            return None
+        coded = self._class_code(text)[0]
+        group = GROUP.search(coded)
+        if group:
+            return group.group(1) + ' анги'
+        person = self._person(coded)
+        if person:
+            return person
+        named = self._named(coded)
+        return named or None
+
     def _followup(self, query, previous, max_words=6):
         """«Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» (round 4, 11/17): an elliptical
         follow-up takes only the previous question's named thing — a teacher, class, office or
@@ -1094,6 +1121,13 @@ class QuestionPlanner:
             if wish and not QUESTION_WORD.search(wish.group(1)):
                 rewrites.append(dict(rule='request', text=text, value=wish.group(1) + ' хаанаас авах вэ?'))
                 text = wish.group(1) + ' хаанаас авах вэ?'
+            # 11/28 (4), the user: «хүүхэд маань КУ-2 ангид сурдаг» (no question) got «тодруулна уу»; asking back is right, but
+            # ask what the visitor wants to know about the thing they named.
+            about = self._statement_about(original, text) if len(originals) == 1 else None
+            if about:
+                rewrites.append(dict(rule='statement_about', text=text, value=about))
+                parts.append(dict(original=original, query=about + ' — юу мэдэх вэ?', rewrites=rewrites))
+                continue
             if self.class_groups:
                 for rule in (self._class_code, self._class_group, self._class_contact, self._class_day, self._class_intent,
                              self._office):

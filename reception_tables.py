@@ -1357,9 +1357,31 @@ class ReceptionAnswerPath:
                     return intent, match[1]
         return None
 
+    # The planner's reading of a sentence with no question that names a class, a teacher or an office (11/28 (4)).
+    _STATEMENT_ABOUT = re.compile(r'(.{2,80}?) — юу мэдэх вэ\?')
+
+    def _what_about(self, query, thing):
+        """«КУ-2 анги — юу мэдэх вэ?»: what the visitor wants to know about the thing, with questions to choose from."""
+        if thing.endswith(' анги'):
+            asks = [thing + ' хаана хичээллэдэг вэ?', thing[:-len(' анги')] + ' ангийн багш хэн бэ?',
+                    thing + ' өнөөдөр ямар хичээлтэй вэ?']
+            said = thing[:-len(' анги')] + ' ангийн'
+        elif thing.endswith(' багш'):
+            asks = [thing + ' хаана суудаг вэ?', thing + ' ямар хичээл заадаг вэ?', thing + 'тай яаж уулзах вэ?']
+            said = thing + 'ийн'
+        else:
+            asks = [thing + ' хаана байдаг вэ?', thing + ' хэдэн цагт ажилладаг вэ?', thing + ' дээр хэн ажилладаг вэ?']
+            said = None                     # an office's name takes no ending the table did not write
+        result = self._result(query, None, 'reception_what_about')
+        result.update(message=((said[:1].upper() + said[1:] + ' талаар юу') if said else 'Юу') + ' мэдэхийг хүсэж байна вэ? Жишээ нь: '
+                      + ', '.join('«' + ask + '»' for ask in asks) + '.', suggestions=asks)
+        return result
+
     def recognizes(self, query):
         if not self.enabled:
             return False
+        if isinstance(query, str) and self._STATEMENT_ABOUT.fullmatch(query):
+            return True
         if isinstance(query, str) and asks_meeting_nobody(normalize_wording(query)):
             return True
         if self._room_what(query) is not None or (self.complete and self._exact_post_people(query) is not None):
@@ -2868,6 +2890,9 @@ class ReceptionAnswerPath:
             return None
         if isinstance(query, str) and asks_meeting_nobody(normalize_wording(query)):
             return self._result(query, None, 'reception_who_to_meet')
+        about = self._STATEMENT_ABOUT.fullmatch(query) if isinstance(query, str) else None
+        if about:
+            return self._what_about(query, about.group(1).strip())
         room = self._room_what(query)
         if room is not None:
             return self._room_what_reply(query, room)
