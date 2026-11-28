@@ -582,7 +582,9 @@ async function ask(turn) {
   try {
     // A short follow-up («Имэйл нь?») may borrow what the previous question named, within three minutes.
     const prior = turns[turns.indexOf(turn) - 1];
-    const context = !turn.clarification && prior?.result && Date.now() - (prior.answeredAt || 0) < 180000 ? (prior.result.question_plan?.followup?.rewritten || prior.result.query || prior.query) : null;
+    // 11/28 (3): what the previous answer was about (the server's context_query: the office it named, the last part asked),
+    // within ten minutes — a visitor reads a long answer before asking on.
+    const context = !turn.clarification && prior?.result && Date.now() - (prior.answeredAt || 0) < 600000 ? (prior.result.context_query || prior.result.question_plan?.followup?.rewritten || prior.result.query || prior.query) : null;
     const result = await api("/api/route", { query: turn.query, ...(turn.clarification ? { clarification_id: turn.clarification.id } : {}), ...(turn.transcriptionId ? { transcription_id: turn.transcriptionId } : {}), ...(typeof context === "string" && context.trim() ? { context_query: context.slice(0, 300) } : {}) }, 120000);
     turn.answeredAt = Date.now();
     if (turn.clarification) ownedClarifications.delete(turn.clarification.id);

@@ -515,5 +515,50 @@ class LongFollowupTests(unittest.TestCase):
         self.assertEqual(len(self.parts('Өрөө нь хаана вэ, имэйл нь?', 'КУ-2 ангийн багш хэн бэ?')), 2)
 
 
+
+class LongChatTests(unittest.TestCase):
+    """11/28 (3), the user's long chat: «тэгвэл очиж уулзая гэвэл хэнтэй уулзах вэ» after an admissions question, the
+    accreditation question after «хүүхэд маань төгсөөд …», a dormitory price, a department named before."""
+
+    def plan(self):
+        return QuestionPlanner(enabled=True, split_compound=True, class_groups=True, staff_names=True,
+                               given_names={'соронзонболд': 'Н.Соронзонболд'}, offices=['Сургалтын алба'],
+                               topic_keywords=['төлбөр', 'имэйл', 'өрөө', 'давхар', 'анги', 'багш', 'магадлан'],
+                               staff=['Н.Соронзонболд'], class_names=['КУ-2'])
+
+    def parts(self, text, previous=None):
+        return [part['query'] for part in self.plan().plan(text, previous=previous)['parts']]
+
+    def test_who_to_go_to_takes_the_previous_topic_or_person(self):
+        parts = self.parts('тэгвэл очиж уулзая гэвэл хэнтэй уулзах вэ', 'хэддүгээр ангиас ордог вэ энэ сургуулийн онцлог нь яг юу юм')
+        self.assertEqual(len(parts), 1, parts)
+        self.assertTrue(parts[0].startswith('хэддүгээр ангиас ордог'), parts)
+        self.assertTrue(parts[0].endswith('хэнд хандах вэ?'), parts)
+        self.assertEqual(self.parts('хэнтэй уулзах вэ', 'соронзонболд багш гэж хэн бэ'), ['Н.Соронзонболд багштай яаж уулзах вэ?'])
+        self.assertEqual(self.parts('тэгвэл тэр хүнтэй яаж уулзах вэ', 'механик тэнхимийн эрхлэгч хэн бэ?'),
+                         ['механик тэнхимийн эрхлэгчтэй яаж уулзах вэ'])
+
+    def test_a_verb_phrase_of_the_previous_question_is_no_subject(self):
+        self.assertEqual(self.parts('магадлал нь итгэмжлэл хэзээ авсан бэ', 'хүүхэд маань төгсөөд хаана ажиллах вэ'),
+                         ['магадлан итгэмжлэл хэзээ авсан бэ'])
+
+    def test_the_verb_of_being_is_not_carried(self):
+        self.assertEqual(self.parts('дотуур байр байдаг уу, хэдэн төгрөг вэ'), ['дотуур байр байдаг уу?', 'дотуур байр хэдэн төгрөг вэ?'])
+
+    def test_a_department_named_before(self):
+        self.assertEqual(self.parts('эрхлэгч нь хэн бэ, өрөө нь хаана вэ', 'механик тэнхимийн багш нар хэн бэ'),
+                         ['механик тэнхимийн эрхлэгч хэн бэ?', 'механик тэнхимийн эрхлэгч хаана вэ?'])
+
+    def test_the_next_question_refers_to_the_office_or_the_last_part(self):
+        from question_planner import context_for
+        self.assertEqual(context_for(dict(reason_code='referral_office',
+                                          referral=dict(office='Сургалтын алба (4-р давхар, 406 тоот)'))), 'Сургалтын алба хаана байдаг вэ?')
+        plan = self.plan().plan('Соронзонболд багш хаана суудаг вэ, имэйл нь юу вэ')
+        self.assertEqual(context_for({}, plan), ' '.join(part['query'] for part in plan['parts']))
+        self.assertEqual(context_for(dict(reason_code='reception_service_lookup', answer='Санхүүгийн алба: 8-р давхар, 804 тоот.')),
+                         'Санхүүгийн алба хаана байдаг вэ?')
+        self.assertIsNone(context_for({}, None))
+
+
 if __name__ == '__main__':
     unittest.main()

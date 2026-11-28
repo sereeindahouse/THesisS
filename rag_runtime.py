@@ -20,7 +20,13 @@ from uuid import uuid4
 from reception_tables import ReceptionAnswerPath, floor_text
 from stt_text_normalization import Normalizer
 from llm_runtime import LLMRuntime, _json_object
-from referral import attach_referral, load_referral, load_topic_rules
+from referral import _question_office, attach_referral, load_referral, load_topic_rules
+# «… — энэ талаар хэнд хандах вэ?», «хэнтэй уулзах вэ», «хаашаа очих вэ»: who to go to about a topic (11/28 (3)).
+WHO_TO_ASK_END = re.compile(r'(?:хэнтэй\s+уулз\w*|хэнд\s+ханд\w*|хэнээс\s+асуу\w*|хаашаа\s+оч\w*|хаана\s+оч\w*|'
+                            r'хаана\s+ханд\w*)\s+(?:вэ|бэ)\s*[?？.!]*\s*$', re.I)
+# «Сургалтын төлбөрөө хаана төлөх вэ?», «Тодорхойлолт хаанаас авах вэ?» with no answer found: where to do it is the office.
+WHERE_TO_DO_END = re.compile(r'(?:хаана\s+(?:төлөх|төлдөг|төлнө|бүртгүүлэх|өгөх|авах|бөглөх)|хаанаас\s+(?:авах|авдаг))'
+                             r'\s+(?:вэ|бэ)\s*[?？.!]*\s*$', re.I)
 from faq_intent import FaqIntents
 from question_planner import SCHOOL_OVERVIEW_QUESTION
 from privacy_filter import hide_mobiles
@@ -1894,6 +1900,28 @@ class ChatRAG:
                 self._responses.popitem(last=False)
         return result
 
+    def _who_to_ask(self, database, query, search_query, allow_draft, pattern=None):
+        """«Хэддүгээр ангиас ордог вэ?» then «тэгвэл очиж уулзая гэвэл хэнтэй уулзах вэ» (11/28 (3), the user's chat): the
+        office the referral rules name for the topic, with its place; None when no rule names one (the usual route then
+        says where to ask). The office comes from the reviewed-or-not rules in config/referral.json, never guessed."""
+        if not self.referral or not (pattern or WHO_TO_ASK_END).search(search_query or ''):
+            return None
+        office = _question_office(search_query, self.referral, self._office_place)
+        if not office:
+            return None
+        general = self.referral['general']
+        result = self.policy.route(database, query, allow_draft=allow_draft)
+        result.update(query=query, route='C', answer='Энэ асуудлаар хандах газар: ' + office + '.',
+                      message=general.get('with_office_mn', general['text_mn']), citations=[], related_sources=[],
+                      suggestions=[], clarification=None, exact_matches=[], generated=False, llm_calls=0,
+                      answer_kind='referral_office', reason_code='referral_office')
+        result['referral'] = dict(text='Лавлах газар: ' + office + '.', office=office, office_source='question',
+                                  office_reviewed=(self.referral.get('question_offices') or {}).get('reviewed') is True,
+                                  source=general.get('source'))
+        result['rag'] = dict(enabled=False, reason='referral_office', llm_calls=0, answer_text_generated=False,
+                             source='referral')
+        return self._remember(result, allow_draft)
+
     def recall(self, response_id, query, package_id, draft):
         with self._lock:
             cached = self._responses.get(response_id)
@@ -1928,7 +1956,10 @@ class ChatRAG:
                 answer_text_generated=False, source='reception_tables')
             result = self._remember(result, allow_draft)
         else:
-            result = self._route(database, search_query, allow_draft=allow_draft, timings=timings)
+            result = (self._who_to_ask(database, query, search_query, allow_draft)
+                      or self._route(database, search_query, allow_draft=allow_draft, timings=timings))
+            if not result.get('answer') and not result.get('clarification'):
+                result = self._who_to_ask(database, query, search_query, allow_draft, WHERE_TO_DO_END) or result
         if prepared is not None:
             result['query'] = query
             result['search_normalization'] = dict(prepared, automatic=True, human_correction_claimed=False)

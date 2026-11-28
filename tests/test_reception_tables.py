@@ -660,6 +660,18 @@ class DepartmentStaffTests(unittest.TestCase):
         self.assertNotIn('• Н.Наран', others['answer'])
         self.assertFalse(path.recognizes('Мэдээллийн технологийн тэнхимийн багш нар хэн бэ?'))
 
+    def test_who_works_at_a_post(self):
+        # 11/28 sweep: «Захирал дээр хэн ажилладаг вэ?» showed a news sentence about the director's trip.
+        from reception_tables import ReceptionTables, Room, Staff
+        path = ReceptionAnswerPath(tables=ReceptionTables(
+            rooms=(Room(floor=5, name='508', purpose='Захирал'),), timetable=(), classes=(),
+            staff=(Staff(name='Т.Оюун', department='Захиргаа', room='508', role='Захирал'),
+                   Staff(name='Б.Туслах', department='Захиргаа', room='508', role='Захирлын туслах'))),
+            enabled=True, complete=True)
+        self.assertTrue(path.recognizes('Захирал дээр хэн ажилладаг вэ?'))
+        answer = path.answer('Захирал дээр хэн ажилладаг вэ?')['answer']
+        self.assertIn('Т.Оюун', answer)
+
 
 if __name__ == '__main__':
     unittest.main()

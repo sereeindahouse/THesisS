@@ -23,7 +23,7 @@ from knowledge_view import KnowledgeView
 from latin_query import to_cyrillic, vocabulary_from
 from privacy_filter import hide_mobiles
 from project_policy import ContentUsePolicy
-from question_planner import QuestionPlanner, compose as compose_parts
+from question_planner import QuestionPlanner, compose as compose_parts, context_for
 from rag_runtime import ChatRAG
 from referral import attach_referral
 from sqlite_retrieval import ReadOnlyContentStore
@@ -394,18 +394,20 @@ def make_server(*, port=PORT, project_root=None, voice_service=None, rag_service
             if plan is None or not plan['changed']:
                 result = answer_one(conversation['resolved_query'])
             elif not plan['compound']:
-                result = answer_one(plan['parts'][0]['query'], conversation['resolved_query'])
+                result = answer_one(plan['parts'][0]['query'], plan['parts'][0]['query'])
                 result['query'] = conversation['resolved_query']
                 # Stored again under the visitor's own wording, which the page sends back to be spoken.
                 result = rag._remember(result, False)
             else:
                 result = compose_parts(conversation['resolved_query'], plan,
-                                       [answer_one(part['query'], part.get('original')) for part in plan['parts']])
+                                       [answer_one(part['query'], part['query']) for part in plan['parts']])
                 if not result.get('answer') and not result.get('referral'):
                     result = attach_referral(result, rag.referral, rules=rag.topic_rules, locate=rag._office_place)
                 result = rag._remember(result, False)
             if plan is not None and plan['changed']:
                 result['question_plan'] = plan
+            # What the next short question refers to (question_planner.context_for, 11/28 (3)).
+            result['context_query'] = context_for(result, plan) or result.get('query')
             if latin:
                 result['latin_script'] = dict(original=raw_query, read_as=latin)   # «Ингэж ойлголоо: …»
             context_started = time.perf_counter()

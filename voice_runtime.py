@@ -439,8 +439,23 @@ class VoiceRuntime:
 
     def _check_capacity(self):
         with self._records_lock:
-            if len(self._records) >= MAX_SESSION_ITEMS:
-                raise VoiceRuntimeError("voice_session_full", "Түр дууны хязгаарт хүрлээ; session-ийг цэвэрлээд үргэлжлүүлнэ үү.", 409)
+            # 11/28 (3), the user: «Сонсох» stopped working in a long chat — after 40 replies listened to, every new one was
+            # refused («Түр дууны хязгаарт хүрлээ»). The oldest spoken reply makes room (the page plays one at a time); a
+            # recording of a question is dropped only when a newer one exists, so the question being asked keeps its own.
+            while len(self._records) >= MAX_SESSION_ITEMS:
+                spoken = [key for key in self._records if key not in self._transcription_texts]
+                recorded = [key for key in self._records if key in self._transcription_texts]
+                oldest = spoken[0] if spoken else (recorded[0] if len(recorded) > 1 else None)
+                if oldest is None:
+                    raise VoiceRuntimeError("voice_session_full", "Түр дууны хязгаарт хүрлээ; session-ийг цэвэрлээд үргэлжлүүлнэ үү.", 409)
+                audio_path, info_path, _ = self._records.pop(oldest)
+                self._transcription_texts.pop(oldest, None)
+                for path in (audio_path, info_path):
+                    try:
+                        if self._safe_file(path).exists():
+                            self._safe_file(path).unlink()
+                    except (OSError, VoiceRuntimeError):
+                        pass
 
     def transcribe(self, audio_bytes, content_type):
         self._check_capacity()

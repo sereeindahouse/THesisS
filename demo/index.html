@@ -387,7 +387,7 @@ async function askTurn(turn){
   // An elliptical follow-up («Хэдэн цагт ажилладаг вэ?») may borrow the previous question's
   // named thing; only within three minutes, so the next visitor at the desk starts fresh.
   const prior=chatTurns[chatTurns.indexOf(turn)-1];
-  const context=!turn.clarification&&prior?.result&&Date.now()-(prior.answeredAt||0)<180000?(prior.result.question_plan?.followup?.rewritten||prior.result.query||prior.query):null;
+  const context=!turn.clarification&&prior?.result&&Date.now()-(prior.answeredAt||0)<600000?(prior.result.context_query||prior.result.question_plan?.followup?.rewritten||prior.result.query||prior.query):null;
   const result=await api("/api/route",{query:turn.query,allow_draft:turn.draft,...(turn.clarification?{clarification_id:turn.clarification.id}:{}),...(turn.transcriptionId?{transcription_id:turn.transcriptionId}:{}),...(typeof context==="string"&&context.trim()?{context_query:context.slice(0,300)}:{})});
   turn.answeredAt=Date.now();
   if(turn.clarification)ownedClarificationIds.delete(turn.clarification.id);

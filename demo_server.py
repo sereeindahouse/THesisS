@@ -28,7 +28,7 @@ from data_explorer import SourceExplorer
 from clarification_context import ClarificationContext, ClarificationConflict
 from content_release import ContentReleaseManager, ReleaseConflict, ReleaseError
 from release_runtime import LiveContentRuntime
-from question_planner import QuestionPlanner, compose as compose_parts
+from question_planner import QuestionPlanner, compose as compose_parts, context_for
 from latin_query import to_cyrillic, vocabulary_from
 from website_retrieval import WebsiteRetriever
 from teacher_media import TeacherMedia, TeacherMediaError
@@ -819,6 +819,8 @@ def make_server(db_path=None, *, port=8765, project_root=None, voice_service=Non
                             result = rag._remember(result, allow_draft)
                         if plan is not None and plan['changed']:
                             result['question_plan'] = plan
+                        # What the next short question refers to (question_planner.context_for, 11/28 (3)).
+                        result['context_query'] = context_for(result, plan) or result.get('query')
                         if latin:
                             # The page shows «Ингэж ойлголоо: …» above any answer (demo/index.html).
                             result['latin_script'] = dict(original=raw_query, read_as=latin)

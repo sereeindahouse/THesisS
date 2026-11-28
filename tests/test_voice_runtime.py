@@ -664,5 +664,14 @@ class VoiceRuntimeTests(unittest.TestCase):
         self.assertFalse((self.root / "runtime").exists())
 
 
+    def test_a_long_chat_keeps_speaking_by_dropping_the_oldest_reply(self):
+        # 11/28 (3), the user: «Сонсох» stopped working after many replies in a long chat (voice_session_full).
+        async def edge(*args): return b'ID3fixture'
+        with patch.object(voice, '_edge_audio', side_effect=edge), patch.object(voice, 'MAX_SESSION_ITEMS', 2):
+            ids = [self.runtime.synthesize('Текст ' + str(i), voice.ALLOWED_VOICES[0])['id'] for i in range(4)]
+        self.assertEqual(list(self.runtime._records), ids[-2:])
+        self.runtime.audio(ids[-1])
+
+
 if __name__ == "__main__":
     unittest.main()

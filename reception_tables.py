@@ -119,7 +119,7 @@ _ASKING = re.compile(r'(?<!\w)(?:хэзээ|хаана|хэд\w*|хэн|яаж|�
 # бэ» was answered with a news item on a Japanese college's director.
 # A filler stands alone before a space or a comma: an initial («Э.Батаа», «Ө.Болд») is no filler, and «нөгөө»
 # («the other») keeps its meaning (review).
-_FILLERS = re.compile(r'^(?:\s*(?:а+н+|ө{2,}|э{2,}|м{2,}|тэгээд|за)(?=[\s,]),?)+\s*(?=\S)', re.I)
+_FILLERS = re.compile(r'^(?:\s*(?:а+н+|ө{2,}|э{2,}|м{2,}|тэгээд|тэгвэл|тэгэхээр|тэгэх\s+юм\s+бол|за)(?=[\s,]),?)+\s*(?=\S)', re.I)
 _SPOKEN_END = re.compile(r'(\S+)\s+(?:юм(?:\s+(бэ|вэ|бол|уу|юу|үү))?|билээ)\s*([?!.]*)\s*$', re.I)
 # «мэдэхгүй юм» (I don't know), «авах гэсэн юм» (a wish), «ямар юм бэ» (what thing) say «юм» as a statement or a noun.
 _STATEMENT_BEFORE_YUM = re.compile(r'(?:гүй|гэсэн|гэж|ямар)$', re.I)
@@ -226,6 +226,8 @@ def spoken_form(text):
     (round 21). An ending changes only in a question — a question word in its own sentence, or a yes/no
     particle — and not after a statement («… мэдэхгүй юм», «… авах гэсэн юм»), review."""
     text = weekday_words(strip_fillers(text))
+    # «магадлал нь итгэмжлэл», «магадлалын итгэмжлэл» are typed for «магадлан итгэмжлэл» (accreditation), 11/28 (3).
+    text = re.sub(r'(?<!\w)магадла(?:л(?:ын)?|н)\s+(?:нь\s+)?итгэмжлэл', 'магадлан итгэмжлэл', text, flags=re.I)
     # «нөгөө … билээ» (that … again?) recalls a thing: «нөгөө» is a filler there, not «the other» (review).
     if re.search(r'\sбилээ\s*[?!.]*\s*$', text, re.I):
         text = re.sub(r'^\s*нөгөө\s+(?=\S)', '', text, flags=re.I)
@@ -1779,7 +1781,16 @@ class ReceptionAnswerPath:
         """Staff whose recorded unit holds the asked office («Карьер хөгжлийн төв» is in «Гадаад харилцаа, карьер
         хөгжлийн төв»), all of one unit; none for a short or ambiguous name (round 19)."""
         key = re.sub(r'\s+', ' ', _key(value))
-        if self.tables is None or len(key) < 5:
+        if self.tables is None or len(key) < 3:
+            return []
+        # «Захирал дээр хэн ажилладаг вэ?», «Эмч дээр …» (11/28 sweep: a news sentence about the director's trip was shown): a
+        # recorded post, then who shares its holder's room (the director and the director's assistant).
+        holders = [person for person in self.tables.staff if person.role and _key(person.role) == key]
+        if holders:
+            rooms = {_key(person.room) for person in holders if person.room}
+            return holders + [person for person in self.tables.staff
+                              if person not in holders and person.room and _key(person.room) in rooms]
+        if len(key) < 5:
             return []
         # «Номын санд хэн ажилладаг вэ?»: the office without its dative («санд» -> «сан», «албанд» -> «алба»), review.
         units = [_key(person.department) for person in self.tables.staff if person.department]

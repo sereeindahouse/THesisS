@@ -110,8 +110,15 @@ COLLEAGUES = re.compile(r'(?:нь\s+)?(?:(?:тэр|энэ)\s+тэнхимийн\
                         r'(?:хэн(?:\s+хэн)?|хэд|хэдэн|нэрс|жагсаалт)', re.I)
 # A subject carried to a later part is a noun phrase: «Маргааш 10 цагт уулзаж болох уу, имэйл нь юу вэ» carried
 # «Маргааш 10 цагт уулзаж» into the e-mail part (11/28 (2)). No number, day, hour or verb form.
-NOT_A_SUBJECT = re.compile(r'\d|(?<!\w)(?:өнөөдөр|маргааш|нөгөөдөр|одоо|цаг\w*|гараг\w*|даваа|мягмар|лхагва|пүрэв|'
-                           r'баасан|бямба|ням|уулз\w*|холбогд\w*|байх|байна|байгаа|болох|болно|ирэх|очих|\w+(?:вал|вэл|вол|вөл|бал|бэл|бол|бөл))(?!\w)', re.I)
+NOT_A_SUBJECT = re.compile(r'\d+(?![\d:.])(?!\s*(?:тоот|-?р\s+өрөө))|\d+[:.]\d|(?<!\w)(?:өнөөдөр|маргааш|нөгөөдөр|одоо|цаг\w*|гараг\w*|даваа|мягмар|лхагва|пүрэв|'
+                           r'баасан|бямба|ням|уулз\w*|холбогд\w*|байх|байна|байгаа|болох|болно|ирэх|очих|маань|минь|'
+                           r'\w+(?:вал|вэл|вол|вөл|бал|бэл|бол|бөл)|\w{3,}(?:аад|ээд|оод|өөд))(?!\w)', re.I)
+# 11/28 (3), the user's chat: «… хэддүгээр ангиас ордог вэ …» then «тэгвэл очиж уулзая гэвэл хэнтэй уулзах вэ» — who to go
+# to about what was just asked; «олдсонгүй» was shown.
+WHO_TO_ASK = re.compile(r'(?:(?:за|тэгвэл|тэгэхээр|тэгээд|тэгэх\s+юм\s+бол)\s*,?\s+)?'
+                        r'(?:(?:очиж\s+|биечлэн\s+)?(?:уулзъя|уулзая|уулзмаар|уулзах|асуух|лавлах|очъё|очих)\s+(?:гэвэл|бол|гэсэн\s+юм|гэж\s+байна)\s*,?\s+)?'
+                        r'(?:хэнтэй\s+уулз\w*|хэнд\s+ханд\w*|хэнээс\s+асуу\w*|хаашаа\s+оч\w*|хаана\s+оч\w*|хаана\s+ханд\w*)'
+                        r'\s+(?:вэ|бэ)\s*[?？.!]*\s*', re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
@@ -130,7 +137,9 @@ SPOKEN_DIGITS = NUMBER_UNITS
 # …») before the question; its comma kept the desk's lookups from reading «номын сан хаана байдаг вэ».
 COURTESY = re.compile(r'(?:\s*(?:уучлаарай|өршөөгөөрэй|сайн\s+(?:байна\s+|байцгаана\s+)?уу|байна\s+уу|надад\s+тусална\s+уу|'
                       r'туслаач|нэг\s+юм\s+асууя|асуух\s+юм\s+байна|би\s+(?:шинэ\s+)?(?:оюутан|элсэгч|эцэг\s+эх|зочин)|'
-                      r'би\s+элсэх\s+гэсэн\s+юм)\s*[,!.]+|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу\s*[?？]+)+\s*(?=\S)', re.I)
+                      r'би\s+элсэх\s+гэсэн\s+юм|'
+                      # 11/28 (3), long chats: an answer acknowledged before the next question («за ойлголоо, …»).
+                      r'ойлголоо|ойлгосон|ойлгомжтой|баярлалаа|за\s+тэгье|тийм\s+үү|за\s+за|болж\s+байна)\s*[,!.]+|\s*сайн\s+(?:байна\s+|байцгаана\s+)?уу\s*[?？]+)+\s*(?=\S)', re.I)
 
 
 def _without_courtesy(text):
@@ -193,7 +202,9 @@ EVERYDAY_QUESTIONS = tuple((re.compile(pattern), question) for pattern, question
     (r'энд\s+(?:юу|юуг)\s+(?:сурдаг|заадаг|хийдэг|сургадаг)(?:\s+газар)?' + _END, SCHOOL_OVERVIEW_QUESTION),
     (r'(?:шмтк|коосэн|коллеж|nmct)\s+(?:гэж|гэдэг(?:\s+(?:нь|чинь))?)\s+(?:юу|ямар\s+сургууль)' + _END, SCHOOL_OVERVIEW_QUESTION),
     (r'(?:шмтк|nmct)\s+(?:юу\s+гэсэн\s+үг|гэдэг\s+(?:нь|чинь)\s+юу)' + _END, SCHOOL_OVERVIEW_QUESTION),
-    (_THIS + r'(?:сургууль|сургуулийн|коллеж|коллежийн)\s+онцлог(?:\s+нь)?(?:\s+юу)?' + _END, SCHOOL_OVERVIEW_QUESTION),
+    # «энэ сургуулийн онцлог нь яг юу юм» (the user's chat 11/28 (3): «яг» was not read).
+    (_THIS + r'(?:сургууль|сургуулийн|коллеж|коллежийн)\s+(?:гол\s+)?онцлог\w*(?:\s+нь)?(?:\s+(?:яг|гол))?(?:\s+(?:юу|ямар))?' + _END,
+     SCHOOL_OVERVIEW_QUESTION),
     (r'яагаад\s+(?:энэ\s+сургуульд|энд|танай\s+сургуульд|танайд|шмтк-д)\s+(?:сурах|суралцах|орох)(?:\s+ёстой)?' + _END,
      SCHOOL_OVERVIEW_QUESTION),
     (_THIS + r'(?:сургууль|коллеж)\s+(?:сайн|япон(?:\s+сургууль)?)' + _END, SCHOOL_OVERVIEW_QUESTION),
@@ -501,7 +512,9 @@ class QuestionPlanner:
     @staticmethod
     def _subject(part):
         match = QUESTION_WORD.search(part)
-        return part[:match.start()].strip(' ,') if match else ''
+        subject = part[:match.start()].strip(' ,') if match else ''
+        # «Дотуур байр байдаг уу, хэдэн төгрөг вэ» (11/28 (3)): «байдаг» is no part of the thing asked about.
+        return re.sub(r'(?:\s+(?:байдаг|байна|байгаа|бий|байх|болох|болдог|нь))+$', '', subject, flags=re.I).strip(' ,')
 
     def _person(self, text):
         """The teacher or staff member a part names («Н.Соронзонболд багш»), or None."""
@@ -568,8 +581,8 @@ class QuestionPlanner:
                 # room number or the school of its own is a new question).
                 anchor = next((earlier for earlier in reversed(result) if self._named(earlier)
                                or (self._subject(earlier) and not NOT_A_SUBJECT.search(self._subject(earlier)))), None)
-                followup = (self._followup(part, anchor) if anchor is not None and (possessive or not self._has_topic(part))
-                            else None)
+                followup = (self._followup(part, anchor, max_words=10)
+                            if anchor is not None and (possessive or not self._has_topic(part)) else None)
                 if followup:
                     result.append(followup['rewritten'])
                     continue
@@ -942,7 +955,7 @@ class QuestionPlanner:
                 return short
         return None
 
-    def _followup(self, query, previous):
+    def _followup(self, query, previous, max_words=6):
         """«Номын сан хаана вэ?» then «Хэдэн цагт ажилладаг вэ?» (round 4, 11/17): an elliptical
         follow-up takes only the previous question's named thing — a teacher, class, office or
         its short subject — never the whole history, which hurts retrieval (Lin et al. 2021;
@@ -950,7 +963,7 @@ class QuestionPlanner:
         (a topic shift) and is left as asked; so is a greeting."""
         text = query.strip()
         lowered = text.casefold()
-        if (not isinstance(previous, str) or not previous.strip() or len(_words(text)) > 6
+        if (not isinstance(previous, str) or not previous.strip() or len(_words(text)) > max_words
                 or not (QUESTION_WORD.search(text) or re.search(r'(?<!\w)нь\s*\?*$', lowered))
                 or GREETING.fullmatch(lowered.strip(' ?!.'))
                 or GROUP.search(self._class_code(text)[0]) or self._named(text) is not None
@@ -964,6 +977,10 @@ class QuestionPlanner:
             if not subject or len(subject.split()) > 4 or QUESTION_WORD.search(subject) or NOT_A_SUBJECT.search(subject):
                 return None
             entity = subject
+            # «Механик тэнхимийн багш нар хэн бэ?» then «Эрхлэгч нь хэн бэ?»: the department is the thing (11/28 (3)).
+            unit = re.fullmatch(r'(.+?)\s+тэнхим(?:ийн)?(?:\s+(?:багш(?:\s*нар\w*)?|ажилтн\w*|бусад\s+багш\s*нар\w*))?', entity, re.I)
+            if unit:
+                entity = unit.group(1) + ' тэнхим'
         # «тэнд» (there) points at the previous thing, which takes its place (round 13); «энд» (here) is
         # the school itself and starts a new question (review). So does a room number or the school by name
         # («604 тоот хаана байдаг вэ», «Сургуулийн хаяг хаана вэ» after a teacher, 11/28 (2) sweep).
@@ -1020,14 +1037,25 @@ class QuestionPlanner:
         previous = spoken_form(_without_courtesy(strip_fillers(previous))[0]) if previous else previous
         followup = (self._followup(stripped, previous)
                     if previous and not (COLLEAGUES.match(stripped.strip()) and self._person(previous))
+                    and not WHO_TO_ASK.fullmatch(stripped)
                     and not (self.split_compound and len(self._split(stripped)) > 1) else None)
+        if previous and WHO_TO_ASK.fullmatch(stripped) and self._named(stripped) is None:
+            # Who to go to about what was just asked: the person named before, or the office of the previous question's topic.
+            person = self._person(previous)
+            rewritten = (person + 'тай яаж уулзах вэ?' if person
+                         else previous.strip().rstrip(' ?？.!') + ' — энэ талаар хэнд хандах вэ?')
+            followup = dict(rule='who_to_ask', previous=previous, entity=person, rewritten=rewritten)
         asked = followup['rewritten'] if followup else stripped
-        originals = self._split(asked) if self.split_compound else [asked.strip()]
+        # «… — энэ талаар хэнд хандах вэ?» carries the previous question's words as its topic: one question, not split.
+        originals = (self._split(asked) if self.split_compound and not (followup and followup['rule'] == 'who_to_ask')
+                     else [asked.strip()])
         routed = list(originals)
         # The previous question's person or thing for a follow-up too long for the rule above (11/28 (2)); a
         # message that names someone or something of its own starts afresh.
         seed = (previous if previous and not followup and self._named(stripped) is None
-                and (self._person(previous) or self._named(previous)) else None)
+                and (self._person(previous) or self._named(previous)
+                     or (self._subject(previous) and len(self._subject(previous).split()) <= 4
+                         and not NOT_A_SUBJECT.search(self._subject(previous)))) else None)
         if len(originals) > 1:
             # Distributed parallel parts already carry the subject; others may inherit it.
             distributed = self._distribute(originals)
@@ -1101,6 +1129,27 @@ class QuestionPlanner:
         if followup:
             result['followup'] = followup
         return result
+
+
+def context_for(result, plan=None):
+    """The question the visitor's next elliptical question («Хэдэн давхарт байдаг вэ?», «Тэр хүнтэй яаж уулзах вэ?») refers
+    to. 11/28 (3), the user's long chat: after «хэнд хандах вэ» → «Сургалтын алба» the next «хэдэн давхарт» knew nothing of the
+    office, and after a question of three parts the page sent all three. The office named in a referral answer, else the
+    last part as the planner read it; None keeps the visitor's own question."""
+    if result.get('reason_code') == 'referral_office':
+        office = ((result.get('referral') or {}).get('office') or '').split(' (')[0].strip()
+        if office:
+            return office + ' хаана байдаг вэ?'
+    # An office card answering a question that named the office another way («сургалтын төлбөрөө хаана төлөх вэ» →
+    # «Санхүүгийн алба: 8-р давхар …»): the next «хэдэн цагт ажилладаг вэ» is about that office.
+    card = re.match(r'(?:\[[^\]]*\]\s*)?([^:\n]{2,60}):\s*\d+-р давхар', str(result.get('answer') or ''))
+    if card and result.get('reason_code') == 'reception_service_lookup':
+        return card.group(1).strip() + ' хаана байдаг вэ?'
+    parts = (plan or {}).get('parts') or []
+    if parts and plan.get('changed'):
+        # Every part, so «хэнд хандах вэ» still sees the whole topic; the follow-up rules take the thing named first.
+        return ' '.join(dict.fromkeys(part['query'].strip() for part in parts))[:300]
+    return None
 
 
 def _source_urls(result):
