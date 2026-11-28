@@ -140,6 +140,82 @@ def _particle(word, yes_no=False):
     return 'уу' if last_vowel(word) and last_vowel(word) in 'аоуяёюы' else 'үү'
 
 
+# 11/28, the user's test before the examination: «1 дэхь өдөр 09:00 цагт уулзах боломжтой болов уу?» — a weekday said by
+# its number in the week («нэгдэх өдөр» is Monday) was not read as a day, and the sentence went to the website search.
+_ORDINAL_DAY = re.compile(
+    r'(?<!\w)(?:(?P<d>[1-7])\s*-?\s*(?:дэхь|дэх|дахь|дох|дөх|дугаар|дүгээр|р)|'
+    r'(?P<w>нэг|хоёр|гурав|дөрөв|тав|зургаа|долоо)\s*-?\s*(?:дэхь|дэх|дахь|дох|дөх|дугаар|дүгээр)|'
+    r'(?P<half>хагас|бүтэн)\s+сайн)\s+(?P<day>өдөрт|өдөр|өдрийн|өдрөөс)(?!\w)', re.I)
+_ORDINAL_WORDS = {'нэг': 1, 'хоёр': 2, 'гурав': 3, 'дөрөв': 4, 'тав': 5, 'зургаа': 6, 'долоо': 7}
+WEEKDAY_NAMES = ('даваа', 'мягмар', 'лхагва', 'пүрэв', 'баасан', 'бямба', 'ням')
+_DAY_CASE = {'өдөр': 'гараг', 'өдөрт': 'гарагт', 'өдрийн': 'гарагийн', 'өдрөөс': 'гарагаас'}
+# «сарын 1 дэх өдөр», «хичээлийн 1 дэх өдөр» are a date or the first day of something, not a weekday.
+_NOT_WEEK = re.compile(r'(?:сарын|хичээлийн|улирлын|жилийн|элсэлтийн|бүртгэлийн|шалгалтын|сургалтын|хурлын|'
+                       r'хөтөлбөрийн|өдөрлөгийн|арга\s+хэмжээний)\s*$', re.I)
+
+
+def weekday_words(text):
+    """«1 дэхь өдөр» -> «даваа гараг», «хоёрдахь өдөрт» -> «мягмар гарагт», «хагас сайн өдөр» -> «бямба гараг»."""
+    if not isinstance(text, str):
+        return text
+
+    def day(match):
+        if _NOT_WEEK.search(text[:match.start()]):
+            return match.group(0)
+        if match['half']:
+            number = 6 if match['half'].casefold() == 'хагас' else 7
+        else:
+            number = int(match['d']) if match['d'] else _ORDINAL_WORDS[match['w'].casefold()]
+        name = WEEKDAY_NAMES[number - 1] + ' ' + _DAY_CASE[match['day'].casefold()]
+        return name[:1].upper() + name[1:] if match.group(0)[:1].isupper() else name
+    return _ORDINAL_DAY.sub(day, text)
+
+
+# A day or an hour said before the rest of a sentence: «даваа гарагт 9 цагт», «маргааш өглөө», «09:00 цагт». The planner
+# reads «<нэр> багш … хэн бэ? Даваа гарагт 9 цагт уулзаж болох уу?» as a meeting with that teacher, and a meeting asked
+# with nobody named is answered with a question back, never with a website sentence that only shares «өдөр, цаг».
+TIME_LEAD = (r'(?:(?:(?:яг\s+)?одоо|өнөөдөр|маргааш|нөгөөдөр|ирэх\s+долоо\s+хоногт|энэ\s+долоо\s+хоногт|'
+             r'(?:ирэх\s+)?(?:даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?:\s+гараг(?:т|ийн)?)?|'
+             r'өглөө(?:ний)?|орой(?:н)?|үдээс\s+(?:өмнө|хойш)|(?:үдийн\s+)?цайны\s+цаг(?:аар|ийн\s+дараа)|'
+             r'\d{1,2}(?:[:.]\d{2})?\s*цаг(?:т|ийн\s+(?:үед|үеэр|орчимд?|хавьд|алдад)|аас)?|'
+             r'\d{1,2}:\d{2}(?:-?(?:д|т|аас))?)\s*,?\s+)+')
+MEET_OR_FREE = (r'(?:(?:түүнтэй|тэр\s+(?:багш|хүн)тэй)\s+)?(?:уулз\w*|холбогд\w*|завтай|чөлөөтэй|сул(?!\w)|'
+                r'зав\s+(?:бий|байна|байгаа)|хичээлтэй|хичээлгүй|'
+                r'(?:өрөөндөө\s+|энд\s+|сургууль\s+дээрээ?\s+|ажил\s+дээрээ\s+)?(?:байх|байгаа|байна|ирэх|ирсэн)\s+(?:уу|юу|үү))')
+_TIME_LEAD_RE = re.compile(r'\s*' + TIME_LEAD, re.I)
+_MEET_WORDS = frozenset('болох боломжтой болно бол болов юу уу үү вэ бэ байна байгаа гэсэн юм'.split())
+
+
+def asks_meeting_nobody(text):
+    """True for «Хэзээ уулзаж болох вэ?», «Маргааш уулзаж болох уу?», «10 цагт завтай юу?» said alone: a meeting or free
+    time asked with no person, post or office named."""
+    if not isinstance(text, str) or len(text) > 200:
+        return False
+    rest = text.strip().rstrip('?？.! ')
+    lead = _TIME_LEAD_RE.match(rest + ' ')
+    if lead:
+        rest = (rest + ' ')[lead.end():].strip()
+    words = [word.casefold() for word in rest.split()]
+    while words and words[0] in ('хэзээ', 'яаж', 'хэрхэн', 'түүнтэй'):
+        words = words[1:]
+    if words[:2] == ['хэдэн', 'цагт']:
+        words = words[2:]
+    if not words:
+        return False
+    head = words[0]
+    asked_when = lead is not None or text.strip().casefold().startswith(('хэзээ', 'хэдэн цагт'))
+    # «Хэзээ ирэх вэ?», «Өрөөндөө байна уу?» said alone ask about a person nobody named too (the website showed a list
+    # of events for «Хэзээ ирэх вэ?»).
+    if head in ('өрөөндөө', 'энд') and len(words) > 1 and words[1] in ('байна', 'байгаа', 'байх'):
+        words = words[1:]
+        head = 'in-place'
+    elif head in ('ирэх', 'ирдэг', 'ирнэ') and asked_when:
+        head = 'уулз'
+    if not (head.startswith('уулз') or (head in ('завтай', 'чөлөөтэй') and lead) or head == 'in-place' and len(words) == 2):
+        return False
+    return all(word in _MEET_WORDS for word in words[1:])
+
+
 def strip_fillers(text):
     """«аан номын сан …» -> «номын сан …» (round 21)."""
     return _FILLERS.sub('', text, count=1) if isinstance(text, str) else text
@@ -149,7 +225,7 @@ def spoken_form(text):
     """«аан номын сан хаана байдаг юм бэ» -> «номын сан хаана байдаг вэ», «… болох юм уу» -> «… болох уу»
     (round 21). An ending changes only in a question — a question word in its own sentence, or a yes/no
     particle — and not after a statement («… мэдэхгүй юм», «… авах гэсэн юм»), review."""
-    text = strip_fillers(text)
+    text = weekday_words(strip_fillers(text))
     # «нөгөө … билээ» (that … again?) recalls a thing: «нөгөө» is a filler there, not «the other» (review).
     if re.search(r'\sбилээ\s*[?!.]*\s*$', text, re.I):
         text = re.sub(r'^\s*нөгөө\s+(?=\S)', '', text, flags=re.I)
@@ -1047,6 +1123,8 @@ class ReceptionAnswerPath:
             'reception_room_unknown': 'Энэ хүний ажлын өрөө хүснэгтэд бүртгэгдээгүй байна.',
             'reception_group_required': 'Аль анги, бүлгийн багшийг асууж байгааг тодруулна уу.',
             'reception_floor_unknown': 'Энэ давхрын өрөө ресепшний хүснэгтэд бүртгэгдээгүй байна.',
+            'reception_who_to_meet': 'Хэнтэй уулзах, эсвэл хэнийг асууж байгаагаа хэлнэ үү: багш, ажилтны нэр, албан тушаал эсвэл алба. '
+                                     'Жишээ нь: «Захиралтай маргааш 10 цагт уулзаж болох уу?»',
         }
         return dict(query=query, answer=natural(answer), reason_code=reason, message=messages.get(reason, ''),
             reception=dict(dataset_label=self.tables.dataset_label if self.tables else None,
@@ -1277,6 +1355,8 @@ class ReceptionAnswerPath:
     def recognizes(self, query):
         if not self.enabled:
             return False
+        if isinstance(query, str) and asks_meeting_nobody(normalize_wording(query)):
+            return True
         if self._asks_lunch_break(query) or self._asks_school_hours(query) or self._asks_weekend_hours(query):
             return True
         if self.complete and (self._teacher_time_slots(query) is not None or self._unscheduled_staff(query) is not None
@@ -2628,6 +2708,8 @@ class ReceptionAnswerPath:
     def _answer_core(self, query, *, now=None):
         if not self.enabled:
             return None
+        if isinstance(query, str) and asks_meeting_nobody(normalize_wording(query)):
+            return self._result(query, None, 'reception_who_to_meet')
         slots = self._teacher_time_slots(query) if self.complete else None
         if slots is not None:
             made = self._teacher_time_reply(query, slots, now)

@@ -554,5 +554,32 @@ class CheckSetWordingTests(unittest.TestCase):
                 self.assertNotIn('FAKE-301', result['answer'])
 
 
+
+class WeekdayAndMeetingWordingTests(unittest.TestCase):
+    """11/28, the user's test: «1 дэхь өдөр» is Monday; a meeting asked with nobody named gets a question back."""
+
+    def test_weekday_said_by_its_number(self):
+        from reception_tables import weekday_words
+        self.assertEqual(weekday_words('1 дэхь өдөр 09:00 цагт'), 'даваа гараг 09:00 цагт')
+        self.assertEqual(weekday_words('Нэгдэх өдөр уулзъя'), 'Даваа гараг уулзъя')
+        self.assertEqual(weekday_words('хоёрдахь өдөрт'), 'мягмар гарагт')
+        self.assertEqual(weekday_words('5-р өдрийн хуваарь'), 'баасан гарагийн хуваарь')
+        self.assertEqual(weekday_words('хагас сайн өдөр'), 'бямба гараг')
+        # A date or the first day of something stays as said.
+        for kept in ('сарын 1 дэх өдөр', 'хичээлийн 1 дэх өдөр', '8 дахь өдөр', 'Монгол хэлний өдөр'):
+            self.assertEqual(weekday_words(kept), kept)
+
+    def test_meeting_with_nobody_named(self):
+        from reception_tables import asks_meeting_nobody
+        for asked in ('Хэзээ уулзаж болох вэ?', 'Маргааш уулзаж болох уу?', '10 цагт завтай юу?',
+                      '09:00 цагт уулзах боломжтой болов уу?', 'Даваа гарагт 9 цагт уулзах боломжтой юу?', 'Уулзаж болох уу?',
+                      'Хэзээ ирэх вэ?', 'Өрөөндөө байна уу?'):
+            self.assertTrue(asks_meeting_nobody(asked), asked)
+        for named in ('Сэлмаа багштай уулзаж болох уу?', 'Захиралтай маргааш уулзаж болох уу?', 'Номын сан хэзээ ажилладаг вэ?',
+                      'Завтай юу?', 'Элсэлтийн комисс хэзээ уулзах вэ?', 'Хурал хэзээ болох вэ?', 'Байна уу?',
+                      'Ирэх арга хэмжээ хэзээ вэ?'):
+            self.assertFalse(asks_meeting_nobody(named), named)
+
+
 if __name__ == '__main__':
     unittest.main()

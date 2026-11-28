@@ -33,7 +33,7 @@ import json
 from pathlib import Path
 import re
 
-from reception_tables import (NUMBER_UNITS, PERSON_NAME, teacher_asked_now, teacher_time_parts, last_vowel, normalize_wording, spoken_form, strip_context_clause,
+from reception_tables import (MEET_OR_FREE, TIME_LEAD, NUMBER_UNITS, PERSON_NAME, teacher_asked_now, teacher_time_parts, last_vowel, normalize_wording, spoken_form, strip_context_clause,
                               strip_fillers)
 
 CONFIG_PATH = 'config/question-planner.json'
@@ -99,6 +99,10 @@ PERSON_FOLLOWUP = re.compile(
     r'хаашаа\s+оч|өрөө\s+нь|(?:(?:яаж|хэрхэн|хэзээ|хаана|хэдэн\s+цагт|одоо|өнөөдөр|маргааш)\s+)?(?:уулз|холбогд|холбоо\s+бар)|'
     r'(?:юу|ямар(?:\s+ямар)?\s+хичээл)\s+заадаг|(?:и-?мэйл|имэйл|мэйл|цахим\s+шуудан|утас|утасны\s+дугаар)(?!\w)|'
     r'(?:одоо|өнөөдөр|маргааш)\s+(?:хичээлтэй|чөлөөтэй|завтай|байгаа|байна))', re.I)
+# 11/28 (the user's test): «Соронзонболд багш гэж хэн бэ? … 1 дэхь өдөр 09:00 цагт уулзах боломжтой болов уу?» — a
+# sentence that starts with a day or an hour and asks to meet, whether the person is free, has a lesson or is in, is
+# about the person named before (it went to the website and showed an entrance-exam time).
+TIMED_FOLLOWUP = re.compile(TIME_LEAD + MEET_OR_FREE, re.I)
 WEEKDAY = re.compile(r'(?<!\w)(даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 DAY_WORD = re.compile(r'(?<!\w)(өнөөдөр|маргааш|даваа|мягмар|лхагва|пүрэв|баасан|бямба|ням)(?!\w)', re.I)
 TEACHER = re.compile(r'(?<![\w.])([А-ЯӨҮЁ])\.\s*([А-ЯӨҮЁ][а-яөүё-]{2,})\s+багш', re.I)
@@ -504,7 +508,7 @@ class QuestionPlanner:
             # person an earlier sentence named, also when two sentences stand between them.
             person = next((found for found in map(self._person, reversed(result)) if found), None)
             bare = strip_context_clause(part).strip()
-            if person and self._named(bare) is None and PERSON_FOLLOWUP.match(bare):
+            if person and self._named(bare) is None and (PERSON_FOLLOWUP.match(bare) or TIMED_FOLLOWUP.match(bare)):
                 if person.endswith(' ангийн багш'):
                     # The class teacher's own room or e-mail, in the wordings the tables read.
                     mail = re.match(r'(?:нь\s+)?(?:и-?мэйл|имэйл|мэйл|цахим|утас|(?:яаж|хэрхэн)\s+холбогд|холбоо\s+бар)', bare, re.I)
@@ -512,7 +516,7 @@ class QuestionPlanner:
                 else:
                     result.append(person + ' ' + bare[:1].lower() + bare[1:])
                 continue
-            if self._named(bare) is None and PERSON_FOLLOWUP.match(bare):
+            if self._named(bare) is None and (PERSON_FOLLOWUP.match(bare) or TIMED_FOLLOWUP.match(bare)):
                 # The same after a post or an office («Захирал хэн бэ? Хэдэн давхарт суудаг вэ?»): the follow-up
                 # rule reads it against the latest earlier sentence that has a subject.
                 anchor = next((earlier for earlier in reversed(result)

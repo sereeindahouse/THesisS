@@ -443,5 +443,20 @@ class ComposeWordingTests(unittest.TestCase):
         self.assertEqual(result['message'], 'Энэ талаар мэдээлэл олдсонгүй. Лавлах газар: Санхүүгийн алба (8-р давхар).')
 
 
+
+class TimedFollowupTests(unittest.TestCase):
+    """11/28, the user's test: the third sentence named a day by its number and an hour, and went to the website."""
+
+    def test_a_day_or_hour_sentence_is_about_the_person_named_before(self):
+        plan = planner().plan('Сэлмаа багш гэж хэн бэ? Хэзээ уулзаж болох вэ? 1 дэхь өдөр 09:00 цагт уулзах боломжтой болов уу?')
+        third = plan['parts'][-1]['query']
+        self.assertTrue(third.startswith('Б.Сэлмаа багш'), third)
+        self.assertIn('даваа гараг', third)
+        for later in ('Даваа гарагт 9 цагт уулзах боломжтой юу?', 'Маргааш 10 цагт завтай юу?',
+                      'Өглөө 9 цагт өрөөндөө байх уу?', 'Хоёрдахь өдөр хичээлтэй юу?'):
+            parts = planner().plan('Сэлмаа багш хаана суудаг вэ? ' + later)['parts']
+            self.assertTrue(parts[-1]['query'].startswith('Б.Сэлмаа багш'), (later, parts[-1]['query']))
+
+
 if __name__ == '__main__':
     unittest.main()
